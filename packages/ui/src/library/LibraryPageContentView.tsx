@@ -25,6 +25,7 @@ import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.j
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { GameCombatIcon, type GameDamageTypeKey } from "../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../time/formatTime.js";
+import { SystemUpdateProgress, systemUpdateToneForStatus, type SystemUpdateTone } from "../update/SystemUpdateProgress.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,
@@ -86,8 +87,9 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const perkGroupOptions = model.queryPanel.perkGroupOptions;
   const hitCount = model.results.hitCount;
   const isManifestBlocked = model.queryPanel.isManifestBlocked;
+  const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const manifestAlert = buildManifestAlert(model.manifestAlert, copy);
-  const manifestSummary = buildManifestSummary(model, copy, props.interfaceLocale ?? "zh-CN");
+  const manifestSummary = buildManifestSummary(model, copy, interfaceLocale);
   const equipmentRows = useMemo(
     () => model.results.equipmentGroups.flatMap((group) => group.items),
     [model.results.equipmentGroups]
@@ -135,16 +137,20 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
 
   const manifestAlertElement = manifestAlert ? (
     <section className={`library-manifest-alert status-message ${manifestAlert.className}`} role="status">
-      <div>
-        <strong>{manifestAlert.title}</strong>
-        <span>{manifestAlert.message}</span>
-        {manifestAlert.detail ? <small>{manifestAlert.detail}</small> : null}
-        {manifestAlert.progress !== undefined ? (
-          <span className="library-manifest-progress" aria-label={`${manifestAlert.progress}%`}>
-            <span style={{ width: `${manifestAlert.progress}%` }} />
-          </span>
-        ) : null}
-      </div>
+      <SystemUpdateProgress
+        variant="inline"
+        interfaceLocale={interfaceLocale}
+        tone={manifestAlert.tone}
+        title={manifestAlert.title}
+        statusLabel={manifestAlert.statusLabel}
+        message={manifestAlert.message}
+        detail={manifestAlert.detail}
+        progressPercent={manifestAlert.progress}
+        indeterminate={manifestAlert.indeterminate}
+        progressCurrentBytes={manifestAlert.task?.progress_current_bytes}
+        progressTotalBytes={manifestAlert.task?.progress_total_bytes}
+        progressBytesPerSecond={manifestAlert.task?.progress_bytes_per_second}
+      />
       {manifestAlert.primaryAction ? <div className="library-manifest-actions">
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={actions.onRefreshManifestStatus}>
           {libraryText(copy, "重新检查")}
@@ -340,6 +346,10 @@ function buildManifestAlert(
   message: string;
   detail?: string;
   progress?: number;
+  indeterminate?: boolean;
+  statusLabel?: string;
+  tone: SystemUpdateTone;
+  task?: NonNullable<LibraryManifestAlertModel["task"]>;
   primaryAction?: "update" | "repair";
   className: string;
 } | null {
@@ -355,6 +365,8 @@ function buildManifestAlert(
         ? `${alert.error ?? libraryText(copy, "未知错误")} ${libraryText(copy, "旧资料库仍可继续使用。")}`
         : alert.error ?? libraryText(copy, "未知错误"),
       primaryAction: alert.hasUsableManifest ? "update" : "repair",
+      statusLabel: libraryText(copy, "失败"),
+      tone: "error",
       className: alert.className
     };
   }
@@ -362,6 +374,9 @@ function buildManifestAlert(
     return {
       title: libraryText(copy, "正在检查资料库版本"),
       message: libraryText(copy, "资料库版本检查会在后台运行，切换菜单不会中断。"),
+      statusLabel: libraryText(copy, "检查中"),
+      indeterminate: true,
+      tone: "pending",
       className: alert.className
     };
   }
@@ -370,6 +385,8 @@ function buildManifestAlert(
       title: libraryText(copy, "资料库尚未初始化"),
       message: libraryText(copy, "账号页、搜索和详情需要资料库。可以现在启动后台更新，完成后再继续查询。"),
       primaryAction: "update",
+      statusLabel: libraryText(copy, "未准备"),
+      tone: "warning",
       className: alert.className
     };
   }
@@ -378,6 +395,8 @@ function buildManifestAlert(
       title: libraryText(copy, "资料库内容不完整"),
       message: `${libraryText(copy, "缺少")} ${alert.missingComponentCount ?? 0} ${libraryText(copy, "项资料内容，搜索和详情可能不完整；建议立即后台更新资料库。")}`,
       primaryAction: "repair",
+      statusLabel: libraryText(copy, "需修复"),
+      tone: "warning",
       className: alert.className
     };
   }
@@ -396,6 +415,8 @@ function buildManifestAlert(
         ? `${currentVersion}${libraryText(copy, " 发布了新的同日构建；旧资料库仍可使用，更新完成后会自动切换。")}`
         : `${libraryText(copy, "当前")} ${currentVersion}，${libraryText(copy, "最新")} ${latestVersion}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
       primaryAction: "update",
+      statusLabel: libraryText(copy, "可更新"),
+      tone: "warning",
       className: alert.className
     };
   }
@@ -415,9 +436,13 @@ function buildManifestAlert(
         ? task?.error ?? task?.message ?? libraryText(copy, "资料库更新暂时失败。")
         : task?.message ?? libraryText(copy, "正在准备新的资料库。"),
       detail: `${availability}${alert.kind === "retrying" ? ` ${retryAt}` : ""}`,
+      statusLabel: alert.kind === "retrying" ? libraryText(copy, "等待重试") : libraryText(copy, "更新中"),
+      tone: systemUpdateToneForStatus(task?.status ?? (alert.kind === "retrying" ? "retrying" : "running")),
       progress: task?.progress_percent === undefined
         ? undefined
         : Math.max(0, Math.min(100, Math.round(task.progress_percent))),
+      indeterminate: alert.kind === "updating" && task?.progress_percent === undefined,
+      task,
       className: alert.className
     };
   }

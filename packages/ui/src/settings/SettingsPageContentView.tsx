@@ -8,6 +8,7 @@ import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfi
 import { SettingsButton } from "./SettingsButton.js";
 import { SettingsSourcesSection } from "./SettingsSourcesSection.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
+import { SystemUpdateProgress, systemUpdateToneForStatus } from "../update/SystemUpdateProgress.js";
 
 type AccountSummary = any;
 type ActionLogEntry = any;
@@ -96,7 +97,7 @@ export type SettingsPageContentViewProps = {
 };
 
 type SettingsSectionKey = "overview" | "language" | "account" | "library" | "bungie" | "ai" | "backup" | "sources" | "diagnostics";
-type StatusTone = "neutral" | "ready" | "warning" | "error";
+type StatusTone = "neutral" | "pending" | "ready" | "warning" | "error";
 
 function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; label: string; hint: string }> {
   return [
@@ -133,7 +134,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const [isSavingBungieConfig, setIsSavingBungieConfig] = useState(false);
   const [isAutoPreparingManifest, setIsAutoPreparingManifest] = useState(false);
   const [hasAutoManifestFailure, setHasAutoManifestFailure] = useState(false);
-  const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy);
+  const appUpdateTask = getAppUpdateTask(props.backgroundTasks);
+  const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy, appUpdateTask);
   const manifestTask = getManifestTask(props.backgroundTasks);
   const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy, manifestTask);
   const accountUi = getAccountUi(props.accountSummary, props.accountError, props.accountWarning, props.isLoadingAccount, copy);
@@ -215,7 +217,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     }
   }
 
-  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion, manifestTask, onOpenSources: () => setActiveSection("sources") };
+  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion, manifestTask, appUpdateTask, onOpenSources: () => setActiveSection("sources") };
 
   function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
     const nextIndex = getRovingFocusIndex({
@@ -264,7 +266,6 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
             <OverviewSection
               {...sectionProps}
               updateUi={updateUi}
-              updateProgress={formatAppUpdateProgress(props.appUpdateSnapshot)}
               appVersion={props.appUpdateSnapshot?.current_version ?? settingsText(copy, "未读取")}
               updateSource={props.appUpdateSnapshot?.update_source_label ?? "GitHub Release"}
               updateCheckedAt={formatUpdateCheckedAt(props.appUpdateSnapshot?.last_checked_at, copy)}
@@ -302,7 +303,7 @@ function SettingsPanel(props: { title: string; subtitle: string; badge?: string;
   return <section className="settings-panel" data-surface="section"><header className="settings-panel-head" data-surface="row"><div><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.title}</h3><p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.subtitle}</p></div>{props.badge ? <StatusBadge tone={props.tone ?? "neutral"}>{props.badge}</StatusBadge> : null}</header>{props.children}</section>;
 }
 
-function statusLevel(tone: StatusTone): "neutral" | "success" | "warning" | "error" { return tone === "ready" ? "success" : tone; }
+function statusLevel(tone: StatusTone): "neutral" | "pending" | "success" | "warning" | "error" { return tone === "ready" ? "success" : tone; }
 function StatusBadge(props: { tone: StatusTone; children: ReactNode }) { const status = statusLevel(props.tone); return <span className="settings-status-badge" data-ui-kind="status-chip" data-ui-part="state" data-info-priority="support" data-text-tone="status" data-status={status}>{props.children}</span>; }
 function MetricGrid(props: { children: ReactNode; variant?: "overview" | "update" | "summary" }) { return <div className={`settings-metric-grid settings-${props.variant ?? "summary"}-metrics`} data-reference-id="settings.metrics" data-surface="frame" data-ui-kind="status-matrix">{props.children}</div>; }
 function Metric(props: { label: string; value: string; detail: string; tone?: StatusTone; valueKind?: "fact" | "status" }) { const isStatus = props.valueKind === "status"; const status = isStatus ? statusLevel(props.tone ?? "neutral") : undefined; return <div className="settings-metric" data-surface="row" data-ui-kind="status-matrix-cell" data-status={status}><span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{props.label}</span><strong data-ui-part="value" data-value-kind={isStatus ? "status" : "fact"} data-info-priority={isStatus ? "decision" : "context"} data-text-tone={isStatus ? "status" : "primary"} data-status={status}>{props.value}</strong><small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.detail}</small></div>; }
@@ -331,9 +332,9 @@ function OverviewSection(props: any) {
         <SettingsButton data-control-variant="secondary" onClick={props.onOpenSources}>{settingsText(copy, "查看来源与鸣谢")}</SettingsButton>
       </div>
     </SettingsPanel>
-    <SettingsPanel title={settingsText(copy, "应用更新")} subtitle={updateUi.summary} badge={updateUi.statusLabel} tone={updateUi.tone}>
+    <SettingsPanel title={settingsText(copy, "应用更新")} subtitle={settingsText(copy, "检查、下载并安装 d2-tools 新版本。")} badge={updateUi.statusLabel} tone={updateUi.tone}>
       <MetricGrid variant="update"><Metric label={settingsText(copy, "应用版本")} value={props.appVersion} detail={settingsText(copy, "当前安装版本")} /><Metric label={settingsText(copy, "更新来源")} value={props.updateSource} detail={settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")} /><Metric label={settingsText(copy, "上次检查")} value={props.updateCheckedAt} detail={settingsText(copy, "应用更新检查时间")} /></MetricGrid>
-      {props.updateProgress > 0 ? <div className="settings-progress" aria-label={settingsText(copy, "更新下载进度")}><span style={{ width: `${props.updateProgress}%` }} /></div> : null}
+      <AppUpdateProgress snapshot={props.appUpdateSnapshot} task={props.appUpdateTask} updateUi={updateUi} copy={copy} interfaceLocale={props.interfaceLocale} />
       <aside className="settings-download-warning" data-ui-kind="callout" data-status="warning" aria-label={settingsText(copy, "防骗提示")}>
         <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status">{settingsText(copy, "防骗提示")}</strong>
         <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "官方版本永久免费。如果你是付费购买或通过收费渠道获得，请直接点击下方“打开下载页”获取官方版本。")}</p>
@@ -393,7 +394,7 @@ function AppUpdateActions(props: {
           {isDownloadError ? <SettingsButton data-control-variant="primary" onClick={props.onDownload}>{settingsText(props.copy, "重试下载")}</SettingsButton> : null}
           {status === "downloaded" ? <SettingsButton data-control-variant="primary" onClick={openInstallConfirmation}>{settingsText(props.copy, "重启并安装")}</SettingsButton> : null}
           {status === "idle" || status === "not_available" || (status === "error" && !isDownloadError) ? <SettingsButton data-control-variant={status === "error" ? "primary" : "secondary"} disabled={isChecking} aria-busy={isChecking} onClick={props.onCheck}>{status === "error" ? settingsText(props.copy, "重试检查") : settingsText(props.copy, "检查软件版本")}</SettingsButton> : null}
-          {isDownloading ? <SettingsButton data-control-variant="secondary" disabled aria-busy="true">{settingsText(props.copy, "下载中")}{props.snapshot?.progress_percent === undefined ? "" : ` · ${props.snapshot.progress_percent}%`}</SettingsButton> : null}
+          {isDownloading ? <SettingsButton data-control-variant="secondary" disabled aria-busy="true">{settingsText(props.copy, "下载中")}</SettingsButton> : null}
           {status === "available" || status === "downloading" || status === "error" ? <SettingsButton data-control-variant="secondary" onClick={props.onOpenDownloadPage}>{settingsText(props.copy, "打开下载页")}</SettingsButton> : null}
           {status !== "checking" && status !== "downloading" ? <SettingsButton data-control-variant="secondary" onClick={props.onCopyDiagnostic}>{settingsText(props.copy, "复制更新诊断")}</SettingsButton> : null}
         </SettingsActions>
@@ -409,6 +410,49 @@ function AppUpdateActions(props: {
         />
       ) : null}
     </>
+  );
+}
+
+function AppUpdateProgress(props: {
+  snapshot: AppUpdateSnapshot | null;
+  task: BackgroundTaskSnapshot | null;
+  updateUi: { statusLabel: string; summary: string; tone: StatusTone };
+  copy: SettingsCopy;
+  interfaceLocale: InterfaceLocale;
+}) {
+  const status = props.snapshot?.status ?? "idle";
+  if (status === "idle" || status === "not_available") return null;
+
+  const task = props.task;
+  const isActive = status === "checking" || status === "downloading" || task?.status === "retrying";
+  const retryDetail = task?.status === "retrying" && task.next_retry_at
+    ? `${settingsText(props.copy, "下次重试")}：${formatDateTime(task.next_retry_at, props.copy)}`
+    : undefined;
+  const tone = task?.status === "retrying"
+    ? "warning"
+    : status === "downloaded"
+      ? "warning"
+      : status === "error"
+        ? "error"
+        : "pending";
+
+  return (
+    <aside className="settings-feedback settings-system-update" data-ui-kind="callout" data-status={statusLevel(tone)} role={isActive ? "status" : undefined} aria-live={isActive ? "polite" : undefined}>
+      <SystemUpdateProgress
+        variant="detail"
+        interfaceLocale={props.interfaceLocale}
+        tone={tone}
+        title={settingsText(props.copy, "应用更新")}
+        statusLabel={task?.status === "retrying" ? settingsText(props.copy, "等待重试") : props.updateUi.statusLabel}
+        message={task?.status === "retrying" ? task.error ?? task.message ?? props.updateUi.summary : props.updateUi.summary}
+        detail={retryDetail}
+        progressPercent={task?.progress_percent ?? props.snapshot?.progress_percent}
+        indeterminate={isActive && task?.progress_percent === undefined && props.snapshot?.progress_percent === undefined}
+        progressCurrentBytes={task?.progress_current_bytes}
+        progressTotalBytes={task?.progress_total_bytes}
+        progressBytesPerSecond={task?.progress_bytes_per_second}
+      />
+    </aside>
   );
 }
 
@@ -441,23 +485,25 @@ function AccountSection(props: any) {
 }
 
 function LibrarySection(props: any) {
-  const { copy, libraryUi, libraryVersion, manifestStatus, manifestTask } = props;
+  const { copy, interfaceLocale, libraryUi, libraryVersion, manifestStatus, manifestTask } = props;
   return <SettingsSection id="library" copy={copy} title={copy.menu.library.label} subtitle={settingsText(copy, "装备、Perk、活动和商人数据。")} badge={libraryUi.statusLabel} tone={libraryUi.tone}>
     <MetricGrid><Metric label={settingsText(copy, "资料库日期")} value={libraryVersion ?? settingsText(copy, "未读取")} detail={settingsText(copy, "从完整版本号解析")} /><Metric label={settingsText(copy, "资料完整性")} value={formatLibraryIntegrity(manifestStatus, copy)} detail={settingsText(copy, "用于搜索和详情判断")} /><Metric label={settingsText(copy, "上次更新")} value={formatDateTime(manifestStatus?.cached_at, copy)} detail={settingsText(copy, "成功重建资料库的时间")} /><Metric label={settingsText(copy, "更新规则")} value={settingsText(copy, "每天自动检查一次")} detail={settingsText(copy, "手动检查、立即更新和修复不受限制")} /></MetricGrid>
     <VersionTable><VersionRow label={settingsText(copy, "资料库版本")} value={libraryVersion ?? settingsText(copy, "未读取")} /><VersionRow label={settingsText(copy, "当前版本")} value={manifestStatus?.version ?? settingsText(copy, "未初始化")} /><VersionRow label={settingsText(copy, "最新版本")} value={manifestStatus?.latest_version ?? settingsText(copy, "等待检查")} /><VersionRow label={settingsText(copy, "上次检查")} value={formatDateTime(manifestStatus?.checked_at, copy)} /><VersionRow label={settingsText(copy, "自动检查")} value={settingsText(copy, "启动后或打开资料库状态时触发；同一本地日期只自动检查一次")} /><VersionRow label={settingsText(copy, "自动更新")} value={settingsText(copy, "未初始化、不完整或发现新版时后台更新；失败时保留旧资料库")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "检查资料库版本、立即更新、修复资料库始终立即执行")} /></VersionTable>
-    {manifestTask ? <ManifestTaskStatus task={manifestTask} copy={copy} /> : null}
+    {manifestTask ? <ManifestTaskStatus task={manifestTask} copy={copy} interfaceLocale={interfaceLocale} /> : null}
     <div className="settings-action-row"><SettingsActions><SettingsButton data-control-variant="secondary" disabled={props.isLoading} onClick={props.onRefresh}>{settingsText(copy, "检查资料库版本")}</SettingsButton><SettingsButton data-control-variant="primary" disabled={props.isInitializing} onClick={props.onInitialize}>{props.isInitializing ? settingsText(copy, "更新中...") : settingsText(copy, "立即更新")}</SettingsButton><SettingsButton data-control-variant="danger" disabled={props.isInitializing} onClick={props.onRepair}>{settingsText(copy, "修复资料库")}</SettingsButton></SettingsActions></div>
   </SettingsSection>;
 }
 
-function ManifestTaskStatus(props: { task: BackgroundTaskSnapshot; copy: SettingsCopy }) {
+function ManifestTaskStatus(props: { task: BackgroundTaskSnapshot; copy: SettingsCopy; interfaceLocale: InterfaceLocale }) {
   const task = props.task;
   const active = task.status === "queued" || task.status === "running" || task.status === "retrying";
   const status = task.status === "failed" || task.status === "blocked"
     ? "error"
     : task.status === "success"
       ? "success"
-      : "warning";
+      : task.status === "retrying"
+        ? "warning"
+        : "pending";
   const availability = task.availability === "usable"
     ? settingsText(props.copy, "旧资料库仍可使用，完成后自动切换。")
     : task.availability === "limited"
@@ -466,14 +512,21 @@ function ManifestTaskStatus(props: { task: BackgroundTaskSnapshot; copy: Setting
   const retry = task.status === "retrying" && task.next_retry_at
     ? `${settingsText(props.copy, "下次重试")}：${formatDateTime(task.next_retry_at, props.copy)}`
     : "";
-  const progress = task.progress_percent === undefined
-    ? undefined
-    : Math.max(0, Math.min(100, Math.round(task.progress_percent)));
   return <aside className="settings-feedback settings-manifest-task" data-ui-kind="callout" data-status={status} role={active ? "status" : undefined} aria-live={active ? "polite" : undefined}>
-    <strong>{task.title}{progress === undefined ? "" : ` · ${progress}%`}</strong>
-    <p>{task.status === "failed" || task.status === "retrying" ? task.error ?? task.message : task.message}</p>
-    <small>{availability}{retry ? ` ${retry}` : ""}</small>
-    {progress !== undefined && active ? <div className="settings-progress" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div> : null}
+    <SystemUpdateProgress
+      variant="detail"
+      interfaceLocale={props.interfaceLocale}
+      tone={systemUpdateToneForStatus(task.status)}
+      title={task.title}
+      statusLabel={task.status === "retrying" ? settingsText(props.copy, "等待重试") : task.status === "success" ? settingsText(props.copy, "已完成") : settingsText(props.copy, "更新中")}
+      message={task.status === "failed" || task.status === "retrying" ? task.error ?? task.message : task.message}
+      detail={`${availability}${retry ? ` ${retry}` : ""}`}
+      progressPercent={task.progress_percent}
+      indeterminate={active && task.progress_percent === undefined}
+      progressCurrentBytes={task.progress_current_bytes}
+      progressTotalBytes={task.progress_total_bytes}
+      progressBytesPerSecond={task.progress_bytes_per_second}
+    />
   </aside>;
 }
 
@@ -568,24 +621,32 @@ function getBungieUi(input: { isLoading: boolean; apiKey: string; clientId: stri
 }
 
 function getAiUi(isConfigured: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "ready" | "warning" } { return isConfigured ? { statusLabel: settingsText(copy, "已配置"), summary: settingsText(copy, "可用于装备分析、perk 解读和仓库建议。"), tone: "ready" } : { statusLabel: settingsText(copy, "未配置"), summary: settingsText(copy, "不影响本地账号和资料库功能"), tone: "warning" }; }
-function getBackgroundTaskUi(tasks: BackgroundTaskSnapshot[], copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "warning" | "error" } { const active = tasks.filter((task) => task.status === "queued" || task.status === "running" || task.status === "retrying"); const failed = tasks.find((task) => task.status === "blocked" || task.status === "failed"); if (failed) return { statusLabel: settingsText(copy, "需关注"), summary: failed.title, tone: "error" }; if (active.length) return { statusLabel: `${active.length} ${settingsText(copy, "个运行中")}`, summary: active[0]?.title ?? settingsText(copy, "后台任务运行中"), tone: "warning" }; return { statusLabel: settingsText(copy, "空闲"), summary: settingsText(copy, "没有正在运行或阻断的任务。"), tone: "neutral" }; }
-function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy): { statusLabel: string; summary: string; tone: StatusTone } {
+function getBackgroundTaskUi(tasks: BackgroundTaskSnapshot[], copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "pending" | "warning" | "error" } { const active = tasks.filter((task) => task.status === "queued" || task.status === "running" || task.status === "retrying"); const failed = tasks.find((task) => task.status === "blocked" || task.status === "failed"); if (failed) return { statusLabel: settingsText(copy, "需关注"), summary: failed.title, tone: "error" }; if (active.length) return { statusLabel: `${active.length} ${settingsText(copy, "个运行中")}`, summary: active[0]?.title ?? settingsText(copy, "后台任务运行中"), tone: active.some((task) => task.status === "retrying") ? "warning" : "pending" }; return { statusLabel: settingsText(copy, "空闲"), summary: settingsText(copy, "没有正在运行或阻断的任务。"), tone: "neutral" }; }
+function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy, task: BackgroundTaskSnapshot | null): { statusLabel: string; summary: string; tone: StatusTone } {
   if (!snapshot) return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取更新状态。"), tone: "neutral" };
-  if (snapshot.status === "checking") return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在连接更新服务。"), tone: "neutral" };
-  if (snapshot.status === "available") return { statusLabel: settingsText(copy, "发现新版本"), summary: `${settingsText(copy, "发现新版本")} ${snapshot.available_version ?? ""}${settingsText(copy, "可先下载，下载完成后再重启安装。")}`, tone: "warning" };
+  if (task?.status === "retrying") return { statusLabel: settingsText(copy, "等待重试"), summary: task.error ?? task.message ?? settingsText(copy, "应用会在后台继续重试。"), tone: "warning" };
+  if (snapshot.status === "checking") return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在连接更新服务。"), tone: "pending" };
+  if (snapshot.status === "available") return { statusLabel: settingsText(copy, "发现新版本"), summary: `${settingsText(copy, "发现新版本")} ${snapshot.available_version ?? ""}${settingsText(copy, "可先下载，下载完成后再重启安装。")}`, tone: "pending" };
   if (snapshot.status === "not_available") {
     if (snapshot.error) return { statusLabel: settingsText(copy, "未检查"), summary: snapshot.user_message ?? snapshot.error, tone: "neutral" };
     return { statusLabel: settingsText(copy, "当前已是最新版本"), summary: snapshot.user_message ?? settingsText(copy, "当前已是最新版本。"), tone: "ready" };
   }
-  if (snapshot.status === "downloading") return { statusLabel: settingsText(copy, "下载中"), summary: snapshot.progress_percent === undefined ? settingsText(copy, "正在下载更新。") : `${settingsText(copy, "正在下载更新：")}${snapshot.progress_percent}%`, tone: "warning" };
-  if (snapshot.status === "downloaded") return { statusLabel: settingsText(copy, "等待重启"), summary: snapshot.user_message ?? `${settingsText(copy, "更新")} ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} ${settingsText(copy, "已下载。")}`, tone: "ready" };
+  if (snapshot.status === "downloading") return { statusLabel: settingsText(copy, "下载中"), summary: snapshot.user_message ?? settingsText(copy, "正在下载更新。"), tone: "pending" };
+  if (snapshot.status === "downloaded") return { statusLabel: settingsText(copy, "等待重启"), summary: snapshot.user_message ?? `${settingsText(copy, "更新")} ${snapshot.downloaded_version ?? snapshot.available_version ?? ""} ${settingsText(copy, "已下载。")}`, tone: "warning" };
   if (snapshot.status === "error") {
     const retryHint = snapshot.retrying ? settingsText(copy, "应用会在后台继续重试。") : "";
     return { statusLabel: settingsText(copy, "更新受阻"), summary: [snapshot.user_message ?? snapshot.error ?? settingsText(copy, "更新检查失败。"), retryHint].filter(Boolean).join(" "), tone: "error" };
   }
   return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查软件版本。"), tone: "neutral" };
 }
-function getLibraryUi(status: ManifestStatus | null, error: string, isLoading: boolean, copy: SettingsCopy, task: BackgroundTaskSnapshot | null): { statusLabel: string; summary: string; tone: StatusTone } { if (task && ["queued", "running", "retrying"].includes(task.status)) return { statusLabel: task.status === "retrying" ? settingsText(copy, "等待重试") : settingsText(copy, "更新中"), summary: task.status === "retrying" ? task.error ?? task.message ?? settingsText(copy, "应用会在后台继续重试。") : task.message ?? settingsText(copy, "正在后台更新资料库。"), tone: "warning" }; if (error) return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" }; if (isLoading && !status) return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "neutral" }; if (!status || !status.initialized) return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" }; if (status.missing_required_components?.length) return { statusLabel: settingsText(copy, "需修复"), summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`, tone: "warning" }; if (status.missing_optional_components?.length) return { statusLabel: settingsText(copy, "可用"), summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`, tone: "warning" }; if (status.needs_update) return { statusLabel: settingsText(copy, "可更新"), summary: settingsText(copy, "发现新版资料库，将在后台更新。"), tone: "warning" }; return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、Perk、活动和商人数据可用。"), tone: "ready" }; }
+function getLibraryUi(status: ManifestStatus | null, error: string, isLoading: boolean, copy: SettingsCopy, task: BackgroundTaskSnapshot | null): { statusLabel: string; summary: string; tone: StatusTone } { if (task && ["queued", "running", "retrying"].includes(task.status)) return { statusLabel: task.status === "retrying" ? settingsText(copy, "等待重试") : settingsText(copy, "更新中"), summary: task.status === "retrying" ? task.error ?? task.message ?? settingsText(copy, "应用会在后台继续重试。") : task.message ?? settingsText(copy, "正在后台更新资料库。"), tone: task.status === "retrying" ? "warning" : "pending" }; if (error) return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" }; if (isLoading && !status) return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "pending" }; if (!status || !status.initialized) return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" }; if (status.missing_required_components?.length) return { statusLabel: settingsText(copy, "需修复"), summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`, tone: "warning" }; if (status.missing_optional_components?.length) return { statusLabel: settingsText(copy, "可用"), summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`, tone: "warning" }; if (status.needs_update) return { statusLabel: settingsText(copy, "可更新"), summary: settingsText(copy, "发现新版资料库，将在后台更新。"), tone: "warning" }; return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、Perk、活动和商人数据可用。"), tone: "ready" }; }
+
+function getAppUpdateTask(tasks: BackgroundTaskSnapshot[]): BackgroundTaskSnapshot | null {
+  return tasks.find((task) => (
+    (task.type === "app-update-check" || task.type === "app-update-download")
+    && (task.status === "queued" || task.status === "running" || task.status === "retrying")
+  )) ?? tasks.find((task) => task.type === "app-update-check" || task.type === "app-update-download") ?? null;
+}
 
 function getManifestTask(tasks: BackgroundTaskSnapshot[]): BackgroundTaskSnapshot | null {
   return tasks.find((task) => (
@@ -598,7 +659,6 @@ function formatLibraryVersion(version?: string): string | undefined { const matc
 function formatLibraryIntegrity(status: ManifestStatus | null, copy: SettingsCopy): string { if (!status?.initialized) return settingsText(copy, "未准备"); if (status.missing_required_components?.length) return `${settingsText(copy, "缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项，需修复")}`; if (status.missing_optional_components?.length) return `${settingsText(copy, "辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项")}`; return settingsText(copy, "完整"); }
 function formatDateTime(value: string | undefined, copy: SettingsCopy): string { return formatFullDateTime(value, settingsText(copy, "未读取")); }
 function formatUpdateCheckedAt(value: string | undefined, copy: SettingsCopy): string { return formatFullDateTime(value, settingsText(copy, "未检查")); }
-function formatAppUpdateProgress(snapshot: AppUpdateSnapshot | null): number { if (!snapshot) return 0; if (snapshot.status === "downloaded") return 100; return snapshot.status === "downloading" ? Math.max(8, Math.min(100, snapshot.progress_percent ?? 8)) : 0; }
 function formatAccountSnapshot(accountSummary: AccountSummary | null, copy: SettingsCopy): string { return accountSummary ? `${settingsText(copy, "账号快照")} · ${settingsText(copy, "角色")} ${accountSummary.characters.length} · ${settingsText(copy, "仓库")} ${accountSummary.vault.item_count}` : settingsText(copy, "未读取账号"); }
 function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSummary | null, copy: SettingsCopy): string { if (!accountSummary) return settingsText(copy, "未读取"); if (!loadedAt) return settingsText(copy, "本次启动已读取"); return formatFullDateTime(loadedAt, settingsText(copy, "本次启动已读取")); }
 function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string { const labels: Record<string, string> = { "set-lock": settingsText(copy, "锁定状态"), equip: settingsText(copy, "装备"), "insert-socket-plug": settingsText(copy, "切换武器 Perk"), transfer: settingsText(copy, "仓库转移"), "postmaster-pull": settingsText(copy, "邮政官取回"), "loadout-equip": settingsText(copy, "应用游戏内配装栏"), "loadout-snapshot": settingsText(copy, "覆盖游戏内配装栏"), "execution-verification": settingsText(copy, "执行验证") }; return [actionLogStatusLabel(entry, copy), labels[entry.action], entry.item_name].filter(Boolean).join(" / "); }

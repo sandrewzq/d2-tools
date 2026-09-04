@@ -1446,6 +1446,23 @@
   background: var(--surface-panel);
 }
 
+:where(.app-shell) .vault-knowledge-import-issues {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 5px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 9px 10px;
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-control);
+  background: var(--status-error-bg);
+  color: var(--status-error);
+}
+
+:where(.app-shell) .vault-knowledge-import-issues small {
+  color: inherit;
+}
+
 :where(.app-shell) .vault-dim-online-status,
 :where(.app-shell) .vault-dim-online-status[data-surface="frame"][data-ui-kind="state-frame"] {
   display: grid;

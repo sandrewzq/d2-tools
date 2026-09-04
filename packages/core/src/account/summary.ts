@@ -279,6 +279,8 @@ export type AccountSummary = {
   account_name: string;
   destiny_membership_id: string;
   membership_type: number;
+  /** Bungie service revision used to build this account state. */
+  profile_minted_at?: string;
   characters: CharacterSummary[];
   vault: {
     item_count: number;
@@ -400,6 +402,8 @@ export type DestinyMembership = {
 };
 
 export type DestinyProfileResponse = {
+  responseMintedTimestamp?: string;
+  secondaryComponentsMintedTimestamp?: string;
   characters?: {
     data?: Record<string, DestinyCharacter>;
   };
@@ -887,6 +891,9 @@ function buildAccountSummary(
       ?? "Unknown Guardian",
     destiny_membership_id: destinyMembership.membershipId,
     membership_type: destinyMembership.membershipType,
+    ...(normalizeProfileTimestamp(profile.responseMintedTimestamp)
+      ? { profile_minted_at: normalizeProfileTimestamp(profile.responseMintedTimestamp) }
+      : {}),
     characters: summarizeCharacters(
       profile,
       options.itemDefinitions ?? {},
@@ -902,6 +909,12 @@ function buildAccountSummary(
     ),
     ...profileInventory
   };
+}
+
+function normalizeProfileTimestamp(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? new Date(timestamp).toISOString() : undefined;
 }
 
 function selectDestinyMembership(data: UserMembershipData): DestinyMembership {
@@ -1766,7 +1779,10 @@ export function classifyWeaponRollSocket(
   if (category.includes("origin") || includesAnyText(itemType, ["origin trait", "起源特性", "原始特性"])) {
     return "origin";
   }
-  if (includesAnyText(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft"])) {
+  if (
+    includesAnyText(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft", "tubes"])
+    || includesAnyText(itemType, ["发射器枪管", "launcher barrel"])
+  ) {
     return "barrel";
   }
   if (includesAnyText(category, ["magazine", "batter", "arrow", "guard", "stock", "grip"])) {

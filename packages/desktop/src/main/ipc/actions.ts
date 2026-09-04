@@ -57,8 +57,8 @@ import {
 } from "../../contracts/errors.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
 import { startBackgroundTask } from "../backgroundTasks.js";
-import { fetchSharedBungieJson } from "../runtime/bungieSession.js";
 import {
+  getAccountProfileComponents,
   getAccountItemDetailByInstanceId,
   invalidateAccountItemDetails,
   invalidateAccountSession,
@@ -112,6 +112,9 @@ export function registerActionIpcHandlers(): void {
         character_id: input.character_id
       },
       run: async ({ config, token }) => {
+        if (input.wait_for_character_inventory) {
+          await waitForItemsOnCharacter([input.item_id], input.character_id);
+        }
         await bungieEquipItem({
           config,
           token,
@@ -886,6 +889,15 @@ async function equipItemsOnce(input: {
     .find((value): value is string => Boolean(value))
     ?? randomUUID();
   const requestedItemIds = new Set(input.request.items.map((item) => item.item_id));
+  const itemsRequiringInventoryConfirmation = input.request.items
+    .filter((item) => item.wait_for_character_inventory)
+    .map((item) => item.item_id);
+  if (itemsRequiringInventoryConfirmation.length) {
+    await waitForItemsOnCharacter(
+      itemsRequiringInventoryConfirmation,
+      input.request.character_id
+    );
+  }
   const requestStartedAt = performance.now();
   let result: Awaited<ReturnType<typeof bungieEquipItems>>;
   try {
@@ -944,6 +956,26 @@ async function equipItemsOnce(input: {
   return statuses;
 }
 
+async function waitForItemsOnCharacter(
+  itemInstanceIds: readonly string[],
+  characterId: string
+): Promise<void> {
+  const expectedIds = [...new Set(itemInstanceIds.filter(Boolean))];
+  if (!expectedIds.length) return;
+  for (const waitMs of [0, 750, 2_000, 5_000] as const) {
+    if (waitMs) await waitForAccountWriteVerification(waitMs);
+    const profile = await getAccountProfileComponents([201, 205], "refresh");
+    const inventory = profile.characterInventories?.data?.[characterId]?.items;
+    const equipment = profile.characterEquipment?.data?.[characterId]?.items;
+    const missing = expectedIds.filter((instanceId) => (
+      !hasProfileItem(inventory, instanceId)
+      && !hasProfileItem(equipment, instanceId)
+    ));
+    if (!missing.length) return;
+  }
+  throw new Error("转移请求已受理，但 Bungie Profile 尚未确认装备进入目标角色背包；已停止后续装备，避免提交无效请求。");
+}
+
 function describeEquipFailure(status: number): string {
   if (status === 1671) {
     return "当前角色所在位置不允许通过 Bungie API 更换装备。请返回轨道、进入社交空间或退出游戏后重试。";
@@ -955,7 +987,8 @@ function describeEquipFailure(status: number): string {
 }
 
 const latestWriteVerificationByScope = new Map<string, string>();
-const accountWriteVerificationWaits = [2_000, 5_000, 10_000, 20_000, 30_000] as const;
+const accountWriteVerificationWaits = [750, 2_000, 5_000, 10_000, 20_000] as const;
+const accountWriteMismatchMessage = "Bungie Profile 已返回更新版本，但目标实例状态仍与本次写入不一致。";
 
 function startAccountWriteVerification(input: AccountWriteVerificationInput) {
   const verificationKeys = getAccountWriteVerificationScopes(input).map((scope) => [
@@ -1003,13 +1036,7 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
 
         const requestStartedAt = performance.now();
         try {
-          const token = await loadFreshOAuthToken(config);
-          const profile = await fetchSharedBungieJson<DestinyProfileResponse>(
-            config.bungie.api_key,
-            `/Destiny2/${input.membership_type}/Profile/${input.destiny_membership_id}/?components=${components.join(",")}`,
-            token.access_token,
-            { forceRefresh: true, waitForRefresh: true }
-          );
+          const profile = await getAccountProfileComponents(components, "refresh");
           const matchedCount = input.expected_patches
             .filter((patch) => isAccountWriteVerificationPatchReflected(profile, patch))
             .length;
@@ -1048,6 +1075,21 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
               : "轻量账号组件仍未包含全部目标状态"
           });
 
+          if (!reflected
+            && attempt >= accountWriteVerificationWaits.length
+            && isProfileNewerThanBaseline(profile, input.baseline_profile_minted_at)) {
+            await Promise.all(input.expected_patches.map((patch) => (
+              patchAccountSession(patch, { revalidate: false, preserve: false })
+            )));
+            appendAccountWriteVerificationLog(
+              config.data.data_dir,
+              input,
+              "mismatch",
+              accountWriteMismatchMessage
+            );
+            throw new Error(accountWriteMismatchMessage);
+          }
+
           if (reflected) {
             await Promise.all(input.expected_patches.map((patch) => (
               patchAccountSession(patch, { revalidate: false, preserve: false })
@@ -1079,6 +1121,9 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
               : `写入已完成，正在后台对账（已匹配 ${matchedCount}/${input.expected_patches.length}）。`
           });
         } catch (error) {
+          if (error instanceof Error && error.message === accountWriteMismatchMessage) {
+            throw error;
+          }
           const classified = classifyWriteActionIpcError(error);
           writeActionDebugTrace(config.data.data_dir, {
             operation_id: input.operation_id,
@@ -1101,6 +1146,9 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             message: classified.message
           });
           if (!classified.retryable) {
+            await Promise.all(input.expected_patches.map((patch) => (
+              patchAccountSession(patch, { revalidate: false, preserve: false })
+            )));
             appendAccountWriteVerificationLog(
               config.data.data_dir,
               input,
@@ -1161,10 +1209,34 @@ function sanitizeAccountWriteVerificationInput(
     character_id: characterId,
     ...(input.character_name?.trim() ? { character_name: input.character_name.trim().slice(0, 120) } : {}),
     ...(input.item_name?.trim() ? { item_name: input.item_name.trim().slice(0, 200) } : {}),
+    ...(normalizeProfileTimestamp(input.baseline_profile_minted_at)
+      ? { baseline_profile_minted_at: normalizeProfileTimestamp(input.baseline_profile_minted_at) }
+      : {}),
     expected_patches: expectedPatches,
     accepted_count: normalizeNonNegativeCount(input.accepted_count),
     failed_count: normalizeNonNegativeCount(input.failed_count)
   };
+}
+
+function isProfileNewerThanBaseline(
+  profile: DestinyProfileResponse,
+  baseline: string | undefined
+): boolean {
+  const profileVersion = parseProfileTimestamp(profile.responseMintedTimestamp);
+  const baselineVersion = parseProfileTimestamp(baseline);
+  return profileVersion > 0
+    && (baselineVersion === 0 || profileVersion > baselineVersion);
+}
+
+function normalizeProfileTimestamp(value: unknown): string | undefined {
+  const timestamp = parseProfileTimestamp(value);
+  return timestamp > 0 ? new Date(timestamp).toISOString() : undefined;
+}
+
+function parseProfileTimestamp(value: unknown): number {
+  if (typeof value !== "string") return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function sanitizeAccountWriteVerificationPatch(

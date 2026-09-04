@@ -239,7 +239,7 @@ describe("account session", () => {
     expect(profileRequests).toBe(0);
   });
 
-  it("后台 revalidate 返回旧状态时保留尚未确认的乐观 patch", async () => {
+  it("后台和权威刷新返回旧状态时都保留尚未确认的乐观 patch", async () => {
     vi.useFakeTimers();
     const session = createAccountSession({
       apiKey: "api",
@@ -260,7 +260,7 @@ describe("account session", () => {
     expect((await session.getSnapshot({
       freshness: "refresh",
       authoritative: true
-    })).vault.items[0]?.locked).toBe(false);
+    })).vault.items[0]?.locked).toBe(true);
   });
 });
 

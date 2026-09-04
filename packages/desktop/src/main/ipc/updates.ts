@@ -185,9 +185,12 @@ async function downloadAppUpdate(): Promise<AppUpdateSnapshot> {
     message: "正在下载应用更新。",
     run: async ({ update }) => {
       activeDownloadTaskUpdate = update;
-      update({ progress_percent: appUpdateSnapshot.progress_percent ?? 0 });
+      update({ phase: "download", progress_percent: appUpdateSnapshot.progress_percent ?? 0 });
       try {
         await runAppUpdateDownload(operationId);
+      } catch (error) {
+        update({ progress_bytes_per_second: undefined });
+        throw error;
       } finally {
         activeDownloadTaskUpdate = null;
       }
@@ -285,8 +288,12 @@ function configureUpdater(): void {
     if (activeOperation?.kind !== "download") return;
     const progressPercent = Math.round(progress.percent);
     activeDownloadTaskUpdate?.({
+      phase: "download",
       progress_percent: progressPercent,
-      message: `正在下载应用更新 · ${progressPercent}%`
+      progress_current_bytes: progress.transferred,
+      progress_total_bytes: progress.total,
+      progress_bytes_per_second: progress.bytesPerSecond,
+      message: "正在下载应用更新。"
     });
     setAppUpdateSnapshot({
       ...appUpdateSnapshot,
@@ -312,7 +319,11 @@ function configureUpdater(): void {
       user_message: `更新 ${info.version} 已下载，重启后安装。`
     });
     activeDownloadTaskUpdate?.({
+      phase: "complete",
       progress_percent: 100,
+      progress_current_bytes: undefined,
+      progress_total_bytes: undefined,
+      progress_bytes_per_second: undefined,
       message: `更新 ${info.version} 已下载，等待重启安装。`
     });
   });

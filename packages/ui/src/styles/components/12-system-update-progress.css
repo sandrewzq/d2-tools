@@ -1,0 +1,198 @@
+.system-update-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: center;
+  min-width: 0;
+  color: var(--body);
+}
+
+.system-update-progress-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.system-update-progress-copy strong {
+  color: var(--text);
+  font-size: var(--font-content);
+}
+
+.system-update-progress-copy > small,
+.system-update-progress-status {
+  color: var(--muted);
+  font-size: var(--font-meta);
+  line-height: 1.4;
+}
+
+.system-update-progress-copy > span {
+  color: var(--body);
+  font-size: var(--font-content);
+  line-height: 1.45;
+}
+
+.system-update-progress-status[data-status="pending"] { color: var(--blue); }
+.system-update-progress-status[data-status="success"] { color: var(--status-ready); }
+.system-update-progress-status[data-status="warning"] { color: var(--status-warning); }
+.system-update-progress-status[data-status="error"] { color: var(--status-error); }
+
+.system-update-progress-metrics {
+  font-variant-numeric: tabular-nums;
+}
+
+.system-update-progress-status {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.system-update-progress-track {
+  grid-column: 1 / -1;
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-indicator);
+  background: var(--surface-subtle);
+}
+
+.system-update-progress-track > span {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--blue);
+  transition: width var(--motion-fast);
+}
+
+.system-update-progress[data-status="success"] .system-update-progress-track > span {
+  background: var(--status-ready);
+}
+
+.system-update-progress[data-status="warning"] .system-update-progress-track > span {
+  background: var(--status-warning);
+}
+
+.system-update-progress[data-status="error"] .system-update-progress-track > span {
+  background: var(--status-error);
+}
+
+.system-update-progress[data-progress="indeterminate"] .system-update-progress-track > span {
+  width: 36%;
+  animation: system-update-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+.system-update-progress--dock {
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 6px 10px;
+}
+
+.system-update-progress--dock .system-update-progress-icon {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.system-update-progress--dock .system-update-progress-copy {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.system-update-progress--dock .system-update-progress-copy strong,
+.system-update-progress--dock .system-update-progress-copy > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.system-update-progress--dock .system-update-progress-copy > span {
+  color: var(--muted);
+  font-size: var(--font-meta);
+}
+
+.system-update-progress--dock .system-update-progress-copy > small {
+  display: none;
+}
+
+.system-update-progress--dock .system-update-progress-status {
+  grid-column: 3;
+  grid-row: 1;
+}
+
+.system-update-progress--dock .system-update-progress-track {
+  grid-column: 2 / -1;
+}
+
+.system-update-progress--inline .system-update-progress-copy > span,
+.system-update-progress--inline .system-update-progress-copy > small,
+.system-update-progress--detail .system-update-progress-copy > span,
+.system-update-progress--detail .system-update-progress-copy > small {
+  white-space: normal;
+}
+
+.system-update-progress-icon {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-control);
+  color: var(--blue);
+  background: var(--blue-bg);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.system-update-progress[data-status="warning"] .system-update-progress-icon {
+  color: var(--status-warning);
+  border-color: var(--status-warning);
+  background: var(--status-warning-bg);
+}
+
+.system-update-progress[data-status="error"] .system-update-progress-icon {
+  color: var(--status-error);
+  border-color: var(--status-error);
+  background: var(--status-error-bg);
+}
+
+@keyframes system-update-progress-indeterminate {
+  from { transform: translateX(-110%); }
+  to { transform: translateX(300%); }
+}
+
+@container product-workspace (max-width: 700px) {
+  .system-update-progress--inline,
+  .system-update-progress--detail {
+    grid-template-columns: 1fr;
+  }
+
+  .system-update-progress--inline .system-update-progress-status,
+  .system-update-progress--detail .system-update-progress-status {
+    justify-self: start;
+  }
+}
+
+@media (max-width: 480px) {
+  .system-update-progress--dock {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .system-update-progress--dock .system-update-progress-status {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .system-update-progress--dock .system-update-progress-track {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .system-update-progress-track > span {
+    transition-duration: 0.01ms;
+  }
+
+  .system-update-progress[data-progress="indeterminate"] .system-update-progress-track > span {
+    width: 100%;
+    animation: none;
+    opacity: 0.55;
+  }
+}

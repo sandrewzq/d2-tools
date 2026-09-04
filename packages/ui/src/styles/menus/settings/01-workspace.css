@@ -166,6 +166,12 @@
   background: var(--status-ready-bg);
 }
 
+.settings-status-badge[data-status="pending"] {
+  border-color: var(--blue);
+  color: var(--blue);
+  background: var(--blue-bg);
+}
+
 .settings-status-badge[data-status="warning"] {
   border-color: var(--status-warning);
   color: var(--status-warning);
@@ -476,22 +482,6 @@
 .settings-version-row strong {
   font-weight: 600;
   overflow-wrap: anywhere;
-}
-
-.settings-progress {
-  height: 7px;
-  margin-top: 12px;
-  overflow: hidden;
-  border: 0;
-  border-radius: var(--radius-indicator);
-  background: var(--surface-subtle);
-}
-
-.settings-progress span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--mint);
 }
 
 .settings-config-help {

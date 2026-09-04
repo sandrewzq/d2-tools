@@ -12,10 +12,17 @@ export function useDailySummary() {
   const [dailyError, setDailyError] = useState("");
   const [isLoadingDaily, setIsLoadingDaily] = useState(false);
   const [clock, setClock] = useState(() => new Date());
-  const loadRequestRef = useRef<Promise<void> | null>(null);
+  const loadRequestRef = useRef<{ force: boolean; promise: Promise<void> } | null>(null);
 
-  const loadDailySummary = useCallback((force = false): Promise<void> => {
-    if (loadRequestRef.current) return loadRequestRef.current;
+  const loadDailySummary = useCallback(function loadDailySummary(force = false): Promise<void> {
+    const existingRequest = loadRequestRef.current;
+    if (existingRequest) {
+      if (!force || existingRequest.force) return existingRequest.promise;
+      return existingRequest.promise.then(
+        () => loadDailySummary(true),
+        () => loadDailySummary(true)
+      );
+    }
     setIsLoadingDaily(true);
     setDailyError("");
     const operation = api.getHomeBriefing({ force })
@@ -31,9 +38,9 @@ export function useDailySummary() {
     let request: Promise<void>;
     request = operation.finally(() => {
         setIsLoadingDaily(false);
-        if (loadRequestRef.current === request) loadRequestRef.current = null;
+        if (loadRequestRef.current?.promise === request) loadRequestRef.current = null;
       });
-    loadRequestRef.current = request;
+    loadRequestRef.current = { force, promise: request };
     return request;
   }, []);
 

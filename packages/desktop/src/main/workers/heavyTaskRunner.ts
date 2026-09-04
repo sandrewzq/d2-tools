@@ -14,6 +14,7 @@ type HeavyTaskMessage<TResult> =
       phase?: string;
       progress_current_bytes?: number;
       progress_total_bytes?: number;
+      progress_bytes_per_second?: number;
     }
   | { type: "activation-request" };
 
@@ -31,6 +32,7 @@ export function runHeavyTaskInWorker<TResult>(
     phase?: string;
     progress_current_bytes?: number;
     progress_total_bytes?: number;
+    progress_bytes_per_second?: number;
   }) => void,
   options: HeavyTaskRunOptions = {}
 ): Promise<TResult> {
@@ -47,7 +49,8 @@ export function runHeavyTaskInWorker<TResult>(
           message: message.message,
           phase: message.phase,
           progress_current_bytes: message.progress_current_bytes,
-          progress_total_bytes: message.progress_total_bytes
+          progress_total_bytes: message.progress_total_bytes,
+          progress_bytes_per_second: message.progress_bytes_per_second
         });
         return;
       }

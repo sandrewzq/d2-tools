@@ -7,6 +7,14 @@ import {
   summarizeItemPerks,
   type ItemPlugSummary
 } from "@d2-tools/core/items/perks";
+import {
+  classifyWeaponRollSocket,
+  type AccountWeaponRollPlugSummary
+} from "@d2-tools/core/account/summary";
+import type {
+  DefinitionComponentData,
+  DefinitionRecord
+} from "@d2-tools/core/manifest/definitions";
 import type {
   CommunityPerkSource,
   PerkCombo,
@@ -61,6 +69,23 @@ export type WeaponKnowledgeImportPreview = {
   source_count: number;
   source_labels: string[];
   fingerprint: string;
+  blocking_issue_count: number;
+  blocking_issues: WeaponKnowledgeImportIssue[];
+};
+
+export type WeaponKnowledgeImportIssue = {
+  row_number: number;
+  weapon_name: string;
+  source_label: string;
+  field: "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+  value: string;
+  message: string;
+};
+
+export type WeaponKnowledgeSemanticDefinitions = {
+  item_definitions: DefinitionComponentData;
+  plug_set_definitions: DefinitionComponentData;
+  plug_definitions: DefinitionComponentData;
 };
 
 export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
@@ -104,20 +129,60 @@ export function createWeaponRecommendationCsvTemplate(): string {
 /** Validates a CSV without changing the active SQLite knowledge database. */
 export function previewWeaponRecommendationCsv(
   text: string,
-  fileName: string
+  fileName: string,
+  semanticDefinitions?: WeaponKnowledgeSemanticDefinitions
 ): WeaponKnowledgeImportPreview {
   const rows = parseKnowledgeCsv(text);
   const sourceLabels = [...new Set(rows.map((row) => row["推荐来源"].trim()))].sort((left, right) => (
     left.localeCompare(right, "zh-CN")
   ));
+  const blockingIssues = semanticDefinitions
+    ? validateWeaponRecommendationRows(rows, semanticDefinitions)
+    : [];
   return {
     file_name: basename(fileName) || "weapon-recommendations.csv",
     recommendation_count: rows.length,
     weapon_count: new Set(rows.map(weaponIdentityKey)).size,
     source_count: sourceLabels.length,
     source_labels: sourceLabels,
-    fingerprint: csvFingerprint(text)
+    fingerprint: csvFingerprint(text),
+    blocking_issue_count: blockingIssues.length,
+    blocking_issues: blockingIssues.slice(0, 50)
   };
+}
+
+export function collectWeaponRecommendationItemHashes(text: string): number[] {
+  return [...new Set(parseKnowledgeCsv(text).flatMap((row) => (
+    splitValues(row["武器ID"] ?? "").map(Number).filter(isUnsignedHash)
+  )))];
+}
+
+export function collectWeaponRecommendationPlugSetHashes(
+  itemDefinitions: DefinitionComponentData
+): number[] {
+  return uniqueHashes(Object.values(itemDefinitions).flatMap((definition) => (
+    (definition.sockets?.socketEntries ?? []).flatMap((entry) => [
+      entry.reusablePlugSetHash,
+      entry.randomizedPlugSetHash
+    ])
+  )));
+}
+
+export function collectWeaponRecommendationPlugHashes(
+  itemDefinitions: DefinitionComponentData,
+  plugSetDefinitions: DefinitionComponentData
+): number[] {
+  return uniqueHashes([
+    ...Object.values(itemDefinitions).flatMap((definition) => (
+      (definition.sockets?.socketEntries ?? []).flatMap((entry) => [
+        entry.singleInitialItemHash,
+        ...(entry.reusablePlugItems ?? []).map((plug) => plug.plugItemHash)
+      ])
+    )),
+    ...Object.values(plugSetDefinitions).flatMap((definition) => (
+      (definition.reusablePlugItems ?? []).map((plug) => plug.plugItemHash)
+    ))
+  ]);
 }
 
 /**
@@ -461,7 +526,7 @@ function replaceKnowledge(
         ["perk2", "Perk 2"],
         ["origin", "起源特性"]
       ] as const) {
-        splitValues(row[field] ?? "").forEach((perkName, ordinal) => {
+        requirementValues(row[field] ?? "").forEach((perkName, ordinal) => {
           insertPerk.run(recommendationId, slot, ordinal, perkName, normalizeName(perkName));
         });
       }
@@ -678,6 +743,149 @@ function uniquePerks(combos: PerkCombo[]): PerkRef[] {
 
 function uniqueById(values: KnowledgeRecommendation[]): KnowledgeRecommendation[] {
   return [...new Map(values.map((value) => [value.id, value])).values()];
+}
+
+const strictRequirementFields = [
+  ["枪管", "barrel"],
+  ["弹匣", "magazine"],
+  ["大师", "masterwork"],
+  ["Perk 1", "perk1"],
+  ["Perk 2", "perk2"],
+  ["起源特性", "origin"]
+] as const;
+
+function validateWeaponRecommendationRows(
+  rows: Array<Record<string, string>>,
+  definitions: WeaponKnowledgeSemanticDefinitions
+): WeaponKnowledgeImportIssue[] {
+  const issues: WeaponKnowledgeImportIssue[] = [];
+  const allDefinitions = {
+    ...definitions.item_definitions,
+    ...definitions.plug_definitions
+  };
+
+  rows.forEach((row, index) => {
+    const rowNumber = index + 2;
+    const weaponName = row["武器"]?.trim() ?? "";
+    const sourceLabel = row["推荐来源"]?.trim() ?? "";
+    const itemHashes = splitValues(row["武器ID"] ?? "").map(Number).filter(isUnsignedHash);
+    const missingHashes = itemHashes.filter((hash) => !definitions.item_definitions[String(hash)]);
+    if (!itemHashes.length || missingHashes.length) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "武器ID",
+        value: missingHashes.length ? missingHashes.join(" / ") : row["武器ID"] ?? "",
+        message: missingHashes.length
+          ? "武器 ID 不在当前官方资料库中。"
+          : "严格校验要求每条记录提供可核对的武器 ID。"
+      });
+      return;
+    }
+
+    const itemDefinitions = itemHashes
+      .map((hash) => definitions.item_definitions[String(hash)])
+      .filter((definition): definition is DefinitionRecord => Boolean(definition));
+    const mismatchedWeaponNames = itemDefinitions
+      .map((definition) => definition.displayProperties?.name?.trim() ?? "")
+      .filter((officialName) => normalizeName(officialName) !== normalizeName(weaponName));
+    if (mismatchedWeaponNames.length) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "武器",
+        value: weaponName,
+        message: `武器名称与所填武器 ID 的官方名称不一致：${[...new Set(mismatchedWeaponNames)].join(" / ") || "官方名称为空"}。`
+      });
+      return;
+    }
+
+    const officialNames = collectOfficialRequirementNames(
+      itemDefinitions,
+      allDefinitions,
+      definitions.plug_set_definitions
+    );
+    for (const [field, slot] of strictRequirementFields) {
+      for (const value of requirementValues(row[field] ?? "")) {
+        const key = normalizeName(value);
+        if (officialNames[slot].has(key)) continue;
+        const otherSlot = strictRequirementFields.find(([, candidateSlot]) => (
+          candidateSlot !== slot && officialNames[candidateSlot].has(key)
+        ));
+        issues.push({
+          row_number: rowNumber,
+          weapon_name: weaponName,
+          source_label: sourceLabel,
+          field,
+          value,
+          message: otherSlot
+            ? `该官方名称属于“${otherSlot[0]}”，不属于当前栏位。`
+            : "无法在这把武器任一已列版本的对应官方栏位中精确确认。"
+        });
+      }
+    }
+  });
+  return issues;
+}
+
+function collectOfficialRequirementNames(
+  itemDefinitions: DefinitionRecord[],
+  allDefinitions: DefinitionComponentData,
+  plugSetDefinitions: DefinitionComponentData
+): Record<RecommendationRequirementSlot, Set<string>> {
+  const names = Object.fromEntries(strictRequirementFields.map(([, slot]) => [slot, new Set<string>()])) as Record<
+    RecommendationRequirementSlot,
+    Set<string>
+  >;
+  for (const itemDefinition of itemDefinitions) {
+    let traitIndex = 0;
+    const groups = summarizeItemPerks(itemDefinition, allDefinitions, {
+      plugSetDefinitions,
+      maxPlugsPerSocket: null
+    });
+    for (const group of groups.sort((left, right) => left.socket_index - right.socket_index)) {
+      const plugs: AccountWeaponRollPlugSummary[] = group.plugs.map((plug) => ({
+        hash: plug.hash,
+        name: plug.name,
+        ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
+        ...(plug.item_type ? { item_type: plug.item_type } : {}),
+        selected: false
+      }));
+      const role = classifyWeaponRollSocket(plugs);
+      const slot: RecommendationRequirementSlot | undefined = role === "trait"
+        ? (++traitIndex === 1 ? "perk1" : traitIndex === 2 ? "perk2" : undefined)
+        : role === "barrel" || role === "magazine" || role === "masterwork" || role === "origin"
+          ? role
+          : undefined;
+      if (!slot) continue;
+      for (const plug of plugs) {
+        const officialName = slot === "masterwork"
+          ? officialMasterworkName(plug.name)
+          : plug.name.trim();
+        if (officialName) names[slot].add(normalizeName(officialName));
+      }
+    }
+  }
+  return names;
+}
+
+function officialMasterworkName(value: string): string {
+  return value
+    .replace(/^\s*\d+\s*阶\s*[：:]\s*/u, "")
+    .replace(/^\s*大师杰作\s*[：:]\s*/u, "")
+    .trim();
+}
+
+function requirementValues(value: string): string[] {
+  return splitValues(value).filter((candidate) => ![
+    "任意", "无", "none", "n/a", "-"
+  ].includes(candidate.trim().toLocaleLowerCase()));
+}
+
+function uniqueHashes(values: Array<number | undefined>): number[] {
+  return [...new Set(values.filter((value): value is number => isUnsignedHash(Number(value))).map(Number))];
 }
 
 function parseKnowledgeCsv(text: string): Array<Record<string, string>> {

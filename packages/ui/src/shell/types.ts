@@ -33,7 +33,9 @@ export type ShellBackgroundTaskItem = {
   progress_percent?: number;
   progress_current_bytes?: number;
   progress_total_bytes?: number;
+  progress_bytes_per_second?: number;
   created_at?: string;
+  started_at?: string;
   updated_at?: string;
   next_retry_at?: string;
 };

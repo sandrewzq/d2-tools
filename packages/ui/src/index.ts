@@ -28,6 +28,12 @@ export type {
   AiAssistantPanelViewProps
 } from "./assistant/AiAssistantPanelView.js";
 export { AppShell } from "./shell/AppShell.js";
+export { SystemUpdateProgress, systemUpdateToneForStatus } from "./update/SystemUpdateProgress.js";
+export type {
+  SystemUpdateProgressProps,
+  SystemUpdateProgressVariant,
+  SystemUpdateTone
+} from "./update/SystemUpdateProgress.js";
 export {
   formatCompactDateTime,
   formatFullDateTime,

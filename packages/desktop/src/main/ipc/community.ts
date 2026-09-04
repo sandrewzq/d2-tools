@@ -21,11 +21,15 @@ import {
 } from "@d2-tools/services/community/localCommunityRecommendations";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
+  collectWeaponRecommendationItemHashes,
+  collectWeaponRecommendationPlugHashes,
+  collectWeaponRecommendationPlugSetHashes,
   createWeaponRecommendationCsvTemplate,
   importWeaponRecommendationCsv,
   previewWeaponRecommendationCsv,
   readWeaponRecommendationKnowledgeStatus,
-  syncWeaponRecommendationKnowledge
+  syncWeaponRecommendationKnowledge,
+  type WeaponKnowledgeImportPreview
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
 import {
   buildVaultRecommendationMatchRevision,
@@ -81,17 +85,25 @@ export function registerCommunityIpcHandlers(): void {
     const path = result.filePaths[0];
     if (result.canceled || !path) return null;
 
-    const preview = previewWeaponRecommendationCsv(readFileSync(path, "utf8"), path);
-    const token = randomUUID();
+    const preview = await previewStrictWeaponKnowledgeCsv(path);
     pendingKnowledgeImports.clear();
+    if (preview.blocking_issue_count > 0) return preview;
+    const token = randomUUID();
     pendingKnowledgeImports.set(token, { path, fingerprint: preview.fingerprint });
-    return { token, ...preview };
+    return { ...preview, token };
   });
 
   ipcMain.handle("community:knowledge:import:confirm", async (_event, token: string) => {
     const pending = pendingKnowledgeImports.get(token);
     if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
     pendingKnowledgeImports.delete(token);
+    const verifiedPreview = await previewStrictWeaponKnowledgeCsv(pending.path);
+    if (verifiedPreview.fingerprint !== pending.fingerprint) {
+      throw new Error("武器推荐 CSV 在预览后发生了变化，请重新选择文件。");
+    }
+    if (verifiedPreview.blocking_issue_count > 0) {
+      throw new Error(formatKnowledgeImportIssue(verifiedPreview));
+    }
     const config = loadConfig();
     const result = await importWeaponRecommendationCsv(
       config.data.data_dir,
@@ -181,6 +193,39 @@ export function registerCommunityIpcHandlers(): void {
     clearLightggCache(config.data.data_dir);
     return null;
   });
+}
+
+async function previewStrictWeaponKnowledgeCsv(path: string): Promise<WeaponKnowledgeImportPreview> {
+  const csvText = readFileSync(path, "utf8");
+  const itemHashes = collectWeaponRecommendationItemHashes(csvText);
+  const itemDefinitions = await getDefinitions(
+    "DestinyInventoryItemDefinition",
+    itemHashes,
+    { projection: "community-match" }
+  );
+  const plugSetHashes = collectWeaponRecommendationPlugSetHashes(itemDefinitions);
+  const plugSetDefinitions = await getDefinitions(
+    "DestinyPlugSetDefinition",
+    plugSetHashes,
+    { projection: "community-match" }
+  );
+  const plugHashes = collectWeaponRecommendationPlugHashes(itemDefinitions, plugSetDefinitions);
+  const plugDefinitions = await getDefinitions(
+    "DestinyInventoryItemDefinition",
+    plugHashes,
+    { projection: "community-match" }
+  );
+  return previewWeaponRecommendationCsv(csvText, path, {
+    item_definitions: itemDefinitions,
+    plug_set_definitions: plugSetDefinitions,
+    plug_definitions: plugDefinitions
+  });
+}
+
+function formatKnowledgeImportIssue(preview: WeaponKnowledgeImportPreview): string {
+  const issue = preview.blocking_issues[0];
+  if (!issue) return "武器推荐 CSV 存在无法通过官方资料校验的内容。";
+  return `武器推荐 CSV 有 ${preview.blocking_issue_count} 条异常，不能导入。第 ${issue.row_number} 行“${issue.weapon_name}”的${issue.field}“${issue.value}”：${issue.message}`;
 }
 
 async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<VaultCommunityMatchResult> {
@@ -322,7 +367,12 @@ function ensureWeaponRecommendationKnowledge(dataDir: string): Promise<unknown> 
   const existing = weaponKnowledgeSyncs.get(key);
   if (existing) return existing;
 
-  const pending = syncWeaponRecommendationKnowledge(dataDir, csvPath).catch(() => {
+  const pending = previewStrictWeaponKnowledgeCsv(csvPath).then((preview) => {
+    if (preview.blocking_issue_count > 0) {
+      throw new Error(formatKnowledgeImportIssue(preview));
+    }
+    return syncWeaponRecommendationKnowledge(dataDir, csvPath);
+  }).catch(() => {
     weaponKnowledgeSyncs.delete(key);
     return null;
   });

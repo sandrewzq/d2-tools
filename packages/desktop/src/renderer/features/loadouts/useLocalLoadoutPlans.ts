@@ -599,7 +599,7 @@ export function useLocalLoadoutPlans(input: {
           } else if (step.kind === "transfer-from-vault") {
             await api.transferItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_reference_hash: step.item_hash, item_name: step.item_name, transfer_to_vault: false, trace });
           } else if (step.kind === "equip" || step.kind === "equip-source-replacement") {
-            await api.equipItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, trace });
+            await api.equipItem({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, wait_for_character_inventory: true, trace });
           } else if (step.socket_index !== undefined && step.plug_hash !== undefined) {
             await api.insertSocketPlug({ membership_type: executionAccount.membership_type, character_id: step.character_id, item_id: step.item_instance_id, item_name: step.item_name, socket_index: step.socket_index, plug_hash: step.plug_hash, trace });
           }

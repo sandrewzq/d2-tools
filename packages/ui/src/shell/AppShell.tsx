@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import { SystemUpdateProgress, systemUpdateToneForStatus } from "../update/SystemUpdateProgress.js";
 import { getLocalizedNavItems } from "./navigation.js";
 import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellPageKey } from "./types.js";
 
@@ -370,7 +371,7 @@ export function AppShell(props: AppShellProps) {
             </div>
           </aside>
         ) : null}
-        <BackgroundTaskDock tasks={props.backgroundTasks ?? []} copy={copy.backgroundTasks} onOpenTask={props.onOpenBackgroundTask} />
+        <BackgroundTaskDock tasks={props.backgroundTasks ?? []} copy={copy.backgroundTasks} interfaceLocale={interfaceLocale} onOpenTask={props.onOpenBackgroundTask} />
       </div>
     </main>
   );
@@ -379,18 +380,19 @@ export function AppShell(props: AppShellProps) {
 function BackgroundTaskDock(props: {
   tasks: NonNullable<AppShellLayoutProps["backgroundTasks"]>;
   copy: ReturnType<typeof getLocaleCopy>["shell"]["backgroundTasks"];
+  interfaceLocale: "zh-CN" | "en-US";
   onOpenTask?: (task: NonNullable<AppShellLayoutProps["backgroundTasks"]>[number]) => void;
 }) {
-  const visibleTasks = props.tasks.filter((task) => (
-    [
-      "app-update-check",
-      "app-update-download",
-      "manifest-version-check",
-      "manifest-update",
-      "manifest-repair"
-    ].includes(task.type ?? "")
-      && ["queued", "running", "retrying", "failed", "blocked"].includes(task.status)
-  ));
+  const visibleTasks = [
+    selectUpdateTaskForDock(props.tasks, "app"),
+    selectUpdateTaskForDock(props.tasks, "manifest")
+  ].filter((task): task is NonNullable<AppShellLayoutProps["backgroundTasks"]>[number] => Boolean(
+    task && ["queued", "running", "retrying", "failed", "blocked"].includes(task.status)
+  )).sort((left, right) => {
+    const priorityDifference = backgroundTaskDisplayPriority(right.status) - backgroundTaskDisplayPriority(left.status);
+    if (priorityDifference !== 0) return priorityDifference;
+    return (left.started_at ?? left.created_at ?? left.updated_at ?? "").localeCompare(right.started_at ?? right.created_at ?? right.updated_at ?? "");
+  });
   const task = visibleTasks[0];
   if (!task) return null;
 
@@ -412,13 +414,49 @@ function BackgroundTaskDock(props: {
   return (
     <aside className="shell-background-task-dock" data-reference-id="shell.background-task-dock" data-ui-kind="background-task-dock" data-status={task.status} aria-label={props.copy.ariaLabel}>
       <button type="button" onClick={() => props.onOpenTask?.(task)} aria-label={`${props.copy.title}：${task.title}`}>
-        <span className="shell-background-task-mark" aria-hidden="true">↻</span>
-        <span className="shell-background-task-copy"><strong>{task.title || props.copy.fallbackTitle}</strong><small>{task.status === "failed" || task.status === "retrying" ? task.error ?? task.message ?? statusLabel : task.message ?? statusLabel}</small></span>
-        {progress !== undefined ? <span className="shell-background-task-progress" aria-label={`${progress}%`}><span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} /></span> : null}
-        <span className="shell-background-task-status">{statusLabel}</span>
+        <SystemUpdateProgress
+          variant="dock"
+          icon="↻"
+          interfaceLocale={props.interfaceLocale}
+          tone={systemUpdateToneForStatus(task.status)}
+          title={task.title || props.copy.fallbackTitle}
+          message={task.status === "failed" || task.status === "retrying" ? task.error ?? task.message ?? statusLabel : task.message ?? statusLabel}
+          statusLabel={statusLabel}
+          additionalTaskCount={visibleTasks.length - 1}
+          progressPercent={progress}
+          indeterminate={["queued", "running"].includes(task.status) && progress === undefined}
+          progressCurrentBytes={task.progress_current_bytes}
+          progressTotalBytes={task.progress_total_bytes}
+          progressBytesPerSecond={task.progress_bytes_per_second}
+        />
       </button>
     </aside>
   );
+}
+
+function selectUpdateTaskForDock(
+  tasks: NonNullable<AppShellLayoutProps["backgroundTasks"]>,
+  family: "app" | "manifest"
+): NonNullable<AppShellLayoutProps["backgroundTasks"]>[number] | null {
+  const familyTypes = family === "app"
+    ? ["app-update-download", "app-update-check"]
+    : ["manifest-update", "manifest-repair", "manifest-version-check"];
+  const familyTasks = tasks
+    .filter((task) => familyTypes.includes(task.type ?? ""))
+    .sort((left, right) => (right.updated_at ?? "").localeCompare(left.updated_at ?? ""));
+  for (const type of familyTypes) {
+    const active = familyTasks.find((task) => task.type === type && ["queued", "running", "retrying"].includes(task.status));
+    if (active) return active;
+  }
+  return familyTasks[0] ?? null;
+}
+
+function backgroundTaskDisplayPriority(status: string): number {
+  if (status === "failed" || status === "blocked") return 4;
+  if (status === "retrying") return 3;
+  if (status === "running") return 2;
+  if (status === "queued") return 1;
+  return 0;
 }
 
 function formatRetryTime(value: string): string {

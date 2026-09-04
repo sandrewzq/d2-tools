@@ -644,6 +644,7 @@ export function useItemDetailWorkspace(input: {
               : selectedActionCharacterId)
           ))?.class_name,
           item_name: selectedItem.name,
+          baseline_profile_minted_at: accountSummary.profile_minted_at,
           expected_patches: [accountPatch],
           accepted_count: 1,
           failed_count: 0

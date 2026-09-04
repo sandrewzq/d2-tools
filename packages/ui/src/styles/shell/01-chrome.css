@@ -594,10 +594,7 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
 }
 
 .shell-background-task-dock > button {
-  display: grid;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
+  display: block;
   width: 100%;
   min-width: 0;
   min-height: 58px;
@@ -614,80 +611,6 @@ button.shell-status-group[data-status="error"][data-priority="attention"]:focus-
   color: var(--text);
   background: var(--hover-bg);
   box-shadow: none;
-}
-
-.shell-background-task-mark {
-  display: grid;
-  place-items: center;
-  width: 26px;
-  height: 26px;
-  border: 1px solid var(--control-border);
-  border-radius: var(--radius-control);
-  color: var(--mint);
-  background: var(--mint-bg);
-  font-size: 15px;
-  line-height: 1;
-}
-
-.shell-background-task-copy {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.shell-background-task-copy strong,
-.shell-background-task-copy small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.shell-background-task-copy strong {
-  color: var(--text);
-  font-size: var(--font-content);
-}
-
-.shell-background-task-copy small {
-  color: var(--muted);
-  font-size: var(--font-meta);
-}
-
-.shell-background-task-status {
-  color: var(--muted);
-  font-size: var(--font-meta);
-  white-space: nowrap;
-}
-
-.shell-background-task-progress {
-  grid-column: 2 / -1;
-  display: block;
-  height: 4px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--section-divider);
-}
-
-.shell-background-task-progress > span {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--mint);
-  transition: width var(--motion-fast);
-}
-
-.shell-background-task-dock[data-status="retrying"] .shell-background-task-mark,
-.shell-background-task-dock[data-status="failed"] .shell-background-task-mark,
-.shell-background-task-dock[data-status="blocked"] .shell-background-task-mark {
-  color: var(--status-warning);
-  border-color: var(--status-warning);
-  background: var(--status-warning-bg);
-}
-
-.shell-background-task-dock[data-status="failed"] .shell-background-task-mark,
-.shell-background-task-dock[data-status="blocked"] .shell-background-task-mark {
-  color: var(--status-error);
-  border-color: var(--status-error);
-  background: var(--status-error-bg);
 }
 
 .app-shell.assistant-open .shell-background-task-dock {

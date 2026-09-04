@@ -87,6 +87,15 @@ export type WeaponKnowledgeImportPreview = {
   source_count: number;
   source_labels: string[];
   fingerprint: string;
+  blocking_issue_count: number;
+  blocking_issues: Array<{
+    row_number: number;
+    weapon_name: string;
+    source_label: string;
+    field: "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+    value: string;
+    message: string;
+  }>;
 };
 
 export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
@@ -94,7 +103,7 @@ export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & 
 };
 
 export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
-  token: string;
+  token?: string;
 };
 
 export type FileExportResult = {

@@ -137,6 +137,7 @@ export type LibraryManifestTaskState = {
   progress_percent?: number;
   progress_current_bytes?: number;
   progress_total_bytes?: number;
+  progress_bytes_per_second?: number;
   started_at?: string;
   updated_at?: string;
   next_retry_at?: string;
@@ -268,6 +269,7 @@ export type LibraryManifestAlertModel = {
   kind: "error" | "loading" | "not_initialized" | "missing_components" | "needs_update" | "updating" | "retrying";
   className: "status-error" | "status-pending" | "status-warning";
   error?: string;
+  hasUsableManifest?: boolean;
   missingComponentCount?: number;
   version?: string;
   latestVersion?: string;

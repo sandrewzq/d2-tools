@@ -58,8 +58,19 @@ const committedPatchesByInstanceId = new Map<string, AccountItemActionPatch>();
 export function replaceAccountSummary(
   summary: AccountSummary | null,
   options: { requestStartedRevision?: number; authoritative?: boolean } = {}
-): void {
-  if (!summary || options.authoritative) committedPatchesByInstanceId.clear();
+): boolean {
+  const startedBeforeCurrentState = options.requestStartedRevision !== undefined
+    && options.requestStartedRevision < state.revision;
+  if (summary
+    && state.account
+    && startedBeforeCurrentState
+    && accountProfileVersion(summary) === 0) {
+    return false;
+  }
+  if (summary && state.account && isOlderAccountSummary(summary, state.account)) return false;
+  if (!summary) {
+    committedPatchesByInstanceId.clear();
+  }
   let next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
     ...emptyState,
     revision: state.revision + 1
@@ -68,10 +79,6 @@ export function replaceAccountSummary(
     for (const [instanceId, patch] of committedPatchesByInstanceId) {
       if (isAccountItemActionPatchReflected(summary, patch)) {
         committedPatchesByInstanceId.delete(instanceId);
-      } else if (patch.kind === "equip") {
-        // 装备状态不能由本地乐观 patch 覆盖权威账号刷新。若 Bungie
-        // 返回的 characterEquipment 没有该实例，就清掉旧 patch 并展示真实位置。
-        committedPatchesByInstanceId.delete(instanceId);
       } else {
         next = applyPatch(next, patch);
       }
@@ -79,6 +86,7 @@ export function replaceAccountSummary(
   }
   state = next;
   emitChange();
+  return true;
 }
 
 export function applyAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
@@ -202,6 +210,23 @@ function clearConflictingCommittedPatches(patch: AccountItemActionPatch): void {
       committedPatchesByInstanceId.delete(instanceId);
     }
   }
+}
+
+function isOlderAccountSummary(
+  incoming: Pick<AccountSummary, "profile_minted_at">,
+  current: Pick<AccountSummary, "profile_minted_at">
+): boolean {
+  const incomingVersion = accountProfileVersion(incoming);
+  const currentVersion = accountProfileVersion(current);
+  return incomingVersion > 0 && currentVersion > incomingVersion;
+}
+
+function accountProfileVersion(
+  account: Pick<AccountSummary, "profile_minted_at"> | null
+): number {
+  if (!account?.profile_minted_at) return 0;
+  const timestamp = Date.parse(account.profile_minted_at);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function isSameAccountItemActionPatch(

@@ -264,7 +264,8 @@ function startManifestUpdateTask(options: { repair?: boolean; restartIfRetrying?
         ));
         context.update({
           phase: "retry-wait",
-          availability: lastManifestUpdateFailed ? "usable" : "blocked"
+          availability: lastManifestUpdateFailed ? "usable" : "blocked",
+          progress_bytes_per_second: undefined
         });
         throw error;
       }
@@ -360,6 +361,7 @@ async function runManifestUpdate(
     progress_percent: 100,
     progress_current_bytes: undefined,
     progress_total_bytes: undefined,
+    progress_bytes_per_second: undefined,
     message: `资料库已更新至 ${activation.manifestVersion}，搜索和详情已恢复。`
   });
   return mergeManifestVersionStatus(

@@ -31,7 +31,11 @@ let tokenRequest: {
   contextKey: string;
   promise: Promise<FreshOAuthToken | null>;
 } | null = null;
-let briefingRequest: { contextKey: string; promise: Promise<CachedHomeBriefing> } | null = null;
+let briefingRequest: {
+  contextKey: string;
+  force: boolean;
+  promise: Promise<CachedHomeBriefing>;
+} | null = null;
 let cachedBriefing: CachedHomeBriefing | null = null;
 let cacheLoadRequest: { contextKey: string; promise: Promise<CachedHomeBriefing | null> } | null = null;
 
@@ -52,19 +56,30 @@ export async function getHomeBriefing(options: HomeBriefingRefreshOptions = {}):
     return briefingFromCache(cached, now);
   }
   if (briefingRequest?.contextKey === contextKey) {
-    return briefingFromCache(await briefingRequest.promise, new Date());
+    if (!options.force || briefingRequest.force) {
+      return briefingFromCache(await briefingRequest.promise, new Date());
+    }
+    await briefingRequest.promise.catch(() => undefined);
+    return getHomeBriefing({ force: true });
   }
 
   const promise = measureRuntime(
     "home.briefing",
-    () => buildHomeBriefing(config, token, cached, contextKey, refreshPlan),
+    () => buildHomeBriefing(
+      config,
+      token,
+      cached,
+      contextKey,
+      refreshPlan,
+      Boolean(options.force)
+    ),
     { measurePayload: true }
   ).then(async (value) => {
     cachedBriefing = value;
     await saveCachedHomeBriefing(config.data.data_dir, value);
     return value;
   });
-  briefingRequest = { contextKey, promise };
+  briefingRequest = { contextKey, force: Boolean(options.force), promise };
   void promise.then(
     () => clearBriefingRequest(promise),
     () => clearBriefingRequest(promise)
@@ -77,14 +92,16 @@ async function buildHomeBriefing(
   token: FreshOAuthToken | null,
   cached: CachedHomeBriefing | null,
   contextKey: string,
-  refreshPlan: HomeRefreshPlan
+  refreshPlan: HomeRefreshPlan,
+  forceRefresh: boolean
 ): Promise<CachedHomeBriefing> {
   const bungieSession = getSharedBungieSession(config.bungie.api_key);
   const snapshot = await bungieSession.getHomeSnapshot({
     accessToken: token?.access_token,
     includeMilestones: refreshPlan.activities,
     includeProfile: refreshPlan.activities,
-    includeVendors: refreshPlan.vendors
+    includeVendors: refreshPlan.vendors,
+    forceRefresh
   });
   const definitions = await loadHomeDefinitions(snapshot);
   const activeActivityHashes = collectProfileActivityHashes(snapshot);

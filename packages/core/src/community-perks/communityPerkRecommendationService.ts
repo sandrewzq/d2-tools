@@ -470,7 +470,7 @@ function masterworkStatIdentity(value: string): string | undefined {
   if (includesComparableText(normalized, ["drawtime", "拉弓时间", "拉弓"])) return "draw_time";
   if (includesComparableText(normalized, ["velocity", "弹速"])) return "velocity";
   if (includesComparableText(normalized, ["blastradius", "爆炸范围"])) return "blast_radius";
-  if (includesComparableText(normalized, ["impact", "伤害"])) return "impact";
+  if (includesComparableText(normalized, ["impact", "冲击"])) return "impact";
   if (includesComparableText(normalized, ["accuracy", "精准度", "精准"])) return "accuracy";
   return undefined;
 }

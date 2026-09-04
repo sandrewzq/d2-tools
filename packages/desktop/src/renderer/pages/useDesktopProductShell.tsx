@@ -527,7 +527,7 @@ function buildShellStatus(input: {
         ? "等待配置"
         : input.manifestStatusError
         ? "检查失败"
-        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus, input.manifestTask)),
+        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus, input.manifestTask, input.interfaceLocale)),
       tone: waitingForBungieConfig ? "neutral" : input.manifestStatusError ? "error" : input.manifestTask && ["queued", "running", "retrying"].includes(input.manifestTask.status) ? "pending" : getManifestStatusTone(input.manifestStatus),
       priority: waitingForBungieConfig ? "standard" : input.manifestStatusError || needsLibraryRepair || input.manifestTask?.availability === "blocked" ? "attention" : "standard",
       actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : "修复资料库",
@@ -587,17 +587,56 @@ function getAccountStatusTone(
   return canRefreshAccount ? "warning" : "neutral";
 }
 
-function formatManifestShellStatus(status: ManifestStatus | null, task: BackgroundTaskSnapshot | null): string {
+function formatManifestShellStatus(
+  status: ManifestStatus | null,
+  task: BackgroundTaskSnapshot | null,
+  interfaceLocale: ProductPreferences["interfaceLocale"]
+): string {
   if (task && ["queued", "running", "retrying"].includes(task.status)) {
-    if (task.status === "retrying") return "等待重试";
-    if (task.phase === "activate") return "切换中";
-    return task.availability === "usable" ? "后台更新" : "准备中";
+    if (task.status === "retrying") return interfaceLocale === "en-US" ? "Waiting to retry" : "等待重试";
+    const phase = formatManifestTaskPhase(task.phase, interfaceLocale);
+    const progress = task.progress_percent === undefined ? "" : ` ${Math.round(task.progress_percent)}%`;
+    if (phase) return `${phase}${progress}`;
+    return task.availability === "usable"
+      ? interfaceLocale === "en-US" ? "Updating" : "后台更新"
+      : interfaceLocale === "en-US" ? "Preparing" : "准备中";
   }
   if (!status) return "读取中";
   if (!status.initialized) return "未准备";
   if (status.missing_required_components?.length) return "需修复";
   if (status.needs_update) return "可更新";
   return formatLibraryVersion(status.version) ?? "可用";
+}
+
+function formatManifestTaskPhase(
+  phase: string | undefined,
+  interfaceLocale: ProductPreferences["interfaceLocale"]
+): string | undefined {
+  if (!phase) return undefined;
+  const labels: Record<string, string> = interfaceLocale === "en-US"
+    ? {
+        metadata: "Checking",
+        download: "Downloading",
+        extract: "Extracting",
+        validate: "Verifying",
+        index: "Indexing",
+        "download-secondary": "Downloading helper data",
+        "index-secondary": "Indexing helper data",
+        "reuse-local": "Rebuilding index",
+        activate: "Switching"
+      }
+    : {
+        metadata: "检查版本",
+        download: "下载中",
+        extract: "解压中",
+        validate: "校验中",
+        index: "建立索引",
+        "download-secondary": "下载辅助数据",
+        "index-secondary": "建立辅助索引",
+        "reuse-local": "重建索引",
+        activate: "切换中"
+      };
+  return labels[phase];
 }
 
 function getAppUpdateShellStatus(

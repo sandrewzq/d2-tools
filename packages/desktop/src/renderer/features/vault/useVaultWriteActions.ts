@@ -200,6 +200,7 @@ function createVaultVerificationInput(input: {
     destiny_membership_id: input.account.destiny_membership_id,
     character_id: input.characterId,
     character_name: input.account.characters.find((character) => character.character_id === input.characterId)?.class_name,
+    baseline_profile_minted_at: input.account.profile_minted_at,
     expected_patches: input.patches,
     accepted_count: input.patches.length,
     failed_count: input.failedCount

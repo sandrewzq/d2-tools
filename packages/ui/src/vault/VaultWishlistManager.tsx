@@ -18,12 +18,21 @@ export type VaultDimWishlistImportPreview = {
 };
 
 export type VaultWeaponKnowledgeImportPreview = {
-  token: string;
+  token?: string;
   file_name: string;
   recommendation_count: number;
   weapon_count: number;
   source_count: number;
   source_labels: string[];
+  blocking_issue_count: number;
+  blocking_issues: Array<{
+    row_number: number;
+    weapon_name: string;
+    source_label: string;
+    field: string;
+    value: string;
+    message: string;
+  }>;
 };
 
 export type VaultDimOnlineStatus = {
@@ -341,7 +350,9 @@ export function VaultWishlistManager(props: {
       const preview = await props.actions.selectKnowledgeCsv();
       if (!preview) return;
       setKnowledgePreview(preview);
-      setFeedback({ tone: "success", message: "CSV 已通过标准模板校验，确认后才会替换当前知识库。" });
+      setFeedback(preview.blocking_issue_count > 0
+        ? { tone: "error", message: `发现 ${preview.blocking_issue_count} 条无法通过官方资料校验的内容，已阻止导入。` }
+        : { tone: "success", message: "CSV 已通过格式与官方资料校验，确认后才会替换当前知识库。" });
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "知识库 CSV 校验失败。") });
     } finally {
@@ -350,7 +361,7 @@ export function VaultWishlistManager(props: {
   }
 
   async function confirmKnowledgeImport() {
-    if (!knowledgePreview || !props.actions.confirmKnowledgeImport) return;
+    if (!knowledgePreview?.token || knowledgePreview.blocking_issue_count > 0 || !props.actions.confirmKnowledgeImport) return;
     setBusyAction("knowledge-confirm");
     try {
       const result = await props.actions.confirmKnowledgeImport(knowledgePreview.token);
@@ -414,7 +425,20 @@ export function VaultWishlistManager(props: {
             <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
               <span><strong>{knowledgePreview.file_name}</strong><small>{knowledgePreview.source_labels.join(" / ")}</small></span>
               <span><strong>{knowledgePreview.weapon_count} 把武器</strong><small>{knowledgePreview.recommendation_count} 条记录 · {knowledgePreview.source_count} 个来源</small></span>
-              <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
+              {knowledgePreview.blocking_issue_count > 0 ? (
+                <div className="vault-knowledge-import-issues" role="alert">
+                  <strong>{knowledgePreview.blocking_issue_count} 条异常，不能导入</strong>
+                  {knowledgePreview.blocking_issues.map((issue) => (
+                    <small key={`${issue.row_number}-${issue.field}-${issue.value}`}>
+                      第 {issue.row_number} 行 · {issue.source_label} · {issue.weapon_name} · {issue.field}“{issue.value}”：{issue.message}
+                    </small>
+                  ))}
+                  {knowledgePreview.blocking_issue_count > knowledgePreview.blocking_issues.length
+                    ? <small>这里只显示前 {knowledgePreview.blocking_issues.length} 条，请修改 CSV 后重新选择。</small>
+                    : null}
+                </div>
+              ) : null}
+              <ControlButton size="compact" variant="primary" disabled={isBusy || !knowledgePreview.token || knowledgePreview.blocking_issue_count > 0} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
             </div>
           ) : null}
           <div className="vault-import-secondary-actions">

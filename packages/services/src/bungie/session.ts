@@ -114,6 +114,7 @@ export type BungieSession = {
     includeMilestones?: boolean;
     includeProfile?: boolean;
     includeVendors?: boolean;
+    forceRefresh?: boolean;
   }): Promise<BungieHomeSnapshot>;
 };
 
@@ -271,7 +272,8 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
 
   async function getProfile(
     membership: BungieMembership,
-    accessToken: string
+    accessToken: string,
+    forceRefresh = false
   ): Promise<BungieHomeProfileResponse> {
     const scope = currentAuthScope(accessToken);
     const components = "200,204";
@@ -281,14 +283,16 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
         `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/?components=${components}`,
         accessToken
       ),
-      policies.profile
+      policies.profile,
+      { forceRefresh, waitForRefresh: forceRefresh }
     );
   }
 
   async function getCharacterVendors(
     membership: BungieMembership,
     characterId: string,
-    accessToken: string
+    accessToken: string,
+    forceRefresh = false
   ): Promise<BungieCharacterVendorResponse> {
     const scope = currentAuthScope(accessToken);
     const components = "400,401,402,600";
@@ -298,7 +302,8 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
         `/Destiny2/${membership.membershipType}/Profile/${membership.membershipId}/Character/${characterId}/Vendors/?components=${components}`,
         accessToken
       ),
-      policies.characterVendors
+      policies.characterVendors,
+      { forceRefresh, waitForRefresh: forceRefresh }
     );
     return { ...response, characterId };
   }
@@ -308,23 +313,26 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
       const includeMilestones = sessionOptions.includeMilestones !== false;
       const includeProfile = sessionOptions.includeProfile !== false;
       const includeVendors = sessionOptions.includeVendors !== false;
+      const forceRefresh = sessionOptions.forceRefresh === true;
       const milestonesPromise = includeMilestones
         ? broker.get(
             "public:milestones",
             () => fetchJson<Record<string, BungiePublicMilestone>>("/Destiny2/Milestones/"),
-            policies.milestones
+            policies.milestones,
+            { forceRefresh, waitForRefresh: forceRefresh }
           )
         : Promise.resolve(undefined);
       const publicVendorsPromise = includeVendors
         ? broker.get(
             "public:vendors:400,402",
             () => fetchJson<BungieVendorsResponse>("/Destiny2/Vendors/?components=400,402"),
-            policies.publicVendors
+            policies.publicVendors,
+            { forceRefresh, waitForRefresh: forceRefresh }
           )
         : Promise.resolve(undefined);
       const accessToken = sessionOptions.accessToken;
       const authSnapshotPromise = accessToken
-        ? loadAuthenticatedHomeSnapshot(accessToken, includeProfile, includeVendors)
+        ? loadAuthenticatedHomeSnapshot(accessToken, includeProfile, includeVendors, forceRefresh)
         : Promise.resolve({
           membership: undefined,
           profile: undefined,
@@ -353,20 +361,26 @@ export function createBungieSession(options: CreateBungieSessionOptions): Bungie
   async function loadAuthenticatedHomeSnapshot(
     accessToken: string,
     includeProfile: boolean,
-    includeVendors: boolean
+    includeVendors: boolean,
+    forceRefresh: boolean
   ): Promise<{
     membership?: BungieMembership;
     profile?: BungieHomeProfileResponse;
     characterVendors: BungieCharacterVendorResponse[];
   }> {
     const membership = await getMembership(accessToken);
-    const profile = await getProfile(membership, accessToken);
+    const profile = await getProfile(membership, accessToken, forceRefresh);
     const characterIds = Object.values(profile.characters?.data ?? {})
       .map((character) => character.characterId)
       .filter((characterId): characterId is string => Boolean(characterId));
     const vendorResults = includeVendors
       ? await Promise.allSettled(
-          characterIds.map((characterId) => getCharacterVendors(membership, characterId, accessToken))
+          characterIds.map((characterId) => getCharacterVendors(
+            membership,
+            characterId,
+            accessToken,
+            forceRefresh
+          ))
         )
       : [];
     return {

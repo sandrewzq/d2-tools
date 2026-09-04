@@ -145,6 +145,7 @@ export function useLoadoutWriteActions(input: {
         destiny_membership_id: account.destiny_membership_id,
         character_id: options.characterId,
         character_name: options.characterName,
+        baseline_profile_minted_at: account.profile_minted_at,
         expected_patches: patches,
         accepted_count: patches.length,
         failed_count: options.failedCount ?? 0
@@ -313,6 +314,7 @@ export function useLoadoutWriteActions(input: {
             character_id: targetCharacter.character_id,
             item_id: entry.item.instance_id ?? "",
             item_name: entry.item.name,
+            wait_for_character_inventory: entry.source === "vault",
             trace: { operation_id: operationId }
           });
           const outcome = applySuccessfulWriteResult(result);
@@ -329,6 +331,7 @@ export function useLoadoutWriteActions(input: {
               character_id: targetCharacter.character_id,
               item_id: entry.item.instance_id ?? "",
               item_name: entry.item.name,
+              wait_for_character_inventory: entry.source === "vault",
               trace: { operation_id: operationId }
             }))
           });
@@ -396,6 +399,7 @@ export function useLoadoutWriteActions(input: {
         destiny_membership_id: account.destiny_membership_id,
         character_id: targetCharacter.character_id,
         character_name: targetCharacter.class_name,
+        baseline_profile_minted_at: account.profile_minted_at,
         expected_patches: finalExpectedPatches,
         accepted_count: finalExpectedPatches.length,
         failed_count: failedSteps
@@ -420,6 +424,7 @@ export function useLoadoutWriteActions(input: {
           destiny_membership_id: account.destiny_membership_id,
           character_id: verificationCharacter.character_id,
           character_name: verificationCharacter.class_name,
+          baseline_profile_minted_at: account.profile_minted_at,
           expected_patches: finalAcceptedPatches,
           accepted_count: finalAcceptedPatches.length,
           failed_count: 1
@@ -646,7 +651,8 @@ export function useLoadoutWriteActions(input: {
               membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
-              item_name: item.item_name
+              item_name: item.item_name,
+              wait_for_character_inventory: true
             }))
           });
           const outcome = applySuccessfulWriteResult(equipResult);
@@ -688,7 +694,8 @@ export function useLoadoutWriteActions(input: {
               membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: item.item_id,
-              item_name: item.item_name
+              item_name: item.item_name,
+              wait_for_character_inventory: true
             }))
           });
           const outcome = applySuccessfulWriteResult(equipResult);
@@ -823,7 +830,8 @@ export function useLoadoutWriteActions(input: {
               membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
-              item_name: entry.item_name
+              item_name: entry.item_name,
+              wait_for_character_inventory: true
             }))
           });
           const outcome = applySuccessfulWriteResult(equipResult);
@@ -879,7 +887,8 @@ export function useLoadoutWriteActions(input: {
               membership_type: account.membership_type,
               character_id: step.character_id,
               item_id: entry.item_id,
-              item_name: entry.item_name
+              item_name: entry.item_name,
+              wait_for_character_inventory: true
             }))
           });
           const outcome = applySuccessfulWriteResult(equipResult);

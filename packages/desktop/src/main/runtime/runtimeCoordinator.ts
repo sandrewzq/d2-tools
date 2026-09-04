@@ -22,7 +22,10 @@ let manifestRecoveryRequest: Promise<boolean> | null = null;
 let sqliteWarmupRequest: Promise<boolean> | null = null;
 let accountCacheWarmupRequest: Promise<boolean> | null = null;
 let backgroundRefreshRequest: Promise<void> | null = null;
-let homeBriefingRequest: Promise<HomeBriefing> | null = null;
+let homeBriefingRequest: {
+  force: boolean;
+  promise: Promise<HomeBriefing>;
+} | null = null;
 
 export function initializeRuntimeCoordinator(): void {
   if (initialized) return;
@@ -128,9 +131,15 @@ function warmAccountCache(generation: number): Promise<boolean> {
 }
 
 function requestHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<HomeBriefing> {
-  if (homeBriefingRequest) return homeBriefingRequest;
+  if (homeBriefingRequest) {
+    if (!options.force || homeBriefingRequest.force) return homeBriefingRequest.promise;
+    return homeBriefingRequest.promise.then(
+      () => requestHomeBriefing({ force: true }),
+      () => requestHomeBriefing({ force: true })
+    );
+  }
   const request = getHomeBriefing(options);
-  homeBriefingRequest = request;
+  homeBriefingRequest = { force: Boolean(options.force), promise: request };
   void request.then(
     () => clearHomeBriefingRequest(request),
     () => clearHomeBriefingRequest(request)
@@ -139,7 +148,7 @@ function requestHomeBriefing(options: HomeBriefingRefreshOptions = {}): Promise<
 }
 
 function clearHomeBriefingRequest(request: Promise<HomeBriefing>): void {
-  if (homeBriefingRequest === request) homeBriefingRequest = null;
+  if (homeBriefingRequest?.promise === request) homeBriefingRequest = null;
 }
 
 function invalidateWarmupStages(): void {

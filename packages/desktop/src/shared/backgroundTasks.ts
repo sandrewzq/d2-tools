@@ -44,6 +44,7 @@ export type BackgroundTaskSnapshot = {
   progress_percent?: number;
   progress_current_bytes?: number;
   progress_total_bytes?: number;
+  progress_bytes_per_second?: number;
   started_at?: string;
   updated_at: string;
   finished_at?: string;

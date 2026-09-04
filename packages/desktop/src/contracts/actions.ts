@@ -52,6 +52,8 @@ export type ItemEquipActionInput = ActionTraceCarrier & {
   character_id: string;
   item_id: string;
   item_name?: string;
+  /** Require a fresh Profile to show the item on this character before equipping. */
+  wait_for_character_inventory?: boolean;
 };
 
 export type InsertSocketPlugActionInput = ActionTraceCarrier & {
@@ -158,6 +160,7 @@ export type AccountWriteVerificationInput = {
   character_id: string;
   character_name?: string;
   item_name?: string;
+  baseline_profile_minted_at?: string;
   expected_patches: AccountItemActionPatch[];
   accepted_count: number;
   failed_count: number;

@@ -1,4 +1,5 @@
 import { app, ipcMain } from "electron";
+import { createRequire } from "node:module";
 import { loadActionLog } from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { buildDiagnosticsExport } from "@d2-tools/services/diagnostics/export";
@@ -12,11 +13,13 @@ import {
 import { getDesktopManifestStatus } from "./manifest.js";
 import { formatAccountCacheMetrics } from "@d2-tools/services/account/cacheMetrics";
 
+const require = createRequire(import.meta.url);
+
 export function registerDiagnosticsIpcHandlers(): void {
   ipcMain.handle("diagnostics:export", () => {
     const config = loadConfig();
     const base = buildDiagnosticsExport({
-      app_version: app.getVersion(),
+      app_version: getDiagnosticsAppVersion(),
       config,
       manifest: getDesktopManifestStatus(),
       action_log: loadActionLog(config.data.data_dir, 20),
@@ -48,6 +51,16 @@ export function registerDiagnosticsIpcHandlers(): void {
       ...formatAccountRefreshMetrics()
     ].join("\n");
   });
+}
+
+function getDiagnosticsAppVersion(): string {
+  try {
+    const packageJson = require("../../../package.json") as { version?: string };
+    if (packageJson.version) return packageJson.version;
+  } catch {
+    // Packaged builds normally provide the product version through Electron.
+  }
+  return app.getVersion();
 }
 
 function formatMemoryKiB(value: number): string {

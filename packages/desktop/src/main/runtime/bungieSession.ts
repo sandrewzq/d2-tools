@@ -36,12 +36,10 @@ function getState(apiKey: string) {
   }
   state?.broker.clear();
   const broker = createBungieRequestBroker({ apiKey });
-  const session = createBungieSession({
-    apiKey,
-    fetchJson: <T>(path: string, accessToken?: string) => (
-      broker.fetchJson<T>(path, accessToken)
-    )
-  });
+  // Home data already has its own request broker inside BungieSession. Routing
+  // it through the shared broker as well creates two cache layers, so an inner
+  // force refresh can still be answered by the outer TTL cache.
+  const session = createBungieSession({ apiKey });
   state = { apiKey, broker, session };
   return state;
 }

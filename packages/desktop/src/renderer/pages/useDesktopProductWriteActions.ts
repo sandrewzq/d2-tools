@@ -70,8 +70,9 @@ export function useDesktopProductWriteActions(input: {
       sync,
       task: backgroundTasks.find((entry) => entry.task_id === sync.taskId)
     }));
-    const succeededAll = resolved.filter((entry) => entry.task?.status === "success");
-    for (const entry of succeededAll) {
+    const completedAll = resolved.filter((entry) => entry.task
+      && ["success", "failed", "blocked"].includes(entry.task.status));
+    for (const entry of completedAll) {
       input.confirmCommittedAccountActionPatches(entry.sync.expectedPatches);
     }
     const visible = resolved.filter((entry) => entry.sync.surfaceFeedback);
@@ -198,7 +199,18 @@ export function useDesktopProductWriteActions(input: {
   function clearCompletedWriteFeedback(): void {
     // 手动刷新代表用户要求重新读取权威账号状态。已结束的写入错误
     // 不应继续覆盖刷新结果；仍在进行的同步反馈则保留给后台任务更新。
-    setAccountOperationFeedback((current) => current?.tone === "error" ? undefined : current);
+    setAccountOperationFeedback((current) => {
+      if (!current) return current;
+      return current.phase && [
+        "confirmed",
+        "partial-confirmed",
+        "failed",
+        "paused",
+        "superseded"
+      ].includes(current.phase)
+        ? undefined
+        : current;
+    });
     setItemActionMessage("");
     setLoadoutMessage("");
   }

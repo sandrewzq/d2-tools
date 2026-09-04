@@ -350,7 +350,7 @@ contextBridge.exposeInMainWorld("d2", {
       message: string;
     }>,
   selectWeaponKnowledgeCsv: () =>
-    ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token: string }) | null>,
+    ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token?: string }) | null>,
   confirmWeaponKnowledgeCsvImport: (token: string) =>
     ipcRenderer.invoke("community:knowledge:import:confirm", token) as Promise<WeaponKnowledgeImportResult>,
   getWeaponKnowledgeStatus: () =>

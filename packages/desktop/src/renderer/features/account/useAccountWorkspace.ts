@@ -62,6 +62,10 @@ export function useAccountWorkspace(input: {
   const recommendationScanAccountKeyRef = useRef("");
   const accountLoadingSequenceRef = useRef(0);
   const hasLoadedLocalAccountDataRef = useRef(false);
+  const accountRefreshRequestRef = useRef<{
+    promise: Promise<AccountSummary | null>;
+    authoritative: boolean;
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -89,14 +93,16 @@ export function useAccountWorkspace(input: {
     summary: AccountSummary,
     requestStartedRevision?: number,
     authoritative = false
-  ) {
+  ): AccountSummary {
     replaceAccountSummary(summary, { requestStartedRevision, authoritative });
+    const acceptedSummary = getAccountSummarySnapshot() ?? summary;
     setSelectedCharacterId((current) => {
-      if (current && summary.characters.some((character) => character.character_id === current)) {
+      if (current && acceptedSummary.characters.some((character) => character.character_id === current)) {
         return current;
       }
-      return summary.characters[0]?.character_id ?? "";
+      return acceptedSummary.characters[0]?.character_id ?? "";
     });
+    return acceptedSummary;
   }
 
   function applyCommittedAccountActionPatches(patches: readonly AccountItemActionPatch[]) {
@@ -115,6 +121,7 @@ export function useAccountWorkspace(input: {
     try {
       const result = await api.loginBungie();
       accountRequestSequenceRef.current += 1;
+      accountRefreshRequestRef.current = null;
       hasLoadedLocalAccountDataRef.current = false;
       derivedRequestSequenceRef.current += 1;
       communityRequestSequenceRef.current += 1;
@@ -168,6 +175,23 @@ export function useAccountWorkspace(input: {
     // 初次读取和用户手动同步都属于可见的前台动作。只有明确写操作触发的
     // 对账刷新留在后台，并由写入反馈与任务 Dock 说明其进度。
     const foreground = reason !== "write-action";
+    const authoritative = reason === "manual" || reason === "write-action";
+    const existingRequest = accountRefreshRequestRef.current;
+    if (existingRequest) {
+      if (!authoritative || existingRequest.authoritative) {
+        if (foreground) setIsLoadingAccount(true);
+        try {
+          return await existingRequest.promise;
+        } finally {
+          if (foreground) setIsLoadingAccount(false);
+        }
+      }
+      await existingRequest.promise.catch(() => null);
+      if (accountRefreshRequestRef.current === existingRequest) {
+        accountRefreshRequestRef.current = null;
+      }
+      return refreshAccountSnapshot(reason);
+    }
     const requestSequence = ++accountRequestSequenceRef.current;
     const requestStartedRevision = getAccountStoreRevision();
     const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
@@ -201,7 +225,7 @@ export function useAccountWorkspace(input: {
           if (requestSequence !== accountRequestSequenceRef.current) return null;
         }
 
-        applyAccountSummary(
+        summary = applyAccountSummary(
           summary,
           requestStartedRevision,
           reason === "manual" || reason === "write-action"
@@ -226,7 +250,9 @@ export function useAccountWorkspace(input: {
         }));
         if (reason === "initial" || reason === "manual") {
           setActivityMessage(reason === "manual"
-            ? "已从游戏同步最新账号数据"
+            ? hasSameProfileVersion(previousSummary, summary)
+              ? "同步请求已完成，Bungie 服务器版本没有变化"
+              : "已从游戏同步更新后的账号数据"
             : "账号数据已同步，最近活动会继续在后台读取");
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
@@ -246,9 +272,13 @@ export function useAccountWorkspace(input: {
         return null;
       }
     })();
+    accountRefreshRequestRef.current = { promise: request, authoritative };
     try {
       return await request;
     } finally {
+      if (accountRefreshRequestRef.current?.promise === request) {
+        accountRefreshRequestRef.current = null;
+      }
       if (foreground && loadingSequence === accountLoadingSequenceRef.current) {
         setIsLoadingAccount(false);
       }
@@ -458,6 +488,9 @@ function formatAccountSyncMessage(
   reason: AccountRefreshReason
 ): string {
   if (reason === "initial" || !previous) return "账号与仓库已从游戏同步";
+  if (hasSameProfileVersion(previous, next)) {
+    return "同步完成：Bungie 服务器版本没有变化，继续显示当前账号与仓库状态";
+  }
   const previousVaultIds = new Set(previous.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
   const nextVaultIds = new Set(next.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
   const movedOut = [...previousVaultIds].filter((instanceId) => !nextVaultIds.has(instanceId)).length;
@@ -470,6 +503,17 @@ function formatAccountSyncMessage(
   const countDelta = next.vault.item_count - previous.vault.item_count;
   if (countDelta) return `同步完成：仓库总数${countDelta > 0 ? "增加" : "减少"} ${Math.abs(countDelta)} 件`;
   return "同步完成：游戏中的账号与仓库状态没有变化";
+}
+
+function hasSameProfileVersion(
+  previous: AccountSummary | null,
+  next: AccountSummary
+): boolean {
+  return Boolean(
+    previous?.profile_minted_at
+    && next.profile_minted_at
+    && previous.profile_minted_at === next.profile_minted_at
+  );
 }
 
 function getAccountLoadErrorMessage(state: StartupState, message: string): string {

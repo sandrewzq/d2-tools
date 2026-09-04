@@ -1,7 +1,8 @@
 import type {
   AccountItemDetail,
   AccountSnapshot,
-  AccountSummary
+  AccountSummary,
+  DestinyProfileResponse
 } from "@d2-tools/core/account/summary";
 import {
   createAccountSession,
@@ -91,6 +92,14 @@ export async function getArmorPlannerAccountSummary(
     () => session.getArmorPlannerSummary({ freshness }),
     { measurePayload: true }
   );
+}
+
+export async function getAccountProfileComponents(
+  components: readonly number[],
+  freshness: "cached" | "refresh" = "cached"
+): Promise<DestinyProfileResponse> {
+  const session = await getAccountSession();
+  return session.getProfileComponents({ components, freshness });
 }
 
 export async function warmAccountSession(): Promise<boolean> {

@@ -123,7 +123,14 @@ function reportManifestProgress(phase: ManifestLifecyclePhase): void {
     "reuse-local": { progress_percent: 18, message: "已复用现有资料内容，正在升级本地查询索引。" },
     activate: { progress_percent: 95, message: "正在关闭旧连接并切换资料库。" }
   };
-  parentPort?.postMessage({ type: "progress", phase, ...progressByPhase[phase] });
+  parentPort?.postMessage({
+    type: "progress",
+    phase,
+    ...progressByPhase[phase],
+    progress_current_bytes: undefined,
+    progress_total_bytes: undefined,
+    progress_bytes_per_second: undefined
+  });
 }
 
 const lastDownloadReport = new Map<ManifestLifecycleDownloadProgress["scope"], {
@@ -156,26 +163,15 @@ function reportManifestDownloadProgress(
     : language.trim().toLowerCase() === "en"
       ? "英文资料库"
       : "中文资料库";
-  const size = total
-    ? `${formatBytes(progress.receivedBytes)} / ${formatBytes(total)}`
-    : `已下载 ${formatBytes(progress.receivedBytes)}`;
-  const speed = bytesPerSecond && bytesPerSecond > 0
-    ? ` · ${formatBytes(bytesPerSecond)}/s`
-    : "";
   parentPort?.postMessage({
     type: "progress",
     phase: progress.scope === "primary" ? "download" : "download-secondary",
     progress_percent: progressPercent,
     progress_current_bytes: progress.receivedBytes,
     progress_total_bytes: total,
-    message: `正在下载${label}：${size}${speed}。`
+    progress_bytes_per_second: bytesPerSecond,
+    message: `正在下载${label}。`
   });
-}
-
-function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${Math.max(0, Math.round(bytes / 1024))} KB`;
 }
 
 function requestActivationPermission(): Promise<void> {

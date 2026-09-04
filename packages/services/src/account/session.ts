@@ -59,6 +59,10 @@ export type AccountSession = {
   getArmorPlannerSummary(input?: {
     freshness?: AccountSnapshotFreshness;
   }): Promise<AccountSummary>;
+  getProfileComponents(input: {
+    components: readonly number[];
+    freshness?: AccountSnapshotFreshness;
+  }): Promise<DestinyProfileResponse>;
   getItemDetail(
     input: AccountItemDetailQuery,
     options?: { freshness?: AccountSnapshotFreshness }
@@ -228,6 +232,18 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         destinyMembership: membership.selected,
         profile
       });
+    },
+
+    async getProfileComponents(input) {
+      const accessToken = await getScopedAccessToken(true);
+      const membership = await getMembership(accessToken, true);
+      return getProfile(
+        membership.selected,
+        accessToken,
+        new Set(input.components),
+        input.freshness === "refresh",
+        true
+      );
     },
 
     async getItemDetail(input, options = {}) {
@@ -570,6 +586,21 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           { forceRefresh }
         );
         assertActiveRequest(accessToken, requestEpoch);
+        const existingProfile = profileCache?.membershipKey === membershipKey
+          ? profileCache
+          : undefined;
+        if (existingProfile
+          && isSuperset(existingProfile.components, components)
+          && isProfileNotNewer(profile, existingProfile.profile)) {
+          if (diagnoseSnapshotRefresh) {
+            reportDiagnostic({
+              stage: "profile",
+              outcome: "cache-hit",
+              duration_ms: performance.now() - startedAt
+            });
+          }
+          return existingProfile.profile;
+        }
         profileCache = {
           membershipKey,
           components,
@@ -694,13 +725,21 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           });
           return snapshot;
         }
-        if (authoritative) {
-          pendingItemPatches.clear();
-          if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
+        const currentProfileVersion = snapshot ? accountProfileVersion(snapshot) : 0;
+        const nextProfileVersion = accountProfileVersion(nextSnapshot);
+        if (snapshot && nextProfileVersion > 0 && currentProfileVersion > nextProfileVersion) {
+          snapshotFreshUntil = 0;
+          reportDiagnostic({
+            stage: "snapshot-request",
+            outcome: "cache-hit",
+            duration_ms: performance.now() - snapshotStartedAt
+          });
+          return snapshot;
+        }
+        snapshot = reconcilePendingItemPatches(nextSnapshot);
+        if (authoritative && !pendingItemPatches.size && patchRevalidateTimer) {
+          clearTimeout(patchRevalidateTimer);
           patchRevalidateTimer = undefined;
-          snapshot = nextSnapshot;
-        } else {
-          snapshot = reconcilePendingItemPatches(nextSnapshot);
         }
         snapshotRevalidatedRevision = Math.max(
           snapshotRevalidatedRevision,
@@ -752,11 +791,6 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     let reconciled = serverSnapshot;
     for (const [instanceId, patch] of pendingItemPatches) {
       if (isAccountItemPatchReflected(serverSnapshot, patch)) {
-        pendingItemPatches.delete(instanceId);
-      } else if (patch.kind === "equip") {
-        // 装备操作必须以 Bungie Profile 的真实装备列表为准。不要把未反映
-        // 的本地装备 patch 再合并回刷新结果，否则游戏内未装备时页面仍会
-        // 伪装成已装备。
         pendingItemPatches.delete(instanceId);
       } else {
         reconciled = applyAccountItemPatch(reconciled, patch);
@@ -945,6 +979,27 @@ function isSameAccountItemPatch(
   return left.kind === "transfer" && right.kind === "transfer"
     && left.character_id === right.character_id
     && left.target === right.target;
+}
+
+function isProfileNotNewer(
+  incoming: DestinyProfileResponse,
+  current: DestinyProfileResponse
+): boolean {
+  const incomingVersion = profileVersion(incoming.responseMintedTimestamp);
+  const currentVersion = profileVersion(current.responseMintedTimestamp);
+  return incomingVersion > 0
+    && currentVersion > 0
+    && incomingVersion <= currentVersion;
+}
+
+function accountProfileVersion(account: Pick<AccountSummary, "profile_minted_at">): number {
+  return profileVersion(account.profile_minted_at);
+}
+
+function profileVersion(value: unknown): number {
+  if (typeof value !== "string") return 0;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : 0;
 }
 
 function collectAccountSnapshotDefinitionRequest(
