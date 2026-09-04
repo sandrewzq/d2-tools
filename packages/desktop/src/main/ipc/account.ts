@@ -14,7 +14,6 @@ import {
   loadCachedAccountSnapshot
 } from "@d2-tools/services/account/snapshotStore";
 import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
-import { startBackgroundTask } from "../backgroundTasks.js";
 import {
   getAccountItemDetailByInstanceId,
   getAccountSnapshot,
@@ -38,15 +37,6 @@ export function registerAccountIpcHandlers(): void {
       () => loadAccountSummary(options),
       { measurePayload: true }
     );
-    startBackgroundTask({
-      type: "account-sync",
-      title: "读取账号数据",
-      message: "正在读取 Bungie 账号、角色和仓库。",
-      run: async () => {
-        await summaryRequest;
-      }
-    });
-
     return summaryRequest;
   }, classifyAccountIpcError));
 

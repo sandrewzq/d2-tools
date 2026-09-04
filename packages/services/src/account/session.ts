@@ -109,6 +109,7 @@ type ProfileCache = {
 type ProfileRequest = {
   membershipKey: string;
   components: Set<number>;
+  forceRefresh: boolean;
   promise: Promise<DestinyProfileResponse>;
 };
 
@@ -519,6 +520,19 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       return profileCache.profile;
     }
     if (profileInFlight?.membershipKey === membershipKey) {
+      if (forceRefresh && !profileInFlight.forceRefresh) {
+        if (diagnoseSnapshotRefresh) {
+          reportDiagnostic({ stage: "profile", outcome: "queued-after-in-flight", duration_ms: 0 });
+        }
+        await profileInFlight.promise.catch(() => undefined);
+        return getProfile(
+          membership,
+          accessToken,
+          requestedComponents,
+          true,
+          diagnoseSnapshotRefresh
+        );
+      }
       if (isSuperset(profileInFlight.components, requestedComponents)) {
         if (diagnoseSnapshotRefresh) {
           reportDiagnostic({ stage: "profile", outcome: "in-flight-reused", duration_ms: 0 });
@@ -585,7 +599,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           profileInFlight = undefined;
         }
       });
-    profileInFlight = { membershipKey, components, promise };
+    profileInFlight = { membershipKey, components, forceRefresh, promise };
     return promise;
   }
 

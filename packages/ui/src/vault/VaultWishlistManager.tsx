@@ -3,6 +3,9 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ControlButton } from "../control/ControlButton.js";
 
+// 在线检查不阻塞弹窗；这里仅作为异常兜底，避免 IPC 永久处于等待状态。
+const dimOnlineCheckUiTimeoutMs = 210_000;
+
 export type VaultDimWishlistImportPreview = {
   token: string;
   file_name: string;
@@ -94,6 +97,7 @@ export function VaultWishlistManager(props: {
   const [isPasteOpen, setIsPasteOpen] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [busyAction, setBusyAction] = useState("");
+  const [isCheckingDimOnline, setIsCheckingDimOnline] = useState(false);
   const [feedback, setFeedback] = useState<ImportFeedback>(null);
   const busyActionRef = useRef(busyAction);
   const onCloseRef = useRef(props.onClose);
@@ -263,16 +267,17 @@ export function VaultWishlistManager(props: {
   }
 
   async function checkDimOnlineUpdate() {
-    if (!props.actions.checkDimOnlineUpdate) return;
-    setBusyAction("dim-online-check");
+    if (!props.actions.checkDimOnlineUpdate || isCheckingDimOnline) return;
+    setIsCheckingDimOnline(true);
+    setFeedback({ tone: "neutral", message: "正在后台检查 DIM 社区推荐；你可以继续使用弹窗内其他入口或关闭此窗口。" });
     try {
-      const preview = await props.actions.checkDimOnlineUpdate();
+      const preview = await withTimeout(
+        props.actions.checkDimOnlineUpdate(),
+        dimOnlineCheckUiTimeoutMs,
+        "检查 DIM 社区推荐超时。当前数据未更改，请关闭窗口后重试，或改用本地 Wishlist 文件。"
+      );
       setDimOnlineStatus(preview);
       setDimOnlinePreview(preview.update_available && preview.token ? preview : null);
-      setDimFilePreview(null);
-      setPastePreview(null);
-      setIsPasteOpen(false);
-      setIsConfirmingClear(false);
       setFeedback(preview.update_available
         ? { tone: "success", message: `发现 DIM 社区推荐更新 · ${preview.weapon_count} 把武器、${preview.rule_count} 条规则，确认后才会替换当前数据。` }
         : { tone: "success", message: "DIM 社区推荐已经是最新版本。" });
@@ -280,7 +285,7 @@ export function VaultWishlistManager(props: {
       setDimOnlinePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "DIM 社区推荐更新检查失败。") });
     } finally {
-      setBusyAction("");
+      setIsCheckingDimOnline(false);
     }
   }
 
@@ -384,16 +389,17 @@ export function VaultWishlistManager(props: {
   }
 
   const isBusy = Boolean(busyAction);
+  const canClose = !isBusy;
 
   const dialog = (
-    <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => !isBusy && props.onClose()}>
+    <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => canClose && props.onClose()}>
     <section ref={dialogRef} className="vault-wishlist-manager" data-surface="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={isBusy ? "true" : "false"} onClick={(event) => event.stopPropagation()}>
       <header>
         <div>
           <strong id={titleId}>推荐数据</strong>
           <span>中文推荐 CSV 是主要数据；DIM 社区推荐可以从 GitHub 更新，作为额外参考。</span>
         </div>
-        <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={props.onClose}>关闭</ControlButton>
+        <ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton>
       </header>
 
       {supportsKnowledgeImport ? (
@@ -423,7 +429,7 @@ export function VaultWishlistManager(props: {
           <span><strong>DIM 社区推荐</strong><small>可直接从上游 GitHub 更新；本地 .txt / .wishlist 文件仍作为离线和自定义入口。</small></span>
           <div className="vault-wishlist-actions">
             <input ref={browserFileRef} hidden type="file" accept=".txt,.wishlist,text/plain" onChange={(event) => void readBrowserFile(event.target.files?.[0])} />
-            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy} onClick={() => void checkDimOnlineUpdate()}>{busyAction === "dim-online-check" ? "检查并读取中" : "检查社区更新"}</ControlButton> : null}
+            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "后台检查中" : "检查社区更新"}</ControlButton> : null}
           </div>
         </div>
 
@@ -525,4 +531,20 @@ function formatDateTime(value: string): string {
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
 }

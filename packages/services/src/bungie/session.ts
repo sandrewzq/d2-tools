@@ -155,6 +155,7 @@ type CacheEntry<T> = {
   freshUntil: number;
   staleUntil: number;
   inFlight?: Promise<T>;
+  inFlightForced?: boolean;
   loader?: () => Promise<T>;
   policy?: CachePolicy;
 };
@@ -391,12 +392,18 @@ class RequestBroker {
   ): Promise<T> {
     if (options.forceRefresh) {
       const existing = this.entries.get(key) as CacheEntry<T> | undefined;
-      if (existing?.inFlight) return existing.inFlight;
+      if (existing?.inFlight) {
+        if (existing.inFlightForced) return existing.inFlight;
+        return existing.inFlight.then(
+          () => this.get(key, loader, policy, { ...options, forceRefresh: true }),
+          () => this.get(key, loader, policy, { ...options, forceRefresh: true })
+        );
+      }
       this.entries.delete(key);
       return this.refresh(key, {
         freshUntil: 0,
         staleUntil: 0
-      }, loader, policy);
+      }, loader, policy, true);
     }
     const currentTime = this.now();
     const entry = this.entries.get(key) as CacheEntry<T> | undefined;
@@ -445,7 +452,8 @@ class RequestBroker {
     key: string,
     entry: CacheEntry<T>,
     loader: () => Promise<T>,
-    policy: CachePolicy
+    policy: CachePolicy,
+    forced = false
   ): Promise<T> {
     entry.loader = loader;
     entry.policy = policy;
@@ -459,8 +467,10 @@ class RequestBroker {
       })
       .finally(() => {
         entry.inFlight = undefined;
+        entry.inFlightForced = undefined;
       });
     entry.inFlight = inFlight;
+    entry.inFlightForced = forced;
     this.entries.set(key, entry as CacheEntry<unknown>);
     return inFlight;
   }

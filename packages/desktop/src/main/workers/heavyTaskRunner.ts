@@ -7,7 +7,14 @@ export type HeavyTaskInput =
 type HeavyTaskMessage<TResult> =
   | { type: "result"; ok: true; result: TResult }
   | { type: "result"; ok: false; error: string }
-  | { type: "progress"; progress_percent: number; message: string }
+  | {
+      type: "progress";
+      progress_percent: number;
+      message: string;
+      phase?: string;
+      progress_current_bytes?: number;
+      progress_total_bytes?: number;
+    }
   | { type: "activation-request" };
 
 export type HeavyTaskRunOptions = {
@@ -18,7 +25,13 @@ const activationTimeoutMs = 10_000;
 
 export function runHeavyTaskInWorker<TResult>(
   input: HeavyTaskInput,
-  onProgress?: (progress: { progress_percent: number; message: string }) => void,
+  onProgress?: (progress: {
+    progress_percent: number;
+    message: string;
+    phase?: string;
+    progress_current_bytes?: number;
+    progress_total_bytes?: number;
+  }) => void,
   options: HeavyTaskRunOptions = {}
 ): Promise<TResult> {
   return new Promise((resolve, reject) => {
@@ -31,7 +44,10 @@ export function runHeavyTaskInWorker<TResult>(
       if (message.type === "progress") {
         onProgress?.({
           progress_percent: message.progress_percent,
-          message: message.message
+          message: message.message,
+          phase: message.phase,
+          progress_current_bytes: message.progress_current_bytes,
+          progress_total_bytes: message.progress_total_bytes
         });
         return;
       }

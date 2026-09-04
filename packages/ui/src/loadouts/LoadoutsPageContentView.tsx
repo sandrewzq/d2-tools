@@ -619,7 +619,7 @@ function InGameAccountFreshness(props: {
     ? `账号同步失败：${props.error}`
     : props.message
       || (props.status === "refreshing"
-        ? "账号装备数据后台同步中"
+        ? "正在从游戏同步账号装备"
         : props.status === "stale"
           ? "账号装备数据可能已过期"
           : props.status === "cached"
@@ -863,7 +863,7 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
     : props.accountDataError
     ? `账号同步失败：${props.accountDataError}`
     : props.accountDataStatus === "refreshing"
-    ? "后台同步中"
+    ? "正在从游戏同步"
     : props.accountDataStatus === "stale"
       ? "缓存可能已过期"
       : props.accountDataStatus === "cached"

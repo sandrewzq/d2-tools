@@ -12,6 +12,16 @@
   margin: 12px 0 0;
 }
 
+.settings-manifest-task {
+  display: grid;
+  gap: 5px;
+}
+
+.settings-manifest-task p,
+.settings-manifest-task small {
+  margin: 0;
+}
+
 .settings-workspace {
   --settings-directory-width: 240px;
   --settings-control-column: 282px;

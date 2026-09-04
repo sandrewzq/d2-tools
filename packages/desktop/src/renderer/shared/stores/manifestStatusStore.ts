@@ -13,13 +13,15 @@ export type ManifestStatusStoreSnapshot = {
   manifestStatusError: string;
   isLoadingManifestStatus: boolean;
   isInitializingManifest: boolean;
+  manifestTask: BackgroundTaskSnapshot | null;
 };
 
 let snapshot: ManifestStatusStoreSnapshot = {
   manifestStatus: null,
   manifestStatusError: "",
   isLoadingManifestStatus: false,
-  isInitializingManifest: false
+  isInitializingManifest: false,
+  manifestTask: null
 };
 let started = false;
 let loadSequence = 0;
@@ -66,13 +68,17 @@ function handleBackgroundTasks(tasks: BackgroundTaskSnapshot[]): void {
     && ["queued", "running", "retrying"].includes(task.status)
   ));
   const latestManifestTask = manifestTasks[0];
+  const manifestTask = manifestTasks.find((task) => (
+    ["manifest-update", "manifest-repair"].includes(task.type)
+    && ["queued", "running", "retrying"].includes(task.status)
+  )) ?? manifestTasks.find((task) => ["manifest-update", "manifest-repair"].includes(task.type)) ?? null;
   const manifestStatusError = latestManifestTask?.status === "failed"
     ? latestManifestTask.error ?? "资料库后台任务失败"
     : (["queued", "running", "retrying", "success"].includes(latestManifestTask?.status ?? "")
       ? ""
       : snapshot.manifestStatusError);
 
-  setSnapshot({ isInitializingManifest, manifestStatusError });
+  setSnapshot({ isInitializingManifest, manifestStatusError, manifestTask });
 
   const hasActiveUpdate = manifestTasks.some((task) => (
     ["manifest-update", "manifest-repair"].includes(task.type)
@@ -126,6 +132,7 @@ function setSnapshot(patch: Partial<ManifestStatusStoreSnapshot>): void {
     && next.manifestStatusError === snapshot.manifestStatusError
     && next.isLoadingManifestStatus === snapshot.isLoadingManifestStatus
     && next.isInitializingManifest === snapshot.isInitializingManifest
+    && next.manifestTask === snapshot.manifestTask
   ) {
     return;
   }

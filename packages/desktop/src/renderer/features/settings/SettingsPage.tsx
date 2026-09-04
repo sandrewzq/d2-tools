@@ -16,7 +16,7 @@ export type { SettingsActionLogResultFilter, SettingsActionLogTypeFilter };
 
 export function SettingsPage(props: {
   interfaceLocale?: InterfaceLocale;
-  initialSection?: "overview" | "account" | "bungie";
+  initialSection?: "overview" | "account" | "library" | "bungie";
   message: string;
   error: string;
   diagnosticDataDir: string;

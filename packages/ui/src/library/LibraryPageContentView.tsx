@@ -54,6 +54,7 @@ export type LibraryPageActions = {
   onSelectRecentQuery: (name: string) => void;
   onClearFilters: () => void;
   onRefreshManifestStatus: () => void;
+  onInitializeManifest: () => void;
   onRepairManifest: () => void;
   onAliasDraftChange: (value: string) => void;
   onAliasTargetDraftChange: (value: string) => void;
@@ -137,8 +138,14 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
       <div>
         <strong>{manifestAlert.title}</strong>
         <span>{manifestAlert.message}</span>
+        {manifestAlert.detail ? <small>{manifestAlert.detail}</small> : null}
+        {manifestAlert.progress !== undefined ? (
+          <span className="library-manifest-progress" aria-label={`${manifestAlert.progress}%`}>
+            <span style={{ width: `${manifestAlert.progress}%` }} />
+          </span>
+        ) : null}
       </div>
-      <div className="library-manifest-actions">
+      {manifestAlert.primaryAction ? <div className="library-manifest-actions">
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={actions.onRefreshManifestStatus}>
           {libraryText(copy, "重新检查")}
         </button>
@@ -146,11 +153,11 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
           type="button"
           data-ui-kind="button" data-control-variant="primary"
           disabled={model.status.isInitializingManifest}
-          onClick={actions.onRepairManifest}
+          onClick={manifestAlert.primaryAction === "repair" ? actions.onRepairManifest : actions.onInitializeManifest}
         >
-          {model.status.isInitializingManifest ? libraryText(copy, "更新中...") : libraryText(copy, "修复资料库")}
+          {manifestAlert.primaryAction === "repair" ? libraryText(copy, "修复资料库") : libraryText(copy, "立即更新")}
         </button>
-      </div>
+      </div> : null}
     </section>
   ) : null;
 
@@ -328,14 +335,26 @@ function handleRelatedItemKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
 function buildManifestAlert(
   alert: LibraryManifestAlertModel | null,
   copy: LibraryCopy
-): { title: string; message: string; className: string } | null {
+): {
+  title: string;
+  message: string;
+  detail?: string;
+  progress?: number;
+  primaryAction?: "update" | "repair";
+  className: string;
+} | null {
   if (!alert) {
     return null;
   }
   if (alert.kind === "error") {
     return {
-      title: libraryText(copy, "资料库状态读取失败"),
-      message: alert.error ?? libraryText(copy, "未知错误"),
+      title: alert.hasUsableManifest
+        ? libraryText(copy, "资料库后台更新失败")
+        : libraryText(copy, "资料库状态读取失败"),
+      message: alert.hasUsableManifest
+        ? `${alert.error ?? libraryText(copy, "未知错误")} ${libraryText(copy, "旧资料库仍可继续使用。")}`
+        : alert.error ?? libraryText(copy, "未知错误"),
+      primaryAction: alert.hasUsableManifest ? "update" : "repair",
       className: alert.className
     };
   }
@@ -350,6 +369,7 @@ function buildManifestAlert(
     return {
       title: libraryText(copy, "资料库尚未初始化"),
       message: libraryText(copy, "账号页、搜索和详情需要资料库。可以现在启动后台更新，完成后再继续查询。"),
+      primaryAction: "update",
       className: alert.className
     };
   }
@@ -357,15 +377,47 @@ function buildManifestAlert(
     return {
       title: libraryText(copy, "资料库内容不完整"),
       message: `${libraryText(copy, "缺少")} ${alert.missingComponentCount ?? 0} ${libraryText(copy, "项资料内容，搜索和详情可能不完整；建议立即后台更新资料库。")}`,
+      primaryAction: "repair",
       className: alert.className
     };
   }
   if (alert.kind === "needs_update") {
     const currentVersion = formatLibraryVersion(alert.version) ?? libraryText(copy, "未知版本");
     const latestVersion = formatLibraryVersion(alert.latestVersion) ?? libraryText(copy, "未知版本");
+    const sameDateDifferentBuild = Boolean(
+      alert.version
+      && alert.latestVersion
+      && alert.version !== alert.latestVersion
+      && currentVersion === latestVersion
+    );
     return {
       title: libraryText(copy, "资料库不是最新版本"),
-      message: `${libraryText(copy, "当前")} ${currentVersion}，${libraryText(copy, "最新")} ${latestVersion}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
+      message: sameDateDifferentBuild
+        ? `${currentVersion}${libraryText(copy, " 发布了新的同日构建；旧资料库仍可使用，更新完成后会自动切换。")}`
+        : `${libraryText(copy, "当前")} ${currentVersion}，${libraryText(copy, "最新")} ${latestVersion}${libraryText(copy, "；旧资料库可能导致来源、Perk 或详情判断错误。")}`,
+      primaryAction: "update",
+      className: alert.className
+    };
+  }
+  if (alert.kind === "updating" || alert.kind === "retrying") {
+    const task = alert.task;
+    const availability = task?.availability === "usable"
+      ? libraryText(copy, "旧资料库仍可使用，更新完成后会自动切换。")
+      : task?.availability === "limited"
+        ? libraryText(copy, "正在切换资料库，当前查询会等待切换完成后自动继续。")
+        : libraryText(copy, "当前没有兼容的旧资料库，搜索和详情将在准备完成后恢复。");
+    const retryAt = task?.next_retry_at
+      ? `${libraryText(copy, "下次重试：")}${formatStandardDateTime(task.next_retry_at)}`
+      : libraryText(copy, "应用会在后台自动重试。");
+    return {
+      title: alert.kind === "retrying" ? libraryText(copy, "资料库更新等待重试") : libraryText(copy, "资料库正在后台更新"),
+      message: alert.kind === "retrying"
+        ? task?.error ?? task?.message ?? libraryText(copy, "资料库更新暂时失败。")
+        : task?.message ?? libraryText(copy, "正在准备新的资料库。"),
+      detail: `${availability}${alert.kind === "retrying" ? ` ${retryAt}` : ""}`,
+      progress: task?.progress_percent === undefined
+        ? undefined
+        : Math.max(0, Math.min(100, Math.round(task.progress_percent))),
       className: alert.className
     };
   }

@@ -39,6 +39,7 @@ export function LibraryMenuProvider() {
         isLoadingLiveAvailability: library.isLoadingLiveAvailability,
         isLoadingManifestStatus: library.isLoadingManifestStatus,
         isInitializingManifest: library.isInitializingManifest,
+        manifestTask: library.manifestTask,
         itemDetailLoadingKey: itemDetail.itemDetailLoadingKey
       }}
       actions={{
@@ -49,6 +50,7 @@ export function LibraryMenuProvider() {
         onSelectRecentQuery: library.selectRecentEquipmentQuery,
         onClearFilters: library.clearLibraryFilters,
         onRefreshManifestStatus: () => void library.refreshManifestStatus(),
+        onInitializeManifest: () => void library.initializeManifest(),
         onRepairManifest: () => void library.repairManifest(),
         onAliasDraftChange: library.setAliasDraft,
         onAliasTargetDraftChange: library.setAliasTargetDraft,

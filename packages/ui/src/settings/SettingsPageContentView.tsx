@@ -134,7 +134,8 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
   const [isAutoPreparingManifest, setIsAutoPreparingManifest] = useState(false);
   const [hasAutoManifestFailure, setHasAutoManifestFailure] = useState(false);
   const updateUi = getAppUpdateUi(props.appUpdateSnapshot, copy);
-  const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy);
+  const manifestTask = getManifestTask(props.backgroundTasks);
+  const libraryUi = getLibraryUi(props.manifestStatus, props.manifestStatusError, props.isLoadingManifestStatus, copy, manifestTask);
   const accountUi = getAccountUi(props.accountSummary, props.accountError, props.accountWarning, props.isLoadingAccount, copy);
   const bungieUi = getBungieUi({ isLoading: isLoadingBungieConfig, apiKey: bungieApiKey, clientId: bungieClientId, clientSecret: bungieClientSecret, redirectUri: bungieRedirectUri }, copy);
   const aiUi = getAiUi(props.isAiConfigured, copy);
@@ -214,7 +215,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
     }
   }
 
-  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion, onOpenSources: () => setActiveSection("sources") };
+  const sectionProps = { copy, interfaceLocale, accountUi, libraryUi, bungieUi, aiUi, backgroundTaskUi, libraryVersion, manifestTask, onOpenSources: () => setActiveSection("sources") };
 
   function handleDirectoryKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
     const nextIndex = getRovingFocusIndex({
@@ -348,7 +349,7 @@ function OverviewSection(props: any) {
       />
     </SettingsPanel>
     <SettingsPanel title={copy.overview.commonActionsTitle} subtitle={copy.overview.commonActionsSubtitle}>
-      <div className="settings-group" data-surface="list"><SettingRow label={settingsText(copy, "管理账号")} detail={settingsText(copy, "查看当前账号、刷新读取状态，并为后续切换账号预留入口。")}><SettingsButton data-control-variant="secondary" onClick={props.onRefreshAccount}>{settingsText(copy, "刷新账号")}</SettingsButton></SettingRow>
+      <div className="settings-group" data-surface="list"><SettingRow label={settingsText(copy, "管理账号")} detail={settingsText(copy, "查看当前账号、同步游戏状态，并为后续切换账号预留入口。")}><SettingsButton data-control-variant="secondary" onClick={props.onRefreshAccount}>{settingsText(copy, "同步游戏账号")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "检查资料库更新")} detail={settingsText(copy, "手动检查不受“每天自动检查一次”限制。")}><SettingsButton data-control-variant="secondary" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查资料库版本")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "运行诊断")} detail={settingsText(copy, "检查账号、资料库、后台任务和本地数据目录。")}><SettingsButton data-control-variant="secondary" onClick={props.onOpenDiagnostics}>{settingsText(copy, "查看诊断")}</SettingsButton></SettingRow></div>
     </SettingsPanel>
@@ -431,21 +432,49 @@ function LanguageSection(props: any) {
 function AccountSection(props: any) {
   const { copy, accountUi, accountSummary } = props;
   return <SettingsSection id="account" copy={copy} title={copy.menu.account.label} subtitle={settingsText(copy, "当前账号、授权状态、读取规则和后续切换账号入口。")} badge={accountUi.statusLabel} tone={accountUi.tone}>
-    <MetricGrid><Metric label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} detail={accountSummary ? settingsText(copy, "Bungie 账号已授权") : settingsText(copy, "登录后可读取账号")} /><Metric label={settingsText(copy, "账号读取")} value={accountUi.statusLabel} detail={accountUi.summary} /><Metric label={settingsText(copy, "上次刷新")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} detail={settingsText(copy, "成功刷新账号资料的时间")} /><Metric label={settingsText(copy, "刷新规则")} value={settingsText(copy, "启动自动读取一次")} detail={settingsText(copy, "手动刷新、重新授权和切换账号不受限制")} /></MetricGrid>
-    <VersionTable><VersionRow label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} /><VersionRow label={settingsText(copy, "当前版本")} value={formatAccountSnapshot(accountSummary, copy)} /><VersionRow label={settingsText(copy, "最新版本")} value={settingsText(copy, "已是当前读取结果")} /><VersionRow label={settingsText(copy, "上次检查")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} /><VersionRow label={settingsText(copy, "打开应用时")} value={settingsText(copy, "自动读取一次当前账号，避免每次进页面都重复加载")} /><VersionRow label={settingsText(copy, "需要重新读取时")} value={settingsText(copy, "首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "刷新账号、重新授权、管理账号和未来切换账号始终立即执行")} /><VersionRow label={settingsText(copy, "默认账号")} value={settingsText(copy, "当前账号；切换账号功能上线后可修改")} /></VersionTable>
+    <MetricGrid><Metric label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} detail={accountSummary ? settingsText(copy, "Bungie 账号已授权") : settingsText(copy, "登录后可读取账号")} /><Metric label={settingsText(copy, "账号读取")} value={accountUi.statusLabel} detail={accountUi.summary} /><Metric label={settingsText(copy, "上次同步")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} detail={settingsText(copy, "成功同步游戏账号的时间")} /><Metric label={settingsText(copy, "同步规则")} value={settingsText(copy, "启动自动读取一次")} detail={settingsText(copy, "不定时轮询；手动同步始终读取游戏当前状态")} /></MetricGrid>
+    <VersionTable><VersionRow label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} /><VersionRow label={settingsText(copy, "当前版本")} value={formatAccountSnapshot(accountSummary, copy)} /><VersionRow label={settingsText(copy, "最新版本")} value={settingsText(copy, "已是当前读取结果")} /><VersionRow label={settingsText(copy, "上次同步")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} /><VersionRow label={settingsText(copy, "打开应用时")} value={settingsText(copy, "自动读取一次当前账号，避免每次进页面都重复加载")} /><VersionRow label={settingsText(copy, "需要重新读取时")} value={settingsText(copy, "首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "同步游戏账号、重新授权、管理账号和未来切换账号始终立即执行")} /><VersionRow label={settingsText(copy, "默认账号")} value={settingsText(copy, "当前账号；切换账号功能上线后可修改")} /></VersionTable>
     <div className="settings-group settings-spaced-group" data-surface="list">
-      <SettingRow label={settingsText(copy, "账号操作")} detail={settingsText(copy, "手动操作始终重新读取最新数据。")}><SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新授权")}</SettingsButton><SettingsButton data-control-variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onRefreshAccount}>{settingsText(copy, "刷新账号")}</SettingsButton></SettingsActions></SettingRow>
+      <SettingRow label={settingsText(copy, "账号操作")} detail={settingsText(copy, "手动同步始终绕过缓存并读取游戏当前状态。")}><SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新授权")}</SettingsButton><SettingsButton data-control-variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onRefreshAccount}>{settingsText(copy, "同步游戏账号")}</SettingsButton></SettingsActions></SettingRow>
     </div>
   </SettingsSection>;
 }
 
 function LibrarySection(props: any) {
-  const { copy, libraryUi, libraryVersion, manifestStatus } = props;
+  const { copy, libraryUi, libraryVersion, manifestStatus, manifestTask } = props;
   return <SettingsSection id="library" copy={copy} title={copy.menu.library.label} subtitle={settingsText(copy, "装备、Perk、活动和商人数据。")} badge={libraryUi.statusLabel} tone={libraryUi.tone}>
     <MetricGrid><Metric label={settingsText(copy, "资料库日期")} value={libraryVersion ?? settingsText(copy, "未读取")} detail={settingsText(copy, "从完整版本号解析")} /><Metric label={settingsText(copy, "资料完整性")} value={formatLibraryIntegrity(manifestStatus, copy)} detail={settingsText(copy, "用于搜索和详情判断")} /><Metric label={settingsText(copy, "上次更新")} value={formatDateTime(manifestStatus?.cached_at, copy)} detail={settingsText(copy, "成功重建资料库的时间")} /><Metric label={settingsText(copy, "更新规则")} value={settingsText(copy, "每天自动检查一次")} detail={settingsText(copy, "手动检查、立即更新和修复不受限制")} /></MetricGrid>
     <VersionTable><VersionRow label={settingsText(copy, "资料库版本")} value={libraryVersion ?? settingsText(copy, "未读取")} /><VersionRow label={settingsText(copy, "当前版本")} value={manifestStatus?.version ?? settingsText(copy, "未初始化")} /><VersionRow label={settingsText(copy, "最新版本")} value={manifestStatus?.latest_version ?? settingsText(copy, "等待检查")} /><VersionRow label={settingsText(copy, "上次检查")} value={formatDateTime(manifestStatus?.checked_at, copy)} /><VersionRow label={settingsText(copy, "自动检查")} value={settingsText(copy, "启动后或打开资料库状态时触发；同一本地日期只自动检查一次")} /><VersionRow label={settingsText(copy, "自动更新")} value={settingsText(copy, "未初始化、不完整或发现新版时后台更新；失败时保留旧资料库")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "检查资料库版本、立即更新、修复资料库始终立即执行")} /></VersionTable>
+    {manifestTask ? <ManifestTaskStatus task={manifestTask} copy={copy} /> : null}
     <div className="settings-action-row"><SettingsActions><SettingsButton data-control-variant="secondary" disabled={props.isLoading} onClick={props.onRefresh}>{settingsText(copy, "检查资料库版本")}</SettingsButton><SettingsButton data-control-variant="primary" disabled={props.isInitializing} onClick={props.onInitialize}>{props.isInitializing ? settingsText(copy, "更新中...") : settingsText(copy, "立即更新")}</SettingsButton><SettingsButton data-control-variant="danger" disabled={props.isInitializing} onClick={props.onRepair}>{settingsText(copy, "修复资料库")}</SettingsButton></SettingsActions></div>
   </SettingsSection>;
+}
+
+function ManifestTaskStatus(props: { task: BackgroundTaskSnapshot; copy: SettingsCopy }) {
+  const task = props.task;
+  const active = task.status === "queued" || task.status === "running" || task.status === "retrying";
+  const status = task.status === "failed" || task.status === "blocked"
+    ? "error"
+    : task.status === "success"
+      ? "success"
+      : "warning";
+  const availability = task.availability === "usable"
+    ? settingsText(props.copy, "旧资料库仍可使用，完成后自动切换。")
+    : task.availability === "limited"
+      ? settingsText(props.copy, "正在切换资料库，当前查询会自动等待。")
+      : settingsText(props.copy, "当前没有兼容的旧资料库，搜索和详情需要等待完成。");
+  const retry = task.status === "retrying" && task.next_retry_at
+    ? `${settingsText(props.copy, "下次重试")}：${formatDateTime(task.next_retry_at, props.copy)}`
+    : "";
+  const progress = task.progress_percent === undefined
+    ? undefined
+    : Math.max(0, Math.min(100, Math.round(task.progress_percent)));
+  return <aside className="settings-feedback settings-manifest-task" data-ui-kind="callout" data-status={status} role={active ? "status" : undefined} aria-live={active ? "polite" : undefined}>
+    <strong>{task.title}{progress === undefined ? "" : ` · ${progress}%`}</strong>
+    <p>{task.status === "failed" || task.status === "retrying" ? task.error ?? task.message : task.message}</p>
+    <small>{availability}{retry ? ` ${retry}` : ""}</small>
+    {progress !== undefined && active ? <div className="settings-progress" aria-label={`${progress}%`}><span style={{ width: `${progress}%` }} /></div> : null}
+  </aside>;
 }
 
 function BungieSection(props: any) {
@@ -524,9 +553,9 @@ function DiagnosticsSection(props: any) {
 }
 
 function getAccountUi(accountSummary: AccountSummary | null, error: string, warning: string, isLoading: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: StatusTone } {
-  if (error && accountSummary) return { statusLabel: settingsText(copy, "刷新失败"), summary: `${settingsText(copy, "显示上次账号数据")}：${error}`, tone: "error" };
+  if (error && accountSummary) return { statusLabel: settingsText(copy, "同步失败"), summary: `${settingsText(copy, "显示上次账号数据")}：${error}`, tone: "error" };
   if (error) return { statusLabel: settingsText(copy, "读取失败"), summary: error, tone: "error" };
-  if (isLoading) return accountSummary ? { statusLabel: settingsText(copy, "刷新中"), summary: settingsText(copy, "正在刷新账号和仓库。"), tone: "warning" } : { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
+  if (isLoading) return accountSummary ? { statusLabel: settingsText(copy, "同步中"), summary: settingsText(copy, "正在从游戏同步账号和仓库。"), tone: "warning" } : { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
   if (warning && accountSummary) return { statusLabel: settingsText(copy, "已读取"), summary: warning, tone: "warning" };
   if (accountSummary) return { statusLabel: settingsText(copy, "已读取"), summary: `${settingsText(copy, "角色")} ${accountSummary.characters.length} ${settingsText(copy, "个")}，${settingsText(copy, "仓库")} ${accountSummary.vault.item_count} ${settingsText(copy, "件")}`, tone: "ready" };
   return { statusLabel: settingsText(copy, "未登录"), summary: settingsText(copy, "登录后可读取角色和仓库。"), tone: "neutral" };
@@ -556,7 +585,14 @@ function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy):
   }
   return { statusLabel: settingsText(copy, "未检查"), summary: settingsText(copy, "尚未检查软件版本。"), tone: "neutral" };
 }
-function getLibraryUi(status: ManifestStatus | null, error: string, isLoading: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: StatusTone } { if (error) return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" }; if (isLoading && !status) return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "neutral" }; if (!status || !status.initialized) return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" }; if (status.missing_required_components?.length) return { statusLabel: settingsText(copy, "需修复"), summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`, tone: "warning" }; if (status.missing_optional_components?.length) return { statusLabel: settingsText(copy, "可用"), summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`, tone: "warning" }; if (status.needs_update) return { statusLabel: settingsText(copy, "可更新"), summary: settingsText(copy, "发现新版资料库，将在后台更新。"), tone: "warning" }; return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、Perk、活动和商人数据可用。"), tone: "ready" }; }
+function getLibraryUi(status: ManifestStatus | null, error: string, isLoading: boolean, copy: SettingsCopy, task: BackgroundTaskSnapshot | null): { statusLabel: string; summary: string; tone: StatusTone } { if (task && ["queued", "running", "retrying"].includes(task.status)) return { statusLabel: task.status === "retrying" ? settingsText(copy, "等待重试") : settingsText(copy, "更新中"), summary: task.status === "retrying" ? task.error ?? task.message ?? settingsText(copy, "应用会在后台继续重试。") : task.message ?? settingsText(copy, "正在后台更新资料库。"), tone: "warning" }; if (error) return { statusLabel: settingsText(copy, "检查失败"), summary: status?.initialized ? settingsText(copy, "未能检查新版；本地资料库仍可继续使用。") : error, tone: status?.initialized ? "warning" : "error" }; if (isLoading && !status) return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在检查资料库是否有新版。"), tone: "neutral" }; if (!status || !status.initialized) return { statusLabel: settingsText(copy, "未准备"), summary: settingsText(copy, "资料库尚未准备，部分搜索和解析功能不可用。"), tone: "warning" }; if (status.missing_required_components?.length) return { statusLabel: settingsText(copy, "需修复"), summary: `${settingsText(copy, "资料库内容不完整，缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项。")}`, tone: "warning" }; if (status.missing_optional_components?.length) return { statusLabel: settingsText(copy, "可用"), summary: `${settingsText(copy, "英文辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项，英文匹配能力可能降低。")}`, tone: "warning" }; if (status.needs_update) return { statusLabel: settingsText(copy, "可更新"), summary: settingsText(copy, "发现新版资料库，将在后台更新。"), tone: "warning" }; return { statusLabel: settingsText(copy, "可用"), summary: settingsText(copy, "装备、Perk、活动和商人数据可用。"), tone: "ready" }; }
+
+function getManifestTask(tasks: BackgroundTaskSnapshot[]): BackgroundTaskSnapshot | null {
+  return tasks.find((task) => (
+    (task.type === "manifest-update" || task.type === "manifest-repair")
+    && (task.status === "queued" || task.status === "running" || task.status === "retrying")
+  )) ?? tasks.find((task) => task.type === "manifest-update" || task.type === "manifest-repair") ?? null;
+}
 
 function formatLibraryVersion(version?: string): string | undefined { const match = version?.match(/(?:^|\.)(\d{2})\.(\d{2})\.(\d{2})(?:\.|-)/); if (!match) return undefined; return `${Number(match[1]) < 80 ? 2000 + Number(match[1]) : 1900 + Number(match[1])}/${match[2]}/${match[3]}`; }
 function formatLibraryIntegrity(status: ManifestStatus | null, copy: SettingsCopy): string { if (!status?.initialized) return settingsText(copy, "未准备"); if (status.missing_required_components?.length) return `${settingsText(copy, "缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项，需修复")}`; if (status.missing_optional_components?.length) return `${settingsText(copy, "辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项")}`; return settingsText(copy, "完整"); }

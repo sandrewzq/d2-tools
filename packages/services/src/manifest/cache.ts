@@ -31,6 +31,10 @@ export type ManifestStatus = {
     | "supplement_required"
     | "repair_required"
     | "updating"
+    | "updating_usable"
+    | "activating"
+    | "retrying"
+    | "preparing_required"
     | "failed_but_usable";
   version?: string;
   latest_version?: string;

@@ -136,6 +136,7 @@ function createState(patch: Partial<LibraryPageState> = {}): LibraryPageState {
     isLoadingLiveAvailability: false,
     isLoadingManifestStatus: false,
     isInitializingManifest: false,
+    manifestTask: null,
     itemDetailLoadingKey: "",
     ...patch
   };

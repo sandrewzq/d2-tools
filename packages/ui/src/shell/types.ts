@@ -28,7 +28,11 @@ export type ShellBackgroundTaskItem = {
   status: "idle" | "queued" | "running" | "retrying" | "success" | "succeeded" | "failed" | "blocked" | "superseded";
   message?: string;
   error?: string;
+  phase?: string;
+  availability?: "usable" | "limited" | "blocked";
   progress_percent?: number;
+  progress_current_bytes?: number;
+  progress_total_bytes?: number;
   created_at?: string;
   updated_at?: string;
   next_retry_at?: string;

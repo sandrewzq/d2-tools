@@ -10,6 +10,7 @@ import {
 } from "@d2-tools/services/manifest/cache";
 import {
   syncSqliteManifest,
+  type ManifestLifecycleDownloadProgress,
   type ManifestLifecyclePhase,
   type SqliteManifestActivation
 } from "@d2-tools/services/manifest/lifecycle";
@@ -39,6 +40,7 @@ async function runManifestUpdate(
   ensureManifestDiskSpace(config.data.data_dir);
   parentPort?.postMessage({
     type: "progress",
+    phase: "metadata",
     progress_percent: 2,
     message: "正在读取 Bungie 资料库版本。"
   });
@@ -53,6 +55,7 @@ async function runManifestUpdate(
     language: config.data.manifest_language,
     metadata: cache.metadata,
     onProgress: reportManifestProgress,
+    onDownloadProgress: (progress) => reportManifestDownloadProgress(progress, config.data.manifest_language),
     beforeActivate: requestActivationPermission
   });
 }
@@ -111,13 +114,68 @@ function reportManifestProgress(phase: ManifestLifecyclePhase): void {
     progress_percent: number;
     message: string;
   }> = {
-    download: { progress_percent: 8, message: "正在下载 Bungie SQLite 资料库。" },
-    extract: { progress_percent: 30, message: "正在解压 SQLite 资料库。" },
-    validate: { progress_percent: 48, message: "正在校验 SQLite 表和完整性。" },
-    index: { progress_percent: 62, message: "正在构建装备与 Perk 查询索引。" },
+    download: { progress_percent: 8, message: "正在下载当前语言资料库。" },
+    extract: { progress_percent: 38, message: "正在解压当前语言资料库。" },
+    validate: { progress_percent: 45, message: "正在校验资料内容和完整性。" },
+    index: { progress_percent: 52, message: "正在构建当前语言装备与 Perk 索引，可能需要一些时间。" },
+    "download-secondary": { progress_percent: 68, message: "正在下载英文搜索辅助数据。" },
+    "index-secondary": { progress_percent: 88, message: "正在构建英文搜索辅助索引，可能需要一些时间。" },
+    "reuse-local": { progress_percent: 18, message: "已复用现有资料内容，正在升级本地查询索引。" },
     activate: { progress_percent: 95, message: "正在关闭旧连接并切换资料库。" }
   };
-  parentPort?.postMessage({ type: "progress", ...progressByPhase[phase] });
+  parentPort?.postMessage({ type: "progress", phase, ...progressByPhase[phase] });
+}
+
+const lastDownloadReport = new Map<ManifestLifecycleDownloadProgress["scope"], {
+  at: number;
+  bytes: number;
+}>();
+
+function reportManifestDownloadProgress(
+  progress: ManifestLifecycleDownloadProgress,
+  language: string
+): void {
+  const total = progress.totalBytes;
+  const ratio = total ? Math.min(1, progress.receivedBytes / total) : 0;
+  const range = progress.scope === "primary"
+    ? { start: 8, size: 30 }
+    : { start: 68, size: 20 };
+  const progressPercent = total
+    ? Math.min(range.start + range.size, Math.round(range.start + ratio * range.size))
+    : range.start;
+  const now = Date.now();
+  const previous = lastDownloadReport.get(progress.scope);
+  if (previous && now - previous.at < 250 && progressPercent < range.start + range.size) return;
+  const bytesPerSecond = previous && now > previous.at
+    ? Math.max(0, (progress.receivedBytes - previous.bytes) / ((now - previous.at) / 1000))
+    : undefined;
+  lastDownloadReport.set(progress.scope, { at: now, bytes: progress.receivedBytes });
+
+  const label = progress.scope === "secondary"
+    ? "英文搜索辅助数据"
+    : language.trim().toLowerCase() === "en"
+      ? "英文资料库"
+      : "中文资料库";
+  const size = total
+    ? `${formatBytes(progress.receivedBytes)} / ${formatBytes(total)}`
+    : `已下载 ${formatBytes(progress.receivedBytes)}`;
+  const speed = bytesPerSecond && bytesPerSecond > 0
+    ? ` · ${formatBytes(bytesPerSecond)}/s`
+    : "";
+  parentPort?.postMessage({
+    type: "progress",
+    phase: progress.scope === "primary" ? "download" : "download-secondary",
+    progress_percent: progressPercent,
+    progress_current_bytes: progress.receivedBytes,
+    progress_total_bytes: total,
+    message: `正在下载${label}：${size}${speed}。`
+  });
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(0, Math.round(bytes / 1024))} KB`;
 }
 
 function requestActivationPermission(): Promise<void> {

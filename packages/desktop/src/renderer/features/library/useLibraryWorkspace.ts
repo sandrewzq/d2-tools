@@ -338,6 +338,7 @@ export function useLibraryWorkspace(input: { vendorSourcePaths?: Map<number, str
     liveAvailabilityError,
     loadLibraryHistory,
     initializeManifest: manifestStatusState.initializeManifest,
+    manifestTask: manifestStatusState.manifestTask,
     manifestStatus: manifestStatusState.manifestStatus,
     manifestStatusError: manifestStatusState.manifestStatusError,
     perkFilters,

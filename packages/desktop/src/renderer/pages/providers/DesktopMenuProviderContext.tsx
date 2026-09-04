@@ -18,8 +18,8 @@ export type DesktopMenuSession = {
   onConfigure: () => void;
   onConfigChanged: () => void;
   setActivePage: Dispatch<SetStateAction<ShellPageKey>>;
-  settingsInitialSection: "overview" | "account" | "bungie";
-  setSettingsInitialSection: Dispatch<SetStateAction<"overview" | "account" | "bungie">>;
+  settingsInitialSection: "overview" | "account" | "library" | "bungie";
+  setSettingsInitialSection: Dispatch<SetStateAction<"overview" | "account" | "library" | "bungie">>;
   setVaultFacts: Dispatch<SetStateAction<string[]>>;
   vaultLocateRequest: { hash: number; name: string; requestId: number } | null;
   locateVaultItem: (item: { hash: number; name: string }) => void;

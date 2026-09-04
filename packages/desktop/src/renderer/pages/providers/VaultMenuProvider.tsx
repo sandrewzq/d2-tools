@@ -33,7 +33,9 @@ export function VaultMenuProvider() {
       isBungieConfigured={session.state.cards.bungieConfig.status === "ready"}
       isAccountLoggedIn={session.state.cards.account.status === "ready"}
       isLoadingAccount={account.isLoadingAccount}
+      isShowingCachedAccount={account.isShowingCachedAccount}
       accountError={account.accountError}
+      accountSyncMessage={account.accountSyncMessage}
       detailCacheScopeKey={[
         accountSummary
           ? `${accountSummary.membership_type}:${accountSummary.destiny_membership_id}`

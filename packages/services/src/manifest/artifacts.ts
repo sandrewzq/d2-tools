@@ -6,7 +6,7 @@ import {
   readdirSync,
   rmSync,
   statSync,
-  writeFileSync
+  writeSync
 } from "node:fs";
 import { basename, join, relative, resolve } from "node:path";
 
@@ -20,13 +20,52 @@ export function findExtractedDatabase(directory: string): string {
   return candidates[0];
 }
 
-export async function downloadManifestFile(url: string, destination: string): Promise<void> {
+export type ManifestDownloadProgress = {
+  receivedBytes: number;
+  totalBytes?: number;
+};
+
+export async function downloadManifestFile(
+  url: string,
+  destination: string,
+  onProgress?: (progress: ManifestDownloadProgress) => void
+): Promise<void> {
   const response = await fetch(url, {
     signal: AbortSignal.timeout(180_000),
     headers: { "Accept": "application/zip, application/octet-stream" }
   });
   if (!response.ok) throw new Error(`SQLite Manifest download failed: HTTP ${response.status}`);
-  writeFileSync(destination, Buffer.from(await response.arrayBuffer()));
+  const totalHeader = Number(response.headers.get("content-length"));
+  const totalBytes = Number.isFinite(totalHeader) && totalHeader > 0 ? totalHeader : undefined;
+  const file = openSync(destination, "w");
+  let receivedBytes = 0;
+  let failed = false;
+  try {
+    if (!response.body) {
+      const payload = Buffer.from(await response.arrayBuffer());
+      writeSync(file, payload);
+      receivedBytes = payload.byteLength;
+      onProgress?.({ receivedBytes, totalBytes: totalBytes ?? receivedBytes });
+      return;
+    }
+    const reader = response.body.getReader();
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      const payload = Buffer.from(chunk.value);
+      writeSync(file, payload);
+      receivedBytes += payload.byteLength;
+      onProgress?.({ receivedBytes, totalBytes });
+    }
+  } catch (error) {
+    failed = true;
+    throw error;
+  } finally {
+    closeSync(file);
+    if (failed) {
+      try { rmSync(destination, { force: true }); } catch { /* cleaned on the next recovery pass */ }
+    }
+  }
 }
 
 export function staticContentUrl(path: string): string {

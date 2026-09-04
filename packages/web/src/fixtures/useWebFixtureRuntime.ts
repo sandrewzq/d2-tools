@@ -695,6 +695,7 @@ export function createWebLibraryPageModel(input: {
     isLoadingLiveAvailability: false,
     isLoadingManifestStatus: false,
     isInitializingManifest: false,
+    manifestTask: null,
     itemDetailLoadingKey: ""
   });
 }

@@ -123,6 +123,8 @@ export function VaultPageContentView(props: {
   armorSetCatalog: ArmorSetCatalogItem[];
   armorSetCatalogStatus: VaultArmorSetCatalogStatus;
   accountResourceStatus?: VaultAccountResourceStatus;
+  accountResourceMessage?: string;
+  accountResourceError?: string;
   vaultItemCount?: number;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
@@ -631,6 +633,7 @@ export function VaultPageContentView(props: {
           {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
         </div>
       </div>
+      {props.accountResourceError ? <p className="status-message status-error" role="alert">{props.accountResourceError}</p> : props.accountResourceMessage ? <p className={`status-message ${props.accountResourceStatus === "cached" || props.accountResourceStatus === "refreshing" ? "status-warning" : "status-ready"}`} role="status">{props.accountResourceMessage}</p> : null}
       {(batchMessage || batchActions.batchMessage) ? <p className={(batchMessage || batchActions.batchMessage).includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage || batchActions.batchMessage}</p> : null}
 
       {activeVaultTab === "filters" ? (
@@ -806,7 +809,7 @@ function vaultResourceStatusLabel(status: VaultAccountResourceStatus): string {
   switch (status) {
     case "cached": return "本地缓存";
     case "stale": return "缓存已过期";
-    case "refreshing": return "后台同步中";
+    case "refreshing": return "正在从游戏同步";
     case "loading": return "正在读取账号";
     case "ready": return "已同步";
     case "error": return "读取失败";

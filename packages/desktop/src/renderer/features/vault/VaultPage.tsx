@@ -20,15 +20,15 @@ import type {
 import { api } from "../../api/client";
 import { services } from "../../api/services";
 import { loadAccountItemDetailCached } from "../../shared/hooks/useItemDetail";
-import { useAccountResource } from "../../shared/hooks/useAccountResource";
-import { getAccountStoreRevision } from "../../shared/stores/accountEntityStore";
 
 export function VaultPage(props: {
   account: AccountSummary | null;
   isBungieConfigured: boolean;
   isAccountLoggedIn: boolean;
   isLoadingAccount: boolean;
+  isShowingCachedAccount: boolean;
   accountError: string;
+  accountSyncMessage: string;
   detailCacheScopeKey?: string;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
@@ -67,13 +67,6 @@ export function VaultPage(props: {
   const detailScopeKey = props.detailCacheScopeKey ?? (props.account
     ? `${props.account.membership_type}:${props.account.destiny_membership_id}`
     : "vault");
-  const accountResource = useAccountResource({
-    kind: "snapshot",
-    enabled: Boolean(props.account),
-    resourceKey: props.account
-      ? `${props.account.membership_type}:${props.account.destiny_membership_id}:${getAccountStoreRevision()}`
-      : "signed-out"
-  });
   const loadItemDetail = useCallback((item: AccountItemSummary) => (
     item.instance_id
       ? loadAccountItemDetailCached(item.instance_id, { scopeKey: detailScopeKey })
@@ -198,7 +191,7 @@ export function VaultPage(props: {
       <ProductWorkspaceEmptyState className="vault-empty-state product-workspace-empty--page">
         <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
         <span>{props.accountError || "先读取账号数据，然后查看完整仓库列表。"}</span>
-        <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>刷新账号</ControlButton>
+        <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>同步游戏账号</ControlButton>
       </ProductWorkspaceEmptyState>
     );
   }
@@ -212,7 +205,15 @@ export function VaultPage(props: {
       currentCharacterId={model.currentCharacterId}
       armorSetCatalog={armorSetCatalog}
       armorSetCatalogStatus={armorSetCatalogStatus}
-      accountResourceStatus={props.isLoadingAccount && accountResource.data ? "refreshing" : accountResource.status}
+      accountResourceStatus={props.isLoadingAccount
+        ? "refreshing"
+        : props.accountError
+          ? "stale"
+          : props.isShowingCachedAccount
+            ? "cached"
+            : "ready"}
+      accountResourceMessage={props.accountSyncMessage}
+      accountResourceError={props.accountError}
       vaultItemCount={model.vaultItemCount}
       highlightedItemKeys={model.activeLoadoutLookup}
       cleanupProtectedItemKeys={props.cleanupProtectedItemKeys}

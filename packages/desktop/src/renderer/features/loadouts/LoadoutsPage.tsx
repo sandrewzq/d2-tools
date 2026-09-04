@@ -5,7 +5,6 @@ import type {
   AccountSummary,
   ArmorSetCatalogEntry,
   CharacterSummary,
-  DataResourceStatus,
   LoadoutTemplate
 } from "../../api/types";
 import type { EquipmentTargetStore } from "../../api/targetApi";
@@ -48,11 +47,13 @@ import {
   createArmorPlannerGapTarget,
   upsertEquipmentTarget
 } from "@d2-tools/core/targets/equipmentTargets";
-import { useAccountResource } from "../../shared/hooks/useAccountResource";
-import { getAccountStoreRevision } from "../../shared/stores/accountEntityStore";
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;
+  isLoadingAccount: boolean;
+  isShowingCachedAccount: boolean;
+  accountError: string;
+  lastAccountLoadedAt: Date | null;
   templates: LoadoutTemplate[];
   selectedTemplateId: string;
   compareTemplateId: string;
@@ -176,13 +177,6 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   const [applicationLoadoutInGameReference, setApplicationLoadoutInGameReference] = useState<ApplicationLoadoutInGameReference | null>(null);
   const [applicationLoadoutShowDiffOnly, setApplicationLoadoutShowDiffOnly] = useState(false);
   const armorPlanner = useArmorPlannerWorkspace();
-  const accountResource = useAccountResource({
-    kind: "snapshot",
-    enabled: Boolean(props.accountSummary),
-    resourceKey: props.accountSummary
-      ? `${props.accountSummary.membership_type}:${props.accountSummary.destiny_membership_id}:${getAccountStoreRevision()}`
-      : "signed-out"
-  });
   useEffect(() => {
     let active = true;
     setArmorSetCatalogStatus("loading");
@@ -479,21 +473,22 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       armorSetCatalogStatus={armorSetCatalogStatus}
       armorTargetFeedback={armorTargetFeedback}
       isSavingArmorTargets={isSavingArmorTargets}
-      accountDataStatus={loadoutAccountDataStatus(accountResource.status, Boolean(accountResource.data))}
-      accountDataSource={accountResource.resource?.source}
-      accountDataFetchedAt={accountResource.resource?.fetchedAt}
-      accountDataError={accountResource.error?.message}
+      accountDataStatus={!props.accountSummary
+        ? undefined
+        : props.isLoadingAccount
+          ? "refreshing"
+          : props.accountError
+            ? "stale"
+            : props.isShowingCachedAccount
+              ? "cached"
+              : "ready"}
+      accountDataSource={props.accountSummary
+        ? props.isShowingCachedAccount ? "local" : "remote"
+        : undefined}
+      accountDataFetchedAt={props.lastAccountLoadedAt?.toISOString()}
+      accountDataError={props.accountError || undefined}
     />
   );
-}
-
-function loadoutAccountDataStatus(
-  status: DataResourceStatus,
-  hasData: boolean
-): "cached" | "stale" | "refreshing" | "ready" | "error" | undefined {
-  if (status === "loading") return hasData ? "refreshing" : undefined;
-  if (status === "unavailable") return undefined;
-  return status;
 }
 
 function armorClassType(value: ArmorClass): number | undefined {

@@ -382,7 +382,13 @@ function BackgroundTaskDock(props: {
   onOpenTask?: (task: NonNullable<AppShellLayoutProps["backgroundTasks"]>[number]) => void;
 }) {
   const visibleTasks = props.tasks.filter((task) => (
-    (task.type === "app-update-check" || task.type === "app-update-download")
+    [
+      "app-update-check",
+      "app-update-download",
+      "manifest-version-check",
+      "manifest-update",
+      "manifest-repair"
+    ].includes(task.type ?? "")
       && ["queued", "running", "retrying", "failed", "blocked"].includes(task.status)
   ));
   const task = visibleTasks[0];
@@ -407,7 +413,7 @@ function BackgroundTaskDock(props: {
     <aside className="shell-background-task-dock" data-reference-id="shell.background-task-dock" data-ui-kind="background-task-dock" data-status={task.status} aria-label={props.copy.ariaLabel}>
       <button type="button" onClick={() => props.onOpenTask?.(task)} aria-label={`${props.copy.title}：${task.title}`}>
         <span className="shell-background-task-mark" aria-hidden="true">↻</span>
-        <span className="shell-background-task-copy"><strong>{task.title || props.copy.fallbackTitle}</strong><small>{task.message ?? statusLabel}</small></span>
+        <span className="shell-background-task-copy"><strong>{task.title || props.copy.fallbackTitle}</strong><small>{task.status === "failed" || task.status === "retrying" ? task.error ?? task.message ?? statusLabel : task.message ?? statusLabel}</small></span>
         {progress !== undefined ? <span className="shell-background-task-progress" aria-label={`${progress}%`}><span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} /></span> : null}
         <span className="shell-background-task-status">{statusLabel}</span>
       </button>

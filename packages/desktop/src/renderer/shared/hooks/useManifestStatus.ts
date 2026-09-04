@@ -19,6 +19,7 @@ export function useManifestStatus() {
     repairManifest,
     isInitializingManifest: snapshot.isInitializingManifest,
     isLoadingManifestStatus: snapshot.isLoadingManifestStatus,
+    manifestTask: snapshot.manifestTask,
     manifestStatus: snapshot.manifestStatus,
     manifestStatusError: snapshot.manifestStatusError,
     refreshManifestStatus

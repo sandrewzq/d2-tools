@@ -38,6 +38,7 @@ export function LibraryPage(props: LibraryPageProps) {
       props.state.isLoadingLiveAvailability,
       props.state.isLoadingManifestStatus,
       props.state.isInitializingManifest,
+      props.state.manifestTask,
       props.state.itemDetailLoadingKey
     ]
   );

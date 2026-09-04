@@ -50,7 +50,11 @@ export async function getAccountSnapshot(
     "account.snapshot",
     async () => {
       if (options.authoritative) {
-        return state.session.getSnapshot({ freshness, authoritative: true });
+        const snapshot = await state.session.getSnapshot({ freshness, authoritative: true });
+        // 权威同步直接读取 Session，完成后必须清掉 Repository 中可能仍然
+        // 保留的旧资源；下一次本地优先读取会从 Session 的新快照重新建资源。
+        state.repository.invalidate({ scope: "snapshot" });
+        return snapshot;
       }
       const resource = await state.repository.getSnapshot({ freshness });
       if (freshness === "refresh" && resource.error) {

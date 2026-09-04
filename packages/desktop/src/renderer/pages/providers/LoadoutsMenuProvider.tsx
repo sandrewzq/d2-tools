@@ -12,6 +12,10 @@ export function LoadoutsMenuProvider() {
   return (
     <LoadoutsPage
       accountSummary={accountSummary}
+      isLoadingAccount={session.account.isLoadingAccount}
+      isShowingCachedAccount={session.account.isShowingCachedAccount}
+      accountError={session.account.accountError}
+      lastAccountLoadedAt={session.account.lastAccountLoadedAt}
       templates={loadouts.templates}
       selectedTemplateId={loadouts.selectedTemplateId}
       compareTemplateId={loadouts.compareTemplateId}

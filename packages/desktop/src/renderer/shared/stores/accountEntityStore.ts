@@ -57,10 +57,9 @@ const committedPatchesByInstanceId = new Map<string, AccountItemActionPatch>();
 
 export function replaceAccountSummary(
   summary: AccountSummary | null,
-  options: { requestStartedRevision?: number } = {}
+  options: { requestStartedRevision?: number; authoritative?: boolean } = {}
 ): void {
-  void options;
-  if (!summary) committedPatchesByInstanceId.clear();
+  if (!summary || options.authoritative) committedPatchesByInstanceId.clear();
   let next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
     ...emptyState,
     revision: state.revision + 1

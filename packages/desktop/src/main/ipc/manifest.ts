@@ -262,6 +262,10 @@ function startManifestUpdateTask(options: { repair?: boolean; restartIfRetrying?
           config.data.data_dir,
           config.data.manifest_language
         ));
+        context.update({
+          phase: "retry-wait",
+          availability: lastManifestUpdateFailed ? "usable" : "blocked"
+        });
         throw error;
       }
     }
@@ -280,11 +284,22 @@ async function runManifestUpdate(
   context: BackgroundTaskRunContext
 ): Promise<ManifestStatus> {
   const config = loadConfig();
+  const hadUsableManifest = Boolean(loadActiveSqliteManifest(
+    config.data.data_dir,
+    config.data.manifest_language
+  ));
   let activation: SqliteManifestActivation;
   try {
     activation = await runHeavyTaskInWorker<SqliteManifestActivation>(
       { task: "manifest-update", repair, config },
-      (progress) => context.update(progress),
+      (progress) => context.update({
+        ...progress,
+        availability: progress.phase === "activate"
+          ? "limited"
+          : hadUsableManifest
+            ? "usable"
+            : "blocked"
+      }),
       {
         beforeActivate: quiesceRuntimeForManifestActivation
       }
@@ -339,6 +354,14 @@ async function runManifestUpdate(
     latestVersion: activation.manifestVersion,
     needsUpdate: false
   });
+  context.update({
+    phase: "complete",
+    availability: "usable",
+    progress_percent: 100,
+    progress_current_bytes: undefined,
+    progress_total_bytes: undefined,
+    message: `资料库已更新至 ${activation.manifestVersion}，搜索和详情已恢复。`
+  });
   return mergeManifestVersionStatus(
     getDesktopManifestStatus(),
     config.data.data_dir,
@@ -383,7 +406,13 @@ function withRuntimeState(status: ManifestStatus): ManifestStatus {
     && ["queued", "running", "retrying"].includes(task.status)
   ));
   const runtimeState = activeTask
-    ? "updating"
+    ? activeTask.status === "retrying"
+      ? "retrying"
+      : activeTask.phase === "activate"
+        ? "activating"
+        : activeTask.availability === "usable"
+          ? "updating_usable"
+          : "preparing_required"
     : lastManifestUpdateFailed && status.initialized
       ? "failed_but_usable"
       : !status.initialized

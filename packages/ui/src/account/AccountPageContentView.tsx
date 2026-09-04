@@ -256,7 +256,7 @@ function AccountPageWorkspace(props: {
 
   const connectionState = props.viewModel.connection.dataState;
   const connectionLabel = connectionState === "refreshing"
-    ? accountText(props.copy, "刷新中")
+    ? accountText(props.copy, "正在从游戏同步")
     : connectionState === "cached"
       ? accountText(props.copy, "缓存数据")
       : accountText(props.copy, "已读取");

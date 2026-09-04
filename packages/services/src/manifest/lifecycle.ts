@@ -36,6 +36,7 @@ import {
   downloadManifestFile,
   findExtractedDatabase,
   isSqliteFile,
+  type ManifestDownloadProgress,
   normalizeManifestLanguage,
   removeManifestWorkDirectory,
   safeArchiveName,
@@ -47,7 +48,14 @@ export type ManifestLifecyclePhase =
   | "extract"
   | "validate"
   | "index"
+  | "download-secondary"
+  | "index-secondary"
+  | "reuse-local"
   | "activate";
+
+export type ManifestLifecycleDownloadProgress = ManifestDownloadProgress & {
+  scope: "primary" | "secondary";
+};
 
 export type SqliteManifestActivation = {
   catalogSchemaVersion: string;
@@ -75,11 +83,18 @@ export type SyncSqliteManifestOptions = {
   language: string;
   metadata: DestinyManifestMetadata;
   now?: () => Date;
-  download?: (url: string, destination: string) => Promise<void>;
+  download?: (
+    url: string,
+    destination: string,
+    onProgress?: (progress: ManifestDownloadProgress) => void
+  ) => Promise<void>;
   beforeActivate?: () => void | Promise<void>;
   onProgress?: (phase: ManifestLifecyclePhase) => void;
+  onDownloadProgress?: (progress: ManifestLifecycleDownloadProgress) => void;
   includeEnglishSearchIndex?: boolean;
 };
+
+type ManifestDownload = NonNullable<SyncSqliteManifestOptions["download"]>;
 
 type StoredSqliteManifestActivation = Omit<
   SqliteManifestActivation,
@@ -126,16 +141,26 @@ export async function syncSqliteManifest(
   mkdirSync(extractDir, { recursive: true });
 
   try {
-    options.onProgress?.("download");
-    await (options.download ?? downloadManifestFile)(staticContentUrl(sourcePath), archivePath);
-
-    if (isSqliteFile(archivePath)) {
-      renameSync(archivePath, candidateDatabasePath);
+    const reusableDatabasePath = findReusableManifestDatabase(activeDir, language, options.metadata.version);
+    if (reusableDatabasePath) {
+      options.onProgress?.("reuse-local");
+      copyFileSync(reusableDatabasePath, candidateDatabasePath);
     } else {
-      options.onProgress?.("extract");
-      await extract(archivePath, { dir: extractDir });
-      const extractedDatabasePath = findExtractedDatabase(extractDir);
-      renameSync(extractedDatabasePath, candidateDatabasePath);
+      options.onProgress?.("download");
+      await (options.download ?? downloadManifestFile)(
+        staticContentUrl(sourcePath),
+        archivePath,
+        (progress) => options.onDownloadProgress?.({ ...progress, scope: "primary" })
+      );
+
+      if (isSqliteFile(archivePath)) {
+        renameSync(archivePath, candidateDatabasePath);
+      } else {
+        options.onProgress?.("extract");
+        await extract(archivePath, { dir: extractDir });
+        const extractedDatabasePath = findExtractedDatabase(extractDir);
+        renameSync(extractedDatabasePath, candidateDatabasePath);
+      }
     }
 
     options.onProgress?.("validate");
@@ -169,7 +194,9 @@ export async function syncSqliteManifest(
           candidateIndexPath: candidateEnglishSearchIndexPath,
           reusableIndexPath: join(activeDir, englishSearchIndexFileName),
           manifestVersion: options.metadata.version,
-          download: options.download ?? downloadManifestFile
+          download: options.download ?? downloadManifestFile,
+          onProgress: options.onProgress,
+          onDownloadProgress: options.onDownloadProgress
         })
       : false;
 
@@ -242,7 +269,6 @@ export function loadActiveSqliteManifest(
     const stored = JSON.parse(readFileSync(statusPath, "utf8")) as StoredSqliteManifestActivation;
     if (
       !stored.manifestVersion
-      || stored.catalogSchemaVersion !== catalogSchemaVersion
       || !Array.isArray(stored.supplementComponents)
       || stored.language !== normalizeManifestLanguage(language)
       || stored.databaseSize !== statSync(databasePath).size
@@ -254,6 +280,7 @@ export function loadActiveSqliteManifest(
     ) {
       return null;
     }
+    validateStoredSearchIndex(activeDir, stored);
     return activationFromStored(activeDir, stored);
   } catch {
     return null;
@@ -273,6 +300,12 @@ export function recoverSqliteManifest(dataDir: string, language: string): void {
   const activeStored = existsSync(activeDir)
     ? readValidStoredActivation(activeDir, language)
     : null;
+  if (activeStored && activeStored.catalogSchemaVersion !== catalogSchemaVersion) {
+    writeStoredActivation(activeDir, {
+      ...activeStored,
+      catalogSchemaVersion
+    });
+  }
   if (activeStored?.activationState === "pending") {
     const backup = takeValidBackup(root, backups, language);
     if (backup) {
@@ -287,7 +320,7 @@ export function recoverSqliteManifest(dataDir: string, language: string): void {
     const backup = takeValidBackup(root, backups, language);
     if (backup) {
       replaceActiveWithBackup(root, activeDir, backup);
-    } else {
+    } else if (!findReusableManifestDatabase(activeDir, language)) {
       removeInvalidActiveDirectory(root, activeDir);
     }
   } else if (!existsSync(activeDir)) {
@@ -400,7 +433,6 @@ function readValidStoredActivation(
     const stored = JSON.parse(readFileSync(statusPath, "utf8")) as StoredSqliteManifestActivation;
     if (
       !stored.manifestVersion
-      || stored.catalogSchemaVersion !== catalogSchemaVersion
       || !Array.isArray(stored.supplementComponents)
       || stored.language !== normalizeManifestLanguage(language)
       || (stored.activationState !== undefined
@@ -415,7 +447,7 @@ function readValidStoredActivation(
     ) {
       return null;
     }
-    validateActiveSqliteManifest(directory);
+    validateActiveSqliteManifest(directory, stored);
     return stored;
   } catch {
     return null;
@@ -483,14 +515,21 @@ async function buildSecondaryLanguageIndex(options: {
   workDir: string;
   candidateIndexPath: string;
   manifestVersion: string;
-  download: (url: string, destination: string) => Promise<void>;
+  download: ManifestDownload;
+  onProgress?: SyncSqliteManifestOptions["onProgress"];
+  onDownloadProgress?: SyncSqliteManifestOptions["onDownloadProgress"];
 }): Promise<ReturnType<typeof buildSqliteSearchIndex>> {
   const sourcePath = selectManifestLanguagePath(options.metadata, "en");
   const archivePath = join(options.workDir, `english-${safeArchiveName(sourcePath)}.content`);
   const extractDir = join(options.workDir, "english-extracted");
   const databasePath = join(options.workDir, "english-world.sqlite");
   mkdirSync(extractDir, { recursive: true });
-  await options.download(staticContentUrl(sourcePath), archivePath);
+  options.onProgress?.("download-secondary");
+  await options.download(
+    staticContentUrl(sourcePath),
+    archivePath,
+    (progress) => options.onDownloadProgress?.({ ...progress, scope: "secondary" })
+  );
   if (isSqliteFile(archivePath)) {
     renameSync(archivePath, databasePath);
   } else {
@@ -498,6 +537,7 @@ async function buildSecondaryLanguageIndex(options: {
     renameSync(findExtractedDatabase(extractDir), databasePath);
   }
   validateSqliteManifest(databasePath);
+  options.onProgress?.("index-secondary");
   return buildSqliteSearchIndex({
     sourceDatabasePath: databasePath,
     indexDatabasePath: options.candidateIndexPath,
@@ -512,7 +552,9 @@ async function prepareSecondaryLanguageIndex(options: {
   candidateIndexPath: string;
   reusableIndexPath: string;
   manifestVersion: string;
-  download: (url: string, destination: string) => Promise<void>;
+  download: ManifestDownload;
+  onProgress?: SyncSqliteManifestOptions["onProgress"];
+  onDownloadProgress?: SyncSqliteManifestOptions["onDownloadProgress"];
 }): Promise<boolean> {
   if (isReusableSearchIndex(options.reusableIndexPath, options.manifestVersion, "en")) {
     copyFileSync(options.reusableIndexPath, options.candidateIndexPath);
@@ -520,6 +562,31 @@ async function prepareSecondaryLanguageIndex(options: {
   }
   await buildSecondaryLanguageIndex(options);
   return true;
+}
+
+function findReusableManifestDatabase(
+  directory: string,
+  language: string,
+  expectedManifestVersion?: string
+): string | undefined {
+  const statusPath = join(directory, statusFileName);
+  const databasePath = join(directory, databaseFileName);
+  if (!existsSync(statusPath) || !existsSync(databasePath)) return undefined;
+  try {
+    const stored = JSON.parse(readFileSync(statusPath, "utf8")) as StoredSqliteManifestActivation;
+    if (
+      !stored.manifestVersion
+      || (expectedManifestVersion && stored.manifestVersion !== expectedManifestVersion)
+      || stored.language !== normalizeManifestLanguage(language)
+      || stored.databaseSize !== statSync(databasePath).size
+    ) {
+      return undefined;
+    }
+    validateSqliteManifest(databasePath);
+    return databasePath;
+  } catch {
+    return undefined;
+  }
 }
 
 function isReusableSearchIndex(
@@ -585,9 +652,13 @@ function validateSqliteManifest(databasePath: string): Set<string> {
   }
 }
 
-function validateActiveSqliteManifest(activeDir: string): void {
+function validateActiveSqliteManifest(
+  activeDir: string,
+  stored: Pick<StoredSqliteManifestActivation, "manifestVersion" | "language" | "englishSearchIndexSize">
+): void {
   validateSqliteManifest(join(activeDir, databaseFileName));
-  const index = new DatabaseSync(join(activeDir, searchIndexFileName), {
+  const indexPath = join(activeDir, searchIndexFileName);
+  const index = new DatabaseSync(indexPath, {
     readOnly: true,
     timeout: 5_000
   });
@@ -598,5 +669,26 @@ function validateActiveSqliteManifest(activeDir: string): void {
     }
   } finally {
     index.close();
+  }
+  validateStoredSearchIndex(activeDir, stored);
+}
+
+function validateStoredSearchIndex(
+  activeDir: string,
+  stored: Pick<StoredSqliteManifestActivation, "manifestVersion" | "language" | "englishSearchIndexSize">
+): void {
+  const searchIndex = createSqliteSearchIndex({
+    databasePath: join(activeDir, searchIndexFileName),
+    expectedManifestVersion: stored.manifestVersion,
+    expectedLanguage: stored.language
+  });
+  searchIndex.close();
+  if (stored.englishSearchIndexSize !== undefined) {
+    const englishSearchIndex = createSqliteSearchIndex({
+      databasePath: join(activeDir, englishSearchIndexFileName),
+      expectedManifestVersion: stored.manifestVersion,
+      expectedLanguage: "en"
+    });
+    englishSearchIndex.close();
   }
 }

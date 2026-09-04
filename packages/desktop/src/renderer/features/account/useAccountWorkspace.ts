@@ -20,7 +20,7 @@ type DiagnosticsBridge = {
   refreshDiagnostics: () => Promise<void>;
 };
 
-type AccountRefreshReason = "initial" | "manual" | "auto" | "write-action";
+type AccountRefreshReason = "initial" | "manual" | "write-action";
 
 export function useAccountWorkspace(input: {
   state: StartupState;
@@ -43,6 +43,7 @@ export function useAccountWorkspace(input: {
   });
   const [equipmentTargetStore, setEquipmentTargetStore] = useState<EquipmentTargetStore>(() => createEmptyEquipmentTargetStore());
   const [accountError, setAccountError] = useState("");
+  const [accountSyncMessage, setAccountSyncMessage] = useState("");
   const [accountWarning, setAccountWarning] = useState("");
   const [isLoadingAccount, setIsLoadingAccount] = useState(false);
   const [isShowingCachedAccount, setIsShowingCachedAccount] = useState(false);
@@ -59,7 +60,6 @@ export function useAccountWorkspace(input: {
   const derivedRequestSequenceRef = useRef(0);
   const communityRequestSequenceRef = useRef(0);
   const recommendationScanAccountKeyRef = useRef("");
-  const accountRefreshRequestRef = useRef<Promise<AccountSummary | null> | null>(null);
   const accountLoadingSequenceRef = useRef(0);
   const hasLoadedLocalAccountDataRef = useRef(false);
 
@@ -70,7 +70,10 @@ export function useAccountWorkspace(input: {
         if (!active || !cached || getAccountSummarySnapshot()) return;
         applyAccountSummary(cached.snapshot);
         setIsShowingCachedAccount(true);
-        setActivityMessage(`正在显示上次账号数据（${formatCachedTime(cached.saved_at)}），后台将继续刷新`);
+        const cachedAt = new Date(cached.saved_at);
+        setLastAccountLoadedAt(Number.isNaN(cachedAt.getTime()) ? null : cachedAt);
+        setAccountSyncMessage(`正在显示 ${formatCachedTime(cached.saved_at)} 的本地缓存`);
+        setActivityMessage(`正在显示上次账号数据（${formatCachedTime(cached.saved_at)}）；本次游戏同步完成后页面会自动更新`);
       })
       .catch(() => undefined);
     return () => {
@@ -82,8 +85,12 @@ export function useAccountWorkspace(input: {
     replaceAccountSummary(summary);
   }
 
-  function applyAccountSummary(summary: AccountSummary, requestStartedRevision?: number) {
-    replaceAccountSummary(summary, { requestStartedRevision });
+  function applyAccountSummary(
+    summary: AccountSummary,
+    requestStartedRevision?: number,
+    authoritative = false
+  ) {
+    replaceAccountSummary(summary, { requestStartedRevision, authoritative });
     setSelectedCharacterId((current) => {
       if (current && summary.characters.some((character) => character.character_id === current)) {
         return current;
@@ -108,11 +115,11 @@ export function useAccountWorkspace(input: {
     try {
       const result = await api.loginBungie();
       accountRequestSequenceRef.current += 1;
-      accountRefreshRequestRef.current = null;
       hasLoadedLocalAccountDataRef.current = false;
       derivedRequestSequenceRef.current += 1;
       communityRequestSequenceRef.current += 1;
       setAccountSummaryState(null);
+      setAccountSyncMessage("");
       setIsShowingCachedAccount(false);
       setSelectedCharacterId("");
       setActivitySummary(null);
@@ -153,23 +160,14 @@ export function useAccountWorkspace(input: {
   async function refreshAccountSnapshot(
     reason: AccountRefreshReason = getAccountSummarySnapshot() ? "manual" : "initial"
   ) {
-    // 每次刷新开始都清除上一轮读取错误，即使本次请求会复用已有的
-    // in-flight 请求；否则手动刷新期间旧错误会一直覆盖页面。
+    // 每次同步开始都清除上一轮读取错误；否则手动同步期间旧错误会一直
+    // 覆盖页面。主进程负责把权威请求排到已有 in-flight 请求之后。
     setAccountError("");
-    const foreground = reason === "manual" || !getAccountSummarySnapshot();
-    const existingRequest = accountRefreshRequestRef.current;
-    if (existingRequest) {
-      const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
-      if (foreground) setIsLoadingAccount(true);
-      try {
-        return await existingRequest;
-      } finally {
-        if (foreground && loadingSequence === accountLoadingSequenceRef.current) {
-          setIsLoadingAccount(false);
-        }
-      }
-    }
-
+    const previousSummary = getAccountSummarySnapshot();
+    if (reason === "manual") setAccountSyncMessage("正在从游戏同步账号与仓库状态");
+    // 初次读取和用户手动同步都属于可见的前台动作。只有明确写操作触发的
+    // 对账刷新留在后台，并由写入反馈与任务 Dock 说明其进度。
+    const foreground = reason !== "write-action";
     const requestSequence = ++accountRequestSequenceRef.current;
     const requestStartedRevision = getAccountStoreRevision();
     const loadingSequence = foreground ? ++accountLoadingSequenceRef.current : 0;
@@ -179,7 +177,8 @@ export function useAccountWorkspace(input: {
         let summary: AccountSummary;
         if (!hasLoadedLocalAccountDataRef.current) {
           const workspace = await loadAccountWorkspace(services, {
-            forceAccountRefresh: true
+            forceAccountRefresh: true,
+            authoritativeAccountRefresh: reason === "manual" || reason === "write-action"
           });
           if (requestSequence !== accountRequestSequenceRef.current) return null;
           if (workspace.status !== "success") {
@@ -195,13 +194,23 @@ export function useAccountWorkspace(input: {
             ? `本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`
             : "");
         } else {
-          summary = await api.getAccountSummary({ force: true });
+          summary = await api.getAccountSummary({
+            force: true,
+            authoritative: reason === "manual" || reason === "write-action"
+          });
           if (requestSequence !== accountRequestSequenceRef.current) return null;
         }
 
-        applyAccountSummary(summary, requestStartedRevision);
+        applyAccountSummary(
+          summary,
+          requestStartedRevision,
+          reason === "manual" || reason === "write-action"
+        );
         setIsShowingCachedAccount(false);
         setLastAccountLoadedAt(new Date());
+        if (reason !== "write-action") {
+          setAccountSyncMessage(formatAccountSyncMessage(previousSummary, summary, reason));
+        }
         communityRequestSequenceRef.current += 1;
         recommendationScanAccountKeyRef.current = "";
         setIsVaultCommunityMatchLoading(false);
@@ -217,8 +226,8 @@ export function useAccountWorkspace(input: {
         }));
         if (reason === "initial" || reason === "manual") {
           setActivityMessage(reason === "manual"
-            ? "账号已刷新"
-            : "账号已读取，最近活动会继续在后台刷新");
+            ? "已从游戏同步最新账号数据"
+            : "账号数据已同步，最近活动会继续在后台读取");
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
         return summary;
@@ -228,6 +237,7 @@ export function useAccountWorkspace(input: {
         const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
         if (getAccountSummarySnapshot()) {
           setIsShowingCachedAccount(true);
+          if (reason !== "write-action") setAccountSyncMessage("同步失败，继续显示上次账号数据");
           setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
         } else {
           setAccountError(resolvedMessage);
@@ -236,12 +246,9 @@ export function useAccountWorkspace(input: {
         return null;
       }
     })();
-    accountRefreshRequestRef.current = request;
-
     try {
       return await request;
     } finally {
-      if (accountRefreshRequestRef.current === request) accountRefreshRequestRef.current = null;
       if (foreground && loadingSequence === accountLoadingSequenceRef.current) {
         setIsLoadingAccount(false);
       }
@@ -376,6 +383,7 @@ export function useAccountWorkspace(input: {
     setEquipmentTargetStore,
     accountError,
     setAccountError,
+    accountSyncMessage,
     accountWarning,
     isLoadingAccount,
     isShowingCachedAccount,
@@ -439,9 +447,29 @@ function formatAccountWarningSource(source: string): string {
 }
 
 function formatAccountRefreshFailurePrefix(reason: AccountRefreshReason): string {
-  if (reason === "auto") return "自动刷新账号数据失败";
   if (reason === "write-action") return "操作后刷新账号数据失败";
-  return "刷新账号数据失败";
+  if (reason === "manual") return "从游戏同步账号数据失败";
+  return "读取账号数据失败";
+}
+
+function formatAccountSyncMessage(
+  previous: AccountSummary | null,
+  next: AccountSummary,
+  reason: AccountRefreshReason
+): string {
+  if (reason === "initial" || !previous) return "账号与仓库已从游戏同步";
+  const previousVaultIds = new Set(previous.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
+  const nextVaultIds = new Set(next.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
+  const movedOut = [...previousVaultIds].filter((instanceId) => !nextVaultIds.has(instanceId)).length;
+  const movedIn = [...nextVaultIds].filter((instanceId) => !previousVaultIds.has(instanceId)).length;
+  const changes = [
+    movedOut ? `${movedOut} 件装备移出仓库` : "",
+    movedIn ? `${movedIn} 件装备移入仓库` : ""
+  ].filter(Boolean);
+  if (changes.length) return `同步完成：${changes.join("，")}`;
+  const countDelta = next.vault.item_count - previous.vault.item_count;
+  if (countDelta) return `同步完成：仓库总数${countDelta > 0 ? "增加" : "减少"} ${Math.abs(countDelta)} 件`;
+  return "同步完成：游戏中的账号与仓库状态没有变化";
 }
 
 function getAccountLoadErrorMessage(state: StartupState, message: string): string {

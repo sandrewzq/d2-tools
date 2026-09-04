@@ -875,6 +875,7 @@ function WebApp() {
                   setPerkFilters(fixture.perkFilters);
                 },
                 onRefreshManifestStatus: () => undefined,
+                onInitializeManifest: () => undefined,
                 onRepairManifest: () => undefined,
                 onAliasDraftChange: setAliasDraft,
                 onAliasTargetDraftChange: setAliasTargetDraft,

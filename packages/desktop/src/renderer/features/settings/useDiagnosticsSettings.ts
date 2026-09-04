@@ -82,6 +82,7 @@ export function useDiagnosticsSettings(input: {
     isInitializingManifest: manifestStatusState.isInitializingManifest,
     isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
     loadActionLog: () => loadActionLog(actionLogState.setActionLog, appUpdateFlow.setSettingsError),
+    manifestTask: manifestStatusState.manifestTask,
     manifestStatus: manifestStatusState.manifestStatus,
     manifestStatusError: manifestStatusState.manifestStatusError,
     openAppUpdateDownloadPage: appUpdateFlow.openAppUpdateDownloadPage,

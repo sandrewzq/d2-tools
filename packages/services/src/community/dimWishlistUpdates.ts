@@ -19,6 +19,7 @@ const commitsApiUrl = "https://api.github.com/repos/48klocs/dim-wish-list-source
 const contentsApiBaseUrl = "https://api.github.com/repos/48klocs/dim-wish-list-sources/contents/voltron.txt";
 const maximumWishlistBytes = 128 * 1024 * 1024;
 const commitResponseLimit = 1 * 1024 * 1024;
+// 在线检查在后台执行，允许较慢的网络完成；超时后仍保留当前已启用数据。
 const commitRequestTimeoutMs = 30_000;
 const wishlistRequestTimeoutMs = 180_000;
 const metadataKeys = {

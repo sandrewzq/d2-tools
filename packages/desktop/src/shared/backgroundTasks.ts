@@ -39,7 +39,11 @@ export type BackgroundTaskSnapshot = {
   status: BackgroundTaskStatus;
   title: string;
   message?: string;
+  phase?: string;
+  availability?: "usable" | "limited" | "blocked";
   progress_percent?: number;
+  progress_current_bytes?: number;
+  progress_total_bytes?: number;
   started_at?: string;
   updated_at: string;
   finished_at?: string;
@@ -138,7 +142,7 @@ export function createBackgroundTaskStore(options: BackgroundTaskStoreOptions = 
       setTask(taskId, {
         status: "success",
         finished_at: now().toISOString(),
-        message: "任务已完成",
+        message: completed?.phase === "complete" ? completed.message : "任务已完成",
         can_retry: false
       });
       activeTaskByType.delete(taskKey(input));

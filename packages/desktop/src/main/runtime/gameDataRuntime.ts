@@ -36,12 +36,18 @@ type PendingRequest = {
   worker: Worker;
 };
 
+type ResumeWaiter = {
+  resolve: () => void;
+  timeout: ReturnType<typeof setTimeout>;
+};
+
 export type DefinitionProjection = "account-snapshot" | "catalyst-record" | "community-match" | "display-summary";
 
 let worker: Worker | null = null;
 let nextRequestId = 1;
 let suspended = false;
 let closeRequest: Promise<void> | null = null;
+const resumeWaiters = new Set<ResumeWaiter>();
 const pendingRequests = new Map<number, PendingRequest>();
 const workerTimeoutCounts = new WeakMap<Worker, number>();
 const closeTimeoutMs = 5_000;
@@ -167,6 +173,11 @@ export async function closeGameDataRuntime(): Promise<void> {
 
 export function resumeGameDataRuntime(): void {
   suspended = false;
+  for (const waiter of resumeWaiters) {
+    clearTimeout(waiter.timeout);
+    waiter.resolve();
+  }
+  resumeWaiters.clear();
 }
 
 export function verifyGameDataRuntime(): Promise<void> {
@@ -179,7 +190,7 @@ function request<TResult>(
   targetWorker?: Worker
 ): Promise<TResult> {
   if (operation !== "close" && suspended) {
-    return Promise.reject(new Error("资料库正在更新，请稍后重试"));
+    return waitForRuntimeResume().then(() => request<TResult>(operation, input));
   }
   const activeWorker = targetWorker ?? ensureWorker();
   const id = nextRequestId++;
@@ -206,6 +217,19 @@ function request<TResult>(
       pendingRequests.delete(id);
       reject(error instanceof Error ? error : new Error("资料库查询请求发送失败"));
     }
+  });
+}
+
+function waitForRuntimeResume(): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const waiter: ResumeWaiter = {
+      resolve,
+      timeout: setTimeout(() => {
+        resumeWaiters.delete(waiter);
+        reject(new Error("资料库切换时间过长，请稍后重试"));
+      }, 30_000)
+    };
+    resumeWaiters.add(waiter);
   });
 }
 

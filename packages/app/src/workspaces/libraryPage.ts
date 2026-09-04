@@ -125,6 +125,23 @@ export type ManifestStatus = {
   missing_required_components?: string[];
 };
 
+export type LibraryManifestTaskState = {
+  status: "idle" | "queued" | "running" | "retrying" | "success" | "failed" | "blocked" | "superseded";
+  type?: string;
+  title: string;
+  message?: string;
+  error?: string;
+  hasUsableManifest?: boolean;
+  phase?: string;
+  availability?: "usable" | "limited" | "blocked";
+  progress_percent?: number;
+  progress_current_bytes?: number;
+  progress_total_bytes?: number;
+  started_at?: string;
+  updated_at?: string;
+  next_retry_at?: string;
+};
+
 export type LiveItemAvailability = {
   account_scope: "public" | "character";
   items: Record<string, LiveItemAvailabilityEntry>;
@@ -243,16 +260,18 @@ export type LibraryPageState = {
   isLoadingLiveAvailability: boolean;
   isLoadingManifestStatus: boolean;
   isInitializingManifest: boolean;
+  manifestTask: LibraryManifestTaskState | null;
   itemDetailLoadingKey: string;
 };
 
 export type LibraryManifestAlertModel = {
-  kind: "error" | "loading" | "not_initialized" | "missing_components" | "needs_update";
+  kind: "error" | "loading" | "not_initialized" | "missing_components" | "needs_update" | "updating" | "retrying";
   className: "status-error" | "status-pending" | "status-warning";
   error?: string;
   missingComponentCount?: number;
   version?: string;
   latestVersion?: string;
+  task?: LibraryManifestTaskState;
 };
 
 export type LibraryEquipmentResultView = {
@@ -350,6 +369,7 @@ export type LibraryPageModel = {
     isLoadingLiveAvailability: boolean;
     isLoadingManifestStatus: boolean;
     isInitializingManifest: boolean;
+    manifestTask: LibraryManifestTaskState | null;
     manifestVersionDate?: string;
   };
   manifestAlert: LibraryManifestAlertModel | null;
@@ -626,9 +646,15 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       isLoadingLiveAvailability: state.isLoadingLiveAvailability,
       isLoadingManifestStatus: state.isLoadingManifestStatus,
       isInitializingManifest: state.isInitializingManifest,
+      manifestTask: state.manifestTask,
       manifestVersionDate: formatLibraryVersion(cache.manifestStatus?.version)
     },
-    manifestAlert: buildManifestAlertModel(cache.manifestStatus, cache.manifestStatusError, state.isLoadingManifestStatus),
+    manifestAlert: buildManifestAlertModel(
+      cache.manifestStatus,
+      cache.manifestStatusError,
+      state.isLoadingManifestStatus,
+      state.manifestTask
+    ),
     emptyState: selectLibraryEmptyState({ searchTouched, isSearching: state.isSearching, searchError: state.searchError, hitCount })
   };
 }
@@ -995,10 +1021,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function buildManifestAlertModel(
   status: ManifestStatus | null,
   error: string,
-  isLoading: boolean
+  isLoading: boolean,
+  task: LibraryManifestTaskState | null
 ): LibraryManifestAlertModel | null {
+  if (task && ["queued", "running", "retrying"].includes(task.status)) {
+    return {
+      kind: task.status === "retrying" ? "retrying" : "updating",
+      className: task.status === "retrying" ? "status-warning" : "status-pending",
+      task
+    };
+  }
   if (error) {
-    return { kind: "error", className: "status-error", error };
+    return {
+      kind: "error",
+      className: status?.initialized ? "status-warning" : "status-error",
+      error,
+      hasUsableManifest: Boolean(status?.initialized)
+    };
   }
   if (isLoading && !status) {
     return { kind: "loading", className: "status-pending" };

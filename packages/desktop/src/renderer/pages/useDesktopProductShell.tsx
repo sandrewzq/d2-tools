@@ -6,13 +6,14 @@ import {
   StartupGate,
   type ProductPreferences,
   type ShellAssistantMode,
+  type ShellBackgroundTaskItem,
   type ShellPageKey,
   type ShellStatusItem
 } from "@d2-tools/ui";
 import { buildVendorItemSourcePaths } from "@d2-tools/app/vendors";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
-import type { AccountSummary, AppUpdateSnapshot, ManifestStatus, StartupState } from "../api/types";
+import type { AccountSummary, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus, StartupState } from "../api/types";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
 import { useAccountWorkspace } from "../features/account/useAccountWorkspace";
 import { useDailySummary } from "../features/daily/useDailySummary";
@@ -27,8 +28,7 @@ import { useVendorDefinitionDetail } from "../features/vendors/useVendorDefiniti
 import type { DesktopMenuSession } from "./providers/DesktopMenuProviderContext";
 import { useDesktopProductWriteActions } from "./useDesktopProductWriteActions";
 
-const ACCOUNT_PAGE_REVALIDATE_MS = 60_000;
-type SettingsInitialSection = "overview" | "account" | "bungie";
+type SettingsInitialSection = "overview" | "account" | "library" | "bungie";
 
 export function useDesktopProductShell(props: {
   state: StartupState;
@@ -191,8 +191,8 @@ export function useDesktopProductShell(props: {
     setActivePage("settings");
   }
 
-  function openBackgroundTasks() {
-    setSettingsInitialSection("overview");
+  function openBackgroundTasks(task?: ShellBackgroundTaskItem) {
+    setSettingsInitialSection(task?.type?.startsWith("manifest-") ? "library" : "overview");
     setActivePage("settings");
   }
 
@@ -249,8 +249,6 @@ export function useDesktopProductShell(props: {
   }, [isManifestReady, isVisualCapture]);
 
   const refreshAccountRef = useRef(refreshAccountSnapshot);
-  const accountPageRefreshAttemptedRef = useRef(false);
-  const previousManifestReadyRef = useRef(isManifestReady);
   refreshAccountRef.current = refreshAccountSnapshot;
   const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
     && props.state.cards.account.status === "ready";
@@ -262,37 +260,6 @@ export function useDesktopProductShell(props: {
     setHasAutoLoadedAccount(true);
     void refreshAccountRef.current("initial");
   }, [canRefreshAccount, hasAutoLoadedAccount]);
-
-  useEffect(() => {
-    if (!canRefreshAccount) return;
-
-    const id = setInterval(() => {
-      void refreshAccountRef.current("auto");
-    }, 10 * 60 * 1000);
-
-    return () => clearInterval(id);
-  }, [canRefreshAccount]);
-
-  useEffect(() => {
-    const wasReady = previousManifestReadyRef.current;
-    previousManifestReadyRef.current = isManifestReady;
-    if (isVisualCapture || wasReady || !isManifestReady || !canRefreshAccount || !hasAutoLoadedAccount) return;
-    void refreshAccountRef.current("auto");
-  }, [canRefreshAccount, hasAutoLoadedAccount, isManifestReady, isVisualCapture]);
-
-  useEffect(() => {
-    if (activePage !== "account") {
-      accountPageRefreshAttemptedRef.current = false;
-      return;
-    }
-    if (!hasAutoLoadedAccount || !canRefreshAccount || accountPageRefreshAttemptedRef.current) return;
-
-    accountPageRefreshAttemptedRef.current = true;
-    if (isLoadingAccount) return;
-    if (lastAccountLoadedAt && Date.now() - lastAccountLoadedAt.getTime() < ACCOUNT_PAGE_REVALIDATE_MS) return;
-
-    void refreshAccountRef.current("auto");
-  }, [activePage, canRefreshAccount, hasAutoLoadedAccount, isLoadingAccount, lastAccountLoadedAt]);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({
@@ -312,11 +279,13 @@ export function useDesktopProductShell(props: {
   const shellStatus = buildShellStatus({
     manifestStatus: diagnostics.manifestStatus,
     manifestStatusError: diagnostics.manifestStatusError,
+    manifestTask: diagnostics.manifestTask,
     accountSummary,
     lastAccountLoadedAt,
     isLoadingAccount,
     accountError,
     accountWarning,
+    isShowingCachedAccount: accountWorkspace.isShowingCachedAccount,
     canRefreshAccount,
     isBungieConfigured: props.state.cards.bungieConfig.status === "ready",
     isAiConfigured,
@@ -479,11 +448,11 @@ export function useDesktopProductShell(props: {
         accountSummary ? (
           <>
             <ControlButton variant="secondary" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新授权</ControlButton>
-            <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号</ControlButton>
+            <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步游戏账号</ControlButton>
           </>
         ) : null
       ) : activePage === "vault" ? (
-        accountSummary ? <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>刷新账号装备</ControlButton> : null
+        accountSummary ? <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步仓库</ControlButton> : null
       ) : activePage === "library" ? (
         <>
           <ControlButton onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</ControlButton>
@@ -516,11 +485,13 @@ export function useDesktopProductShell(props: {
 function buildShellStatus(input: {
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
+  manifestTask: BackgroundTaskSnapshot | null;
   accountSummary: AccountSummary | null;
   lastAccountLoadedAt: Date | null;
   isLoadingAccount: boolean;
   accountError: string;
   accountWarning: string;
+  isShowingCachedAccount: boolean;
   canRefreshAccount: boolean;
   isBungieConfigured: boolean;
   isAiConfigured: boolean;
@@ -545,8 +516,8 @@ function buildShellStatus(input: {
     {
       key: "account",
       label: "账号",
-      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
-      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
+      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.isShowingCachedAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
+      tone: getAccountStatusTone(input.accountSummary, input.isLoadingAccount, input.isShowingCachedAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
       priority: input.accountError || input.accountWarning ? "attention" : "standard"
     },
     {
@@ -556,9 +527,9 @@ function buildShellStatus(input: {
         ? "等待配置"
         : input.manifestStatusError
         ? "检查失败"
-        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus)),
-      tone: waitingForBungieConfig ? "neutral" : input.manifestStatusError ? "error" : getManifestStatusTone(input.manifestStatus),
-      priority: waitingForBungieConfig ? "standard" : input.manifestStatusError || needsLibraryRepair ? "attention" : "standard",
+        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus, input.manifestTask)),
+      tone: waitingForBungieConfig ? "neutral" : input.manifestStatusError ? "error" : input.manifestTask && ["queued", "running", "retrying"].includes(input.manifestTask.status) ? "pending" : getManifestStatusTone(input.manifestStatus),
+      priority: waitingForBungieConfig ? "standard" : input.manifestStatusError || needsLibraryRepair || input.manifestTask?.availability === "blocked" ? "attention" : "standard",
       actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : "修复资料库",
       onAction: waitingForBungieConfig || !needsLibraryRepair ? undefined : input.onRepairManifest
     },
@@ -583,18 +554,19 @@ function formatAccountShellStatus(
   accountSummary: AccountSummary | null,
   lastAccountLoadedAt: Date | null,
   isLoadingAccount: boolean,
+  isShowingCachedAccount: boolean,
   accountError: string,
   accountWarning: string,
   canRefreshAccount: boolean
 ): string {
-  if (isLoadingAccount) return accountSummary ? "刷新中" : "读取中";
-  if (accountError && accountSummary) return "刷新失败";
+  if (isLoadingAccount) return accountSummary ? "正在同步游戏" : "正在读取游戏";
+  if (accountError && accountSummary) return "同步失败 · 显示旧数据";
   if (accountError) return "读取失败";
   if (accountWarning && accountSummary) return "增强数据异常";
   if (accountSummary) {
-    const characterCount = `${accountSummary.characters.length} 个角色`;
     const loadedAt = formatTime(lastAccountLoadedAt);
-    return loadedAt ? `${characterCount} · ${loadedAt}` : characterCount;
+    if (isShowingCachedAccount) return loadedAt ? `本地缓存 · ${loadedAt}` : "本地缓存";
+    return loadedAt ? `已同步 · ${loadedAt}` : "已同步";
   }
   return canRefreshAccount ? "可读取" : "未登录";
 }
@@ -602,18 +574,25 @@ function formatAccountShellStatus(
 function getAccountStatusTone(
   accountSummary: AccountSummary | null,
   isLoadingAccount: boolean,
+  isShowingCachedAccount: boolean,
   accountError: string,
   accountWarning: string,
   canRefreshAccount: boolean
 ): ShellStatusItem["tone"] {
   if (accountError) return "error";
   if (isLoadingAccount) return "warning";
+  if (isShowingCachedAccount && accountSummary) return "warning";
   if (accountWarning && accountSummary) return "warning";
   if (accountSummary) return "ready";
   return canRefreshAccount ? "warning" : "neutral";
 }
 
-function formatManifestShellStatus(status: ManifestStatus | null): string {
+function formatManifestShellStatus(status: ManifestStatus | null, task: BackgroundTaskSnapshot | null): string {
+  if (task && ["queued", "running", "retrying"].includes(task.status)) {
+    if (task.status === "retrying") return "等待重试";
+    if (task.phase === "activate") return "切换中";
+    return task.availability === "usable" ? "后台更新" : "准备中";
+  }
   if (!status) return "读取中";
   if (!status.initialized) return "未准备";
   if (status.missing_required_components?.length) return "需修复";
