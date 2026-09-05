@@ -56,7 +56,7 @@ export function useVaultWriteActions(input: {
     filterItem: (item: AccountItemSummary) => boolean = () => true
   ): Promise<string> {
     if (!input.accountSummary) {
-      return "请先读取账号数据。";
+      return "请先同步装备数据。";
     }
     const account = input.accountSummary;
 
@@ -122,13 +122,57 @@ export function useVaultWriteActions(input: {
     );
   }
 
+  async function handleVaultItemLock(item: AccountItemSummary, targetCharacterId: string): Promise<string> {
+    if (!input.accountSummary) {
+      throw new Error("请先同步装备数据。");
+    }
+    if (!targetCharacterId) {
+      throw new Error(buildVaultCleanupNoTargetMessage());
+    }
+    if (!item.instance_id) {
+      throw new Error("这件装备缺少实例 ID，无法加锁。");
+    }
+    if (item.locked) return "这件装备已经锁定。";
+
+    const account = input.accountSummary;
+    input.setIsRunningItemAction(true);
+    input.setItemActionMessage(`正在加锁：${item.name}`);
+    try {
+      const result = await api.setItemLockState({
+        membership_type: account.membership_type,
+        character_id: targetCharacterId,
+        item_id: item.instance_id,
+        item_name: item.name,
+        state: true
+      });
+      if (result.account_patch) {
+        input.applyCommittedAccountActionPatches([result.account_patch]);
+        void input.startAccountWriteVerification(createVaultVerificationInput({
+          account,
+          characterId: targetCharacterId,
+          patches: [result.account_patch],
+          failedCount: 0
+        }), { surfaceFeedback: false });
+      } else {
+        void input.loadAccountSummary().catch((error) => {
+          input.setAccountError(error instanceof Error ? error.message : "加锁已受理，但刷新账号数据失败");
+        });
+      }
+      void input.diagnostics.loadActionLog().catch(() => undefined);
+      return result.message || `已提交加锁：${item.name}`;
+    } finally {
+      input.setIsRunningItemAction(false);
+      input.setItemActionMessage("");
+    }
+  }
+
   async function handleVaultCleanupTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<BatchItemActionResult> {
     return runVaultBatchTransfer(items, targetCharacterId);
   }
 
   async function runVaultBatchTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<BatchItemActionResult> {
     if (!input.accountSummary) {
-      throw new Error("请先读取账号数据。");
+      throw new Error("请先同步装备数据。");
     }
     const account = input.accountSummary;
 
@@ -183,6 +227,7 @@ export function useVaultWriteActions(input: {
   return {
     saveVaultTag,
     saveVaultTagsBatch,
+    handleVaultItemLock,
     handleVaultCleanupUnlock,
     handleVaultCleanupTransfer
   };

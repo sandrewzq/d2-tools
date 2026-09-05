@@ -20,11 +20,14 @@ export type VaultDimWishlistImportPreview = {
 export type VaultWeaponKnowledgeImportPreview = {
   token?: string;
   file_name: string;
+  import_mode: "merge" | "replace";
   recommendation_count: number;
+  importable_recommendation_count: number;
   weapon_count: number;
   source_count: number;
   source_labels: string[];
   blocking_issue_count: number;
+  skipped_row_count: number;
   blocking_issues: Array<{
     row_number: number;
     weapon_name: string;
@@ -63,6 +66,43 @@ export type VaultDimOnlineActivationResult = {
   status: VaultDimOnlineStatus;
 };
 
+export type VaultRecommendationManagedSource = {
+  source_key: string;
+  label: string;
+  kind: "curated" | "dim";
+  state: "active" | "disabled" | "removed";
+  configured: boolean;
+  rule_count: number;
+  weapon_count: number;
+  revision: string;
+  imported_at: string;
+  affected_instance_count?: number;
+};
+
+export type VaultRecommendationManagedRule = {
+  source_key: string;
+  source_label: string;
+  rule_stable_id: string;
+  weapon_hashes: number[];
+  weapon_name: string;
+  purposes: Array<"pve" | "pvp" | "general">;
+  requirements: Array<{ slot: string; names: string[] }>;
+  note: string;
+  state: "active" | "removed";
+  review_required: boolean;
+  source_revision: string;
+  reason: string;
+  affected_instance_count?: number;
+};
+
+export type VaultRecommendationManagementSnapshot = {
+  curated_revision: string;
+  dim_revision: string;
+  sources: VaultRecommendationManagedSource[];
+  removed_rules: VaultRecommendationManagedRule[];
+  affected_weapon_hashes?: number[];
+};
+
 export type VaultWishlistActions = {
   save(wishlist: DimWishlist): Promise<DimWishlist>;
   clear(): Promise<void>;
@@ -72,12 +112,27 @@ export type VaultWishlistActions = {
   checkDimOnlineUpdate?(): Promise<VaultDimOnlinePreview>;
   confirmDimOnlineUpdate?(token: string): Promise<VaultDimOnlineActivationResult>;
   exportKnowledgeTemplate?(): Promise<{ canceled: boolean; message: string; file_path?: string }>;
+  exportKnowledgeCsv?(): Promise<{ canceled: boolean; message: string; file_path?: string }>;
   selectKnowledgeCsv?(): Promise<VaultWeaponKnowledgeImportPreview | null>;
   confirmKnowledgeImport?(token: string): Promise<{
     recommendation_count: number;
     weapon_count: number;
     source_count: number;
+    skipped_row_count: number;
+    imported_row_count: number;
+    import_mode: "merge" | "replace";
   }>;
+  getRecommendationManagement?(): Promise<VaultRecommendationManagementSnapshot>;
+  listRecommendationRules?(sourceKey: string, query?: string): Promise<VaultRecommendationManagedRule[]>;
+  setRecommendationSourceState?(sourceKey: string, state: "active" | "disabled" | "removed"): Promise<VaultRecommendationManagementSnapshot>;
+  setRecommendationRuleState?(input: {
+    source_key: string;
+    rule_stable_id: string;
+    state: "active" | "removed";
+    reason?: string;
+    source_revision?: string;
+  }): Promise<VaultRecommendationManagementSnapshot>;
+  clearCuratedRecommendationDataset?(): Promise<VaultRecommendationManagementSnapshot>;
 };
 
 type ImportFeedback = {
@@ -85,9 +140,20 @@ type ImportFeedback = {
   message: string;
 } | null;
 
+type ManagementConfirmation = {
+  kind: "source" | "rule" | "curated";
+  title: string;
+  description: string;
+  confirmLabel: string;
+  source?: VaultRecommendationManagedSource;
+  sourceState?: "disabled" | "removed";
+  rule?: VaultRecommendationManagedRule;
+};
+
 export function VaultWishlistManager(props: {
   wishlist?: DimWishlist | null;
   actions: VaultWishlistActions;
+  managementLocked?: boolean;
   onApplied?: (message: string) => void;
   onClose: () => void;
 }) {
@@ -103,6 +169,13 @@ export function VaultWishlistManager(props: {
   const [dimOnlineStatus, setDimOnlineStatus] = useState<VaultDimOnlineStatus | null>(null);
   const [dimOnlinePreview, setDimOnlinePreview] = useState<VaultDimOnlinePreview | null>(null);
   const [knowledgePreview, setKnowledgePreview] = useState<VaultWeaponKnowledgeImportPreview | null>(null);
+  const [managementSnapshot, setManagementSnapshot] = useState<VaultRecommendationManagementSnapshot | null>(null);
+  const [managementLoadState, setManagementLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [selectedSourceKey, setSelectedSourceKey] = useState("");
+  const [managedRules, setManagedRules] = useState<VaultRecommendationManagedRule[]>([]);
+  const [ruleQuery, setRuleQuery] = useState("");
+  const [ruleLoadState, setRuleLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [pendingManagementAction, setPendingManagementAction] = useState<ManagementConfirmation | null>(null);
   const [isPasteOpen, setIsPasteOpen] = useState(false);
   const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [busyAction, setBusyAction] = useState("");
@@ -122,6 +195,13 @@ export function VaultWishlistManager(props: {
     props.actions.getDimOnlineStatus
     && props.actions.checkDimOnlineUpdate
     && props.actions.confirmDimOnlineUpdate
+  );
+  const supportsRecommendationManagement = Boolean(
+    props.actions.getRecommendationManagement
+    && props.actions.listRecommendationRules
+    && props.actions.setRecommendationSourceState
+    && props.actions.setRecommendationRuleState
+    && props.actions.clearCuratedRecommendationDataset
   );
   const portalHost = typeof document === "undefined"
     ? null
@@ -196,12 +276,73 @@ export function VaultWishlistManager(props: {
     };
   }, [props.actions]);
 
+  useEffect(() => {
+    if (!supportsRecommendationManagement || !props.actions.getRecommendationManagement) return;
+    let active = true;
+    setManagementLoadState("loading");
+    void props.actions.getRecommendationManagement().then(
+      (snapshot) => {
+        if (!active) return;
+        setManagementSnapshot(snapshot);
+        // 来源列表默认只展示汇总；规则明细必须由玩家显式展开。
+        setSelectedSourceKey("");
+        setManagedRules([]);
+        setRuleLoadState("idle");
+        setManagementLoadState("ready");
+      },
+      (error) => {
+        if (!active) return;
+        setManagementLoadState("error");
+        setFeedback({ tone: "error", message: errorMessage(error, "推荐来源状态读取失败。") });
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, [props.actions, supportsRecommendationManagement]);
+
+  useEffect(() => {
+    if (!selectedSourceKey || !props.actions.listRecommendationRules) {
+      setManagedRules([]);
+      setRuleLoadState("idle");
+      return;
+    }
+    let active = true;
+    setRuleLoadState("loading");
+    void props.actions.listRecommendationRules(selectedSourceKey).then(
+      (rules) => {
+        if (!active) return;
+        setManagedRules(rules);
+        setRuleLoadState("ready");
+      },
+      (error) => {
+        if (!active) return;
+        setManagedRules([]);
+        setRuleLoadState("error");
+        setFeedback({ tone: "error", message: errorMessage(error, "推荐规则读取失败。") });
+      }
+    );
+    return () => {
+      active = false;
+    };
+  }, [props.actions, selectedSourceKey]);
+
   async function refreshDimOnlineStatus() {
     if (!props.actions.getDimOnlineStatus) return;
     try {
       setDimOnlineStatus(await props.actions.getDimOnlineStatus());
     } catch {
       // 本地状态刷新失败不改变已经完成的导入或清理结果。
+    }
+  }
+
+  async function refreshManagementSnapshot() {
+    if (!props.actions.getRecommendationManagement) return;
+    try {
+      setManagementSnapshot(await props.actions.getRecommendationManagement());
+      setManagementLoadState("ready");
+    } catch {
+      setManagementLoadState("error");
     }
   }
 
@@ -224,7 +365,7 @@ export function VaultWishlistManager(props: {
       setPastePreview(null);
       setIsPasteOpen(false);
       setIsConfirmingClear(false);
-      setFeedback({ tone: "success", message: `已识别 ${preview.rule_count} 条 DIM 规则，确认后才会${props.wishlist ? "替换当前" : "启用"} Wishlist。` });
+      setFeedback({ tone: "success", message: `已识别 ${preview.rule_count} 条 DIM 规则，确认后才会${props.wishlist ? "替换当前" : "写入本机"} Wishlist。${dimRemovedNotice(managementSnapshot)}` });
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 文件读取失败。") });
     } finally {
@@ -255,7 +396,7 @@ export function VaultWishlistManager(props: {
     setDimFilePreview(null);
     setDimOnlinePreview(null);
     setFeedback(parsed.rules.length
-      ? { tone: "success", message: `${sourceName} · 已识别 ${parsed.rules.length} 条规则，确认后才会${props.wishlist ? "替换当前" : "启用"} Wishlist。` }
+      ? { tone: "success", message: `${sourceName} · 已识别 ${parsed.rules.length} 条规则，确认后才会${props.wishlist ? "替换当前" : "写入本机"} Wishlist。${dimRemovedNotice(managementSnapshot)}` }
       : { tone: "error", message: "没有识别到 DIM Wishlist 规则。" });
   }
 
@@ -266,7 +407,7 @@ export function VaultWishlistManager(props: {
       const saved = await props.actions.confirmDimImport(dimFilePreview.token);
       resetDimInput();
       await refreshDimOnlineStatus();
-      finishApplied(`DIM Wishlist 已启用 · ${saved.rules.length} 条规则。`);
+      finishApplied(dimAppliedMessage(managementSnapshot, `DIM Wishlist 已写入 · ${saved.rules.length} 条规则。`));
     } catch (error) {
       setDimFilePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 导入失败。") });
@@ -306,7 +447,7 @@ export function VaultWishlistManager(props: {
       setDimOnlineStatus(result.status);
       setDimOnlinePreview(null);
       resetDimInput();
-      finishApplied(`DIM 社区推荐已更新 · ${result.status.weapon_count} 把武器、${result.status.rule_count} 条规则。`);
+      finishApplied(dimAppliedMessage(managementSnapshot, `DIM 社区推荐已更新 · ${result.status.weapon_count} 把武器、${result.status.rule_count} 条规则。`));
     } catch (error) {
       setDimOnlinePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "DIM 社区推荐更新失败。") });
@@ -322,7 +463,7 @@ export function VaultWishlistManager(props: {
       const saved = await props.actions.save(pastePreview);
       resetDimInput();
       await refreshDimOnlineStatus();
-      finishApplied(`DIM Wishlist 已启用 · ${saved.rules.length} 条规则。`);
+      finishApplied(dimAppliedMessage(managementSnapshot, `DIM Wishlist 已写入 · ${saved.rules.length} 条规则。`));
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 保存失败。") });
     } finally {
@@ -343,6 +484,19 @@ export function VaultWishlistManager(props: {
     }
   }
 
+  async function exportKnowledgeCsv() {
+    if (!props.actions.exportKnowledgeCsv) return;
+    setBusyAction("knowledge-export");
+    try {
+      const result = await props.actions.exportKnowledgeCsv();
+      setFeedback({ tone: result.canceled ? "neutral" : "success", message: result.message });
+    } catch (error) {
+      setFeedback({ tone: "error", message: errorMessage(error, "可编辑推荐导出失败。") });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
   async function selectKnowledgeCsv() {
     if (!props.actions.selectKnowledgeCsv) return;
     setBusyAction("knowledge-select");
@@ -350,9 +504,11 @@ export function VaultWishlistManager(props: {
       const preview = await props.actions.selectKnowledgeCsv();
       if (!preview) return;
       setKnowledgePreview(preview);
-      setFeedback(preview.blocking_issue_count > 0
-        ? { tone: "error", message: `发现 ${preview.blocking_issue_count} 条无法通过官方资料校验的内容，已阻止导入。` }
-        : { tone: "success", message: "CSV 已通过格式与官方资料校验，确认后才会替换当前知识库。" });
+      setFeedback(preview.skipped_row_count > 0
+        ? { tone: "neutral", message: `发现 ${preview.skipped_row_count} 行异常，将单独忽略；其余 ${preview.importable_recommendation_count} 条记录可以导入，已有正确数据不会被删除。` }
+        : preview.import_mode === "merge"
+          ? { tone: "success", message: "玩家简表已通过校验；确认后只新增或更新对应规则，不会删除其他已有推荐。" }
+          : { tone: "success", message: "T20 完整数据包已通过校验；确认后会完整替换当前人工推荐数据。" });
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "知识库 CSV 校验失败。") });
     } finally {
@@ -361,12 +517,12 @@ export function VaultWishlistManager(props: {
   }
 
   async function confirmKnowledgeImport() {
-    if (!knowledgePreview?.token || knowledgePreview.blocking_issue_count > 0 || !props.actions.confirmKnowledgeImport) return;
+    if (!knowledgePreview?.token || knowledgePreview.importable_recommendation_count === 0 || !props.actions.confirmKnowledgeImport) return;
     setBusyAction("knowledge-confirm");
     try {
       const result = await props.actions.confirmKnowledgeImport(knowledgePreview.token);
       setKnowledgePreview(null);
-      finishApplied(`武器推荐数据已更新 · ${result.weapon_count} 把武器、${result.recommendation_count} 条来源记录。`);
+      finishApplied(`武器推荐数据已${result.import_mode === "merge" ? "合并更新" : "完整替换"} · 导入 ${result.imported_row_count} 条${result.skipped_row_count > 0 ? `，忽略 ${result.skipped_row_count} 行异常` : ""}。当前库共 ${result.weapon_count} 把武器。`);
     } catch (error) {
       setKnowledgePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "知识库 CSV 导入失败。") });
@@ -382,12 +538,118 @@ export function VaultWishlistManager(props: {
       setIsConfirmingClear(false);
       resetDimInput();
       await refreshDimOnlineStatus();
+      await refreshManagementSnapshot();
       setFeedback({ tone: "success", message: "DIM Wishlist 已移除。" });
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 移除失败。") });
     } finally {
       setBusyAction("");
     }
+  }
+
+  async function searchManagedRules() {
+    if (!selectedSourceKey || !props.actions.listRecommendationRules) return;
+    setRuleLoadState("loading");
+    try {
+      setManagedRules(await props.actions.listRecommendationRules(selectedSourceKey, ruleQuery));
+      setRuleLoadState("ready");
+    } catch (error) {
+      setRuleLoadState("error");
+      setFeedback({ tone: "error", message: errorMessage(error, "推荐规则搜索失败。") });
+    }
+  }
+
+  async function activateManagedSource(source: VaultRecommendationManagedSource) {
+    if (!props.actions.setRecommendationSourceState || props.managementLocked) return;
+    setBusyAction(`source-active:${source.source_key}`);
+    try {
+      const snapshot = await props.actions.setRecommendationSourceState(source.source_key, "active");
+      setManagementSnapshot(snapshot);
+      setFeedback({ tone: "success", message: `${source.label}已启用，推荐结果已按当前规则重新核对。` });
+      await selectOrReloadManagedSource(source.source_key);
+    } catch (error) {
+      setFeedback({ tone: "error", message: errorMessage(error, "推荐来源启用失败。") });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function restoreManagedRule(rule: VaultRecommendationManagedRule) {
+    if (!props.actions.setRecommendationRuleState || props.managementLocked) return;
+    setBusyAction(`rule-active:${rule.rule_stable_id}`);
+    try {
+      const snapshot = await props.actions.setRecommendationRuleState({
+        source_key: rule.source_key,
+        rule_stable_id: rule.rule_stable_id,
+        state: "active",
+        source_revision: rule.source_revision
+      });
+      setManagementSnapshot(snapshot);
+      setFeedback({ tone: "success", message: `${rule.source_label} · ${rule.weapon_name} 的规则已恢复。` });
+      await selectOrReloadManagedSource(rule.source_key);
+    } catch (error) {
+      setFeedback({ tone: "error", message: errorMessage(error, "推荐规则恢复失败。") });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function confirmManagementAction() {
+    const pending = pendingManagementAction;
+    if (!pending || props.managementLocked) return;
+    setBusyAction(`management-${pending.kind}`);
+    try {
+      if (pending.kind === "source" && pending.source && pending.sourceState && props.actions.setRecommendationSourceState) {
+        const snapshot = await props.actions.setRecommendationSourceState(pending.source.source_key, pending.sourceState);
+        setManagementSnapshot(snapshot);
+        setFeedback({
+          tone: "success",
+          message: pending.sourceState === "removed"
+            ? `${pending.source.label}已按来源移除；其他来源和玩家本地标记未改变。`
+            : `${pending.source.label}已停用；本地数据仍保留，可随时恢复。`
+        });
+        await selectOrReloadManagedSource(pending.source.source_key);
+      } else if (pending.kind === "rule" && pending.rule && props.actions.setRecommendationRuleState) {
+        const snapshot = await props.actions.setRecommendationRuleState({
+          source_key: pending.rule.source_key,
+          rule_stable_id: pending.rule.rule_stable_id,
+          state: "removed",
+          source_revision: pending.rule.source_revision
+        });
+        setManagementSnapshot(snapshot);
+        setFeedback({ tone: "success", message: `${pending.rule.source_label} · ${pending.rule.weapon_name} 的规则已移除，可在已移除规则中恢复。` });
+        await selectOrReloadManagedSource(pending.rule.source_key);
+      } else if (pending.kind === "curated" && props.actions.clearCuratedRecommendationDataset) {
+        const snapshot = await props.actions.clearCuratedRecommendationDataset();
+        setManagementSnapshot(snapshot);
+        setManagedRules([]);
+        setFeedback({ tone: "success", message: "当前中文武器推荐数据已删除；DIM、玩家标签、备注、锁定和配装均未改变。" });
+      }
+      setPendingManagementAction(null);
+    } catch (error) {
+      setFeedback({ tone: "error", message: errorMessage(error, "推荐数据操作失败。") });
+    } finally {
+      setBusyAction("");
+    }
+  }
+
+  async function reloadSelectedManagedRules(sourceKey = selectedSourceKey) {
+    if (!sourceKey || !props.actions.listRecommendationRules) return;
+    try {
+      setManagedRules(await props.actions.listRecommendationRules(sourceKey, ruleQuery));
+      setRuleLoadState("ready");
+    } catch {
+      setRuleLoadState("error");
+    }
+  }
+
+  async function selectOrReloadManagedSource(sourceKey: string) {
+    if (sourceKey !== selectedSourceKey) {
+      setRuleQuery("");
+      setSelectedSourceKey(sourceKey);
+      return;
+    }
+    await reloadSelectedManagedRules(sourceKey);
   }
 
   function resetDimInput() {
@@ -401,6 +663,8 @@ export function VaultWishlistManager(props: {
 
   const isBusy = Boolean(busyAction);
   const canClose = !isBusy;
+  const selectedManagedSource = managementSnapshot?.sources.find((source) => source.source_key === selectedSourceKey);
+  const dimManagedSource = managementSnapshot?.sources.find((source) => source.source_key === "dim_wishlist");
 
   const dialog = (
     <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => canClose && props.onClose()}>
@@ -413,10 +677,103 @@ export function VaultWishlistManager(props: {
         <ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton>
       </header>
 
+      {supportsRecommendationManagement ? (
+        <section className="vault-import-section vault-recommendation-management" aria-label="推荐来源与规则管理">
+          <div className="vault-import-section-head">
+            <span><strong>来源与纠错</strong><small>先选择来源；可临时停用、按来源移除，或只移除某一条错误规则。</small></span>
+          </div>
+          {props.managementLocked ? (
+            <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">同名整理还有待应用状态。请先应用或撤销这些状态，再修改推荐来源和规则。</p>
+          ) : null}
+          {managementLoadState === "loading" ? <p className="vault-management-state">正在读取推荐来源…</p> : null}
+          {managementLoadState === "error" ? <p className="vault-management-state" role="alert">推荐来源暂时无法读取，导入与更新入口仍可使用。</p> : null}
+          {managementSnapshot ? (
+            <>
+              <div className="vault-managed-source-list" data-surface="list">
+                {managementSnapshot.sources.map((source) => (
+                  <article className="vault-managed-source" data-surface="row" data-source-state={source.state} key={source.source_key}>
+                    <div className="vault-managed-source-select">
+                      <span><strong>{source.label}</strong><small>{managedSourceStateLabel(source)}</small></span>
+                      <span><b>{source.rule_count} 条规则</b><small>{source.weapon_count} 把武器 · 当前账号影响 {source.affected_instance_count ?? 0} 件</small></span>
+                    </div>
+                    <div className="vault-managed-source-actions">
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{selectedSourceKey === source.source_key ? "收起规则" : "管理规则"}</ControlButton>
+                      {source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(sourceConfirmation(source, "disabled"))}>停用</ControlButton> : null}
+                      {source.state === "disabled" || (source.state === "removed" && source.configured) ? <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked} onClick={() => void activateManagedSource(source)}>启用</ControlButton> : null}
+                      {source.state !== "removed" && source.configured ? <ControlButton size="compact" variant="danger" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(sourceConfirmation(source, "removed"))}>按来源移除</ControlButton> : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+
+              {selectedManagedSource ? (
+                <section className="vault-managed-rules" aria-label={`${selectedManagedSource.label}规则`}>
+                  <div className="vault-managed-rules-head">
+                    <span><strong>{selectedManagedSource.label}规则</strong><small>{selectedManagedSource.configured ? `版本 ${shortRevision(selectedManagedSource.revision)} · 最多显示 200 条` : selectedManagedSource.state === "removed" ? "来源已移除，重新导入或更新后可显式恢复" : "当前未配置"}</small></span>
+                    <form onSubmit={(event) => { event.preventDefault(); void searchManagedRules(); }}>
+                      <input type="search" value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder="搜索武器或 Perk" aria-label={`搜索${selectedManagedSource.label}规则`} />
+                      <ControlButton type="submit" size="compact" variant="secondary" disabled={ruleLoadState === "loading"}>搜索</ControlButton>
+                    </form>
+                  </div>
+                  {ruleLoadState === "loading" ? <p className="vault-management-state">正在读取规则…</p> : null}
+                  {ruleLoadState === "ready" && !managedRules.length ? <p className="vault-management-state">当前来源没有匹配的可用规则。</p> : null}
+                  {managedRules.length ? (
+                    <div className="vault-managed-rule-list" data-surface="list">
+                      {managedRules.map((rule) => (
+                        <article className="vault-managed-rule" data-surface="row" data-rule-state={rule.state} key={`${rule.source_key}:${rule.rule_stable_id}`}>
+                          <div>
+                            <span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{formatModes(rule.purposes)} · 当前账号影响 {rule.affected_instance_count ?? 0} 件</small></span>
+                            <p>{formatManagedRequirements(rule)}</p>
+                            {rule.note ? <small>{rule.note}</small> : null}
+                            {rule.review_required ? <em>来源版本已变化，需要复核后再恢复</em> : null}
+                          </div>
+                          {rule.state === "removed" ? (
+                            <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                          ) : (
+                            <ControlButton size="compact" variant="quiet" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(ruleConfirmation(rule))}>移除规则</ControlButton>
+                          )}
+                        </article>
+                      ))}
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
+
+              {managementSnapshot.removed_rules.length ? (
+                <details className="vault-removed-rules">
+                  <summary>已移除规则（{managementSnapshot.removed_rules.length}）</summary>
+                  <div className="vault-managed-rule-list" data-surface="list">
+                    {managementSnapshot.removed_rules.slice(0, 100).map((rule) => (
+                      <article className="vault-managed-rule" data-surface="row" data-rule-state="removed" key={`removed:${rule.source_key}:${rule.rule_stable_id}`}>
+                        <div><span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{rule.source_label}</small></span><p>{rule.review_required ? "原规则已变化，需要复核" : formatManagedRequirements(rule)}</p></div>
+                        <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                      </article>
+                    ))}
+                  </div>
+                </details>
+              ) : null}
+
+              {managementSnapshot.sources.some((source) => source.kind === "curated" && source.configured) ? (
+                <div className="vault-curated-dataset-danger">
+                  <span><strong>删除当前中文推荐数据</strong><small>只删除四个人工来源的当前数据集；DIM、玩家标签、备注、锁定和配装不会改变。</small></span>
+                  <ControlButton size="compact" variant="danger" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(curatedDatasetConfirmation(managementSnapshot))}>删除数据集</ControlButton>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+          {pendingManagementAction ? (
+            <div className="vault-wishlist-confirm vault-management-confirm" data-ui-kind="callout" data-status="warning">
+              <span><strong>{pendingManagementAction.title}</strong><small>{pendingManagementAction.description}</small></span>
+              <div><ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(null)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => void confirmManagementAction()}>{isBusy ? "处理中" : pendingManagementAction.confirmLabel}</ControlButton></div>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {supportsKnowledgeImport ? (
         <section className="vault-import-section" aria-label="武器推荐知识库 CSV">
           <div className="vault-import-section-head">
-            <span><strong>中文武器推荐数据</strong><small>选择发布方提供的“武器推荐.csv”；确认前只校验和预览，不会替换当前数据。</small></span>
+            <span><strong>中文武器推荐数据</strong><small>支持普通玩家简表；旧版 31 列 T20 完整包仍可兼容导入。确认前只校验和预览，不会更新当前数据。</small></span>
             <div className="vault-wishlist-actions">
               <ControlButton data-knowledge-import="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择武器推荐.csv"}</ControlButton>
             </div>
@@ -424,26 +781,27 @@ export function VaultWishlistManager(props: {
           {knowledgePreview ? (
             <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
               <span><strong>{knowledgePreview.file_name}</strong><small>{knowledgePreview.source_labels.join(" / ")}</small></span>
-              <span><strong>{knowledgePreview.weapon_count} 把武器</strong><small>{knowledgePreview.recommendation_count} 条记录 · {knowledgePreview.source_count} 个来源</small></span>
+              <span><strong>{knowledgePreview.importable_recommendation_count} 条可导入</strong><small>{knowledgePreview.recommendation_count} 条记录 · {knowledgePreview.source_count} 个来源 · {knowledgePreview.import_mode === "merge" ? "合并现有推荐" : "完整替换人工推荐"}</small></span>
               {knowledgePreview.blocking_issue_count > 0 ? (
                 <div className="vault-knowledge-import-issues" role="alert">
-                  <strong>{knowledgePreview.blocking_issue_count} 条异常，不能导入</strong>
+                  <strong>{knowledgePreview.skipped_row_count} 行异常将忽略</strong>
                   {knowledgePreview.blocking_issues.map((issue) => (
                     <small key={`${issue.row_number}-${issue.field}-${issue.value}`}>
                       第 {issue.row_number} 行 · {issue.source_label} · {issue.weapon_name} · {issue.field}“{issue.value}”：{issue.message}
                     </small>
                   ))}
                   {knowledgePreview.blocking_issue_count > knowledgePreview.blocking_issues.length
-                    ? <small>这里只显示前 {knowledgePreview.blocking_issues.length} 条，请修改 CSV 后重新选择。</small>
+                    ? <small>这里只显示前 {knowledgePreview.blocking_issues.length} 条异常，其他异常行也会被单独忽略。</small>
                     : null}
                 </div>
               ) : null}
-              <ControlButton size="compact" variant="primary" disabled={isBusy || !knowledgePreview.token || knowledgePreview.blocking_issue_count > 0} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
+              <ControlButton size="compact" variant="primary" disabled={isBusy || !knowledgePreview.token || knowledgePreview.importable_recommendation_count === 0} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
             </div>
           ) : null}
           <div className="vault-import-secondary-actions">
-            <p>制作或维护推荐数据时，可以导出应用标准模板。</p>
-            {props.actions.exportKnowledgeTemplate ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate()}>{busyAction === "knowledge-template" ? "导出中" : "导出标准模板"}</ControlButton> : null}
+            <p>普通玩家只需要维护推荐内容；系统字段会在导入时自动补齐。</p>
+            {props.actions.exportKnowledgeTemplate ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate()}>{busyAction === "knowledge-template" ? "导出中" : "导出玩家模板"}</ControlButton> : null}
+            {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{busyAction === "knowledge-export" ? "导出中" : "导出当前推荐"}</ControlButton> : null}
           </div>
         </section>
       ) : null}
@@ -456,6 +814,10 @@ export function VaultWishlistManager(props: {
             {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "后台检查中" : "检查社区更新"}</ControlButton> : null}
           </div>
         </div>
+
+        {dimManagedSource && dimManagedSource.state !== "active" ? (
+          <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">DIM 来源当前{dimManagedSource.state === "removed" ? "已按来源移除" : "已停用"}。更新或导入只会写入数据，不会静默启用；完成后请在“来源与纠错”中显式恢复。</p>
+        ) : null}
 
         {supportsDimOnlineUpdate && dimOnlineStatus ? (
           <div className="vault-dim-online-status" data-surface="frame" data-ui-kind="state-frame">
@@ -522,6 +884,93 @@ export function VaultWishlistManager(props: {
     </div>
   );
   return portalHost ? createPortal(dialog, portalHost) : dialog;
+}
+
+function dimRemovedNotice(snapshot: VaultRecommendationManagementSnapshot | null): string {
+  const state = snapshot?.sources.find((source) => source.source_key === "dim_wishlist")?.state;
+  if (state === "removed") return "DIM 来源仍会保持已移除，需要稍后显式恢复。";
+  if (state === "disabled") return "DIM 来源仍会保持停用，需要稍后显式启用。";
+  return "";
+}
+
+function dimAppliedMessage(snapshot: VaultRecommendationManagementSnapshot | null, message: string): string {
+  const state = snapshot?.sources.find((source) => source.source_key === "dim_wishlist")?.state;
+  if (state === "removed") return `${message} 来源仍保持已移除，尚未参与推荐。`;
+  if (state === "disabled") return `${message} 来源仍保持停用，尚未参与推荐。`;
+  return message;
+}
+
+function managedSourceStateLabel(source: VaultRecommendationManagedSource): string {
+  if (source.state === "removed") return source.configured ? "已移除，数据已重新导入，等待恢复" : "已按来源移除";
+  if (!source.configured) return "未配置";
+  if (source.state === "disabled") return "已停用，本地数据仍保留";
+  return source.imported_at ? `已启用 · ${formatDateTime(source.imported_at)}` : "已启用";
+}
+
+function sourceConfirmation(
+  source: VaultRecommendationManagedSource,
+  state: "disabled" | "removed"
+): ManagementConfirmation {
+  const impact = `${source.rule_count} 条规则、${source.weapon_count} 把武器，当前账号约 ${source.affected_instance_count ?? 0} 件实例受影响`;
+  if (state === "disabled") {
+    return {
+      kind: "source",
+      title: `停用 ${source.label}？`,
+      description: `${impact}。规则会停止参与匹配、排序、保护和批量整理；本地数据保留，可立即重新启用。`,
+      confirmLabel: "确认停用",
+      source,
+      sourceState: state
+    };
+  }
+  return {
+    kind: "source",
+    title: `按来源移除 ${source.label}？`,
+    description: `${impact}。本地规则会被删除并保留来源移除记录；重新导入或更新后仍需由你显式恢复。玩家标签、备注、游戏锁定和配装不会改变。`,
+    confirmLabel: "确认按源移除",
+    source,
+    sourceState: state
+  };
+}
+
+function ruleConfirmation(rule: VaultRecommendationManagedRule): ManagementConfirmation {
+  return {
+    kind: "rule",
+    title: `移除 ${rule.weapon_name} 的这条规则？`,
+    description: `${rule.source_label} · ${formatModes(rule.purposes)} · 当前账号影响 ${rule.affected_instance_count ?? 0} 件 · ${formatManagedRequirements(rule)}。只停止这一条规则参与结论，发布方原始数据不被改写，可在“已移除规则”中恢复。`,
+    confirmLabel: "确认移除规则",
+    rule
+  };
+}
+
+function curatedDatasetConfirmation(snapshot: VaultRecommendationManagementSnapshot): ManagementConfirmation {
+  const curated = snapshot.sources.filter((source) => source.kind === "curated" && source.configured);
+  const ruleCount = curated.reduce((count, source) => count + source.rule_count, 0);
+  const weaponCount = curated.reduce((count, source) => count + source.weapon_count, 0);
+  const affectedInstanceCount = curated.reduce((count, source) => count + (source.affected_instance_count ?? 0), 0);
+  return {
+    kind: "curated",
+    title: "删除当前中文武器推荐数据？",
+    description: `将删除 ${curated.length} 个已配置人工来源、共 ${ruleCount} 条规则和 ${weaponCount} 条来源武器覆盖，当前账号约 ${affectedInstanceCount} 件实例受影响（数据版本 ${shortRevision(snapshot.curated_revision)}）。删除后显示未配置，需要重新导入恢复；DIM、账号装备、玩家标签、备注、游戏锁定和配装不会改变。`,
+    confirmLabel: "确认删除数据集"
+  };
+}
+
+function formatManagedRequirements(rule: VaultRecommendationManagedRule): string {
+  if (!rule.requirements.length) return "仅推荐这把武器，没有指定 Perk 组合";
+  return rule.requirements.map((requirement) => `${managedRequirementSlotLabel(requirement.slot)}：${requirement.names.join(" / ") || "未解析"}`).join(" · ");
+}
+
+function managedRequirementSlotLabel(slot: string): string {
+  const labels: Record<string, string> = {
+    perk1: "Perk 1",
+    perk2: "Perk 2",
+    barrel: "第一列",
+    magazine: "第二列",
+    masterwork: "大师",
+    origin: "起源",
+    "DIM 完整组合": "DIM 完整组合"
+  };
+  return labels[slot] ?? slot;
 }
 
 function formatModes(modes: Array<"pve" | "pvp" | "general">): string {

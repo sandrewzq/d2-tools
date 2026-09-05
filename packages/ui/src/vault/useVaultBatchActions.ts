@@ -1,10 +1,7 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import type { DuplicateItemGroup } from "@d2-tools/core/analysis/duplicates";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import {
-  buildDuplicateGroupBatchActionCopy,
-  buildDuplicateGroupBatchTagPlan,
   buildVaultBatchTagCopy,
   buildVaultBatchTagResultMessage,
   buildVaultBulkMoveResultMessage,
@@ -17,19 +14,22 @@ import {
   buildVaultCleanupNoTargetMessage,
   buildVaultSelectedBulkMoveNoSelectionMessage,
   buildVaultSelectedBulkMovePrepareMessage,
-  selectVaultBatchItems,
-  type DuplicateGroupBatchTagMode
+  getVaultSelectionItemKey,
+  selectVaultBatchItems
 } from "@d2-tools/app/vault";
 
-type BatchItemActionResult = {
+export type BatchItemActionResult = {
   success_count: number;
   failed_count: number;
+  message?: string;
+  failure_messages?: string[];
 };
 
 export type VaultCleanupActions = {
   characters: Array<{ character_id: string; class_name: string; light?: number }>;
   currentCharacterId?: string;
   currentCharacterLabel?: string;
+  onLockItem: (item: AccountItemSummary, targetCharacterId: string) => Promise<string>;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
 };
@@ -48,7 +48,6 @@ export function useVaultBatchActions(input: {
   setSelectedKeys: Dispatch<SetStateAction<Set<string>>>;
   setIsOrganizing: (value: boolean) => void;
   setIsCleanupMode: (value: boolean) => void;
-  onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
 }) {
   const [batchMessage, setBatchMessage] = useState("");
@@ -91,8 +90,11 @@ export function useVaultBatchActions(input: {
       const writableItems = tag === "junk"
         ? input.selectedItems.filter((item) => !protectedItems.includes(item))
         : input.selectedItems;
-      for (const item of writableItems) {
-        await input.onSaveTag(item, tag);
+      if (writableItems.length) {
+        await input.onSaveTagBatch(writableItems.map((item) => ({
+          item_key: getVaultSelectionItemKey(item),
+          tag
+        })));
       }
       setBatchMessage(protectedItems.length
         ? `已处理 ${writableItems.length} 件；${protectedItems.length} 件受保护，未改为待处理。`
@@ -175,31 +177,9 @@ export function useVaultBatchActions(input: {
     }
   }
 
-  async function applyDuplicateGroupTags(
-    group: DuplicateItemGroup,
-    mode: DuplicateGroupBatchTagMode,
-    keepItemKey = group.items[0]?.item_key ?? ""
-  ) {
-    setIsBatchSaving(true);
-    const copy = buildDuplicateGroupBatchActionCopy(group.name, mode);
-    setActiveBatchAction(copy.action);
-    setBatchMessage(copy.loading);
-
-    try {
-      await input.onSaveTagBatch(buildDuplicateGroupBatchTagPlan(group, mode, keepItemKey));
-      setBatchMessage(copy.success);
-    } catch (error) {
-      setBatchMessage(error instanceof Error ? error.message : "重复组批量标记失败");
-    } finally {
-      setIsBatchSaving(false);
-      setActiveBatchAction("");
-    }
-  }
-
   return {
     activeBatchAction,
     applyBatchTag,
-    applyDuplicateGroupTags,
     batchMessage,
     copyCleanupList,
     isBatchSaving,

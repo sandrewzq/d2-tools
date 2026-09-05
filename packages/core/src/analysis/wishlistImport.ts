@@ -1,6 +1,7 @@
 export type DimWishlistMode = "pve" | "pvp" | "general";
 
 export type DimWishlistRule = {
+  rule_stable_id?: string;
   item_hash: number;
   perk_hashes: number[];
   mode: DimWishlistMode;

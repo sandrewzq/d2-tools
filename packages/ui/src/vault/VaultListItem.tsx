@@ -2,7 +2,7 @@ import { memo } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
-import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
+import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemKey, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 import type { VaultRecommendationSourceSummary } from "./vaultRecommendationMatch.js";
@@ -17,8 +17,13 @@ type VaultListItemProps = {
   isOrganizing: boolean;
   isSelected: boolean;
   isOpening?: boolean;
+  currentCharacterId?: string;
+  currentCharacterLabel?: string;
+  activeQuickAction?: { itemKey: string; action: "lock" | "transfer" } | null;
+  quickActionsDisabled?: boolean;
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
+  onQuickAction?: (item: AccountItemSummary, action: "lock" | "transfer") => void | Promise<void>;
 };
 
 export function VaultListItem(props: VaultListItemProps) {
@@ -56,6 +61,10 @@ export function VaultListItem(props: VaultListItemProps) {
   const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
   const sourceSummaries = isWeapon ? props.sourceSummaries : [];
   const totalSourceCount = sourceSummaries.length + props.additionalSourceCount;
+  const itemKey = getVaultItemKey(props.item);
+  const activeQuickAction = props.activeQuickAction?.itemKey === itemKey ? props.activeQuickAction.action : undefined;
+  const canUseQuickActions = Boolean(props.item.instance_id && props.onQuickAction);
+  const canTransfer = canUseQuickActions && getItemSourceKind(props.item) === "vault" && Boolean(props.currentCharacterId);
   const cardContent = isWeapon ? <>
       <div className="vault-weapon-identity">
         {visual}
@@ -82,12 +91,14 @@ export function VaultListItem(props: VaultListItemProps) {
       <div
         className="vault-weapon-source-summary"
         aria-label={sourceSummaries.length
-          ? `推荐 Roll 匹配：${sourceSummaries.map((summary) => summary.detail).join("；")}`
+          ? `推荐 Roll 匹配：${sourceSummaries.map((summary) => summary.detail).join("；")}${props.additionalSourceCount > 0 ? `；另有 ${props.additionalSourceCount} 个来源，请进入详情查看` : ""}`
           : "当前武器暂无推荐来源"}
       >
         <span className="vault-weapon-source-head">
           <span>推荐 Roll 匹配</span>
-          <small>{totalSourceCount > 0 ? `${totalSourceCount} 个来源` : "暂无来源"}</small>
+          <small>{totalSourceCount > 0
+            ? `${totalSourceCount} 个来源${props.additionalSourceCount > 0 ? ` · 另有 ${props.additionalSourceCount} 个` : ""}`
+            : "暂无来源"}</small>
         </span>
         <span className="vault-weapon-source-list">
           {sourceSummaries.map((summary) => (
@@ -167,6 +178,7 @@ export function VaultListItem(props: VaultListItemProps) {
         detailAvailable ? "" : "is-readonly"
       ].filter(Boolean).join(" ")}
       data-ui-kind="object-card"
+      data-vault-item-key={itemKey}
     >
       {props.isOrganizing ? (
         <label className="vault-card-select" aria-label={`选择${props.item.name}`}>
@@ -188,7 +200,31 @@ export function VaultListItem(props: VaultListItemProps) {
         >
           {cardContent}
         </button>
-      ) : <div className="vault-card-main is-readonly">{cardContent}</div>}
+      ) : <div className="vault-card-main is-readonly" tabIndex={-1}>{cardContent}</div>}
+      {!props.isOrganizing && canUseQuickActions ? (
+        <div className="vault-card-quick-actions" aria-label={`${props.item.name}快捷操作`}>
+          <button
+            type="button"
+            disabled={props.item.locked || props.quickActionsDisabled}
+            aria-busy={activeQuickAction === "lock"}
+            title={props.item.locked ? "这件装备已经锁定" : `一键加锁：${props.item.name}`}
+            onClick={() => void props.onQuickAction?.(props.item, "lock")}
+          >
+            {activeQuickAction === "lock" ? "加锁中" : props.item.locked ? "已锁定" : "加锁"}
+          </button>
+          {canTransfer ? (
+            <button
+              type="button"
+              disabled={props.quickActionsDisabled}
+              aria-busy={activeQuickAction === "transfer"}
+              title={`取出到当前角色${props.currentCharacterLabel ? `（${props.currentCharacterLabel}）` : ""}`}
+              onClick={() => void props.onQuickAction?.(props.item, "transfer")}
+            >
+              {activeQuickAction === "transfer" ? "取出中" : "取出"}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -204,9 +240,15 @@ function sameVaultListItemProps(previous: VaultListItemProps, next: VaultListIte
     && previous.isOrganizing === next.isOrganizing
     && previous.isSelected === next.isSelected
     && previous.isOpening === next.isOpening
+    && previous.currentCharacterId === next.currentCharacterId
+    && previous.currentCharacterLabel === next.currentCharacterLabel
+    && previous.activeQuickAction?.itemKey === next.activeQuickAction?.itemKey
+    && previous.activeQuickAction?.action === next.activeQuickAction?.action
+    && previous.quickActionsDisabled === next.quickActionsDisabled
     && sameSourceSummaries(previous.sourceSummaries, next.sourceSummaries)
     && previous.onSelectItem === next.onSelectItem
-    && previous.onToggleSelected === next.onToggleSelected;
+    && previous.onToggleSelected === next.onToggleSelected
+    && previous.onQuickAction === next.onQuickAction;
 }
 
 function sameSourceSummaries(
@@ -226,6 +268,16 @@ function sameSourceSummaries(
 
 function dispositionForTag(tag: VaultTagValue): "none" | "keep" | "review" | "junk" {
   return tag === "keep" || tag === "review" || tag === "junk" ? tag : "none";
+}
+
+function getItemSourceKind(item: AccountItemSummary): "equipped" | "inventory" | "vault" | "postmaster" {
+  if ("source_kind" in item) {
+    const sourceKind = item.source_kind;
+    if (sourceKind === "equipped" || sourceKind === "inventory" || sourceKind === "postmaster") {
+      return sourceKind;
+    }
+  }
+  return "vault";
 }
 
 function dispositionLabel(tag: "none" | "keep" | "review" | "junk"): string {

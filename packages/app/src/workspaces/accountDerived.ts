@@ -26,7 +26,7 @@ export type VaultRecommendationScanState = {
   started_at?: string;
   completed_at?: string;
   message?: string;
-  blocking_reason?: "manifest_unavailable" | "manifest_outdated" | "recommendation_unavailable";
+  blocking_reason?: VaultRecommendationDependencyIssue["code"];
   issues?: VaultRecommendationDependencyIssue[];
   manifest_version?: string;
   recommendation_revision?: string;
@@ -38,6 +38,7 @@ export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
 export type LoadAccountDerivedWorkspaceOptions = {
   includeActivity?: boolean;
   includeCommunityMatch?: boolean;
+  communityMatchWeaponHashes?: readonly number[];
 };
 
 export async function loadFullAccountWorkspace(
@@ -88,7 +89,13 @@ export async function loadAccountDerivedWorkspace(
       ...account.vault.items
     ];
 
-    const weaponItems = allItems.filter((item) => item.group_key === "weapons");
+    const scopedWeaponHashes = options.communityMatchWeaponHashes?.length
+      ? new Set(options.communityMatchWeaponHashes)
+      : null;
+    const weaponItems = allItems.filter((item) => (
+      item.group_key === "weapons"
+      && (!scopedWeaponHashes || scopedWeaponHashes.has(item.hash))
+    ));
     const matchCommunityVaultItems = services.profile.matchCommunityVaultItems;
     const vaultCommunityInstanceMatch = new Map<string, VaultItemInstanceMatchInfo>();
     let vaultRecommendationIssues: VaultRecommendationDependencyIssue[] = [];

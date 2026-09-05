@@ -26,7 +26,11 @@ describe("item detail workspace", () => {
       name: "审判",
       source_character_id: "char-1",
       source_kind: "inventory",
-      is_detail_loading: true
+      is_detail_loading: false,
+      detail_loading: {
+        definition: false,
+        instance: false
+      }
     });
     expect(selectedItemToAccountItem(preview)).toMatchObject({
       instance_id: "instance-1",

@@ -47,13 +47,14 @@ export function VaultPage(props: {
   onLocalTargetRulesChanged: (rules: LocalTargetRules) => void;
   onEquipmentTargetStoreChanged: (store: EquipmentTargetStore) => void;
   onWishlistChanged: (wishlist: DimWishlist | null) => void;
-  onCommunityRecommendationsChanged: () => Promise<void> | void;
+  onCommunityRecommendationsChanged: (weaponHashes?: readonly number[]) => Promise<void> | void;
   onOpenGuide: (targetId: string) => Promise<boolean>;
   onOpenArmorResult: (reference: { resultId: string; candidateId: string }) => void;
   onLoadAccount: () => void;
   onConfigureBungie: () => void;
   onLoginBungie: () => void;
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
+  onLockItem: (item: AccountItemSummary, targetCharacterId: string) => Promise<string>;
   onBatchUnlock: (items: AccountItemSummary[], targetCharacterId: string) => Promise<string>;
   onBatchTransferToCharacter: (items: AccountItemSummary[], targetCharacterId: string) => Promise<BatchItemActionResult>;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -69,48 +70,79 @@ export function VaultPage(props: {
     : "vault");
   const loadItemDetail = useCallback((item: AccountItemSummary) => (
     item.instance_id
-      ? loadAccountItemDetailCached(item.instance_id, { scopeKey: detailScopeKey })
+      ? loadAccountItemDetailCached(item.instance_id, {
+          scopeKey: detailScopeKey,
+          rollFingerprint: item.weapon_roll?.fingerprint
+        })
       : Promise.resolve(item)
   ), [detailScopeKey]);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
     save: async (wishlist) => {
+      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, wishlist);
       const saved = await api.saveDimWishlist(wishlist);
-      props.onWishlistChanged(saved);
+      props.onWishlistChanged(await api.getDimWishlist());
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
+      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
       return saved;
     },
     clear: async () => {
+      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist);
       await api.clearDimWishlist();
       props.onWishlistChanged(null);
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
+      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
     },
     selectDimFile: () => api.selectDimWishlistFile(),
     confirmDimImport: async (token) => {
       const saved = await api.confirmDimWishlistImport(token);
-      props.onWishlistChanged(saved);
+      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, saved);
+      props.onWishlistChanged(await api.getDimWishlist());
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
+      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
       return saved;
     },
     getDimOnlineStatus: () => api.getDimWishlistOnlineStatus(),
     checkDimOnlineUpdate: () => api.checkDimWishlistOnlineUpdate(),
     confirmDimOnlineUpdate: async (token) => {
       const result = await api.confirmDimWishlistOnlineUpdate(token);
-      props.onWishlistChanged(result.wishlist);
+      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, result.wishlist);
+      props.onWishlistChanged(await api.getDimWishlist());
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged();
+      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
       return result;
     },
     exportKnowledgeTemplate: () => api.exportWeaponKnowledgeCsvTemplate(),
+    exportKnowledgeCsv: () => api.exportWeaponKnowledgePlayerCsv(),
     selectKnowledgeCsv: () => api.selectWeaponKnowledgeCsv(),
     confirmKnowledgeImport: async (token) => {
       const imported = await api.confirmWeaponKnowledgeCsvImport(token);
       await props.onCommunityRecommendationsChanged();
       return imported;
+    },
+    getRecommendationManagement: () => api.getRecommendationManagement(),
+    listRecommendationRules: (sourceKey, query) => api.listRecommendationRules(sourceKey, query),
+    setRecommendationSourceState: async (sourceKey, state) => {
+      const snapshot = await api.setRecommendationSourceState(sourceKey, state);
+      if (sourceKey === "dim_wishlist") {
+        props.onWishlistChanged(await api.getDimWishlist());
+        if (state === "removed") {
+          props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
+        }
+      }
+      await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
+      return snapshot;
+    },
+    setRecommendationRuleState: async (input) => {
+      const snapshot = await api.setRecommendationRuleState(input);
+      await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
+      return snapshot;
+    },
+    clearCuratedRecommendationDataset: async () => {
+      const snapshot = await api.clearCuratedRecommendationDataset();
+      await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
+      return snapshot;
     }
-  }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged]);
+  }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged, props.wishlist]);
   const loadLocalCommunityTable = useCallback(async () => {
     setLocalCommunityLoadState("loading");
     setLocalCommunityLoadError("");
@@ -175,7 +207,7 @@ export function VaultPage(props: {
         <ProductWorkspaceEmptyState className="account-unavailable product-workspace-empty--page" uiKind="state-frame">
           <span className="ui-badge status-warning">未连接 Bungie</span>
           <h2>{isConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用"}</h2>
-          <p>{isConfigured ? "先登录 Bungie，读取账号数据后才能查看仓库、装备和清理候选。" : "先在设置里完成 Bungie 应用配置，再登录账号读取仓库数据。"}</p>
+          <p>{isConfigured ? "先登录 Bungie；登录后会自动同步装备数据，随后即可查看仓库、装备和清理候选。" : "先在设置里完成 Bungie 应用配置，再登录账号同步装备数据。"}</p>
           <div className="button-row">
             {isConfigured ? (
               <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onLoginBungie}>登录 Bungie</button>
@@ -190,8 +222,8 @@ export function VaultPage(props: {
     return (
       <ProductWorkspaceEmptyState className="vault-empty-state product-workspace-empty--page">
         <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
-        <span>{props.accountError || "先读取账号数据，然后查看完整仓库列表。"}</span>
-        <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>同步游戏账号</ControlButton>
+        <span>{props.accountError || "先同步装备数据，然后查看当前角色、背包和仓库中的真实装备。"}</span>
+        <ControlButton variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>同步装备数据</ControlButton>
       </ProductWorkspaceEmptyState>
     );
   }
@@ -227,6 +259,7 @@ export function VaultPage(props: {
         characters: props.account.characters,
         currentCharacterId: model.currentCharacterId,
         currentCharacterLabel: model.currentCharacterLabel,
+        onLockItem: props.onLockItem,
         onBatchUnlock: props.onBatchUnlock,
         onBatchTransferToCharacter: props.onBatchTransferToCharacter
       }}
@@ -288,4 +321,10 @@ export function VaultPage(props: {
       onSaveTag={props.onSaveTag}
     />
   );
+}
+
+function collectWishlistWeaponHashes(...wishlists: Array<DimWishlist | null | undefined>): number[] {
+  return [...new Set(wishlists.flatMap((wishlist) => (
+    wishlist?.rules.map((rule) => rule.item_hash) ?? []
+  )))];
 }

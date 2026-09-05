@@ -6,7 +6,6 @@ import type { AccountItemSummary, AccountSummary } from "../src/renderer/api/typ
 import {
   applyAccountEntityPatches,
   applyCommittedAccountEntityPatches,
-  confirmCommittedAccountEntityPatches,
   getAccountItemEntity,
   getAccountItemEntityCount,
   getAccountStoreRevision,
@@ -141,29 +140,28 @@ describe("account entity store", () => {
     expect(getAccountItemEntityCount()).toBe(6);
   });
 
-  it("在 Profile 对账命中前阻止旧快照覆盖已提交写结果", () => {
-    replaceAccountSummary(accountSummary());
-    const staleRequestRevision = getAccountStoreRevision();
+  it("已提交写只等待真实 Profile，并阻止更旧快照覆盖确认结果", () => {
+    const initial = accountSummary();
+    initial.profile_minted_at = "2026-09-05T00:00:00.000Z";
+    replaceAccountSummary(initial);
     applyCommittedAccountEntityPatches([{
       kind: "lock",
       item_instance_id: "vault-item",
       locked: true
     }]);
 
-    replaceAccountSummary(accountSummary(), { requestStartedRevision: staleRequestRevision });
-    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
-
-    const newRequestRevision = getAccountStoreRevision();
-    replaceAccountSummary(accountSummary(), { requestStartedRevision: newRequestRevision });
-    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
-
-    confirmCommittedAccountEntityPatches([{
-      kind: "lock",
-      item_instance_id: "vault-item",
-      locked: true
-    }]);
-    replaceAccountSummary(accountSummary());
     expect(getAccountItemEntity("vault-item")?.locked).toBe(false);
+
+    const confirmed = accountSummary();
+    confirmed.profile_minted_at = "2026-09-05T00:00:02.000Z";
+    confirmed.vault.items[0]!.locked = true;
+    replaceAccountSummary(confirmed);
+    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
+
+    const stale = accountSummary();
+    stale.profile_minted_at = "2026-09-05T00:00:01.000Z";
+    expect(replaceAccountSummary(stale)).toBe(false);
+    expect(getAccountItemEntity("vault-item")?.locked).toBe(true);
   });
 });
 

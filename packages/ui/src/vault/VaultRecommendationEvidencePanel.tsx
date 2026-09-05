@@ -12,11 +12,13 @@ import { useEffect, useMemo, useState } from "react";
 import { ControlButton } from "../control/ControlButton.js";
 import { VaultWishlistManager, type VaultWishlistActions } from "./VaultWishlistManager.js";
 import {
-  formatRecommendationPurposes,
   getVaultCommunityInstanceKey,
   hasPositiveRecommendationSummary,
+  inferVaultRecommendationResult,
+  vaultRecommendationResultLabel,
   type VaultRecommendationSourceSummary,
-  type VaultRecommendationSummaryIndex
+  type VaultRecommendationSummaryIndex,
+  type VaultRecommendationResult
 } from "./vaultRecommendationMatch.js";
 
 export type VaultRecommendationSourceState = {
@@ -35,6 +37,7 @@ export function VaultRecommendationEvidencePanel(props: {
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   sourceState?: VaultRecommendationSourceState;
   wishlistActions?: VaultWishlistActions;
+  managementLocked?: boolean;
   canOrganizeItem?: (item: AccountItemSummary) => boolean;
   onCopyAuditReport?: () => void | Promise<void>;
   onOpenItem: (item: AccountItemSummary) => void;
@@ -42,17 +45,18 @@ export function VaultRecommendationEvidencePanel(props: {
 }) {
   const [isWishlistManagerOpen, setIsWishlistManagerOpen] = useState(false);
   const [panelFeedback, setPanelFeedback] = useState<{ tone: "ready" | "error"; message: string } | null>(null);
-  const [activeFilter, setActiveFilter] = useState<RecommendationEvidenceFilter>("all");
+  const [activeFilter, setActiveFilter] = useState<RecommendationEvidenceFilter>("matched");
   const [visibleLimit, setVisibleLimit] = useState(200);
   const recommendationScan = props.sourceState?.recommendationScan;
   const rows = useMemo(() => buildInstanceWeaponRows(
     props.items,
     props.recommendationSummaryByInstance,
+    props.communityInstanceMatch,
     recommendationScan?.phase === "complete",
     props.tags
-  ), [props.items, props.recommendationSummaryByInstance, props.tags, recommendationScan?.phase]);
+  ), [props.communityInstanceMatch, props.items, props.recommendationSummaryByInstance, props.tags, recommendationScan?.phase]);
   const rowMetrics = useMemo(() => summarizeRecommendationRows(rows), [rows]);
-  const { coveredRows, positiveInstanceCount, conflictInstanceCount, uncheckableInstanceCount, reviewInstanceCount, sourceLabels } = rowMetrics;
+  const { coveredRows } = rowMetrics;
   const sourceState = props.sourceState;
   const hasInstanceScan = Boolean(props.communityInstanceMatch?.size) || recommendationScan?.phase === "complete";
   const hasConfiguredSource = Boolean(
@@ -83,16 +87,7 @@ export function VaultRecommendationEvidencePanel(props: {
     <section className="vault-evidence-panel" data-surface="section" aria-label="推荐 Roll 匹配">
       <div className="vault-column-head">
         <div><h3>武器推荐</h3><span>按每一件实际武器核对来源要求，结果只提供证据，不替你决定分解</span></div>
-        <div className="button-row">
-          {props.onCopyAuditReport ? <ControlButton size="compact" variant="quiet" onClick={() => {
-            setPanelFeedback(null);
-            void Promise.resolve(props.onCopyAuditReport?.()).then(
-              () => setPanelFeedback({ tone: "ready", message: "只读验收报告已复制。" }),
-              () => setPanelFeedback({ tone: "error", message: "复制失败，请稍后重试。" })
-            );
-          }}>复制验收报告</ControlButton> : null}
-          {props.wishlistActions ? <ControlButton size="compact" variant="secondary" onClick={() => setIsWishlistManagerOpen(true)}>管理推荐数据</ControlButton> : null}
-        </div>
+        {props.wishlistActions ? <ControlButton size="compact" variant="secondary" disabled={props.managementLocked} title={props.managementLocked ? "先应用或撤销同名整理中的待应用状态" : undefined} onClick={() => setIsWishlistManagerOpen(true)}>管理推荐数据</ControlButton> : null}
       </div>
 
       {panelFeedback ? <p className={`status-message status-${panelFeedback.tone}`} role={panelFeedback.tone === "error" ? "alert" : "status"}>{panelFeedback.message}</p> : null}
@@ -101,6 +96,7 @@ export function VaultRecommendationEvidencePanel(props: {
         <VaultWishlistManager
           wishlist={props.wishlist}
           actions={props.wishlistActions}
+          managementLocked={props.managementLocked}
           onApplied={(message) => setPanelFeedback({ tone: "ready", message })}
           onClose={() => setIsWishlistManagerOpen(false)}
         />
@@ -113,28 +109,26 @@ export function VaultRecommendationEvidencePanel(props: {
             <h3>先导入武器推荐数据，再核对仓库</h3>
             <p>选择正式的“武器推荐.csv”后，应用会自动核对账号中的每一件武器；DIM 社区推荐可以作为可选补充。</p>
           </div>
-          {props.wishlistActions ? <ControlButton variant="primary" onClick={() => setIsWishlistManagerOpen(true)}>导入武器推荐数据</ControlButton> : null}
+          {props.wishlistActions ? <ControlButton variant="primary" disabled={props.managementLocked} title={props.managementLocked ? "先应用或撤销同名整理中的待应用状态" : undefined} onClick={() => setIsWishlistManagerOpen(true)}>导入武器推荐数据</ControlButton> : null}
           <small>导入只更新本机推荐资料，不会修改、转移、解锁或分解游戏装备。</small>
         </div>
       ) : null}
 
-      <div className="vault-recommendation-explainer" data-ui-kind="callout" data-status="neutral">
-        <strong>这些结果怎么看？</strong>
-        <span>“全部符合”表示当前 Roll 拥有该来源列出的所有推荐项；“符合 5/6”表示 6 项中符合 5 项。DIM 按完整推荐组合核对，显示符合几套，或最接近的一套还缺几项。这些是匹配结果，不是武器评分。</span>
+      <div className="vault-recommendation-workflow" data-ui-kind="callout" data-status="neutral">
+        <span><strong>1 选择结果</strong><small>先看符合推荐，再处理部分符合与无法判断</small></span>
+        <span><strong>2 查看依据</strong><small>核心只看 Perk 1 / Perk 2</small></span>
+        <span><strong>3 整理同名</strong><small>标记后回游戏完成最终处理</small></span>
       </div>
 
-      <div className="vault-evidence-metrics" data-ui-kind="status-matrix" data-surface="frame">
-        <div><span>已核对账号武器</span><strong>{recommendationScan?.scanned_weapon_count ?? 0}/{recommendationScan?.total_weapon_count ?? props.items.filter((item) => item.group_key === "weapons").length}</strong><small>{formatRecommendationScanDetail(recommendationScan)}</small></div>
-        <div><span>已有来源记录</span><strong>{coveredRows.length} 件</strong><small>{sourceLabels.length ? `${sourceLabels.length} 个来源出现在当前账号` : recommendationScanMetricDetail(recommendationScan)}</small></div>
-        <div><span>存在符合项</span><strong>{positiveInstanceCount} 件</strong><small>至少一个来源有符合项或仅推荐武器</small></div>
-        <div><span>需要人工复查</span><strong>{reviewInstanceCount} 件</strong><small>来源结论不同 {conflictInstanceCount} 件 · 数据不完整 {uncheckableInstanceCount} 件</small></div>
-      </div>
-
-      <div className="vault-evidence-source-strip" data-surface="list" aria-label="匹配数据状态">
-        <RecommendationScanSourceState scan={recommendationScan} hasInstanceScan={hasInstanceScan} />
-        <SourceState label="DIM 社区推荐" enabled={Boolean(props.wishlist)} detail={props.wishlist ? `${props.wishlist.title} · ${props.wishlist.rules.length} 条规则` : "未配置"} />
-        {sourceState?.customRules ? <SourceState label="遗留自定义规则" enabled detail={formatCustomSourceState(sourceState)} compatibility /> : null}
-        {sourceState?.customRulesLoadState === "error" ? <SourceState label="遗留推荐数据" enabled={false} status="error" detail={formatCustomSourceState(sourceState)} /> : null}
+      <div className="vault-recommendation-summary" data-ui-kind="callout" data-status="neutral">
+        <span>{formatRecommendationScanDetail(recommendationScan)} · 当前有来源记录 {coveredRows.length} 件。</span>
+        {props.onCopyAuditReport ? <ControlButton size="compact" variant="quiet" onClick={() => {
+          setPanelFeedback(null);
+          void Promise.resolve(props.onCopyAuditReport?.()).then(
+            () => setPanelFeedback({ tone: "ready", message: "只读验收报告已复制。" }),
+            () => setPanelFeedback({ tone: "error", message: "复制失败，请稍后重试。" })
+          );
+        }}>复制验收报告</ControlButton> : null}
       </div>
 
       {rows.length ? (
@@ -145,12 +139,11 @@ export function VaultRecommendationEvidencePanel(props: {
                 <button type="button" key={option.key} aria-pressed={activeFilter === option.key} onClick={() => setActiveFilter(option.key)}>{option.label} <strong>{option.count}</strong></button>
               ))}
             </div>
-            <small>这些是查看条件，不是评级；同一把武器可能同时出现在“有符合项”和“来源冲突”中。</small>
+            <small>分类直接按结果区分；“无法判断”只表示本件 Roll 或推荐要求确实缺少可比较数据。</small>
           </div>
           <div className="vault-evidence-results" data-surface="list">
             {visibleRows.map((row) => {
-              const visibleSummaries = row.summaries.slice(0, 2);
-              const hiddenSourceCount = Math.max(0, row.summaries.length - visibleSummaries.length);
+              const primarySummary = row.summaries[0];
               const protectionFacts = [
                 row.item.locked ? "已锁定" : "",
                 row.item.instance_id && props.highlightedItemKeys?.instanceIds.has(row.item.instance_id) ? "配装引用" : ""
@@ -162,16 +155,18 @@ export function VaultRecommendationEvidencePanel(props: {
                     <small>{formatWeaponInstanceMeta(row.item, protectionFacts)}</small>
                     {row.dispositionLabel ? <small>人工标记：{row.dispositionLabel}</small> : null}
                   </button>
-                  <span className="vault-evidence-result-sources" aria-label={`${row.item.name}的推荐 Roll 匹配`}>
-                    {visibleSummaries.length ? visibleSummaries.map((summary) => (
-                      <span className="vault-evidence-source-match" data-match-state={summary.state} key={summary.sourceId} title={summary.detail}>{summary.text}</span>
-                    )) : <span className="vault-evidence-source-match" data-match-state="not-covered">没有来源记录</span>}
-                    {hiddenSourceCount ? <small>另有 {hiddenSourceCount} 个来源</small> : null}
+                  <span className="vault-evidence-result-state" data-status={row.recommendationState}>
+                    <small>推荐结果</small><strong>{vaultRecommendationResultLabel(row.recommendationState)}</strong>
                   </span>
-                  <span className="vault-evidence-result-purpose"><small>用途</small><strong>{formatRecommendationPurposes(row.purposes)}</strong></span>
+                  <span className="vault-evidence-result-sources" aria-label={`${row.item.name}的主要推荐依据`}>
+                    {primarySummary
+                      ? <span className="vault-evidence-source-match" data-match-state={primarySummary.state} title={primarySummary.detail}>{primarySummary.text}</span>
+                      : <span className="vault-evidence-source-match" data-match-state="not-covered">没有启用来源覆盖</span>}
+                    {row.summaries.length > 1 ? <small>另有 {row.summaries.length - 1} 个来源，进入详情查看</small> : null}
+                  </span>
                   <span className="vault-evidence-result-actions">
-                    <ControlButton size="compact" variant="quiet" onClick={() => props.onOpenItem(row.item)}>查看详细证据</ControlButton>
-                    {props.onOrganizeItem && props.canOrganizeItem?.(row.item) ? <ControlButton size="compact" variant="secondary" onClick={() => props.onOrganizeItem?.(row.item)}>整理同名武器</ControlButton> : null}
+                    <ControlButton size="compact" variant="quiet" onClick={() => props.onOpenItem(row.item)}>查看依据</ControlButton>
+                    {props.onOrganizeItem && props.canOrganizeItem?.(row.item) ? <ControlButton size="compact" variant="secondary" onClick={() => props.onOrganizeItem?.(row.item)}>整理同名</ControlButton> : null}
                   </span>
                 </article>
               );
@@ -195,11 +190,12 @@ type InstanceWeaponRow = {
   item: AccountItemSummary;
   summaries: VaultRecommendationSourceSummary[];
   purposes: Array<"pve" | "pvp" | "general">;
+  recommendationState: VaultRecommendationResult;
   disposition?: "keep" | "review" | "junk" | "farm" | "loadout";
   dispositionLabel?: string;
 };
 
-type RecommendationEvidenceFilter = "all" | "covered" | "matched" | "zero" | "conflict" | "uncheckable" | "uncovered" | "organized";
+type RecommendationEvidenceFilter = InstanceWeaponRow["recommendationState"] | "all";
 
 function summarizeRecommendationRows(rows: InstanceWeaponRow[]) {
   const coveredRows = rows.filter((row) => row.summaries.length > 0);
@@ -225,35 +221,6 @@ function summarizeRecommendationRows(rows: InstanceWeaponRow[]) {
   };
 }
 
-function SourceState(props: { label: string; enabled: boolean; status?: "loading" | "ready" | "warning" | "error"; stateLabel?: string; detail: string; compatibility?: boolean }) {
-  const label = props.stateLabel ?? (props.status === "loading" ? "读取中" : props.status === "error" ? "读取失败" : props.compatibility ? "兼容读取" : props.enabled ? "已启用" : "未配置");
-  const status = props.status === "error" ? "error" : props.status === "loading" || props.status === "warning" ? "warning" : props.enabled ? "success" : "neutral";
-  return <div className="vault-evidence-source"><span><strong>{props.label}</strong><small>{props.detail}</small></span><span className="ui-badge" data-ui-kind="status-chip" data-status={status}>{label}</span></div>;
-}
-
-function RecommendationScanSourceState(props: {
-  scan?: VaultRecommendationScanState;
-  hasInstanceScan: boolean;
-}) {
-  const scan = props.scan;
-  if (!scan) {
-    return <SourceState label="中文武器推荐" enabled={props.hasInstanceScan} detail={props.hasInstanceScan ? "账号实例对照已读取" : "尚未完成账号实例对照"} />;
-  }
-  if (scan.phase === "scanning") {
-    return <SourceState label="中文武器推荐" enabled={Boolean(scan.retained_result_count)} status="loading" stateLabel="核对中" detail={formatRecommendationScanDetail(scan)} />;
-  }
-  if (scan.phase === "partial") {
-    return <SourceState label="中文武器推荐" enabled={Boolean(scan.retained_result_count)} status="warning" stateLabel="部分可用" detail={formatRecommendationScanDetail(scan)} />;
-  }
-  if (scan.phase === "complete") {
-    return <SourceState label="中文武器推荐" enabled status="ready" stateLabel="已完成" detail={formatRecommendationScanDetail(scan)} />;
-  }
-  if (scan.phase === "error") {
-    return <SourceState label="中文武器推荐" enabled={false} status="error" stateLabel="核对失败" detail={formatRecommendationScanDetail(scan)} />;
-  }
-  return <SourceState label="中文武器推荐" enabled={false} stateLabel="未开始" detail="进入仓库后开始核对账号武器。" />;
-}
-
 function formatRecommendationScanDetail(scan?: VaultRecommendationScanState): string {
   if (!scan) return "尚未开始账号武器推荐来源核对。";
   if (scan.message) return scan.message;
@@ -264,14 +231,6 @@ function formatRecommendationScanDetail(scan?: VaultRecommendationScanState): st
   if (scan.phase === "partial") return `当前保留 ${scan.retained_result_count} 件上次核对结果。`;
   if (scan.phase === "error") return "账号武器推荐来源核对失败。";
   return "尚未开始账号武器推荐来源核对。";
-}
-
-function recommendationScanMetricDetail(scan?: VaultRecommendationScanState): string {
-  if (!scan || scan.phase === "idle") return "尚未开始账号实例核对";
-  if (scan.phase === "scanning") return scan.retained_result_count ? "正在重新核对，暂时显示上次结果" : "正在核对账号武器";
-  if (scan.phase === "partial") return "本次核对未完整完成";
-  if (scan.phase === "error") return "推荐来源核对失败";
-  return "已完成核对，当前账号暂无来源记录";
 }
 
 function recommendationEvidenceEmptyState(
@@ -288,7 +247,7 @@ function recommendationEvidenceEmptyState(
   }
   if (scan?.phase === "partial") {
     return {
-      title: "当前只有部分可用结果",
+      title: "部分核对已经完成",
       detail: scan.message ?? "本次核对没有完整完成，未显示的武器不能据此判断为没有推荐。"
     };
   }
@@ -315,6 +274,7 @@ function recommendationEvidenceEmptyState(
 function buildInstanceWeaponRows(
   items: AccountItemSummary[],
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex,
+  communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>,
   includeUncovered = false,
   tags?: VaultTags
 ): InstanceWeaponRow[] {
@@ -324,34 +284,36 @@ function buildInstanceWeaponRows(
       const instanceKey = getVaultCommunityInstanceKey(item);
       const summaries = recommendationSummaryByInstance?.get(instanceKey) ?? [];
       if (!summaries.length && !includeUncovered) return [];
+      const recommendationState = inferVaultRecommendationResult(
+        summaries,
+        communityInstanceMatch?.get(instanceKey)?.recommendation_state
+      );
       const disposition = tags?.items[instanceKey]?.tag;
       return [{
         key: item.instance_id ? `instance:${item.instance_id}` : `${instanceKey}:${index}`,
         item,
         summaries,
         purposes: [...new Set(summaries.flatMap((summary) => summary.purposes))],
+        recommendationState,
         ...(disposition ? { disposition, dispositionLabel: dispositionLabel(disposition) } : {})
       }];
     })
     .sort((left, right) => {
-      const coverageDifference = Number(right.summaries.length > 0) - Number(left.summaries.length > 0);
-      if (coverageDifference) return coverageDifference;
-      const positiveDifference = Number(right.summaries.some(hasPositiveRecommendationSummary))
-        - Number(left.summaries.some(hasPositiveRecommendationSummary));
-      return positiveDifference || left.item.name.localeCompare(right.item.name, "zh-Hans-CN") || left.key.localeCompare(right.key);
+      const stateOrder = { matched: 0, partial: 1, not_matched: 2, uncheckable: 3, uncovered: 4 } as const;
+      return stateOrder[left.recommendationState] - stateOrder[right.recommendationState]
+        || left.item.name.localeCompare(right.item.name, "zh-Hans-CN")
+        || left.key.localeCompare(right.key);
     });
 }
 
 function recommendationFilterOptions(rows: InstanceWeaponRow[]): Array<{ key: RecommendationEvidenceFilter; label: string; count: number }> {
   const options: Array<{ key: RecommendationEvidenceFilter; label: string }> = [
-    { key: "all", label: "全部武器" },
-    { key: "covered", label: "有来源记录" },
-    { key: "matched", label: "有符合项" },
-    { key: "zero", label: "未符合" },
-    { key: "conflict", label: "来源结论不同" },
-    { key: "uncheckable", label: "数据不完整" },
-    { key: "uncovered", label: "无来源记录" },
-    { key: "organized", label: "有人工标记" }
+    { key: "matched", label: "符合推荐" },
+    { key: "partial", label: "部分符合" },
+    { key: "not_matched", label: "未符合" },
+    { key: "uncheckable", label: "无法判断" },
+    { key: "uncovered", label: "无推荐" },
+    { key: "all", label: "全部" }
   ];
   return options.map((option) => ({
     ...option,
@@ -360,22 +322,15 @@ function recommendationFilterOptions(rows: InstanceWeaponRow[]): Array<{ key: Re
 }
 
 function matchesRecommendationFilter(row: InstanceWeaponRow, filter: RecommendationEvidenceFilter): boolean {
-  const hasPositive = row.summaries.some(hasPositiveRecommendationSummary);
-  const hasDifferent = row.summaries.some((summary) => summary.state === "different");
-  const hasUncheckable = row.summaries.some((summary) => summary.state === "uncheckable");
   if (filter === "all") return true;
-  if (filter === "covered") return row.summaries.length > 0;
-  if (filter === "matched") return hasPositive;
-  if (filter === "zero") return row.summaries.length > 0 && !hasPositive && hasDifferent;
-  if (filter === "conflict") return hasRecommendationConflict(row);
-  if (filter === "uncheckable") return hasUncheckable;
-  if (filter === "uncovered") return row.summaries.length === 0;
-  return Boolean(row.disposition);
+  return row.recommendationState === filter;
 }
 
 function hasRecommendationConflict(row: InstanceWeaponRow): boolean {
   return row.summaries.some(hasPositiveRecommendationSummary)
-    && row.summaries.some((summary) => summary.state === "different");
+    && row.summaries.some((summary) => (
+      summary.state === "key_missing" || summary.state === "not_matched"
+    ));
 }
 
 function dispositionLabel(value: NonNullable<InstanceWeaponRow["disposition"]>): string {
@@ -394,11 +349,4 @@ function formatWeaponInstanceMeta(item: AccountItemSummary, protectionFacts: str
     item.power !== undefined ? `光等 ${item.power}` : "",
     ...protectionFacts
   ].filter(Boolean).join(" · ");
-}
-
-function formatCustomSourceState(sourceState?: VaultRecommendationSourceState): string {
-  if (!sourceState || sourceState.customRulesLoadState === "loading") return "正在读取本机规则";
-  if (sourceState.customRulesLoadState === "error") return sourceState.customRulesLoadError || "本机规则读取失败";
-  if (!sourceState.customRules) return "未配置";
-  return `${sourceState.customRules.title} · ${sourceState.customRules.rules.length} 条规则`;
 }

@@ -30,7 +30,7 @@ import {
 import { VaultArmorFilterPanel } from "./VaultArmorFilterPanel.js";
 import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 
-export type VaultSignalFilter = "wishlist" | "loadout" | "target" | "community";
+export type VaultSignalFilter = "wishlist" | "loadout" | "target";
 export type VaultArmorSetCatalogStatus = "loading" | "ready" | "error";
 
 const dispositionOptions: Array<{ key: VaultTagFilter; label: string }> = [
@@ -44,8 +44,7 @@ const dispositionOptions: Array<{ key: VaultTagFilter; label: string }> = [
 const signalOptions: Array<{ key: VaultSignalFilter; label: string }> = [
   { key: "wishlist", label: "愿望单" },
   { key: "loadout", label: "配装引用" },
-  { key: "target", label: "目标命中" },
-  { key: "community", label: "推荐组合" }
+  { key: "target", label: "目标命中" }
 ];
 
 const damageTypeIds: Record<string, number> = {

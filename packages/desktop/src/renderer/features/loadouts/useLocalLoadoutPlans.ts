@@ -59,8 +59,8 @@ export type LocalPlanPublishReport = {
 };
 
 export function useLocalLoadoutPlans(input: {
-  refreshAccount?: () => Promise<ReturnType<typeof useAccountSummaryStore> | null>;
-} = {}) {
+  refreshAccount: () => Promise<ReturnType<typeof useAccountSummaryStore> | null>;
+}) {
   const accountSummary = useAccountSummaryStore();
   const [plans, setPlans] = useState<LocalLoadoutPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -540,9 +540,7 @@ export function useLocalLoadoutPlans(input: {
     setError("");
     let executionAccount = accountSummary;
     try {
-      const latestAccount = input.refreshAccount
-        ? await input.refreshAccount()
-        : await api.getAccountSummary({ force: true, authoritative: true });
+      const latestAccount = await input.refreshAccount();
       if (!latestAccount) throw new Error("执行前账号刷新没有返回可用快照");
       const observedPlan = createLocalLoadoutPlanExecutionPlan({
         plan: draft,
@@ -612,11 +610,9 @@ export function useLocalLoadoutPlans(input: {
       }
     } finally {
       try {
-        refreshedAccount = input.refreshAccount
-          ? await input.refreshAccount()
-          : await api.getAccountSummary({ force: true, authoritative: true });
+        refreshedAccount = await input.refreshAccount();
       } catch (refreshError) {
-        failure = failure ?? `账号刷新失败：${refreshError instanceof Error ? refreshError.message : String(refreshError)}`;
+        failure = failure ?? `装备数据同步失败：${refreshError instanceof Error ? refreshError.message : String(refreshError)}`;
       }
       const targetAfterRefresh = refreshedAccount?.characters.find((character) => character.character_id === target.character_id);
       const selectedInstanceIds = draft.item_targets
@@ -695,9 +691,7 @@ export function useLocalLoadoutPlans(input: {
 
     let latestAccount: typeof accountSummary | null = null;
     try {
-      latestAccount = input.refreshAccount
-        ? await input.refreshAccount()
-        : await api.getAccountSummary({ force: true, authoritative: true });
+      latestAccount = await input.refreshAccount();
       if (!latestAccount) throw new Error("保存到游戏内槽位前，账号刷新没有返回可用快照");
     } catch (preflightError) {
       const message = `保存到游戏内槽位前，账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
@@ -749,9 +743,7 @@ export function useLocalLoadoutPlans(input: {
         }
       });
       actionSucceeded = true;
-      refreshedAccount = input.refreshAccount
-        ? await input.refreshAccount()
-        : await api.getAccountSummary({ force: true, authoritative: true });
+      refreshedAccount = await input.refreshAccount();
     } catch (publishError) {
       failure = publishError instanceof Error ? publishError.message : String(publishError);
     }

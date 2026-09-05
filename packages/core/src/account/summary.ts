@@ -1780,12 +1780,12 @@ export function classifyWeaponRollSocket(
     return "origin";
   }
   if (
-    includesAnyText(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft", "tubes"])
+    includesAnyText(category, ["barrel", "scope", "sight", "bowstring", "bow.string", "blade", "haft", "tube", "rail"])
     || includesAnyText(itemType, ["发射器枪管", "launcher barrel"])
   ) {
     return "barrel";
   }
-  if (includesAnyText(category, ["magazine", "batter", "arrow", "guard", "stock", "grip"])) {
+  if (includesAnyText(category, ["magazine", "batter", "arrow", "guard", "stock", "grip", "bolt"])) {
     return "magazine";
   }
   if (includesAnyText(category, ["trait", "perk"]) || includesAnyText(itemType, ["trait", "perk", "特性", "特征"])) {

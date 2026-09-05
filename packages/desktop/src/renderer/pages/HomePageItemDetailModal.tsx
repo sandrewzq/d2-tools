@@ -56,7 +56,6 @@ export function HomePageItemDetailModal(props: {
         instance: false
       }
     };
-    const vendorSameNameItems = collectSelectedSameNameItems(props.accountSummary, vendorSelectedItem);
     const vendorWeaponModel = buildWeaponDetailView({
       selectedItem: vendorSelectedItem,
       accountSummary: props.accountSummary,
@@ -72,7 +71,6 @@ export function HomePageItemDetailModal(props: {
       sources: buildVendorWeaponSources(vendorDefinitionState),
       selectionNames: vendorDefinitionState.context.rollLabels,
       currentStats: buildVendorWeaponStats(vendorDefinitionState.context.stats),
-      sameNameItems: vendorSameNameItems,
       recommendations: [
         ...buildWeaponRecommendationViews(
           vendorDefinitionState.recommendations ?? null,
@@ -118,17 +116,6 @@ export function HomePageItemDetailModal(props: {
                   externalSearchMessage: vendorDefinitionState.aiResult?.ai?.external_search?.message
                 }}
                 actions={{
-                  selectInstance: (instance) => {
-                    const item = vendorSameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
-                    if (!item) return;
-                    props.vendorDefinitionDetail.close();
-                    void props.itemDetail.openItemDetail(item, {
-                      source_character_id: item.source_character_id,
-                      source_kind: item.source_kind,
-                      is_vault_item: item.is_vault_item,
-                      is_postmaster_item: item.is_postmaster_item
-                    });
-                  },
                   runAnalysis: (request) => void props.vendorDefinitionDetail.generateAi(request.prompt, request.allow_external_search),
                   saveKnowledge: (draft) => void props.vendorDefinitionDetail.saveKnowledge(draft),
                   setKnowledgeEnabled: (id, enabled) => void props.vendorDefinitionDetail.setKnowledgeEnabled(id, enabled),
@@ -141,6 +128,7 @@ export function HomePageItemDetailModal(props: {
       );
     }
 
+    const vendorSameNameItems = collectSelectedSameNameItems(props.accountSummary, vendorSelectedItem);
     const vendorArmorModel = buildArmorDetailView({
       selectedItem: vendorSelectedItem,
       sameNameItems: vendorSameNameItems,
@@ -278,6 +266,7 @@ export function HomePageItemDetailModal(props: {
       onOpenBestSameNameItem={(items) => itemDetail.openBestSameNameItem(items)}
       onOpenItemDetail={(item, source) => void itemDetail.openItemDetail(item, source)}
       onRunItemWriteAction={(label, action, options) => itemDetail.runItemWriteAction(label, action, options)}
+      onLoadSelectedItemFullDetail={itemDetail.loadSelectedItemFullDetail}
       onRefreshSelectedItemDetail={itemDetail.refreshSelectedItemDetail}
       onSaveSelectedItemNote={() => void itemDetail.saveSelectedItemNote()}
       onSaveSelectedItemTag={(tag) => void itemDetail.saveSelectedItemTag(tag)}

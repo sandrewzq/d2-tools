@@ -1,6 +1,6 @@
 {
   "name": "@d2-tools/services",
-  "version": "0.0.18",
+  "version": "0.0.19",
   "private": true,
   "type": "module",
   "main": "dist/index.js",
@@ -153,6 +153,14 @@
     "./community/vaultRecommendationMatchCache": {
       "types": "./dist/community/vaultRecommendationMatchCache.d.ts",
       "import": "./dist/community/vaultRecommendationMatchCache.js"
+    },
+    "./community/recommendationOverrides": {
+      "types": "./dist/community/recommendationOverrides.d.ts",
+      "import": "./dist/community/recommendationOverrides.js"
+    },
+    "./community/recommendationManagement": {
+      "types": "./dist/community/recommendationManagement.d.ts",
+      "import": "./dist/community/recommendationManagement.js"
     },
     "./community/personalWeaponKnowledge": {
       "types": "./dist/community/personalWeaponKnowledge.d.ts",

@@ -188,6 +188,27 @@ export function buildDuplicateGroupBatchTagPlan(
   }));
 }
 
+export function protectVaultCleanupTagPlan(
+  inputs: readonly SaveVaultTagInput[],
+  protectionByItemKey: ReadonlyMap<string, readonly string[]> | undefined,
+  currentTags: VaultTags
+): { inputs: SaveVaultTagInput[]; protectedCount: number } {
+  let protectedCount = 0;
+  return {
+    inputs: inputs.map((entry) => {
+      if (entry.tag !== "junk" || !(protectionByItemKey?.get(entry.item_key)?.length)) {
+        return entry;
+      }
+      protectedCount += 1;
+      return {
+        ...entry,
+        tag: currentTags.items[entry.item_key]?.tag ?? "none"
+      };
+    }),
+    protectedCount
+  };
+}
+
 export function buildDuplicateGroupBatchActionCopy(
   groupName: string,
   mode: DuplicateGroupBatchTagMode

@@ -338,6 +338,10 @@ export type WeaponDetailSelectedItemLike = {
     definition: boolean;
     instance: boolean;
   };
+  detail_loaded?: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type WeaponDetailInstanceLike = Pick<

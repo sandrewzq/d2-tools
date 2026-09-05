@@ -26,7 +26,7 @@ import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
-import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
+import { presentRecommendationSlotMatch } from "../recommendationMatchPresentation.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import {
   displayVaultRecommendationSourceLabel,
@@ -109,9 +109,11 @@ export function VaultDuplicateGroups(props: {
   locateRequest?: { groupKey: string; requestId: number } | null;
   openingItemKey?: string;
   isBatchSaving: boolean;
+  recommendationRevision?: string;
   onLoadItemDetail?: (item: AccountItemSummary) => Promise<AccountItemSummary>;
   onOpenItem: (item: AccountItemSummary) => void;
   onApplyGroupTags: (groupName: string, inputs: SaveVaultTagInput[]) => void | Promise<void>;
+  onPendingChange?: (hasPendingChanges: boolean) => void;
 }) {
   const groups = props.duplicateSummary.groups;
   const itemByKey = useMemo(() => new Map(props.items.map((item) => [getVaultItemKey(item), item])), [props.items]);
@@ -123,6 +125,8 @@ export function VaultDuplicateGroups(props: {
   const [pendingDispositionByGroup, setPendingDispositionByGroup] = useState<Record<string, Record<string, DuplicateDisposition>>>({});
   const [detailByItemKey, setDetailByItemKey] = useState<Record<string, AccountItemSummary>>({});
   const [detailLoadStatusByItemKey, setDetailLoadStatusByItemKey] = useState<Record<string, "loading" | "ready" | "error">>({});
+  const [requestedRollGroupKeys, setRequestedRollGroupKeys] = useState<Set<string>>(new Set());
+  const [revisionResetMessage, setRevisionResetMessage] = useState("");
   const groupNavRef = useRef<HTMLElement>(null);
   const pendingFocusGroupKeyRef = useRef("");
   // 同一实例可能同时从仓库行、详情弹层或切换后的同名组触发读取。
@@ -137,6 +141,19 @@ export function VaultDuplicateGroups(props: {
       (pendingDispositionByGroup[group.group_key]?.[entry.item_key] ?? dispositionFromTag(entry.tag)) !== dispositionFromTag(entry.tag)
     )).length
   ), 0), [groups, pendingDispositionByGroup]);
+  const recommendationRevisionRef = useRef(props.recommendationRevision ?? "");
+  useEffect(() => {
+    props.onPendingChange?.(pendingChangeCount > 0);
+    return () => props.onPendingChange?.(false);
+  }, [pendingChangeCount, props.onPendingChange]);
+  useEffect(() => {
+    const nextRevision = props.recommendationRevision ?? "";
+    const previousRevision = recommendationRevisionRef.current;
+    recommendationRevisionRef.current = nextRevision;
+    if (previousRevision === nextRevision || pendingChangeCount === 0) return;
+    setPendingDispositionByGroup({});
+    setRevisionResetMessage("推荐数据已经更新，旧的同名整理预览已失效。请按新依据重新标记。");
+  }, [pendingChangeCount, props.recommendationRevision]);
   const evidenceByItemKey = useMemo(() => {
     const index = new Map<string, DuplicateEvidence>();
     for (const group of groups) {
@@ -206,50 +223,52 @@ export function VaultDuplicateGroups(props: {
 
   useEffect(() => {
     const loadItemDetail = props.onLoadItemDetail;
-    if (!loadItemDetail || !activeGroup) return;
+    if (!loadItemDetail || !activeGroup || !requestedRollGroupKeys.has(activeGroup.group_key)) return;
     const groupItems = activeGroup.items.flatMap((entry) => {
       const item = itemByKey.get(entry.item_key);
-      return item?.group_key === "weapons" ? [{ key: entry.item_key, item }] : [];
+      return item?.group_key === "weapons"
+        ? [{ key: entry.item_key, cacheKey: rollDetailCacheKey(entry.item_key, item), item }]
+        : [];
     });
-    const pendingItems = groupItems.filter(({ key, item }) => (
+    const pendingItems = groupItems.filter(({ cacheKey, item }) => (
       item.instance_id
       && item.sockets === undefined
-      && detailByItemKey[key]?.sockets === undefined
-      && detailLoadStatusByItemKey[key] === undefined
+      && detailByItemKey[cacheKey]?.sockets === undefined
+      && detailLoadStatusByItemKey[cacheKey] === undefined
     ));
     if (!pendingItems.length) return;
 
     setDetailLoadStatusByItemKey((current) => ({
       ...current,
-      ...Object.fromEntries(pendingItems.map(({ key }) => [key, "loading" as const]))
+      ...Object.fromEntries(pendingItems.map(({ cacheKey }) => [cacheKey, "loading" as const]))
     }));
-    void runWithConcurrency(pendingItems, DUPLICATE_DETAIL_CONCURRENCY, async ({ key, item }) => {
+    void runWithConcurrency(pendingItems, DUPLICATE_DETAIL_CONCURRENCY, async ({ cacheKey, item }) => {
       try {
-        let request = detailRequestByItemKeyRef.current.get(key);
+        let request = detailRequestByItemKeyRef.current.get(cacheKey);
         if (!request) {
           request = loadItemDetail(item);
-          detailRequestByItemKeyRef.current.set(key, request);
+          detailRequestByItemKeyRef.current.set(cacheKey, request);
           void request.then(() => {
-            if (detailRequestByItemKeyRef.current.get(key) === request) {
-              detailRequestByItemKeyRef.current.delete(key);
+            if (detailRequestByItemKeyRef.current.get(cacheKey) === request) {
+              detailRequestByItemKeyRef.current.delete(cacheKey);
             }
           }, () => {
-            if (detailRequestByItemKeyRef.current.get(key) === request) {
-              detailRequestByItemKeyRef.current.delete(key);
+            if (detailRequestByItemKeyRef.current.get(cacheKey) === request) {
+              detailRequestByItemKeyRef.current.delete(cacheKey);
             }
           });
         }
         const detail = await request;
         if (detail.sockets === undefined) throw new Error("完整 Roll 数据未返回");
         if (!mountedRef.current) return;
-        setDetailByItemKey((current) => ({ ...current, [key]: detail }));
-        setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "ready" }));
+        setDetailByItemKey((current) => ({ ...current, [cacheKey]: detail }));
+        setDetailLoadStatusByItemKey((current) => ({ ...current, [cacheKey]: "ready" }));
       } catch {
         if (!mountedRef.current) return;
-        setDetailLoadStatusByItemKey((current) => ({ ...current, [key]: "error" }));
+        setDetailLoadStatusByItemKey((current) => ({ ...current, [cacheKey]: "error" }));
       }
     });
-  }, [activeGroup, detailByItemKey, detailLoadStatusByItemKey, itemByKey, props.onLoadItemDetail]);
+  }, [activeGroup, detailByItemKey, detailLoadStatusByItemKey, itemByKey, props.onLoadItemDetail, requestedRollGroupKeys]);
 
   if (!groups.length) {
     return <p className="status-message status-neutral">当前仓库没有发现同名重复装备。</p>;
@@ -263,19 +282,32 @@ export function VaultDuplicateGroups(props: {
     itemByKey,
     detailByItemKey,
     detailLoadStatusByItemKey,
-    Boolean(props.onLoadItemDetail)
+    Boolean(props.onLoadItemDetail),
+    Boolean(activeGroup && requestedRollGroupKeys.has(activeGroup.group_key))
   );
   const activeRollProgress = getGroupRollDataProgress(activeGroup, itemByKey, detailByItemKey);
   const comparisonItemByKey = activeRollDataStatus === "ready"
-    ? new Map<string, AccountItemSummary>([...itemByKey].map(([key, item]) => [key, detailByItemKey[key] ?? item] as const))
+    ? new Map<string, AccountItemSummary>([...itemByKey].map(([key, item]) => [
+        key,
+        detailByItemKey[rollDetailCacheKey(key, item)] ?? item
+      ] as const))
     : itemByKey;
 
   function retryActiveGroupRollDetails() {
     if (!activeGroup) return;
-    const groupKeys = new Set(activeGroup.items.map((entry) => entry.item_key));
+    const groupKeys = new Set(activeGroup.items.flatMap((entry) => {
+      const item = itemByKey.get(entry.item_key);
+      return item ? [rollDetailCacheKey(entry.item_key, item)] : [];
+    }));
     setDetailLoadStatusByItemKey((current) => Object.fromEntries(
       Object.entries(current).filter(([key, status]) => !groupKeys.has(key) || status !== "error")
     ));
+    setRequestedRollGroupKeys((current) => new Set(current).add(activeGroup.group_key));
+  }
+
+  function requestActiveGroupRollDetails() {
+    if (!activeGroup) return;
+    setRequestedRollGroupKeys((current) => new Set(current).add(activeGroup.group_key));
   }
 
   function handleGroupKeyDown(event: KeyboardEvent<HTMLButtonElement>, groupKey: string) {
@@ -337,32 +369,36 @@ export function VaultDuplicateGroups(props: {
       </aside>
 
       {activeGroup ? (
-        <DuplicateComparePanel
-          key={activeGroup.group_key}
-          group={activeGroup}
-          itemByKey={comparisonItemByKey}
-          evidenceByItemKey={evidenceByItemKey}
-          communityInstanceMatch={props.communityInstanceMatch}
-          referenceKey={referenceKey}
-          referenceIsAutomatic={!explicitReferenceKey}
-          hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
-          pendingDisposition={pendingDispositionByGroup[activeGroup.group_key]}
-          openingItemKey={props.openingItemKey}
-          isBatchSaving={props.isBatchSaving}
-          rollDataStatus={activeRollDataStatus}
-          rollDataProgress={activeRollProgress}
-          onReferenceChange={(itemKey) => setReferenceByGroup((current) => ({ ...current, [activeGroup.group_key]: itemKey }))}
-          onPendingDispositionChange={(nextDisposition) => setPendingDispositionByGroup((current) => ({ ...current, [activeGroup.group_key]: nextDisposition }))}
-          onOpenItem={props.onOpenItem}
-          onRetryRollDetails={retryActiveGroupRollDetails}
-          onApplyGroupTags={props.onApplyGroupTags}
-          onNextGroup={() => {
-            const currentIndex = filteredGroups.findIndex((group) => group.group_key === activeGroup.group_key);
-            const followingGroups = [...filteredGroups.slice(currentIndex + 1), ...filteredGroups.slice(0, currentIndex)];
-            const nextGroup = followingGroups.find((group) => !isGroupPersistedComplete(group));
-            if (nextGroup) setActiveGroupKey(nextGroup.group_key);
-          }}
-        />
+        <div className="duplicate-compare-workspace">
+          {revisionResetMessage ? <p className="status-message status-warning" role="status">{revisionResetMessage}</p> : null}
+          <DuplicateComparePanel
+            key={activeGroup.group_key}
+            group={activeGroup}
+            itemByKey={comparisonItemByKey}
+            evidenceByItemKey={evidenceByItemKey}
+            communityInstanceMatch={props.communityInstanceMatch}
+            referenceKey={referenceKey}
+            referenceIsAutomatic={!explicitReferenceKey}
+            hasNextPendingGroup={filteredGroups.some((group) => group.group_key !== activeGroup.group_key && !isGroupPersistedComplete(group))}
+            pendingDisposition={pendingDispositionByGroup[activeGroup.group_key]}
+            openingItemKey={props.openingItemKey}
+            isBatchSaving={props.isBatchSaving}
+            rollDataStatus={activeRollDataStatus}
+            rollDataProgress={activeRollProgress}
+            onReferenceChange={(itemKey) => setReferenceByGroup((current) => ({ ...current, [activeGroup.group_key]: itemKey }))}
+            onPendingDispositionChange={(nextDisposition) => { setRevisionResetMessage(""); setPendingDispositionByGroup((current) => ({ ...current, [activeGroup.group_key]: nextDisposition })); }}
+            onOpenItem={props.onOpenItem}
+            onRequestRollDetails={requestActiveGroupRollDetails}
+            onRetryRollDetails={retryActiveGroupRollDetails}
+            onApplyGroupTags={props.onApplyGroupTags}
+            onNextGroup={() => {
+              const currentIndex = filteredGroups.findIndex((group) => group.group_key === activeGroup.group_key);
+              const followingGroups = [...filteredGroups.slice(currentIndex + 1), ...filteredGroups.slice(0, currentIndex)];
+              const nextGroup = followingGroups.find((group) => !isGroupPersistedComplete(group));
+              if (nextGroup) setActiveGroupKey(nextGroup.group_key);
+            }}
+          />
+        </div>
       ) : <section className="duplicate-compare-panel"><p className="status-message status-neutral">选择左侧同名组开始整理。</p></section>}
     </div>
   );
@@ -379,11 +415,12 @@ function DuplicateComparePanel(props: {
   pendingDisposition?: Record<string, DuplicateDisposition>;
   openingItemKey?: string;
   isBatchSaving: boolean;
-  rollDataStatus: "ready" | "loading" | "error" | "unavailable";
+  rollDataStatus: "idle" | "ready" | "loading" | "error" | "unavailable";
   rollDataProgress: { ready: number; total: number };
   onReferenceChange: (itemKey: string) => void;
   onPendingDispositionChange: (disposition: Record<string, DuplicateDisposition>) => void;
   onOpenItem: (item: AccountItemSummary) => void;
+  onRequestRollDetails: () => void;
   onRetryRollDetails: () => void;
   onApplyGroupTags: (groupName: string, inputs: SaveVaultTagInput[]) => void | Promise<void>;
   onNextGroup: () => void;
@@ -412,13 +449,19 @@ function DuplicateComparePanel(props: {
   useEffect(() => {
     if (selectedSourceId && !selectedSource) setComparisonView("roll");
   }, [selectedSource, selectedSourceId]);
-  const rollColumns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
+  const allRollColumns = useMemo(() => buildComparisonColumns(rows.map((row) => row.item)), [props.group.group_key, props.itemByKey]);
+  const coreRollColumns = useMemo(() => {
+    if (rows[0]?.item.group_key !== "weapons") return allRollColumns;
+    const core = allRollColumns.filter((column) => column.label === "Perk 1" || column.label === "Perk 2");
+    return core.length ? core : allRollColumns;
+  }, [allRollColumns, rows]);
   const sourceColumns = useMemo(() => selectedSource
     ? buildSourceComparisonColumns(rows.map((row) => row.item), selectedSource.sourceId, props.communityInstanceMatch)
     : [], [props.communityInstanceMatch, props.group.group_key, props.itemByKey, selectedSource]);
-  const columns = selectedSource ? sourceColumns : rollColumns;
-  const hasRollColumns = rollColumns.some((column) => column.kind === "roll");
+  const hasRollColumns = allRollColumns.some((column) => column.kind === "roll");
   const effectiveRollViewMode = hasRollColumns && props.rollDataStatus === "ready" ? rollViewMode : "active";
+  const rollColumns = effectiveRollViewMode === "full" ? allRollColumns : coreRollColumns;
+  const columns = selectedSource ? sourceColumns : rollColumns;
   const showsFullRoll = !selectedSource && hasRollColumns && effectiveRollViewMode === "full";
   const referenceValues = referenceRow ? columns.map((column) => column.valueFor(referenceRow.item)) : [];
   const summary = summarizeGroupDisposition(props.group, pendingDisposition);
@@ -432,6 +475,12 @@ function DuplicateComparePanel(props: {
   };
 
   function updateDisposition(itemKey: string, disposition: DuplicateDisposition) {
+    const evidence = props.evidenceByItemKey.get(itemKey) ?? emptyDuplicateEvidence;
+    if (disposition === "junk" && hasProtectedDispositionEvidence(evidence)) {
+      setProtectionConflictCount(1);
+      return;
+    }
+    setProtectionConflictCount(0);
     props.onPendingDispositionChange({ ...pendingDisposition, [itemKey]: disposition });
   }
 
@@ -447,6 +496,17 @@ function DuplicateComparePanel(props: {
       return (pendingDisposition[entry.item_key] ?? "none") === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
     });
     if (conflicts.length) {
+      props.onPendingDispositionChange(Object.fromEntries(props.group.items.map((entry) => {
+        const item = props.itemByKey.get(entry.item_key);
+        const evidence = item ? props.evidenceByItemKey.get(getVaultItemKey(item)) ?? emptyDuplicateEvidence : emptyDuplicateEvidence;
+        const disposition = pendingDisposition[entry.item_key] ?? "none";
+        return [
+          entry.item_key,
+          disposition === "junk" && hasProtectedDispositionEvidence(evidence)
+            ? dispositionFromTag(entry.tag)
+            : disposition
+        ];
+      })));
       setProtectionConflictCount(conflicts.length);
       return;
     }
@@ -481,17 +541,22 @@ function DuplicateComparePanel(props: {
               <button
                 type="button"
                 aria-pressed={rollViewMode === "full"}
-                disabled={props.rollDataStatus !== "ready"}
-                onClick={() => setRollViewMode("full")}
+                disabled={props.rollDataStatus === "loading" || props.rollDataStatus === "unavailable"}
+                onClick={() => {
+                  if (props.rollDataStatus === "ready") setRollViewMode("full");
+                  else props.onRequestRollDetails();
+                }}
               >
-                完整 Roll
+                {props.rollDataStatus === "ready" ? "完整 Roll" : "读取完整 Roll"}
               </button>
             </div>
           ) : null}
           {!selectedSource && hasRollColumns ? (
             <div className="duplicate-roll-data-status" data-status={props.rollDataStatus} role={props.rollDataStatus === "error" ? "alert" : "status"}>
               <span>
-                {props.rollDataStatus === "loading"
+                {props.rollDataStatus === "idle"
+                  ? "默认只比较 Perk 1/2 · 完整 Roll 按需读取"
+                  : props.rollDataStatus === "loading"
                   ? `正在读取完整 Roll · 已读取 ${props.rollDataProgress.ready}/${props.rollDataProgress.total} · 当前显示启用项`
                   : props.rollDataStatus === "error"
                     ? "完整 Roll 读取失败 · 当前显示启用项"
@@ -506,7 +571,7 @@ function DuplicateComparePanel(props: {
             <div className="duplicate-source-legend" aria-label={`${selectedSource.sourceLabel}推荐 Roll 匹配状态`}>
               <span data-source-state="match">符合</span>
               <span data-source-state="different">不符</span>
-              <span data-source-state="uncheckable">数据未读取</span>
+              <span data-source-state="uncheckable">无法判断</span>
             </div>
           ) : (
             <div className="duplicate-compare-legend" aria-label="差异标记">
@@ -530,7 +595,7 @@ function DuplicateComparePanel(props: {
           const persistedDisposition = dispositionFromTag(entry.tag);
           const isReference = props.referenceKey === entry.item_key;
           const isDirty = disposition !== persistedDisposition;
-          const hasProtectionConflict = disposition === "junk" && (evidence.protection.length > 0 || evidence.matches.length > 0);
+          const hasProtectionConflict = disposition === "junk" && hasProtectedDispositionEvidence(evidence);
           return (
             <article className={["duplicate-compare-row", isReference ? "reference" : "", isDirty ? "is-dirty" : "", hasProtectionConflict ? "has-protection-conflict" : "", props.openingItemKey === getVaultItemKey(item) ? "pending" : ""].filter(Boolean).join(" ")} style={gridStyle} key={entry.item_key}>
               <label className="duplicate-reference-choice" title={`将实例 ${index + 1} 设为比较基准`}>
@@ -558,7 +623,7 @@ function DuplicateComparePanel(props: {
                 <EvidenceGroup label="推荐证据" values={evidence.matches} kind="match" />
               </div>
               <div className={["duplicate-decision", isDirty ? "is-dirty" : ""].filter(Boolean).join(" ")} role="group" aria-label={`实例 ${index + 1} 整理状态`}>
-                {dispositionOptions.map((option) => <button type="button" key={option.key} data-decision-value={option.key} aria-pressed={disposition === option.key} disabled={option.key === "junk" && evidence.protection.length > 0 && disposition !== "junk"} title={option.key === "junk" && evidence.protection.length ? `受保护：${evidence.protection.join("、")}` : undefined} onClick={() => updateDisposition(entry.item_key, option.key)}>{option.label}</button>)}
+                {dispositionOptions.map((option) => <button type="button" key={option.key} data-decision-value={option.key} aria-pressed={disposition === option.key} disabled={option.key === "junk" && hasProtectedDispositionEvidence(evidence)} title={option.key === "junk" && hasProtectedDispositionEvidence(evidence) ? `不能标为待处理：${[...evidence.protection, ...evidence.matches].join("、")}` : undefined} onClick={() => updateDisposition(entry.item_key, option.key)}>{option.label}</button>)}
               </div>
             </article>
           );
@@ -577,23 +642,16 @@ function DuplicateComparePanel(props: {
         </div>
       </footer>
       {protectionConflictCount > 0 ? (
-        <ConfirmationDialog
-          title="仍要应用待处理状态？"
-          description={`本组有 ${protectionConflictCount} 件装备带实例保护或推荐证据，但被标记为待处理。`}
-          confirmLabel="仍然应用"
-          cancelLabel="返回检查"
-          confirmTone="danger"
-          onCancel={() => setProtectionConflictCount(0)}
-          onConfirm={() => {
-            setProtectionConflictCount(0);
-            return persistPendingDisposition();
-          }}
-        >
-          此操作只写入本地整理状态，不会自动解锁、转移或拆解装备；后续仍需在游戏内逐件确认。
-        </ConfirmationDialog>
+        <p className="duplicate-protection-block" data-ui-kind="callout" data-status="warning" role="status">
+          {protectionConflictCount} 件装备带实例保护或推荐证据，不能标为待处理；已恢复为原状态。请确认后再次应用。
+        </p>
       ) : null}
     </section>
   );
+}
+
+function hasProtectedDispositionEvidence(evidence: DuplicateEvidence): boolean {
+  return evidence.protection.length > 0 || evidence.matches.length > 0;
 }
 
 function EvidenceGroup(props: { label: string; values: string[]; kind: "protection" | "match" }) {
@@ -613,10 +671,16 @@ function DuplicateComparisonCell(props: {
   rollViewMode: "full" | "active";
 }) {
   if (props.value.kind === "source") {
-    const stateLabel = sourceSlotStateLabel(props.value.state);
+    const presentation = props.value.state === "not_covered"
+      ? null
+      : presentRecommendationSlotMatch(props.value.state, {
+          hasInstanceOwned: props.value.instanceOwned.length > 0,
+          hasCurrentEnabled: props.value.currentEnabled.length > 0
+        });
+    const stateLabel = presentation?.label ?? "该来源未收录";
     const sourceNames = props.value.sourceCandidates.join("、") || "来源未列出具体名称";
-    const ownedNames = props.value.instanceOwned.join("、") || "本件未返回";
-    const currentNames = props.value.currentEnabled.join("、") || "当前启用项未返回";
+    const ownedNames = props.value.instanceOwned.join("、") || presentation?.instanceOwnedFallback || "本件未返回";
+    const currentNames = props.value.currentEnabled.join("、") || presentation?.currentEnabledFallback || "当前启用项未返回";
     return (
       <div className={`duplicate-cell is-source source-${props.value.state}`} aria-label={`${props.label}：${stateLabel}。来源要求：${sourceNames}。本件拥有：${ownedNames}。当前启用：${currentNames}。`}>
         <small className="duplicate-source-state">{stateLabel}</small>
@@ -754,11 +818,11 @@ function buildComparisonColumns(items: AccountItemSummary[]): DuplicateCompariso
 }
 
 const recommendationSlotOrder: RecommendationRequirementSlot[] = [
+  "perk1",
+  "perk2",
   "barrel",
   "magazine",
   "masterwork",
-  "perk1",
-  "perk2",
   "origin"
 ];
 
@@ -770,7 +834,7 @@ function buildDuplicateSourceOptions(
   for (const item of items) {
     const sourceMatches = instanceMatchMap?.get(getVaultCommunityInstanceKey(item))?.source_matches ?? [];
     for (const source of sourceMatches) {
-      if (source.state === "not_covered" || options.has(source.source_id)) continue;
+      if (options.has(source.source_id)) continue;
       options.set(source.source_id, {
         sourceId: source.source_id,
         sourceLabel: displayVaultRecommendationSourceLabel(source.source_id, source.source_label)
@@ -831,7 +895,7 @@ function sourceMatchForItem(
   return instanceMatchMap
     ?.get(getVaultCommunityInstanceKey(item))
     ?.source_matches
-    ?.find((source) => source.source_id === sourceId && source.state !== "not_covered");
+    ?.find((source) => source.source_id === sourceId);
 }
 
 function sourceCandidateNames(slot: RecommendationSourceSlotMatch): string[] {
@@ -844,14 +908,6 @@ function sourceCandidateNames(slot: RecommendationSourceSlotMatch): string[] {
 
 function uniqueText(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function sourceSlotStateLabel(state: RecommendationSourceSlotMatch["state"] | "not_covered"): string {
-  if (state === "match") return "符合";
-  if (state === "different") return "不符";
-  if (state === "uncheckable") return "数据未读取";
-  if (state === "source_not_specified") return "来源未要求";
-  return "该来源未收录";
 }
 
 function duplicateSourceOrder(sourceId: string): number {
@@ -925,17 +981,22 @@ function getGroupRollDataStatus(
   itemByKey: Map<string, AccountItemSummary>,
   detailByItemKey: Record<string, AccountItemSummary>,
   loadStatusByItemKey: Record<string, "loading" | "ready" | "error">,
-  canLoadDetails: boolean
-): "ready" | "loading" | "error" | "unavailable" {
+  canLoadDetails: boolean,
+  requested: boolean
+): "idle" | "ready" | "loading" | "error" | "unavailable" {
   if (!group) return "unavailable";
   const items = group.items.flatMap((entry) => {
-    const item = detailByItemKey[entry.item_key] ?? itemByKey.get(entry.item_key);
-    return item?.group_key === "weapons" ? [{ key: entry.item_key, item }] : [];
+    const sourceItem = itemByKey.get(entry.item_key);
+    if (!sourceItem) return [];
+    const cacheKey = rollDetailCacheKey(entry.item_key, sourceItem);
+    const item = detailByItemKey[cacheKey] ?? sourceItem;
+    return item.group_key === "weapons" ? [{ key: cacheKey, item }] : [];
   });
   if (!items.length) return "ready";
   if (items.every(({ item }) => item.sockets !== undefined)) return "ready";
   if (items.some(({ key }) => loadStatusByItemKey[key] === "error")) return "error";
   if (!canLoadDetails || items.some(({ item }) => !item.instance_id)) return "unavailable";
+  if (!requested) return "idle";
   return "loading";
 }
 
@@ -946,13 +1007,19 @@ function getGroupRollDataProgress(
 ): { ready: number; total: number } {
   if (!group) return { ready: 0, total: 0 };
   const items = group.items.flatMap((entry) => {
-    const item = detailByItemKey[entry.item_key] ?? itemByKey.get(entry.item_key);
-    return item?.group_key === "weapons" ? [item] : [];
+    const sourceItem = itemByKey.get(entry.item_key);
+    if (!sourceItem) return [];
+    const item = detailByItemKey[rollDetailCacheKey(entry.item_key, sourceItem)] ?? sourceItem;
+    return item.group_key === "weapons" ? [item] : [];
   });
   return {
     ready: items.filter((item) => item.sockets !== undefined).length,
     total: items.length
   };
+}
+
+function rollDetailCacheKey(itemKey: string, item: AccountItemSummary): string {
+  return `${itemKey}\u0000${item.weapon_roll?.fingerprint?.trim() || "unknown-roll"}`;
 }
 
 function itemEvidence(item: AccountItemSummary, props: {
@@ -982,7 +1049,9 @@ function itemEvidence(item: AccountItemSummary, props: {
     matches: [
       sameDefinitionLoadoutMatch ? "配装同款" : "",
       equipmentTarget.matched || target.matched ? "目标命中" : "",
-      ...sourceSummaries.map((summary) => summary.text)
+      ...sourceSummaries
+        .filter((summary) => summary.state === "full" || summary.state === "core")
+        .map((summary) => summary.text)
     ].filter(Boolean)
   };
 }

@@ -1,7 +1,7 @@
 import { VaultPage } from "../../features/vault/VaultPage";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 export function VaultMenuProvider() {
   const session = useDesktopMenuSession();
@@ -23,10 +23,6 @@ export function VaultMenuProvider() {
     hashKeys: new Set<number>()
   }), [accountSummary?.characters, session.loadouts.templates]);
 
-  useEffect(() => {
-    void account.loadVaultCommunityMatch();
-  }, [account.lastAccountLoadedAt, accountSummary?.destiny_membership_id, accountSummary?.membership_type]);
-
   return (
     <VaultPage
       account={accountSummary}
@@ -41,8 +37,7 @@ export function VaultMenuProvider() {
           ? `${accountSummary.membership_type}:${accountSummary.destiny_membership_id}`
           : "signed-out",
         session.diagnostics.manifestStatus?.version ?? "manifest-unavailable",
-        session.diagnostics.manifestStatus?.language ?? "",
-        session.diagnostics.manifestStatus?.cached_at ?? ""
+        session.diagnostics.manifestStatus?.language ?? ""
       ].join("\u0000")}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       cleanupProtectedItemKeys={cleanupProtectedItemKeys}
@@ -61,7 +56,10 @@ export function VaultMenuProvider() {
       onLocalTargetRulesChanged={account.setLocalTargetRules}
       onEquipmentTargetStoreChanged={account.setEquipmentTargetStore}
       onWishlistChanged={account.setImportedWishlist}
-      onCommunityRecommendationsChanged={() => account.loadVaultCommunityMatch(undefined, { force: true })}
+      onCommunityRecommendationsChanged={(weaponHashes) => account.loadVaultCommunityMatch(undefined, {
+        force: true,
+        ...(weaponHashes ? { weaponHashes } : {})
+      })}
       onOpenGuide={async (targetId) => {
         const guideDocumentId = await session.guides.findGuideDocumentIdForDerivedEntity(targetId);
         if (!guideDocumentId) return false;
@@ -74,6 +72,7 @@ export function VaultMenuProvider() {
       onConfigureBungie={session.onConfigure}
       onLoginBungie={() => void account.loginBungie()}
       onSaveTagBatch={(inputs) => writeActions.vaultWriteActions.saveVaultTagsBatch(inputs)}
+      onLockItem={writeActions.vaultWriteActions.handleVaultItemLock}
       onBatchUnlock={writeActions.vaultWriteActions.handleVaultCleanupUnlock}
       onBatchTransferToCharacter={writeActions.vaultWriteActions.handleVaultCleanupTransfer}
       onOpenItem={(item) => {

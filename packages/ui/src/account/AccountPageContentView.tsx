@@ -256,7 +256,7 @@ function AccountPageWorkspace(props: {
 
   const connectionState = props.viewModel.connection.dataState;
   const connectionLabel = connectionState === "refreshing"
-    ? accountText(props.copy, "正在从游戏同步")
+    ? accountText(props.copy, "正在同步装备数据")
     : connectionState === "cached"
       ? accountText(props.copy, "缓存数据")
       : accountText(props.copy, "已读取");
@@ -1069,11 +1069,11 @@ function accountRecommendationSummary(
   return {
     text: `${strongest.shortLabel} ${strongest.resultText}${remainingSourceCount ? ` · 另 ${remainingSourceCount} 个来源` : ""}`,
     title: summaries.map((summary) => summary.detail).join("\n"),
-    tone: strongest.state === "full"
+    tone: strongest.state === "full" || strongest.state === "core"
       ? "ready"
-      : strongest.state === "partial"
+      : strongest.state === "close" || strongest.state === "weapon_only"
         ? "warning"
-        : strongest.state === "different"
+        : strongest.state === "key_missing" || strongest.state === "not_matched"
           ? "error"
           : strongest.state === "uncheckable"
             ? "pending"

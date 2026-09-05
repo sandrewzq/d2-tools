@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const databaseFileName = "weapon-recommendations.sqlite";
-export const recommendationDatabaseSchemaVersion = 4;
+export const recommendationDatabaseSchemaVersion = 5;
+export const recommendationSemanticValidationVersion = 1;
 
 export function openRecommendationDatabase(dataDir: string): DatabaseSync {
   mkdirSync(join(dataDir, "knowledge"), { recursive: true });
@@ -45,12 +46,14 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
   const shouldRebuildAll = hasTables && currentVersion < 2;
   const shouldRebuildCurated = hasTables
     && currentVersion >= 2
-    && currentVersion !== recommendationDatabaseSchemaVersion;
+    && currentVersion < 4;
 
   database.exec("BEGIN IMMEDIATE;");
   try {
     if (shouldRebuildAll) dropRecommendationTables(database);
     else if (shouldRebuildCurated) dropCuratedRecommendationTables(database);
+    migrateCuratedRecommendationRules(database);
+    migrateExternalRecommendationRules(database);
     database.exec(`
       CREATE TABLE IF NOT EXISTS knowledge_metadata (
         key TEXT PRIMARY KEY,
@@ -66,6 +69,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
 
       CREATE TABLE IF NOT EXISTS weapon_recommendations (
         id INTEGER PRIMARY KEY,
+        rule_stable_id TEXT NOT NULL,
         identity_key TEXT NOT NULL,
         normalized_weapon_name TEXT NOT NULL,
         weapon_name TEXT NOT NULL,
@@ -92,6 +96,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         note TEXT NOT NULL DEFAULT '',
         shield TEXT NOT NULL DEFAULT '',
         charge_efficiency TEXT NOT NULL DEFAULT '',
+        UNIQUE (source_id, rule_stable_id),
         UNIQUE (identity_key, source_id)
       ) STRICT;
 
@@ -150,6 +155,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
       CREATE TABLE IF NOT EXISTS external_recommendation_rules (
         id INTEGER PRIMARY KEY,
         source_kind TEXT NOT NULL REFERENCES external_recommendation_sets(source_kind) ON DELETE CASCADE,
+        rule_stable_id TEXT NOT NULL,
         ordinal INTEGER NOT NULL CHECK (ordinal >= 0),
         item_hash INTEGER NOT NULL CHECK (item_hash >= 0 AND item_hash <= 4294967295),
         mode TEXT NOT NULL CHECK (mode IN ('pve', 'pvp', 'general')),
@@ -160,6 +166,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         source_description TEXT NOT NULL DEFAULT '',
         source_label TEXT NOT NULL DEFAULT '',
         block_id INTEGER REFERENCES external_recommendation_blocks(id) ON DELETE SET NULL,
+        UNIQUE (source_kind, rule_stable_id),
         UNIQUE (source_kind, ordinal),
         CHECK (block_id IS NULL OR block_id > 0)
       ) STRICT;
@@ -179,12 +186,31 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         PRIMARY KEY (rule_id, tag)
       ) STRICT;
 
+      CREATE TABLE IF NOT EXISTS recommendation_source_overrides (
+        source_key TEXT PRIMARY KEY,
+        state TEXT NOT NULL CHECK (state IN ('active', 'disabled', 'removed')),
+        updated_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS recommendation_rule_overrides (
+        source_key TEXT NOT NULL,
+        rule_stable_id TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('active', 'removed')),
+        reason TEXT NOT NULL DEFAULT '',
+        source_revision TEXT NOT NULL DEFAULT '',
+        review_required INTEGER NOT NULL DEFAULT 0 CHECK (review_required IN (0, 1)),
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (source_key, rule_stable_id)
+      ) STRICT;
+
       CREATE INDEX IF NOT EXISTS idx_weapon_recommendations_name
         ON weapon_recommendations(normalized_weapon_name);
       CREATE INDEX IF NOT EXISTS idx_weapon_recommendations_english_name
         ON weapon_recommendations(normalized_english_name);
       CREATE INDEX IF NOT EXISTS idx_weapon_recommendations_source
         ON weapon_recommendations(source_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_weapon_recommendations_stable_id
+        ON weapon_recommendations(source_id, rule_stable_id);
       CREATE INDEX IF NOT EXISTS idx_weapon_recommendation_item_ids_hash
         ON weapon_recommendation_item_ids(item_hash);
       CREATE INDEX IF NOT EXISTS idx_weapon_recommendation_purposes_purpose
@@ -193,10 +219,14 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         ON weapon_recommendation_perks(recommendation_id, slot, normalized_perk_name);
       CREATE INDEX IF NOT EXISTS idx_external_recommendation_rules_item
         ON external_recommendation_rules(source_kind, item_hash);
+      CREATE INDEX IF NOT EXISTS idx_external_recommendation_rules_stable_id
+        ON external_recommendation_rules(source_kind, rule_stable_id);
       CREATE INDEX IF NOT EXISTS idx_external_recommendation_rules_block
         ON external_recommendation_rules(block_id);
       CREATE INDEX IF NOT EXISTS idx_external_recommendation_perks_hash
         ON external_recommendation_rule_perks(perk_hash, rule_id);
+      CREATE INDEX IF NOT EXISTS idx_recommendation_rule_overrides_state
+        ON recommendation_rule_overrides(source_key, state, review_required);
     `);
     database.exec(`PRAGMA user_version = ${recommendationDatabaseSchemaVersion};`);
     database.exec("COMMIT;");
@@ -208,6 +238,42 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
     }
     throw error;
   }
+}
+
+function migrateCuratedRecommendationRules(database: DatabaseSync): void {
+  if (!tableExists(database, "weapon_recommendations")) return;
+  if (columnExists(database, "weapon_recommendations", "rule_stable_id")) return;
+  database.exec(`
+    ALTER TABLE weapon_recommendations
+      ADD COLUMN rule_stable_id TEXT NOT NULL DEFAULT '';
+    UPDATE weapon_recommendations
+    SET rule_stable_id = identity_key || ':' || source_id || ':' || id;
+  `);
+}
+
+function migrateExternalRecommendationRules(database: DatabaseSync): void {
+  if (!tableExists(database, "external_recommendation_rules")) return;
+  if (columnExists(database, "external_recommendation_rules", "rule_stable_id")) return;
+  database.exec(`
+    ALTER TABLE external_recommendation_rules
+      ADD COLUMN rule_stable_id TEXT NOT NULL DEFAULT '';
+    UPDATE external_recommendation_rules
+    SET rule_stable_id = source_kind || ':' || item_hash || ':' || mode || ':' || id;
+  `);
+}
+
+function tableExists(database: DatabaseSync, tableName: string): boolean {
+  const row = database.prepare(`
+    SELECT 1 AS present
+    FROM sqlite_master
+    WHERE type = 'table' AND name = ?
+  `).get(tableName) as { present?: number } | undefined;
+  return row?.present === 1;
+}
+
+function columnExists(database: DatabaseSync, tableName: string, columnName: string): boolean {
+  const rows = database.prepare(`PRAGMA table_info(${tableName})`).all() as Array<{ name?: string }>;
+  return rows.some((row) => row.name === columnName);
 }
 
 function hasRecommendationTables(database: DatabaseSync): boolean {
@@ -233,6 +299,8 @@ function dropRecommendationTables(database: DatabaseSync): void {
     DROP TABLE IF EXISTS external_recommendation_block_tags;
     DROP TABLE IF EXISTS external_recommendation_blocks;
     DROP TABLE IF EXISTS external_recommendation_sets;
+    DROP TABLE IF EXISTS recommendation_rule_overrides;
+    DROP TABLE IF EXISTS recommendation_source_overrides;
     DROP TABLE IF EXISTS weapon_recommendation_perks;
     DROP TABLE IF EXISTS weapon_recommendation_purposes;
     DROP TABLE IF EXISTS weapon_recommendation_item_ids;
@@ -250,6 +318,13 @@ function dropCuratedRecommendationTables(database: DatabaseSync): void {
     DROP TABLE IF EXISTS weapon_recommendations;
     DROP TABLE IF EXISTS recommendation_sources;
     DELETE FROM knowledge_metadata
-    WHERE key IN ('schema_version', 'source_fingerprint', 'imported_at');
+      WHERE key IN (
+        'schema_version',
+        'source_fingerprint',
+        'imported_at',
+        'semantic_validation_version',
+        'validated_manifest_version',
+        'dataset_revision'
+      );
   `);
 }

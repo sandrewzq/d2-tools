@@ -194,6 +194,74 @@ describe("community perk recommendations", () => {
     expect(matches.get(123)?.source_label).toContain("DIM Wishlist");
   });
 
+  it.each([
+    { curatedMode: "pve" as const, expected: "compare" as const },
+    { curatedMode: "pvp" as const, expected: "priority" as const },
+    { curatedMode: "general" as const, expected: "compare" as const }
+  ])("resolves DIM PVE and curated $curatedMode evidence as $expected", async ({ curatedMode, expected }) => {
+    const curated = source("Curated", async () => recommendation({
+      matched_modes: [curatedMode],
+      source_label: "人工来源",
+      source_records: [{
+        rule_stable_id: `curated-${curatedMode}`,
+        source_id: "aegis",
+        source_label: "Aegis推荐",
+        purposes: [curatedMode],
+        requirements: [{
+          slot: "perk1",
+          label: "Perk 1",
+          candidate_names: ["目标 Perk"],
+          candidates: [{ hash: 11, name: "目标 Perk" }],
+          unresolved_candidate_names: []
+        }]
+      }]
+    }));
+    const dim = source("DIM", async () => recommendation({
+      matched_modes: ["pve"],
+      source_label: "DIM Wishlist",
+      combos: [{
+        rule_stable_id: "dim-pve",
+        perks: [{ hash: 22, name: "DIM Perk" }],
+        source: "dim_wishlist",
+        mode: "pve"
+      }]
+    }));
+    const service = new CommunityPerkRecommendationService([curated, dim]);
+
+    const [match] = await service.matchVaultItemInstances([{
+      hash: 123,
+      instance_id: "instance-1",
+      weapon_roll: {
+        fingerprint: "roll-1",
+        complete: true,
+        incomplete_reasons: [],
+        sockets: [
+          {
+            socket_index: 3,
+            slot: "perk1",
+            label: "Perk 1",
+            current_plug: { hash: 99, name: "其他 Perk", selected: true },
+            owned_plugs: [{ hash: 99, name: "其他 Perk", selected: true }],
+            complete: true,
+            incomplete_reasons: []
+          },
+          {
+            socket_index: 4,
+            slot: "perk2",
+            label: "Perk 2",
+            current_plug: { hash: 22, name: "DIM Perk", selected: true },
+            owned_plugs: [{ hash: 22, name: "DIM Perk", selected: true }],
+            complete: true,
+            incomplete_reasons: []
+          }
+        ]
+      }
+    }]);
+
+    expect(match?.recommendation_state).toBe(expected);
+    expect(match?.match_status).toBe(expected === "priority" ? "full_match" : "partial_match");
+  });
+
   it("includes english perk previews for vault and library community matches", async () => {
     const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
     saveDimWishlist(dir, {

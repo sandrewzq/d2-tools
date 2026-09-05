@@ -156,6 +156,7 @@ export { MemoizedVaultListItem, VaultListItem, formatVaultItemMeta } from "./vau
 export { VaultOrganizePanel } from "./vault/VaultOrganizePanel.js";
 export { VaultRecommendationEvidencePanel } from "./vault/VaultRecommendationEvidencePanel.js";
 export type { VaultRecommendationSourceState } from "./vault/VaultRecommendationEvidencePanel.js";
+export { buildVaultCleanupProtectionIndex } from "./vault/vaultCleanupProtection.js";
 export {
   buildVaultRecommendationSourceSummaries,
   buildVaultRecommendationSummaryIndex,

@@ -27,6 +27,10 @@ import type {
   WeaponRecommendationKnowledgeStatus
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
 import type {
+  RecommendationManagedRule,
+  RecommendationManagementSnapshot
+} from "@d2-tools/services/community/recommendationManagement";
+import type {
   DimWishlistOnlineActivationResult,
   DimWishlistOnlinePreview,
   DimWishlistOnlineStatus
@@ -134,6 +138,9 @@ import type {
 } from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
 
+const accountSnapshotChangedChannel: typeof import("../contracts/account.js").accountSnapshotChangedChannel =
+  "account:snapshot:changed";
+
 type PreloadCacheDomain =
   | "asset-cache"
   | "account-snapshot"
@@ -210,6 +217,13 @@ contextBridge.exposeInMainWorld("d2", {
   loginBungie: () => ipcRenderer.invoke("auth:login") as Promise<AuthLoginResult>,
   getAccountSummary: (options?: AccountSummaryRequestOptions) =>
     invokeDesktopIpc<AccountSummary>("account:summary", options),
+  onAccountSnapshotChanged: (callback: (snapshot: AccountSummary) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, snapshot: AccountSummary) => callback(snapshot);
+    ipcRenderer.on(accountSnapshotChangedChannel, listener);
+    return () => {
+      ipcRenderer.removeListener(accountSnapshotChangedChannel, listener);
+    };
+  },
   getCachedAccountSnapshot: () =>
     ipcRenderer.invoke("account:snapshot:cached") as Promise<CachedAccountSnapshot | null>,
   getAccountItemDetail: (instanceId: string, options?: AccountItemDetailRequestOptions) =>
@@ -349,12 +363,28 @@ contextBridge.exposeInMainWorld("d2", {
       file_path?: string;
       message: string;
     }>,
+  exportWeaponKnowledgePlayerCsv: () =>
+    ipcRenderer.invoke("community:knowledge:player:export") as Promise<{
+      canceled: boolean;
+      file_path?: string;
+      message: string;
+    }>,
   selectWeaponKnowledgeCsv: () =>
     ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token?: string }) | null>,
   confirmWeaponKnowledgeCsvImport: (token: string) =>
     ipcRenderer.invoke("community:knowledge:import:confirm", token) as Promise<WeaponKnowledgeImportResult>,
   getWeaponKnowledgeStatus: () =>
     ipcRenderer.invoke("community:knowledge:status:get") as Promise<WeaponRecommendationKnowledgeStatus | null>,
+  getRecommendationManagement: () =>
+    ipcRenderer.invoke("community:management:get") as Promise<RecommendationManagementSnapshot>,
+  listRecommendationRules: (sourceKey: string, query?: string) =>
+    ipcRenderer.invoke("community:management:rules", sourceKey, query) as Promise<RecommendationManagedRule[]>,
+  setRecommendationSourceState: (sourceKey: string, state: "active" | "disabled" | "removed") =>
+    ipcRenderer.invoke("community:management:source:set", sourceKey, state) as Promise<RecommendationManagementSnapshot>,
+  setRecommendationRuleState: (input: { source_key: string; rule_stable_id: string; state: "active" | "removed"; reason?: string; source_revision?: string }) =>
+    ipcRenderer.invoke("community:management:rule:set", input) as Promise<RecommendationManagementSnapshot>,
+  clearCuratedRecommendationDataset: () =>
+    ipcRenderer.invoke("community:management:curated:clear") as Promise<RecommendationManagementSnapshot>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
   saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>

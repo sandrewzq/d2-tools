@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
-import { app, dialog, ipcMain } from "electron";
+import { join } from "node:path";
+import { dialog, ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
   type LocalCommunityRecommendationTable,
@@ -22,16 +22,30 @@ import {
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
   collectWeaponRecommendationItemHashes,
+  collectWeaponRecommendationNamesWithoutItemIds,
   collectWeaponRecommendationPlugHashes,
   collectWeaponRecommendationPlugSetHashes,
   createWeaponRecommendationCsvTemplate,
+  exportWeaponRecommendationPlayerCsv,
   importWeaponRecommendationCsv,
+  invalidateWeaponRecommendationKnowledgeCache,
   previewWeaponRecommendationCsv,
   readWeaponRecommendationKnowledgeStatus,
-  syncWeaponRecommendationKnowledge,
-  type WeaponKnowledgeImportPreview
+  type WeaponKnowledgeImportPreview,
+  type WeaponKnowledgeValidationContext
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
 import {
+  clearCuratedRecommendationDataset,
+  listRecommendationManagedRules,
+  readRecommendationManagementSnapshot,
+  recommendationSourceItemHashes,
+  updateRecommendationManagedRule,
+  updateRecommendationManagedSource,
+  type RecommendationManagedRule,
+  type RecommendationManagementSnapshot
+} from "@d2-tools/services/community/recommendationManagement";
+import {
+  advanceVaultRecommendationMatchCacheRevision,
   buildVaultRecommendationMatchRevision,
   createVaultWeaponRollFingerprint,
   partitionVaultRecommendationMatchCache,
@@ -46,31 +60,51 @@ import {
   setPersonalWeaponKnowledgeEnabled
 } from "@d2-tools/services/community/personalWeaponKnowledge";
 import { startBackgroundTask } from "../backgroundTasks.js";
-import { getDefinitions } from "../runtime/gameDataRuntime.js";
+import { getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
 import { loadDimWishlist } from "@d2-tools/services/analysis/wishlistStore";
 import { loadManifestVersionCheckCache } from "@d2-tools/services/manifest/cache";
+import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { classifyCommunityIpcError, encodeDesktopIpcFailure } from "../../contracts/errors.js";
 import { getDesktopManifestStatus } from "./manifest.js";
+import { getAccountSnapshot } from "../runtime/accountSession.js";
+import { removeDimWishlistEquipmentTargets } from "./targets.js";
 
-const weaponKnowledgeSyncs = new Map<string, Promise<unknown>>();
 const pendingKnowledgeImports = new Map<string, { path: string; fingerprint: string }>();
 
 export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:knowledge:template:export", async () => {
     const config = loadConfig();
     const result = await dialog.showSaveDialog({
-      title: "导出武器推荐知识库标准模板",
-      defaultPath: join(config.data.data_dir, "武器推荐知识库标准模板.csv"),
+      title: "导出武器推荐玩家模板",
+      defaultPath: join(config.data.data_dir, "武器推荐玩家模板.csv"),
       filters: [{ name: "CSV 文件", extensions: ["csv"] }]
     });
     if (result.canceled || !result.filePath) {
-      return { canceled: true, message: "已取消导出标准模板。" };
+      return { canceled: true, message: "已取消导出玩家模板。" };
     }
     await writeFile(result.filePath, createWeaponRecommendationCsvTemplate(), "utf8");
     return {
       canceled: false,
       file_path: result.filePath,
-      message: "标准模板已导出。请保持 31 列表头和顺序不变，填写后再导入。"
+      message: "普通玩家模板已导出。只需填写武器、来源、用途和推荐 Perk；武器 ID 可留空，官方身份、图标和来源信息由应用读取资料库补齐。"
+    };
+  });
+
+  ipcMain.handle("community:knowledge:player:export", async () => {
+    const config = loadConfig();
+    const result = await dialog.showSaveDialog({
+      title: "导出可编辑武器推荐",
+      defaultPath: join(config.data.data_dir, "武器推荐-可编辑.csv"),
+      filters: [{ name: "CSV 文件", extensions: ["csv"] }]
+    });
+    if (result.canceled || !result.filePath) {
+      return { canceled: true, message: "已取消导出可编辑武器推荐。" };
+    }
+    await writeFile(result.filePath, exportWeaponRecommendationPlayerCsv(config.data.data_dir), "utf8");
+    return {
+      canceled: false,
+      file_path: result.filePath,
+      message: "可编辑武器推荐已导出。系统字段未包含在文件中，重新导入时会自动补齐。"
     };
   });
 
@@ -85,9 +119,10 @@ export function registerCommunityIpcHandlers(): void {
     const path = result.filePaths[0];
     if (result.canceled || !path) return null;
 
-    const preview = await previewStrictWeaponKnowledgeCsv(path);
+    const strictPreview = await previewStrictWeaponKnowledgeCsv(path);
+    const preview = strictPreview.preview;
     pendingKnowledgeImports.clear();
-    if (preview.blocking_issue_count > 0) return preview;
+    if (preview.importable_recommendation_count === 0) return preview;
     const token = randomUUID();
     pendingKnowledgeImports.set(token, { path, fingerprint: preview.fingerprint });
     return { ...preview, token };
@@ -97,26 +132,93 @@ export function registerCommunityIpcHandlers(): void {
     const pending = pendingKnowledgeImports.get(token);
     if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
     pendingKnowledgeImports.delete(token);
-    const verifiedPreview = await previewStrictWeaponKnowledgeCsv(pending.path);
+    const verified = await previewStrictWeaponKnowledgeCsv(pending.path);
+    const verifiedPreview = verified.preview;
     if (verifiedPreview.fingerprint !== pending.fingerprint) {
       throw new Error("武器推荐 CSV 在预览后发生了变化，请重新选择文件。");
     }
-    if (verifiedPreview.blocking_issue_count > 0) {
+    if (verifiedPreview.importable_recommendation_count === 0) {
       throw new Error(formatKnowledgeImportIssue(verifiedPreview));
     }
     const config = loadConfig();
     const result = await importWeaponRecommendationCsv(
       config.data.data_dir,
       pending.path,
-      pending.fingerprint
+      pending.fingerprint,
+      verified.validation
     );
-    weaponKnowledgeSyncs.clear();
     return result;
   });
 
   ipcMain.handle("community:knowledge:status:get", () => {
     const config = loadConfig();
     return readWeaponRecommendationKnowledgeStatus(config.data.data_dir);
+  });
+
+  ipcMain.handle("community:management:get", async () => {
+    const config = loadConfig();
+    return enrichRecommendationManagement(
+      config.data.data_dir,
+      readRecommendationManagementSnapshot(config.data.data_dir)
+    );
+  });
+
+  ipcMain.handle("community:management:rules", async (_event, sourceKey: string, query?: string) => {
+    const config = loadConfig();
+    return hydrateRecommendationManagedRules(
+      listRecommendationManagedRules(config.data.data_dir, sourceKey, query)
+    );
+  });
+
+  ipcMain.handle("community:management:source:set", async (_event, sourceKey: string, state: "active" | "disabled" | "removed") => {
+    const config = loadConfig();
+    const affectedWeaponHashes = recommendationSourceItemHashes(config.data.data_dir, sourceKey);
+    const snapshot = updateRecommendationManagedSource(config.data.data_dir, sourceKey, state);
+    if (sourceKey === "dim_wishlist" && state === "removed") {
+      await removeDimWishlistEquipmentTargets(config.data.data_dir).catch(() => undefined);
+    }
+    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
+    advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
+    return enrichRecommendationManagement(config.data.data_dir, {
+      ...snapshot,
+      affected_weapon_hashes: affectedWeaponHashes
+    });
+  });
+
+  ipcMain.handle("community:management:rule:set", async (_event, input: {
+    source_key: string;
+    rule_stable_id: string;
+    state: "active" | "removed";
+    reason?: string;
+    source_revision?: string;
+  }) => {
+    const config = loadConfig();
+    const affectedWeaponHashes = listRecommendationManagedRules(config.data.data_dir, input.source_key)
+      .find((rule) => rule.rule_stable_id === input.rule_stable_id)
+      ?.weapon_hashes ?? [];
+    const snapshot = updateRecommendationManagedRule(config.data.data_dir, input);
+    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
+    advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
+    return enrichRecommendationManagement(config.data.data_dir, {
+      ...snapshot,
+      affected_weapon_hashes: affectedWeaponHashes
+    });
+  });
+
+  ipcMain.handle("community:management:curated:clear", async () => {
+    const config = loadConfig();
+    const affectedWeaponHashes = uniqueHashes(
+      readRecommendationManagementSnapshot(config.data.data_dir).sources
+        .filter((source) => source.kind === "curated")
+        .flatMap((source) => recommendationSourceItemHashes(config.data.data_dir, source.source_key))
+    );
+    const snapshot = clearCuratedRecommendationDataset(config.data.data_dir);
+    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
+    advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
+    return enrichRecommendationManagement(config.data.data_dir, {
+      ...snapshot,
+      affected_weapon_hashes: affectedWeaponHashes
+    });
   });
 
   ipcMain.handle("community:local:get", () => {
@@ -157,12 +259,12 @@ export function registerCommunityIpcHandlers(): void {
 
   ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
-    await ensureWeaponRecommendationKnowledge(config.data.data_dir);
     const service = createDefaultCommunityPerkService(config);
     const dimPerkHashes = dimRulePerkHashes(config.data.data_dir, [Number(item_hash)]);
     const definitions = await loadCommunityDefinitions([Number(item_hash)], dimPerkHashes);
 
     const merged: SourceOptions = {
+      manifest_version: getDesktopManifestStatus().version,
       itemDefinitions: options?.itemDefinitions ?? definitions.items,
       plugSetDefinitions: options?.plugSetDefinitions ?? definitions.plugSets,
       englishItemDefinitions: options?.englishItemDefinitions,
@@ -195,12 +297,24 @@ export function registerCommunityIpcHandlers(): void {
   });
 }
 
-async function previewStrictWeaponKnowledgeCsv(path: string): Promise<WeaponKnowledgeImportPreview> {
+async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
+  preview: WeaponKnowledgeImportPreview;
+  validation: WeaponKnowledgeValidationContext;
+}> {
+  const manifestVersion = getDesktopManifestStatus().version?.trim() ?? "";
+  if (!manifestVersion) throw new Error("资料库尚未准备完成，不能严格校验武器推荐 CSV。");
   const csvText = readFileSync(path, "utf8");
   const itemHashes = collectWeaponRecommendationItemHashes(csvText);
+  const namesWithoutItemIds = collectWeaponRecommendationNamesWithoutItemIds(csvText);
+  const searchedHashes = namesWithoutItemIds.length === 0
+    ? []
+    : (await Promise.all(namesWithoutItemIds.map((weaponName) => (
+      getGameDataCatalog().searchItems({ query: weaponName, limit: 20 })
+    )))).flat().map((item) => item.hash);
+  const definitionHashes = [...new Set([...itemHashes, ...searchedHashes])];
   const itemDefinitions = await getDefinitions(
     "DestinyInventoryItemDefinition",
-    itemHashes,
+    definitionHashes,
     { projection: "community-match" }
   );
   const plugSetHashes = collectWeaponRecommendationPlugSetHashes(itemDefinitions);
@@ -215,17 +329,24 @@ async function previewStrictWeaponKnowledgeCsv(path: string): Promise<WeaponKnow
     plugHashes,
     { projection: "community-match" }
   );
-  return previewWeaponRecommendationCsv(csvText, path, {
+  const semanticDefinitions = {
     item_definitions: itemDefinitions,
     plug_set_definitions: plugSetDefinitions,
     plug_definitions: plugDefinitions
-  });
+  };
+  return {
+    preview: previewWeaponRecommendationCsv(csvText, path, semanticDefinitions),
+    validation: {
+      manifest_version: manifestVersion,
+      semantic_definitions: semanticDefinitions
+    }
+  };
 }
 
 function formatKnowledgeImportIssue(preview: WeaponKnowledgeImportPreview): string {
   const issue = preview.blocking_issues[0];
   if (!issue) return "武器推荐 CSV 存在无法通过官方资料校验的内容。";
-  return `武器推荐 CSV 有 ${preview.blocking_issue_count} 条异常，不能导入。第 ${issue.row_number} 行“${issue.weapon_name}”的${issue.field}“${issue.value}”：${issue.message}`;
+  return `武器推荐 CSV 没有可导入的有效记录。第 ${issue.row_number} 行“${issue.weapon_name}”的${issue.field}“${issue.value}”：${issue.message}`;
 }
 
 async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<VaultCommunityMatchResult> {
@@ -258,20 +379,36 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<V
       ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
     };
   }
-  await ensureWeaponRecommendationKnowledge(config.data.data_dir);
   const knowledgeStatus = readWeaponRecommendationKnowledgeStatus(config.data.data_dir);
-  const knowledgeAvailable = Boolean(
+  const verifiedKnowledgeAvailable = Boolean(
     knowledgeStatus
     && knowledgeStatus.recommendation_count > 0
     && knowledgeStatus.source_fingerprint
+    && knowledgeStatus.validation_state === "verified"
+    && knowledgeStatus.validated_manifest_version === manifestStatus.version
   );
-  const issues = knowledgeAvailable ? [] : [{
+  // 兼容旧版本已经导入的推荐库：旧库缺少新版校验元数据时，不应让
+  // 用户突然只看到 DIM。旧数据仍参与匹配，但明确标记为未复核，
+  // 新版严格导入仍会在确认前完成完整语义校验。
+  const legacyKnowledgeAvailable = Boolean(
+    knowledgeStatus
+    && knowledgeStatus.recommendation_count > 0
+    && knowledgeStatus.source_fingerprint
+    && knowledgeStatus.validation_state === "unverified"
+    && !knowledgeStatus.validated_manifest_version
+  );
+  const issues = verifiedKnowledgeAvailable ? [] : legacyKnowledgeAvailable ? [{
+    code: "recommendation_legacy_unverified" as const,
+    severity: "warning" as const,
+    message: "当前使用旧版中文推荐数据，尚未按本资料库版本完成复核；建议导入最新武器推荐 CSV。"
+  }] : [{
     code: "recommendation_unavailable" as const,
     severity: "warning" as const,
     message: "中文推荐知识库当前不可用；仍会继续核对 DIM 和本机自定义推荐。"
   }];
   const cacheContext = buildVaultMatchCacheContext(
     config.data.data_dir,
+    loadOAuthToken(config.data.data_dir)?.membership_id?.trim() ?? "",
     manifestStatus.version ?? "",
     manifestStatus.language ?? "",
     knowledgeStatus?.source_fingerprint ?? ""
@@ -288,6 +425,7 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<V
       dimRulePerkHashes(config.data.data_dir, itemHashes)
     );
     const freshMatches = await service.matchVaultItemInstances(missingItems, {
+      manifest_version: manifestStatus.version,
       itemDefinitions: definitions.items,
       plugSetDefinitions: definitions.plugSets
     });
@@ -316,8 +454,8 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<V
     matches,
     issues,
     ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {}),
-    ...(knowledgeStatus?.source_fingerprint
-      ? { recommendation_revision: knowledgeStatus.source_fingerprint }
+    ...(cacheContext.recommendation_revision
+      ? { recommendation_revision: cacheContext.recommendation_revision }
       : {}),
     ...(knowledgeStatus ? { recommendation_schema_version: knowledgeStatus.schema_version } : {})
   };
@@ -325,6 +463,7 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<V
 
 function buildVaultMatchCacheContext(
   dataDir: string,
+  accountKey: string,
   manifestVersion: string,
   manifestLanguage: string,
   curatedRevision: string
@@ -336,6 +475,7 @@ function buildVaultMatchCacheContext(
     // 推荐库不可读时仍使用当前已知 revision，缓存只作为优化。
   }
   return {
+    account_key: accountKey,
     manifest_version: manifestVersion,
     manifest_language: manifestLanguage,
     recommendation_revision: recommendationRevision
@@ -359,39 +499,6 @@ function readVaultMatchCache(
       }))
     };
   }
-}
-
-function ensureWeaponRecommendationKnowledge(dataDir: string): Promise<unknown> {
-  const csvPath = weaponKnowledgeCsvPath(dataDir);
-  const key = `${resolve(dataDir)}\u0000${csvPath}`;
-  const existing = weaponKnowledgeSyncs.get(key);
-  if (existing) return existing;
-
-  const pending = previewStrictWeaponKnowledgeCsv(csvPath).then((preview) => {
-    if (preview.blocking_issue_count > 0) {
-      throw new Error(formatKnowledgeImportIssue(preview));
-    }
-    return syncWeaponRecommendationKnowledge(dataDir, csvPath);
-  }).catch(() => {
-    weaponKnowledgeSyncs.delete(key);
-    return null;
-  });
-  weaponKnowledgeSyncs.set(key, pending);
-  return pending;
-}
-
-function weaponKnowledgeCsvPath(dataDir: string): string {
-  const relativeParts = ["攻略", "T20-武器推荐知识库", "武器推荐.csv"];
-  const configuredPath = process.env.D2_WEAPON_RECOMMENDATIONS_CSV?.trim();
-  const candidates = [
-    ...(configuredPath ? [resolve(configuredPath)] : []),
-    join(dataDir, "imports", "weapon-recommendations.csv"),
-    join(process.resourcesPath, "knowledge", "weapon-recommendations.csv"),
-    resolve(app.getAppPath(), "..", "..", ...relativeParts),
-    resolve(process.cwd(), "..", "..", ...relativeParts),
-    resolve(process.cwd(), ...relativeParts)
-  ];
-  return candidates.find((candidate) => existsSync(candidate)) ?? candidates[0];
 }
 
 async function loadCommunityDefinitions(itemHashes: number[], extraPlugHashes: number[] = []): Promise<{
@@ -454,4 +561,119 @@ function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {
 
 function numberValue(value: unknown): number[] {
   return typeof value === "number" && Number.isFinite(value) ? [value] : [];
+}
+
+function uniqueHashes(values: number[]): number[] {
+  return [...new Set(values.filter((value) => Number.isInteger(value) && value >= 0 && value <= 4_294_967_295))];
+}
+
+function advanceRecommendationMatchCacheRevision(dataDir: string, affectedWeaponHashes: readonly number[]): void {
+  try {
+    const curatedRevision = readWeaponRecommendationKnowledgeStatus(dataDir)?.source_fingerprint ?? "";
+    advanceVaultRecommendationMatchCacheRevision(
+      dataDir,
+      buildVaultRecommendationMatchRevision(dataDir, curatedRevision),
+      affectedWeaponHashes
+    );
+  } catch {
+    // 派生缓存失效失败不影响来源操作；下一次核对会按 revision 自动重建。
+  }
+}
+
+async function enrichRecommendationManagement(
+  dataDir: string,
+  snapshot: RecommendationManagementSnapshot
+): Promise<RecommendationManagementSnapshot> {
+  const accountCountByHash = await loadCachedAccountCountByHash();
+  return {
+    ...snapshot,
+    removed_rules: await hydrateRecommendationManagedRules(snapshot.removed_rules, accountCountByHash),
+    sources: snapshot.sources.map((source) => {
+      let affectedInstanceCount = 0;
+      try {
+        for (const itemHash of recommendationSourceItemHashes(dataDir, source.source_key)) {
+          affectedInstanceCount += accountCountByHash.get(itemHash) ?? 0;
+        }
+      } catch {
+        // 数据源已经移除或暂时不可读时按 0 展示，不阻断其他来源。
+      }
+      return { ...source, affected_instance_count: affectedInstanceCount };
+    })
+  };
+}
+
+async function hydrateRecommendationManagedRules(
+  rules: RecommendationManagedRule[],
+  accountCountByHash?: ReadonlyMap<number, number>
+): Promise<RecommendationManagedRule[]> {
+  const instanceCounts = accountCountByHash ?? await loadCachedAccountCountByHash();
+  const hashes = new Set<number>();
+  for (const rule of rules) {
+    rule.weapon_hashes.forEach((hash) => hashes.add(hash));
+    for (const requirement of rule.requirements) {
+      for (const name of requirement.names) {
+        const hash = exactUnsignedHash(name);
+        if (hash !== null) hashes.add(hash);
+      }
+    }
+  }
+  if (!hashes.size) {
+    return rules.map((rule) => ({ ...rule, affected_instance_count: 0 }));
+  }
+
+  let definitions: DefinitionComponentData = {};
+  try {
+    definitions = await getDefinitions(
+      "DestinyInventoryItemDefinition",
+      hashes,
+      { projection: "community-match" }
+    );
+  } catch {
+    // Definition 读取失败时仍返回规则与影响数量，名称保留原始 Hash 文案。
+  }
+  const displayName = (hash: number): string => (
+    (definitions[String(hash)] as DefinitionRecord | undefined)?.displayProperties?.name?.trim()
+    || String(hash)
+  );
+  return rules.map((rule) => ({
+    ...rule,
+    affected_instance_count: rule.weapon_hashes.reduce((count, hash) => count + (instanceCounts.get(hash) ?? 0), 0),
+    weapon_name: rule.weapon_hashes[0] !== undefined
+      ? displayName(rule.weapon_hashes[0])
+      : rule.weapon_name,
+    requirements: rule.requirements.map((requirement) => ({
+      ...requirement,
+      names: requirement.names.map((name) => {
+        const hash = exactUnsignedHash(name);
+        return hash === null ? name : displayName(hash);
+      })
+    }))
+  }));
+}
+
+async function loadCachedAccountCountByHash(): Promise<Map<number, number>> {
+  const counts = new Map<number, number>();
+  try {
+    const account = await getAccountSnapshot("cached");
+    const accountItems = [
+      ...account.vault.items,
+      ...account.characters.flatMap((character) => [
+        ...character.equipped_items,
+        ...character.inventory_items,
+        ...character.postmaster_items
+      ])
+    ];
+    for (const item of accountItems) {
+      counts.set(item.hash, (counts.get(item.hash) ?? 0) + 1);
+    }
+  } catch {
+    // 来源管理仍可离线使用；账号影响数量只是辅助信息。
+  }
+  return counts;
+}
+
+function exactUnsignedHash(value: string): number | null {
+  if (!/^\d+$/.test(value.trim())) return null;
+  const hash = Number(value);
+  return Number.isInteger(hash) && hash >= 0 && hash <= 0xffff_ffff ? hash : null;
 }

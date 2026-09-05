@@ -66,7 +66,6 @@ export async function saveCachedAccountSnapshot(
 ): Promise<CachedAccountSnapshot> {
   const target = snapshotPath(dataDir);
   const previous = saveQueues.get(target) ?? Promise.resolve();
-  let committed: CachedAccountSnapshot | null = null;
   const operation = previous.catch(() => undefined).then(async () => {
     await mkdir(dataDir, { recursive: true });
     const previousRevision = await readPersistedRevision(target);
@@ -84,7 +83,7 @@ export async function saveCachedAccountSnapshot(
     try {
       await writeFile(temporary, `${JSON.stringify(cached)}\n`, "utf8");
       await rename(temporary, target);
-      committed = cached;
+      return cached;
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined);
     }
@@ -92,14 +91,10 @@ export async function saveCachedAccountSnapshot(
   const tail = operation.then(() => undefined, () => undefined);
   saveQueues.set(target, tail);
   try {
-    await operation;
+    return await operation;
   } finally {
     if (saveQueues.get(target) === tail) saveQueues.delete(target);
   }
-  // The operation either commits the value or rejects. Keep an explicit guard
-  // so the return type remains sound even if the queue implementation changes.
-  if (!committed) throw new Error("Account snapshot cache was not committed");
-  return committed;
 }
 
 const revisionWidth = 24;

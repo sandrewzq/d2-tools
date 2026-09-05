@@ -64,6 +64,7 @@ export function replaceAccountSummary(
   if (summary
     && state.account
     && startedBeforeCurrentState
+    && !options.authoritative
     && accountProfileVersion(summary) === 0) {
     return false;
   }
@@ -71,7 +72,7 @@ export function replaceAccountSummary(
   if (!summary) {
     committedPatchesByInstanceId.clear();
   }
-  let next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
+  const next = summary ? normalizeAccountSummary(summary, state.revision + 1) : {
     ...emptyState,
     revision: state.revision + 1
   };
@@ -79,8 +80,6 @@ export function replaceAccountSummary(
     for (const [instanceId, patch] of committedPatchesByInstanceId) {
       if (isAccountItemActionPatchReflected(summary, patch)) {
         committedPatchesByInstanceId.delete(instanceId);
-      } else {
-        next = applyPatch(next, patch);
       }
     }
   }
@@ -103,7 +102,6 @@ export function applyAccountEntityPatches(patches: readonly AccountItemActionPat
 export function applyCommittedAccountEntityPatches(patches: readonly AccountItemActionPatch[]): void {
   if (!state.account || !patches.length) return;
   for (const patch of patches) clearConflictingCommittedPatches(patch);
-  applyAccountEntityPatches(patches);
   for (const patch of patches) {
     committedPatchesByInstanceId.delete(patch.item_instance_id);
     committedPatchesByInstanceId.set(patch.item_instance_id, patch);

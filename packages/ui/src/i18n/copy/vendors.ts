@@ -13,7 +13,7 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "未连接 Bungie": "未连接 Bungie",
         "账号还没有登录": "账号还没有登录",
         "还没有配置 Bungie 应用": "还没有配置 Bungie 应用",
-        "先登录 Bungie，读取账号数据后才能加载角色商人库存。": "先登录 Bungie，读取账号数据后才能加载角色商人库存。",
+        "先登录 Bungie；登录后会自动同步装备数据并加载角色商人库存。": "先登录 Bungie；登录后会自动同步装备数据并加载角色商人库存。",
         "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。": "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。",
         "登录 Bungie": "登录 Bungie",
         "去设置 Bungie": "去设置 Bungie"
@@ -54,7 +54,7 @@ export const vendorsCopy: Record<InterfaceLocale, LocaleCopy["vendors"]> = {
         "未连接 Bungie": "Bungie disconnected",
         "账号还没有登录": "Bungie account is not signed in",
         "还没有配置 Bungie 应用": "Bungie app is not configured",
-        "先登录 Bungie，读取账号数据后才能加载角色商人库存。": "Sign in to Bungie to load vendor inventory for your characters.",
+        "先登录 Bungie；登录后会自动同步装备数据并加载角色商人库存。": "Sign in to Bungie; gear data and character vendor inventory will load automatically afterward.",
         "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。": "Configure the Bungie app in Settings, then sign in to load vendor inventory.",
         "登录 Bungie": "Sign in to Bungie",
         "去设置 Bungie": "Configure Bungie"

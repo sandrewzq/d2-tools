@@ -1,10 +1,11 @@
-import { ipcMain } from "electron";
+import { BrowserWindow, ipcMain } from "electron";
 import type {
   AccountItemDetailRequestOptions,
   AccountResourceRequestOptions,
   AccountSummary,
   AccountSummaryRequestOptions
 } from "../../contracts/account.js";
+import { accountSnapshotChangedChannel } from "../../contracts/account.js";
 import {
   classifyAccountIpcError,
   encodeDesktopIpcFailure
@@ -18,11 +19,28 @@ import {
   getAccountItemDetailByInstanceId,
   getAccountSnapshot,
   getAccountItemDetailResource,
-  getAccountSnapshotResource
+  getAccountSnapshotResource,
+  subscribeAccountSnapshotChanged
 } from "../runtime/accountSession.js";
 import { measureRuntime } from "../runtime/runtimeMetrics.js";
 
+let activeAccountSummaryRequests = 0;
+let isBroadcastingAccountSnapshots = false;
+
 export function registerAccountIpcHandlers(): void {
+  if (!isBroadcastingAccountSnapshots) {
+    isBroadcastingAccountSnapshots = true;
+    subscribeAccountSnapshotChanged((snapshot) => {
+      // account:summary already returns this snapshot to its caller. Suppressing
+      // the parallel event avoids sending the same multi-megabyte payload twice.
+      if (activeAccountSummaryRequests > 0) return;
+      for (const window of BrowserWindow.getAllWindows()) {
+        if (window.isDestroyed()) continue;
+        window.webContents.send(accountSnapshotChangedChannel, snapshot);
+      }
+    });
+  }
+
   ipcMain.handle("account:snapshot:cached", async () => {
     const config = loadConfig();
     const accountId = loadOAuthToken(config.data.data_dir)?.membership_id;
@@ -63,8 +81,13 @@ export function registerAccountIpcHandlers(): void {
 }
 
 async function loadAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary> {
-  return getAccountSnapshot(
-    options?.force ? "refresh" : "cached",
-    options?.authoritative ? { authoritative: true } : {}
-  );
+  activeAccountSummaryRequests += 1;
+  try {
+    return await getAccountSnapshot(
+      options?.force ? "refresh" : "cached",
+      options?.authoritative ? { authoritative: true } : {}
+    );
+  } finally {
+    activeAccountSummaryRequests = Math.max(0, activeAccountSummaryRequests - 1);
+  }
 }

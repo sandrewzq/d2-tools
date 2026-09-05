@@ -21,6 +21,7 @@ export type PerkRef = {
 };
 
 export type PerkCombo = {
+  rule_stable_id?: string;
   perks: PerkRef[];
   popularity?: number;
   source: "dim_wishlist" | "ai_lightgg" | "local_community";
@@ -80,6 +81,7 @@ export type RecommendationSourceRequirement = {
 };
 
 export type RecommendationSourceRecord = {
+  rule_stable_id: string;
   source_id: string;
   source_label: string;
   source_url?: string;
@@ -105,10 +107,18 @@ export type RecommendationSourceSlotMatch = {
 };
 
 export type RecommendationSourceMatch = {
+  rule_stable_id: string;
   source_id: string;
   source_label: string;
   source_url?: string;
-  state: "checked" | "weapon_only" | "not_covered" | "uncheckable";
+  state:
+    | "full"
+    | "core"
+    | "close"
+    | "key_missing"
+    | "not_matched"
+    | "weapon_only"
+    | "uncheckable";
   matched_requirement_count: number;
   requirement_count: number;
   checkable_requirement_count: number;
@@ -124,6 +134,7 @@ export type RecommendationSourceMatch = {
 };
 
 export type SourceOptions = {
+  manifest_version?: string;
   itemDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   englishItemDefinitions?: DefinitionComponentData;
@@ -162,12 +173,14 @@ export type VaultItemInstanceMatchInfo = VaultItemMatchInfo & {
   canonical_weapon_name: string;
   coverage: "covered" | "uncovered";
   match_status: "full_match" | "partial_match" | "no_match" | "indeterminate";
+  recommendation_state: "priority" | "compare" | "uncovered";
   partial: number;
   source_matches?: RecommendationSourceMatch[];
   dim_wishlist?: DimWishlistInstanceMatch;
 };
 
 export type DimWishlistRuleInstanceMatch = {
+  rule_stable_id?: string;
   mode: "pve" | "pvp" | "general";
   state: "match" | "partial" | "different" | "uncheckable";
   matched_requirement_count: number;
@@ -176,6 +189,7 @@ export type DimWishlistRuleInstanceMatch = {
 };
 
 export type DimWishlistInstanceMatch = {
+  state: "full" | "close" | "not_matched" | "uncheckable";
   matched_combo_count: number;
   partial_combo_count: number;
   uncheckable_combo_count: number;
@@ -189,6 +203,7 @@ export type DimWishlistInstanceMatch = {
 export type VaultRecommendationDependencyIssueCode =
   | "manifest_unavailable"
   | "manifest_outdated"
+  | "recommendation_legacy_unverified"
   | "recommendation_unavailable";
 
 export type VaultRecommendationDependencyIssue = {

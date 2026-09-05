@@ -23,7 +23,7 @@ export function StartupGate(props: StartupGateProps) {
     : "最后一步：登录 Bungie";
   const currentDetail = props.step === "bungie-config"
     ? "填写 Bungie Application 的 API Key、Client ID 和 Client Secret，保存后会在后台准备资料库。"
-    : "登录不依赖资料库。登录后会先读取账号数据，资料库继续在后台准备，名称和图标会在准备完成后补齐。";
+    : "登录不依赖资料库。登录后会先同步装备数据，资料库继续在后台准备，名称和图标会在准备完成后补齐。";
 
   return (
     <ProductWorkspaceEmptyState className="startup-gate startup-gate--page" ariaLive="polite" ariaBusy={props.isBusy}>

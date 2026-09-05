@@ -72,27 +72,35 @@ export type DimWishlistOnlineActivationResult = {
 
 export type WeaponRecommendationKnowledgeStatus = {
   schema_version: number;
+  semantic_validation_version: number;
+  validated_manifest_version: string;
+  validation_state: "verified" | "unverified";
+  dataset_revision: string;
   database_path: string;
   source_fingerprint: string;
   imported_at: string;
   recommendation_count: number;
   weapon_count: number;
   source_count: number;
+  skipped_row_count: number;
 };
 
 export type WeaponKnowledgeImportPreview = {
   file_name: string;
+  import_mode: "merge" | "replace";
   recommendation_count: number;
+  importable_recommendation_count: number;
   weapon_count: number;
   source_count: number;
   source_labels: string[];
   fingerprint: string;
   blocking_issue_count: number;
+  skipped_row_count: number;
   blocking_issues: Array<{
     row_number: number;
     weapon_name: string;
     source_label: string;
-    field: "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+    field: "推荐来源" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
     value: string;
     message: string;
   }>;
@@ -100,10 +108,49 @@ export type WeaponKnowledgeImportPreview = {
 
 export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
   file_name: string;
+  imported_row_count: number;
+  import_mode: "merge" | "replace";
 };
 
 export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
   token?: string;
+};
+
+export type RecommendationManagedSource = {
+  source_key: string;
+  label: string;
+  kind: "curated" | "dim";
+  state: "active" | "disabled" | "removed";
+  configured: boolean;
+  rule_count: number;
+  weapon_count: number;
+  revision: string;
+  imported_at: string;
+  affected_instance_count?: number;
+};
+
+export type RecommendationManagedRule = {
+  source_key: string;
+  source_label: string;
+  rule_stable_id: string;
+  weapon_hashes: number[];
+  weapon_name: string;
+  purposes: Array<"pve" | "pvp" | "general">;
+  requirements: Array<{ slot: string; names: string[] }>;
+  note: string;
+  state: "active" | "removed";
+  review_required: boolean;
+  source_revision: string;
+  reason: string;
+  affected_instance_count?: number;
+};
+
+export type RecommendationManagementSnapshot = {
+  curated_revision: string;
+  dim_revision: string;
+  sources: RecommendationManagedSource[];
+  removed_rules: RecommendationManagedRule[];
+  affected_weapon_hashes?: number[];
 };
 
 export type FileExportResult = {

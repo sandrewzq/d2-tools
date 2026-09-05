@@ -109,9 +109,9 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
           {props.error ? <p className="status-message status-error">{props.error}</p> : null}
           {!props.hasAccountItems ? (
             <div className="item-detail-inline-status">
-              <p>先读取账号数据，AI 才能结合角色、仓库、背包、标签、备注和今日信息分析。历史记录仍可查看和恢复。</p>
+              <p>先同步装备数据，AI 才能结合角色、仓库、背包、标签、备注和今日信息分析。历史记录仍可查看和恢复。</p>
               <button type="button" disabled={props.isLoadingAccount} onClick={props.onLoadAccount}>
-                {props.isLoadingAccount ? "读取中..." : "读取账号数据"}
+                {props.isLoadingAccount ? "正在同步装备数据..." : "同步装备数据"}
               </button>
             </div>
           ) : null}
@@ -148,7 +148,7 @@ export function AiAssistantPanelView(props: AiAssistantPanelViewProps) {
             <>
               <article className="ai-chat-message" data-ui-kind="callout">
                 <strong>当前页面上下文已就绪</strong>
-                <p>可以基于当前页面和已读取账号数据回答；详细上下文可通过顶部状态入口查看。</p>
+                <p>可以基于当前页面和已同步装备数据回答；详细上下文可通过顶部状态入口查看。</p>
               </article>
               <article className="ai-chat-message ai-chat-ready-message" data-ui-kind="callout">
                 <strong>等待提问</strong>

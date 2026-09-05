@@ -13,8 +13,6 @@ import { recordAccountCacheMetric } from "./cacheMetrics.js";
 export type AccountDataRepositoryOptions = {
   session: AccountSession;
   now?: () => number;
-  snapshotTtlMs?: number;
-  itemDetailTtlMs?: number;
   resolveItemQuery?: (snapshot: AccountSnapshot, instanceId: string) => AccountItemDetailQuery | null;
   onSnapshotRequest?: (outcome: "started" | "cache-hit" | "in-flight-reused") => void;
 };
@@ -23,22 +21,20 @@ export type AccountDataRepository = {
   getSnapshot(options?: { freshness?: "cached" | "allow-stale" | "refresh" }): Promise<DataResource<AccountSnapshot>>;
   getItemDetail(instanceId: string, options?: { freshness?: "cached" | "allow-stale" | "refresh" }): Promise<DataResource<AccountItemDetailResult>>;
   prefetchItems(instanceIds: readonly string[], options?: { priority?: "visible" | "background" }): Promise<void>;
-  invalidate(input: { scope: "all" | "snapshot" | "item"; instance_id?: string }): void;
+  invalidate(input: { scope: "all" | "snapshot" | "items" | "item"; instance_id?: string }): void;
   subscribe(resource: "snapshot" | "item", key: string | undefined, listener: (value: DataResource<unknown>) => void): () => void;
 };
 
 /**
- * Shared local-first facade for account data. UI consumers subscribe to this
- * facade instead of issuing independent Bungie requests; stale data remains
- * visible while a refresh runs in the background.
+ * Shared facade for account and item-detail data. Account snapshots only change
+ * after an explicit refresh; item details may still use their versioned cache.
  */
 export function createAccountDataRepository(options: AccountDataRepositoryOptions): AccountDataRepository {
   const now = options.now ?? Date.now;
-  const snapshotTtlMs = options.snapshotTtlMs ?? 45_000;
-  const itemDetailTtlMs = options.itemDetailTtlMs ?? 45_000;
   let snapshotResource: DataResource<AccountSnapshot> | undefined;
   let snapshotRequest: Promise<DataResource<AccountSnapshot>> | undefined;
   let repositoryEpoch = 0;
+  let itemRepositoryEpoch = 0;
   const itemResources = new Map<string, DataResource<AccountItemDetailResult>>();
   const itemRequests = new Map<string, Promise<DataResource<AccountItemDetailResult>>>();
   const itemEpochs = new Map<string, number>();
@@ -63,6 +59,7 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
     invalidate(input) {
       if (input.scope === "all") {
         repositoryEpoch += 1;
+        itemRepositoryEpoch += 1;
         snapshotResource = undefined;
         itemResources.clear();
         itemRequests.clear();
@@ -71,9 +68,17 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
       }
       if (input.scope === "snapshot") {
         repositoryEpoch += 1;
+        itemRepositoryEpoch += 1;
         snapshotResource = undefined;
         itemResources.clear();
         itemRequests.clear();
+        return;
+      }
+      if (input.scope === "items") {
+        itemRepositoryEpoch += 1;
+        itemResources.clear();
+        itemRequests.clear();
+        itemEpochs.clear();
         return;
       }
       if (input.instance_id) {
@@ -113,18 +118,9 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
       recordAccountCacheMetric("snapshot", "miss");
     }
     if (existing?.data && freshness !== "refresh") {
-      const isFresh = (existing.status === "cached" || existing.status === "ready")
-        && (!existing.staleAt || Date.parse(existing.staleAt) > now());
-      if (isFresh) {
-        recordAccountCacheMetric("snapshot", "hit");
-        reportSnapshotRequest("cache-hit");
-        return existing;
-      }
-      recordAccountCacheMetric("snapshot", "stale");
-      if (freshness === "allow-stale") {
-        void refreshSnapshot();
-        return withRefreshing(existing);
-      }
+      recordAccountCacheMetric("snapshot", "hit");
+      reportSnapshotRequest("cache-hit");
+      return existing;
     }
     if (snapshotRequest) {
       reportSnapshotRequest("in-flight-reused");
@@ -148,8 +144,7 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
         // perform the first remote read; `merged` avoids claiming either
         // source without an explicit provenance field.
         source: "merged",
-        fetchedAt,
-        staleAt: new Date(now() + snapshotTtlMs).toISOString()
+        fetchedAt
       }, now());
       emit("snapshot", undefined, snapshotResource);
       return snapshotResource;
@@ -183,8 +178,7 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
       snapshotResource = createDataResource({
         data,
         source: "remote",
-        fetchedAt,
-        staleAt: new Date(now() + snapshotTtlMs).toISOString()
+        fetchedAt
       }, now());
       emit("snapshot", undefined, snapshotResource);
       return snapshotResource;
@@ -209,18 +203,8 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
       recordAccountCacheMetric("item-detail", "miss");
     }
     if (existing?.data && freshness !== "refresh") {
-      const isFresh = (existing.status === "cached" || existing.status === "ready")
-        && (!existing.staleAt || Date.parse(existing.staleAt) > now());
-      if (isFresh) {
-        recordAccountCacheMetric("item-detail", "hit");
-        return existing;
-      }
-      recordAccountCacheMetric("item-detail", "stale");
-      if (freshness === "allow-stale") {
-        recordAccountCacheMetric("item-detail", "refresh");
-        void refreshItem(instanceId, true);
-        return withRefreshing(existing);
-      }
+      recordAccountCacheMetric("item-detail", "hit");
+      return existing;
     }
     const pending = itemRequests.get(instanceId);
     if (pending) return pending;
@@ -236,6 +220,7 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
   async function refreshItem(instanceId: string, force = false): Promise<DataResource<AccountItemDetailResult>> {
     if (!force) recordAccountCacheMetric("item-detail", "refresh");
     const requestEpoch = itemEpochs.get(instanceId) ?? 0;
+    const requestRepositoryEpoch = itemRepositoryEpoch;
     const previous = itemResources.get(instanceId);
     if (previous?.data) {
       const refreshing = withRefreshing(previous);
@@ -247,17 +232,15 @@ export function createAccountDataRepository(options: AccountDataRepositoryOption
       const query = snapshot && (options.resolveItemQuery?.(snapshot, instanceId) ?? findItemQuery(snapshot, instanceId));
       if (!query) throw new Error("当前账号快照中找不到该装备");
       const detail = await options.session.getItemDetail(query, { freshness: force ? "refresh" : "cached" });
-      if (requestEpoch !== (itemEpochs.get(instanceId) ?? 0)) {
+      if (requestRepositoryEpoch !== itemRepositoryEpoch
+        || requestEpoch !== (itemEpochs.get(instanceId) ?? 0)) {
         return itemResources.get(instanceId) ?? createDataResource<AccountItemDetailResult>({ data: null, source: "local", unavailable: true }, now());
       }
       const fetchedAt = detail.fetched_at ?? new Date(now()).toISOString();
-      const isStale = detail.cache_status === "stale";
       const resource = createDataResource({
         data: detail,
-        source: isStale ? "local" : "remote",
-        fetchedAt,
-        staleAt: isStale ? new Date(now()).toISOString() : toStaleAt(fetchedAt, itemDetailTtlMs),
-        ...(isStale ? { error: { code: "stale_cache", message: "显示的是本地缓存，等待网络同步" } } : {})
+        source: detail.fetched_at ? "local" : "remote",
+        fetchedAt
       }, now());
       itemResources.set(instanceId, resource);
       emit("item", instanceId, resource);
@@ -332,11 +315,4 @@ function toResourceError(error: unknown): DataResourceError {
     code: typeof error === "object" && error && "code" in error && typeof error.code === "string" ? error.code : "account_data_unavailable",
     message: error instanceof Error ? error.message : "账号数据暂时不可用"
   };
-}
-
-function toStaleAt(fetchedAt: string, ttlMs: number): string {
-  const timestamp = Date.parse(fetchedAt);
-  return Number.isFinite(timestamp)
-    ? new Date(timestamp + ttlMs).toISOString()
-    : new Date().toISOString();
 }

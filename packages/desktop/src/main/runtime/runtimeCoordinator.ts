@@ -2,7 +2,6 @@ import type { HomeBriefing } from "../../contracts/daily.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { recoverSqliteManifest } from "@d2-tools/services/manifest/lifecycle";
 import {
-  getAccountSnapshot,
   resetAccountSession,
   warmAccountSession
 } from "./accountSession.js";
@@ -86,14 +85,13 @@ async function runStagedWarmup(generation: number): Promise<void> {
   const sqliteReady = await warmSqliteRuntime(generation);
   if (!sqliteReady || generation !== runtimeGeneration) return;
 
-  const accountCacheReady = await warmAccountCache(generation);
+  await warmAccountCache(generation);
   if (generation !== runtimeGeneration) return;
 
-  const accountRefresh = accountCacheReady
-    ? getAccountSnapshot("refresh")
-    : Promise.resolve();
+  // 启动阶段只恢复本地账号会话。远程 Profile 由 Renderer 的全局账号
+  // 控制器执行一次可见初始同步，避免主进程与页面形成两套刷新所有者。
   const homeRefresh = requestHomeBriefing();
-  await Promise.allSettled([accountRefresh, homeRefresh]);
+  await Promise.allSettled([homeRefresh]);
 }
 
 function warmManifestRecovery(generation: number): Promise<boolean> {

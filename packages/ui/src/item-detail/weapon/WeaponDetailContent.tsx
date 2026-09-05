@@ -4,7 +4,6 @@ import { GameCombatIcon } from "../../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
 import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
 import type {
-  WeaponDetailInstance,
   WeaponDetailViewModel,
   WeaponPerkCandidate,
   WeaponPerkColumnRole,
@@ -20,6 +19,11 @@ import type {
 } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
 import type { RecommendationSourceMatch, RecommendationSourceSlotMatch } from "@d2-tools/core/community-perks";
 import type { ItemReleaseKind } from "@d2-tools/core/items/release";
+import {
+  isDimRecommendationSource,
+  presentCuratedRecommendationMatch,
+  presentRecommendationSlotMatch
+} from "../../recommendationMatchPresentation.js";
 
 export type WeaponDetailSection =
   | "overview"
@@ -37,7 +41,7 @@ export type WeaponDetailContentActions = {
   cancelPendingPerks?: () => void;
   applyPendingPerks?: () => void | Promise<void>;
   refreshConfiguration?: () => void | Promise<void>;
-  selectInstance?: (instance: WeaponDetailInstance) => boolean | void;
+  loadConfiguration?: () => void | Promise<void>;
   runAnalysis?: (request: { prompt: string; allow_external_search: boolean }) => void;
   saveKnowledge?: (draft: SavePersonalWeaponKnowledgeInput["entry"]) => void;
   setKnowledgeEnabled?: (id: string, enabled: boolean) => void;
@@ -78,8 +82,8 @@ export type WeaponDetailContentProps = {
 
 const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
   { key: "configuration", label: "当前配置" },
-  { key: "overview", label: "属性与获取" },
   { key: "recommendations", label: "推荐 Roll" },
+  { key: "overview", label: "属性与获取" },
   { key: "upgrades", label: "升级与锻造" },
   { key: "analysis", label: "AI 分析" }
 ];
@@ -239,7 +243,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           aria-expanded={instanceRailOpen}
           aria-controls={`${sectionIdPrefix}-instance-rail`}
           onClick={() => setInstanceRailOpen((value) => !value)}
-        >我的同名武器</button>
+        >武器操作</button>
       </nav>
 
       <div className="weapon-detail-workspace" data-surface="split">
@@ -253,16 +257,16 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               configurationWriteFeedback={props.configurationWriteFeedback}
             />
           </section>
-          <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
-            <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
-          </section>
-          <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section">
+          <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section weapon-detail-recommendation-section">
             <RecommendationSection
               model={model}
               evidence={props.recommendationEvidence}
               source={targetSource}
               onSourceChange={setTargetSource}
             />
+          </section>
+          <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
+            <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
           </section>
           <section ref={(node) => { sectionRefs.current.upgrades = node; }} id={`${sectionIdPrefix}-upgrades`} className="weapon-detail-section">
             <UpgradeSection model={model} />
@@ -290,18 +294,18 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           data-surface="drawer"
           data-ui-kind="drawer"
           data-scroll-region="pane"
-          aria-label="当前装备与我的同名武器"
+          aria-label="当前武器操作"
           onKeyDown={handleInstanceRailKeyDown}
         >
           <header className="weapon-detail-rail-drawer-head">
-            <div><span>武器操作</span><strong>我的同名武器</strong></div>
+            <div><span>武器操作</span><strong>当前装备</strong></div>
             <button
               ref={instanceRailCloseRef}
               type="button"
               className="weapon-detail-rail-close"
               data-ui-kind="button"
               data-control-variant="quiet"
-              aria-label="关闭我的同名武器"
+              aria-label="关闭武器操作"
               title="关闭"
               onClick={() => setInstanceRailOpen(false)}
             >×</button>
@@ -311,16 +315,9 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           ) : (
             <div className="weapon-detail-instance-readonly">
               <h3>当前内容仅供查看</h3>
-              <p>选择下方账号中已有的装备后，可执行装备、转移、锁定和本地整理。</p>
+              <p>资料库定义和商人售卖内容没有可执行的实例操作。</p>
             </div>
           )}
-          <InstancesRail
-            model={model}
-            onSelect={props.actions?.selectInstance ? (instance) => {
-              const selected = props.actions?.selectInstance?.(instance);
-              if (selected !== false) setInstanceRailOpen(false);
-            } : undefined}
-          />
         </aside>
       </div>
       <button
@@ -328,7 +325,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
         className={["weapon-detail-rail-scrim", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
         data-ui-kind="button"
         data-control-variant="quiet"
-        aria-label="关闭我的同名武器"
+        aria-label="关闭武器操作"
         onClick={() => setInstanceRailOpen(false)}
       />
     </article>
@@ -344,9 +341,8 @@ function WeaponIdentity(props: {
   const releaseLabel = identity.release?.description ?? "官方发布版本未标注";
   const definitionVersionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
   const watermarks = identity.definition_version?.watermark_icons ?? [];
-  const currentInstance = props.model.same_hash_instances.find((instance) => instance.current);
   const locationLabel = context.kind === "account_instance"
-    ? context.location_label ?? currentInstance?.location ?? context.entry_label
+    ? context.location_label ?? context.entry_label
     : context.kind === "vendor_offer"
       ? "商人当前售卖"
       : "资料库";
@@ -739,6 +735,8 @@ function ConfigurationSection(props: {
         : "当前查看内容为只读，不提供远程配置操作。";
   const operationLabel = canWriteConfiguration
     ? "可远程切换 · 需要联网"
+    : props.actions?.loadConfiguration
+      ? "当前 Roll 已显示 · 完整配置按需读取"
     : context.kind === "account_instance" && configuration.kind === "fixed"
       ? "固定配置 · 只读"
       : "只读";
@@ -755,7 +753,8 @@ function ConfigurationSection(props: {
           pendingChangeCount,
           operationLabel,
           isDefinitionLoading,
-          isInstanceLoading
+          isInstanceLoading,
+          Boolean(props.actions?.loadConfiguration)
         ).map((item) => (
           <div key={item.label}>
             <span>{item.label}</span>
@@ -770,6 +769,12 @@ function ConfigurationSection(props: {
             ? "依据：商人当前售卖配置与资料库 Perk 信息"
             : "依据：资料库 Perk 信息"}
       </p>
+      {props.actions?.loadConfiguration && !isConfigurationLoading ? (
+        <div className="weapon-detail-config-on-demand" data-ui-kind="callout" data-status="neutral">
+          <span><strong>当前 Roll 已可查看</strong><small>完整候选、可切换项和详细说明只在需要时读取，不再每次打开详情都请求游戏服务。</small></span>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.loadConfiguration?.()}>读取完整 Roll</button>
+        </div>
+      ) : null}
       {isConfigurationLoading ? (
         <p className="weapon-detail-config-loading-note" role="status" aria-live="polite">
           <span aria-hidden="true" />
@@ -877,7 +882,8 @@ function configurationSummaryItems(
   pendingChangeCount: number,
   operationLabel: string,
   isDefinitionLoading: boolean,
-  isInstanceLoading: boolean
+  isInstanceLoading: boolean,
+  canLoadConfiguration: boolean
 ): Array<{ label: string; value: string }> {
   const selectedPerks = model.configuration.selection_columns.flatMap((column) => (
     column.candidates.filter((candidate) => candidate.selected).map((candidate) => candidate.name)
@@ -898,7 +904,7 @@ function configurationSummaryItems(
     return [
       { label: "当前查看", value: "这件武器" },
       { label: "本件 Roll", value: currentRoll.join(" / ") || (isInstanceLoading ? "正在读取" : "当前配置未返回") },
-      { label: "可切换", value: switchableColumns ? `${switchableColumns} 个插槽` : isInstanceLoading ? "正在核对" : "没有可远程切换项" },
+      { label: "可切换", value: switchableColumns ? `${switchableColumns} 个插槽` : isInstanceLoading ? "正在核对" : canLoadConfiguration ? "展开后核对" : "没有可远程切换项" },
       { label: "配置状态", value: pendingChangeCount ? `${pendingChangeCount} 项待应用` : isDefinitionLoading || isInstanceLoading ? "读取中" : operationLabel }
     ];
   }
@@ -1052,7 +1058,7 @@ function RecommendationSection(props: {
   };
   const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
   const sourceMatches = evidence
-    ? [...evidence.sourceMatches].sort((left, right) => (
+    ? evidence.sourceMatches.filter((source) => !isDimRecommendationSource(source.source_id)).sort((left, right) => (
         recommendationSourceOrder(left.source_id) - recommendationSourceOrder(right.source_id)
         || recommendationSourceLabel(left.source_id, left.source_label).localeCompare(
           recommendationSourceLabel(right.source_id, right.source_label),
@@ -1082,12 +1088,12 @@ function RecommendationSection(props: {
   };
   return (
     <>
-      <SectionHeading eyebrow="推荐 Roll" title="推荐 Roll 核对" description={isFixedExotic ? "固定异域不进行随机 Roll 核对；攻略推荐、DIM 和我的推荐只保留拥有状态、催化剂进度与使用建议。" : "各来源分别判断，不会把不同来源的 Perk 拼在一起。"} />
+      <SectionHeading eyebrow="推荐判断" title="这件武器的推荐 Roll" description={isFixedExotic ? "固定异域不进行随机 Roll 核对；攻略推荐、我的推荐和 DIM 只保留拥有状态、催化剂进度与使用建议。" : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；DIM 作为最低权重辅助来源固定放在最后。"} />
       {sourceOrder.length ? <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择推荐 Roll 来源">
         {([
           ["community", "攻略推荐"],
-          ["dim", "DIM"],
-          ["personal", "我的推荐"]
+          ["personal", "我的推荐"],
+          ["dim", "DIM"]
         ] as const).filter(([key]) => sourceCounts[key] > 0).map(([key, label]) => (
           <button
             key={key}
@@ -1114,11 +1120,10 @@ function RecommendationSection(props: {
         >
           {evidence.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
           {sourceMatches.length
-            ? sourceMatches.map((sourceMatch, index) => (
+            ? sourceMatches.map((sourceMatch) => (
                 <RecommendationSourceEvidenceCard
                   key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
                   sourceMatch={sourceMatch}
-                  defaultOpen={index === 0}
                 />
               ))
             : <EmptyState text={recommendationEvidenceEmptyText(evidence.status)} />}
@@ -1143,12 +1148,12 @@ function availableWeaponTargetSources(
 ): WeaponTargetSource[] {
   const counts: Record<WeaponTargetSource, number> = {
     community: model.context.kind === "account_instance" && evidence
-      ? evidence.sourceMatches.length
+      ? evidence.sourceMatches.filter((source) => !isDimRecommendationSource(source.source_id)).length
       : model.recommendations.filter((target) => target.source === "builtin" || target.source === "external").length,
     dim: model.personal_targets.filter((target) => target.source === "dim").length,
     personal: model.recommendations.filter((target) => target.source === "user").length
   };
-  return (["community", "dim", "personal"] as const).filter((source) => counts[source] > 0);
+  return (["community", "personal", "dim"] as const).filter((source) => counts[source] > 0);
 }
 
 function preferredWeaponTargetSource(
@@ -1160,12 +1165,15 @@ function preferredWeaponTargetSource(
 
 function RecommendationSourceEvidenceCard(props: {
   sourceMatch: RecommendationSourceMatch;
-  defaultOpen: boolean;
 }) {
   const source = props.sourceMatch;
-  const [open, setOpen] = useState(props.defaultOpen);
+  const [open, setOpen] = useState(false);
   const sourceLabel = recommendationSourceLabel(source.source_id, source.source_label);
-  const summary = recommendationSourceSummary(source);
+  const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
+  const specifiedSlots = source.slots.filter((slot) => slot.state !== "source_not_specified");
+  const unrequestedSlotLabels = source.slots
+    .filter((slot) => slot.state === "source_not_specified")
+    .map((slot) => slot.label);
   const metadata = [
     source.purposes.length ? `用途：${source.purposes.map(recommendationPurposeLabel).join(" / ")}` : undefined,
     source.rating ? `评级：${source.rating}` : undefined,
@@ -1184,7 +1192,34 @@ function RecommendationSourceEvidenceCard(props: {
           <strong>{sourceLabel}</strong>
           <small>{metadata.join(" · ") || "来源没有提供额外元数据"}</small>
         </span>
-        <span className="ui-badge" data-ui-kind="status-chip" data-status={recommendationSourceStatusTone(source)}>{summary}</span>
+        <span className="weapon-detail-source-score" role="group" aria-label={presentation.summary}>
+          {presentation.requirementCount > 0 ? (
+            <>
+              <span data-score-kind="perk">
+                <small>核心 Perk</small>
+                <strong>{presentation.perkRequirementCount > 0
+                  ? `${presentation.matchedPerkCount}/${presentation.perkRequirementCount}`
+                  : "未要求"}</strong>
+              </span>
+              <span data-score-kind="complete">
+                <small>完整匹配</small>
+                <strong>{presentation.matchedRequirementCount}/{presentation.requirementCount}</strong>
+              </span>
+              {presentation.uncheckableRequirementCount > 0 ? (
+                <span data-score-kind="pending">
+                  <small>无法判断</small>
+                  <strong>{presentation.uncheckableRequirementCount} 项</strong>
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span data-score-kind="weapon-only">
+              <small>推荐范围</small>
+              <strong>仅推荐武器</strong>
+              <em>未指定 Roll</em>
+            </span>
+          )}
+        </span>
       </summary>
       <div className="weapon-detail-source-evidence-body">
         {source.note ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{source.note}</p> : null}
@@ -1194,12 +1229,20 @@ function RecommendationSourceEvidenceCard(props: {
             ? <a href={source.source_url} target="_blank" rel="noreferrer">查看原始来源</a>
             : <span>原始链接未提供</span>}
         </div>
-        {source.state === "weapon_only" ? (
+        {source.state === "weapon_only" || !specifiedSlots.length ? (
           <p className="weapon-detail-match-empty">该来源推荐这把武器，但没有指定需要核对的枪管、第二列、大师、Perk 或起源特性，因此不作 Roll 对照。</p>
         ) : (
-          <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel}推荐项核对`}>
-            {source.slots.map((slot) => <RecommendationSourceSlotRow key={slot.slot} slot={slot} />)}
-          </div>
+          <>
+            <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel}推荐项核对`}>
+              {specifiedSlots.map((slot) => <RecommendationSourceSlotRow key={slot.slot} slot={slot} />)}
+            </div>
+            {unrequestedSlotLabels.length ? (
+              <p className="weapon-detail-source-unrequested">
+                <strong>其他栏位未要求</strong>
+                <span>{unrequestedSlotLabels.join("、")}</span>
+              </p>
+            ) : null}
+          </>
         )}
       </div>
     </details>
@@ -1212,29 +1255,25 @@ function RecommendationSourceSlotRow({ slot }: { slot: RecommendationSourceSlotM
     ...slot.source_candidates.map((candidate) => candidate.name),
     ...slot.unresolved_source_candidate_names
   ]);
+  const instanceOwned = uniqueLabels(slot.instance_owned.map((plug) => plug.name));
+  const currentEnabled = uniqueLabels(slot.current_enabled.map((plug) => plug.name));
+  const presentation = presentRecommendationSlotMatch(slot.state, {
+    hasInstanceOwned: instanceOwned.length > 0,
+    hasCurrentEnabled: currentEnabled.length > 0
+  });
   return (
-    <div className="weapon-detail-source-slot" data-match-state={slot.state}>
+    <div
+      className="weapon-detail-source-slot"
+      data-core-slot={slot.slot === "perk1" || slot.slot === "perk2" ? "true" : undefined}
+      data-match-state={slot.state}
+    >
       <strong>{slot.label}</strong>
       <div><span>来源要求</span><p>{slot.state === "source_not_specified" ? "未指定" : sourceNames.join(" / ") || "要求名称未返回"}</p></div>
-      <div><span>本件拥有</span><p>{uniqueLabels(slot.instance_owned.map((plug) => plug.name)).join(" / ") || "未返回可核对项"}</p></div>
-      <div><span>当前启用</span><p>{uniqueLabels(slot.current_enabled.map((plug) => plug.name)).join(" / ") || "未返回当前启用项"}</p></div>
-      <span className="ui-badge" data-ui-kind="status-chip" data-status={recommendationSlotStatusTone(slot.state)}>{recommendationSlotStateLabel(slot.state)}</span>
+      <div><span>本件拥有</span><p>{instanceOwned.join(" / ") || presentation.instanceOwnedFallback}</p></div>
+      <div><span>当前启用</span><p>{currentEnabled.join(" / ") || presentation.currentEnabledFallback}</p></div>
+      <span className="ui-badge" data-ui-kind="status-chip" data-status={presentation.tone}>{presentation.label}</span>
     </div>
   );
-}
-
-function recommendationSourceSummary(source: RecommendationSourceMatch): string {
-  if (source.state === "weapon_only") return "仅推荐武器";
-  const uncheckable = source.uncheckable_requirement_count
-    ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
-  if (uncheckable > 0) return "数据不完整";
-  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) {
-    return "全部符合";
-  }
-  if (source.matched_requirement_count > 0) {
-    return `符合 ${source.matched_requirement_count}/${source.requirement_count}`;
-  }
-  return "未符合";
 }
 
 function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContentProps["recommendationEvidence"]>["status"]): string {
@@ -1245,37 +1284,8 @@ function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContent
   return "当前实例没有可显示的推荐来源逐项结果。";
 }
 
-function recommendationSourceMatchState(source: RecommendationSourceMatch): "full" | "partial" | "different" | "weapon_only" | "uncheckable" {
-  if (source.state === "weapon_only") return "weapon_only";
-  if (source.state === "uncheckable") return "uncheckable";
-  if (source.requirement_count > 0 && source.matched_requirement_count === source.requirement_count) return "full";
-  if (source.matched_requirement_count > 0) return "partial";
-  return "different";
-}
-
-function recommendationSourceStatusTone(source: RecommendationSourceMatch): "success" | "warning" | "error" | "pending" | "neutral" {
-  const state = recommendationSourceMatchState(source);
-  if (state === "full") return "success";
-  if (state === "partial") return "warning";
-  if (state === "different") return "error";
-  if (state === "uncheckable") return "pending";
-  return "neutral";
-}
-
-function recommendationSlotStateLabel(state: RecommendationSourceSlotMatch["state"]): string {
-  return {
-    match: "符合",
-    different: "不符",
-    source_not_specified: "来源未要求",
-    uncheckable: "数据未读取"
-  }[state];
-}
-
-function recommendationSlotStatusTone(state: RecommendationSourceSlotMatch["state"]): "success" | "error" | "pending" | "neutral" {
-  if (state === "match") return "success";
-  if (state === "different") return "error";
-  if (state === "uncheckable") return "pending";
-  return "neutral";
+function recommendationSourceMatchState(source: RecommendationSourceMatch): RecommendationSourceMatch["state"] {
+  return source.state;
 }
 
 function recommendationPurposeLabel(purpose: RecommendationSourceMatch["purposes"][number]): string {
@@ -1345,7 +1355,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
           </>
         ) : (
           <>
-            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 这件武器拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
+            <span>{recommendation.source === "dim" ? "最佳组合" : "Perk"}：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 这件武器拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
             <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
             <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
           </>
@@ -1385,102 +1395,6 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
       </div>
     </>
   );
-}
-
-function InstancesRail(props: { model: WeaponDetailViewModel; onSelect?: (instance: WeaponDetailInstance) => void }) {
-  const currentInstance = props.model.same_hash_instances.find((instance) => instance.current);
-  return (
-    <details className="weapon-detail-rail-instances" open>
-      <summary className="weapon-detail-rail-heading">
-        <div><span>账号装备</span><h3>账号中的同版本武器</h3></div>
-        <strong>{props.model.same_hash_instances.length} 件</strong>
-      </summary>
-      <div className="weapon-detail-rail-instances-body">
-        {props.model.same_hash_instances.length ? (
-          <div className="weapon-detail-instance-list" role="list">
-            {props.model.same_hash_instances.map((instance) => {
-              const visiblePlugs = instance.plugs.slice(0, 5);
-              const upgrade = instanceUpgradeLabel(instance);
-              const rollDifference = instanceRollDifferenceLabel(instance, currentInstance);
-              return (
-                <button
-                  key={instance.instance_id}
-                  type="button"
-                  role="listitem"
-                  className={instance.current ? "is-current" : undefined}
-                  aria-current={instance.current ? "true" : undefined}
-                  onClick={() => props.onSelect?.(instance)}
-                  disabled={!props.onSelect}
-                >
-                  <header>
-                    <strong>{instance.current ? "当前装备" : instance.location}</strong>
-                    <span>{instance.power !== undefined ? `${instance.power} 光等` : "光等未知"}</span>
-                  </header>
-                  <span className="weapon-detail-instance-perks" aria-label={visiblePlugs.map((plug) => plug.name).join("、") || "配置未返回"}>
-                    {visiblePlugs.filter((plug) => Boolean(plug.icon)).map((plug) => (
-                      <GameAssetImage className="game-definition-icon" key={plug.hash} src={plug.icon} alt="" title={plug.name} loading="eager" />
-                    ))}
-                  </span>
-                  <strong className="weapon-detail-instance-roll">{visiblePlugs.map((plug) => plug.name).join(" / ") || "配置未返回"}</strong>
-                  <span className="weapon-detail-instance-meta">
-                    <span>{rollDifference}</span>
-                    {upgrade ? <span>{upgrade}</span> : null}
-                    <span>{instanceStateLabel(instance)}</span>
-                    {instance.local_tag ? <span>{instanceTagLabel(instance.local_tag)}</span> : null}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : <EmptyState text="账号中没有这个版本的同名武器。" />}
-        <p className="weapon-detail-rail-note">这里只列出账号中相同发布版本的武器，便于快速切换和比较 Roll。</p>
-      </div>
-    </details>
-  );
-}
-
-function instanceRollDifferenceLabel(
-  instance: WeaponDetailInstance,
-  currentInstance: WeaponDetailInstance | undefined
-): string {
-  if (instance.current) return "当前 Roll";
-  if (!currentInstance?.plugs.length || !instance.plugs.length) return "Roll 差异未知";
-  const currentHashes = currentInstance.plugs.slice(0, 5).map((plug) => plug.hash);
-  const instanceHashes = instance.plugs.slice(0, 5).map((plug) => plug.hash);
-  const slotCount = Math.max(currentHashes.length, instanceHashes.length);
-  const differenceCount = Array.from({ length: slotCount }, (_, index): number => (
-    currentHashes[index] === instanceHashes[index] ? 0 : 1
-  )).reduce<number>((total, difference) => total + difference, 0);
-  return differenceCount ? `${differenceCount} 个 Perk 不同` : "Roll 相同";
-}
-
-function instanceTagLabel(tag: NonNullable<WeaponDetailInstance["local_tag"]>): string {
-  return {
-    keep: "保留",
-    review: "关注",
-    farm: "待刷",
-    loadout: "配装用",
-    junk: "可清理"
-  }[tag] ?? tag;
-}
-
-function instanceUpgradeLabel(instance: WeaponDetailInstance): string | undefined {
-  const upgrades = instance.upgrade_status;
-  if (!upgrades) return undefined;
-  const labels = [
-    upgrades.masterwork ? `大师杰作：${upgrades.masterwork.name}` : undefined,
-    upgrades.mod ? `模组：${upgrades.mod.name}` : undefined,
-    upgrades.catalyst ? `催化剂：${upgrades.catalyst.name}${upgrades.catalyst.complete ? "（完成）" : ""}` : undefined,
-    upgrades.enhancement ? `强化阶级：${upgrades.enhancement.name}` : undefined,
-    upgrades.crafting_level !== undefined ? `锻造 ${upgrades.crafting_level} 级` : undefined,
-    upgrades.enhanced ? "已强化" : undefined
-  ].filter(Boolean);
-  return labels.length ? labels.join(" · ") : undefined;
-}
-
-function instanceStateLabel(instance: WeaponDetailInstance): string {
-  const states = [instance.equipped ? "已装备" : undefined, instance.locked ? "已锁定" : undefined].filter(Boolean);
-  return states.length ? states.join(" · ") : "可管理";
 }
 
 function AnalysisSection(props: {

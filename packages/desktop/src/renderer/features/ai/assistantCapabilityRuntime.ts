@@ -8,6 +8,7 @@ import {
 import { api } from "../../api/client";
 import { appendAssistantCapabilityAudit } from "../../shared/domain/assistant/assistantCapabilityAudit";
 import { getManifestStatusSnapshot } from "../../shared/stores/manifestStatusStore";
+import { getAccountSummarySnapshot } from "../../shared/stores/accountEntityStore";
 
 const resultCache = createAssistantCapabilityResultCache({ maxEntries: 60 });
 let armorPlannerRevision = 0;
@@ -29,12 +30,17 @@ const dependencies: AssistantReadOnlyCapabilityDependencies = {
     }
   },
   profile: {
-    getAccountSummary: (options) => api.getAccountSummary(options)
+    async getAccountSummary() {
+      const account = getAccountSummarySnapshot();
+      if (!account) throw new Error("当前还没有已同步的账号数据。");
+      return account;
+    }
   },
   vendors: {
     async getInventorySnapshot() {
       try {
-        const account = await api.getAccountSummary();
+        const account = getAccountSummarySnapshot();
+        if (!account) return null;
         return api.getCachedVendorInventory({
           membership_type: account.membership_type,
           membership_id: account.destiny_membership_id,

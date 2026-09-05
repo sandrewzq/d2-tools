@@ -187,6 +187,7 @@ export class CommunityPerkRecommendationService {
           canonical_weapon_name: canonicalWeaponName,
           coverage: "uncovered",
           match_status: "indeterminate",
+          recommendation_state: "uncovered",
           matched: 0,
           partial: 0,
           available: 0,
@@ -214,6 +215,7 @@ export class CommunityPerkRecommendationService {
           canonical_weapon_name: canonicalWeaponName,
           coverage: "covered",
           match_status: "indeterminate",
+          recommendation_state: "compare",
           matched: 0,
           partial: 0,
           available: recommendation.combos.length,
@@ -231,6 +233,7 @@ export class CommunityPerkRecommendationService {
           canonical_weapon_name: canonicalWeaponName,
           coverage: "covered",
           match_status: "indeterminate",
+          recommendation_state: "compare",
           matched: weaponLevelRecommendations.length,
           partial: 0,
           available: weaponLevelRecommendations.length + recommendation.combos.length,
@@ -257,16 +260,22 @@ export class CommunityPerkRecommendationService {
       ));
       const matched = weaponLevelRecommendations.length + fullMatches.length;
       const available = weaponLevelRecommendations.length + recommendation.combos.length;
+      const recommendationState = dimWishlistMatch?.state === "full" || matched > 0
+        ? "priority" as const
+        : "compare" as const;
       return {
         hash: item.hash,
         ...(item.instance_id ? { instance_id: item.instance_id } : {}),
         canonical_weapon_name: canonicalWeaponName,
         coverage: "covered",
-        match_status: matched > 0
-          ? "full_match"
-          : partialMatches.length > 0
-            ? "partial_match"
-            : "no_match",
+        match_status: dimWishlistMatch?.state === "uncheckable"
+          ? "indeterminate"
+          : matched > 0
+            ? "full_match"
+            : partialMatches.length > 0
+              ? "partial_match"
+              : "no_match",
+        recommendation_state: recommendationState,
         matched,
         partial: partialMatches.length,
         available,
@@ -316,12 +325,15 @@ function matchSourceRecords(
         ))
         || requirement.candidate_names.some((name) => (
           slot === "masterwork"
-            ? masterworkRequirementMatches(name, plug.name, plug.category_identifier)
+            ? masterworkRequirementMatches(name, plug.name)
             : perkIdentityMatches(plug.name, name)
         ))
       ));
+      const hasComparableRequirement = requirement.candidates.length > 0
+        || requirement.candidate_names.some((name) => Boolean(name.trim()));
       const cannotCheck = !matches && (
-        !item.weapon_roll
+        !hasComparableRequirement
+        || !item.weapon_roll
         || (rollSocket ? rollSocket.complete === false : hasIncompleteRelevantRollData(item))
       );
       return {
@@ -339,15 +351,26 @@ function matchSourceRecords(
     const matched = specified.filter((slot) => slot.state === "match").length;
     const uncheckable = specified.filter((slot) => slot.state === "uncheckable").length;
     const checkable = specified.length - uncheckable;
+    const coreRequirements = specified.filter((slot) => slot.slot === "perk1" || slot.slot === "perk2");
+    const state = specified.length === 0
+      ? "weapon_only" as const
+      : uncheckable > 0
+        ? "uncheckable" as const
+        : matched === specified.length
+          ? "full" as const
+          : coreRequirements.some((slot) => slot.state === "different")
+            ? "key_missing" as const
+            : coreRequirements.length > 0
+              ? "core" as const
+              : matched > 0
+                ? "close" as const
+                : "not_matched" as const;
     return {
+      rule_stable_id: record.rule_stable_id,
       source_id: record.source_id,
       source_label: record.source_label,
       ...(record.source_url ? { source_url: record.source_url } : {}),
-      state: specified.length === 0
-        ? "weapon_only" as const
-        : uncheckable > 0
-          ? "uncheckable" as const
-          : "checked" as const,
+      state,
       matched_requirement_count: matched,
       requirement_count: specified.length,
       checkable_requirement_count: checkable,
@@ -371,38 +394,79 @@ function sourceMatchCompatibilityResult(
   sourceMatches: RecommendationSourceMatch[],
   dimWishlistMatch: VaultItemInstanceMatchInfo["dim_wishlist"]
 ): VaultItemInstanceMatchInfo {
-  const fullyMatched = sourceMatches.filter((source) => (
-    source.state === "weapon_only"
-    || (source.uncheckable_requirement_count === 0 && source.requirement_count > 0
-      && source.matched_requirement_count === source.requirement_count)
+  const positive = sourceMatches.filter((source) => source.state === "full" || source.state === "core");
+  const comparisonSources = sourceMatches.filter((source) => source.state !== "full" && source.state !== "core");
+  const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable")
+    || dimWishlistMatch?.state === "uncheckable";
+  const hasCuratedPurposeConflict = sourceMatches.some((left) => (
+    (left.state === "full" || left.state === "core")
+    && sourceMatches.some((right) => (
+      (right.state === "key_missing" || right.state === "not_matched")
+      && purposesOverlap(left.purposes, right.purposes)
+    ))
   ));
-  const partiallyMatched = sourceMatches.filter((source) => (
-    source.matched_requirement_count > 0
-    && source.matched_requirement_count < source.requirement_count
-  ));
-  const hasCheckable = sourceMatches.some((source) => source.checkable_requirement_count > 0 || source.state === "weapon_only");
-  const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable");
+  const positiveCuratedPurposes = sourceMatches
+    .filter((source) => source.state === "full" || source.state === "core")
+    .flatMap((source) => source.purposes);
+  const negativeCuratedPurposes = sourceMatches
+    .filter((source) => source.state === "key_missing" || source.state === "not_matched")
+    .flatMap((source) => source.purposes);
+  const positiveDimPurposes = dimWishlistMatch?.state === "full"
+    ? dimWishlistMatch.rules
+        .filter((rule) => rule.state === "match")
+        .map((rule) => rule.mode)
+    : [];
+  const negativeDimPurposes = dimWishlistMatch?.state === "not_matched"
+    ? dimWishlistMatch.modes
+    : [];
+  const hasCrossSourcePurposeConflict = (
+    positiveCuratedPurposes.length > 0
+    && negativeDimPurposes.length > 0
+    && purposesOverlap(positiveCuratedPurposes, negativeDimPurposes)
+  ) || (
+    positiveDimPurposes.length > 0
+    && negativeCuratedPurposes.length > 0
+    && purposesOverlap(positiveDimPurposes, negativeCuratedPurposes)
+  );
+  const hasPurposeConflict = hasCuratedPurposeConflict || hasCrossSourcePurposeConflict;
+  const recommendationState = hasUncheckable || hasPurposeConflict
+    ? "compare" as const
+    : positive.length > 0 || dimWishlistMatch?.state === "full"
+      ? "priority" as const
+      : "compare" as const;
   return {
     hash: item.hash,
     ...(item.instance_id ? { instance_id: item.instance_id } : {}),
     canonical_weapon_name: canonicalWeaponName,
     coverage: "covered",
-    match_status: fullyMatched.length > 0
-      ? "full_match"
-      : partiallyMatched.length > 0
-        ? "partial_match"
-        : !hasCheckable && hasUncheckable
-          ? "indeterminate"
+    match_status: hasUncheckable
+      ? "indeterminate"
+      : recommendationState === "priority"
+        ? "full_match"
+        : hasPurposeConflict && (positive.length > 0 || dimWishlistMatch?.state === "full")
+          ? "partial_match"
+        : comparisonSources.some((source) => source.matched_requirement_count > 0)
+          ? "partial_match"
           : "no_match",
-    matched: fullyMatched.length,
-    partial: partiallyMatched.length,
-    available: sourceMatches.length,
+    recommendation_state: recommendationState,
+    matched: positive.length + (dimWishlistMatch?.matched_combo_count ?? 0),
+    partial: comparisonSources.filter((source) => source.matched_requirement_count > 0).length
+      + (dimWishlistMatch?.partial_combo_count ?? 0),
+    available: sourceMatches.length + (dimWishlistMatch?.combo_count ?? 0),
     modes: recommendation.matched_modes,
     sample_perks: previewPerks(recommendation),
     source_label: recommendation.source_label,
     source_matches: sourceMatches,
     ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
   };
+}
+
+function purposesOverlap(
+  left: Array<"pve" | "pvp" | "general">,
+  right: Array<"pve" | "pvp" | "general">
+): boolean {
+  if (left.includes("general") || right.includes("general")) return true;
+  return left.some((purpose) => right.includes(purpose));
 }
 
 function matchDimWishlistCombos(
@@ -416,11 +480,15 @@ function matchDimWishlistCombos(
     const requirements = comboMatchRequirements(combo);
     const matched = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
     const incomplete = hasIncompleteRelevantRollData(item);
+    const unresolvedRule = combo.dim_diagnostic?.status === "cross_slot_ambiguous"
+      || combo.dim_diagnostic?.status === "unknown_slot"
+      || combo.dim_diagnostic?.status === "special_socket";
     return {
+      ...(combo.rule_stable_id ? { rule_stable_id: combo.rule_stable_id } : {}),
       mode: combo.mode,
       state: matched === requirements.length
         ? "match" as const
-        : incomplete
+        : incomplete || unresolvedRule
           ? "uncheckable" as const
           : matched > 0
             ? "partial" as const
@@ -431,10 +499,20 @@ function matchDimWishlistCombos(
     };
   });
   const bestRule = selectBestDimRuleProgress(rules);
+  const matchedComboCount = rules.filter((rule) => rule.state === "match").length;
+  const partialComboCount = rules.filter((rule) => rule.state === "partial").length;
+  const uncheckableComboCount = rules.filter((rule) => rule.state === "uncheckable").length;
   return {
-    matched_combo_count: rules.filter((rule) => rule.state === "match").length,
-    partial_combo_count: rules.filter((rule) => rule.state === "partial").length,
-    uncheckable_combo_count: rules.filter((rule) => rule.state === "uncheckable").length,
+    state: matchedComboCount > 0
+      ? "full"
+      : uncheckableComboCount > 0
+        ? "uncheckable"
+        : partialComboCount > 0
+          ? "close"
+          : "not_matched",
+    matched_combo_count: matchedComboCount,
+    partial_combo_count: partialComboCount,
+    uncheckable_combo_count: uncheckableComboCount,
     combo_count: rules.length,
     best_matched_requirement_count: bestRule?.matched_requirement_count ?? 0,
     best_requirement_count: bestRule?.requirement_count ?? 0,
@@ -451,32 +529,17 @@ function hasIncompleteRelevantRollData(item: VaultItemMatchInput): boolean {
 
 function masterworkRequirementMatches(
   requirementName: string,
-  plugName: string,
-  categoryIdentifier?: string
+  plugName: string
 ): boolean {
-  const requirement = masterworkStatIdentity(requirementName);
-  if (!requirement) return normalizeComparableName(requirementName) === normalizeComparableName(plugName);
-  return requirement === masterworkStatIdentity(`${categoryIdentifier ?? ""} ${plugName}`);
+  return normalizeComparableName(stripMasterworkDisplayPrefix(requirementName))
+    === normalizeComparableName(stripMasterworkDisplayPrefix(plugName));
 }
 
-function masterworkStatIdentity(value: string): string | undefined {
-  const normalized = normalizeComparableName(value);
-  if (!normalized) return undefined;
-  if (includesComparableText(normalized, ["reload", "填装", "装填"])) return "reload";
-  if (includesComparableText(normalized, ["range", "射程"])) return "range";
-  if (includesComparableText(normalized, ["stability", "稳定"])) return "stability";
-  if (includesComparableText(normalized, ["handling", "操控"])) return "handling";
-  if (includesComparableText(normalized, ["chargetime", "充能时间", "充能"])) return "charge_time";
-  if (includesComparableText(normalized, ["drawtime", "拉弓时间", "拉弓"])) return "draw_time";
-  if (includesComparableText(normalized, ["velocity", "弹速"])) return "velocity";
-  if (includesComparableText(normalized, ["blastradius", "爆炸范围"])) return "blast_radius";
-  if (includesComparableText(normalized, ["impact", "冲击"])) return "impact";
-  if (includesComparableText(normalized, ["accuracy", "精准度", "精准"])) return "accuracy";
-  return undefined;
-}
-
-function includesComparableText(value: string, candidates: readonly string[]): boolean {
-  return candidates.some((candidate) => value.includes(normalizeComparableName(candidate)));
+function stripMasterworkDisplayPrefix(value: string): string {
+  return value
+    .replace(/^\s*\d+\s*阶\s*[：:]\s*/u, "")
+    .replace(/^\s*大师杰作\s*[：:]\s*/u, "")
+    .trim();
 }
 
 function selectBestDimRuleProgress<T extends {
@@ -503,7 +566,7 @@ function selectBestDimRuleProgress<T extends {
 function uniqueSourceRecords(records: RecommendationSourceRecord[]): RecommendationSourceRecord[] {
   const unique = new Map<string, RecommendationSourceRecord>();
   for (const record of records) {
-    const key = `${record.source_id}\u0000${record.source_label}`;
+    const key = `${record.source_id}\u0000${record.rule_stable_id}`;
     if (!unique.has(key)) unique.set(key, record);
   }
   return [...unique.values()];
@@ -516,14 +579,9 @@ function normalizeComparableName(value: string): string {
     .replace(/[\p{P}\p{Z}\s]+/gu, "");
 }
 
-function normalizePerkIdentity(value: string): string {
-  return normalizeComparableName(value)
-    .replace(/强化(?:版|型|特性)?/gu, "");
-}
-
 function perkIdentityMatches(left: string, right: string): boolean {
-  const leftIdentity = normalizePerkIdentity(left);
-  return Boolean(leftIdentity) && leftIdentity === normalizePerkIdentity(right);
+  const leftIdentity = normalizeComparableName(left);
+  return Boolean(leftIdentity) && leftIdentity === normalizeComparableName(right);
 }
 
 function ownedPlugHashes(item: VaultItemMatchInput): Set<number> {

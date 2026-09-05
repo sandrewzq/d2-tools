@@ -13,9 +13,21 @@ import type {
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
+import {
+  listRecommendationRuleOverrides,
+  listRecommendationSourceOverrides
+} from "./recommendationOverrides.js";
 
 export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
-  const wishlist = safelyLoadDimWishlist(dataDir);
+  const sourceState = listRecommendationSourceOverrides(dataDir)
+    .find((entry) => entry.source_key === "dim_wishlist")?.state ?? "active";
+  const removedRuleIds = new Set(listRecommendationRuleOverrides(dataDir, "dim_wishlist")
+    .filter((entry) => entry.state === "removed" && !entry.review_required)
+    .map((entry) => entry.rule_stable_id));
+  const loadedWishlist = sourceState === "active" ? safelyLoadDimWishlist(dataDir) : null;
+  const wishlist = loadedWishlist
+    ? { ...loadedWishlist, rules: loadedWishlist.rules.filter((rule) => !rule.rule_stable_id || !removedRuleIds.has(rule.rule_stable_id)) }
+    : null;
   const rulesByItemHash = new Map<number, NonNullable<typeof wishlist>["rules"]>();
   wishlist?.rules.forEach((rule) => {
     const existing = rulesByItemHash.get(rule.item_hash);
@@ -37,6 +49,7 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
           const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
           const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
           return {
+            ...(rule.rule_stable_id ? { rule_stable_id: rule.rule_stable_id } : {}),
             perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
             popularity: undefined,
             source: "dim_wishlist" as const,

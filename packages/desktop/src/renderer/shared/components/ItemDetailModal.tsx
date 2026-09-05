@@ -98,6 +98,7 @@ export type ItemDetailModalProps = {
       expectedAccountPatch?: AccountItemActionPatch;
     }
   ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
+  onLoadSelectedItemFullDetail: () => Promise<void>;
   onRefreshSelectedItemDetail: () => Promise<AccountItemDetail | null>;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
@@ -132,7 +133,6 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
   const weaponModel = buildWeaponDetailView({
     selectedItem,
     accountSummary: props.accountSummary,
-    sameNameItems: props.sameNameItems,
     recommendations: [
       ...buildWeaponRecommendationViews(
         props.communityRecommendations,
@@ -217,8 +217,7 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
                 props.communityInstanceMatch?.source_matches ?? [],
                 props.communityRecommendations?.source_records ?? []
               ).filter((source) => (
-                source.state !== "not_covered"
-                && source.source_id !== "dim_voltron"
+                source.source_id !== "dim_voltron"
                 && source.source_id !== "dim_wishlist"
               )),
               status: resolveRecommendationEvidenceStatus(
@@ -249,22 +248,15 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
               externalSearchMessage: props.itemAiResult?.ai?.external_search?.message
             }}
             actions={{
-              selectInstance: (instance) => {
-                const item = props.sameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
-                if (!item) return;
-                return openItemDetail(item, {
-                  source_character_id: item.source_character_id,
-                  source_kind: item.source_kind,
-                  is_vault_item: item.is_vault_item,
-                  is_postmaster_item: item.is_postmaster_item
-                });
-              },
               selectVersion: (hash) => {
                 const version = props.itemVersions.find((candidate) => candidate.hash === hash);
                 if (version) return openItemDetail(version, {});
                 return false;
               },
               runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search),
+              loadConfiguration: selectedItem.detail_loaded?.definition && selectedItem.detail_loaded?.instance
+                ? undefined
+                : props.onLoadSelectedItemFullDetail,
               saveKnowledge: props.onSavePersonalWeaponKnowledge,
               setKnowledgeEnabled: props.onSetPersonalWeaponKnowledgeEnabled,
               deleteKnowledge: props.onDeletePersonalWeaponKnowledge,

@@ -230,7 +230,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       <ProductWorkspaceEmptyState className="account-unavailable vendor-page-empty product-workspace-empty--page" ariaLabel="商人访问状态" role="status">
         <span className="ui-badge status-warning">{text("未连接 Bungie")}</span>
         <h2>{text(isConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用")}</h2>
-        <p>{text(isConfigured ? "先登录 Bungie，读取账号数据后才能加载角色商人库存。" : "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。")}</p>
+        <p>{text(isConfigured ? "先登录 Bungie；登录后会自动同步装备数据并加载角色商人库存。" : "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。")}</p>
         <div className="button-row">
           {isConfigured ? (
             <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.availability.onLoginBungie}>{text("登录 Bungie")}</button>

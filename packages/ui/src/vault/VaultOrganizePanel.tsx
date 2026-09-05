@@ -24,6 +24,7 @@ export function VaultOrganizePanel(props: {
   cleanupCharacters: VaultCleanupActions["characters"];
   cleanupTargetCharacterId: string;
   markedCleanupItemCount: number;
+  protectedCleanupItemCount: number;
   cleanupActionItems: AccountItemSummary[];
   tags: VaultTags;
   onGroupChange: (value: VaultGroupFilter) => void;
@@ -71,7 +72,7 @@ export function VaultOrganizePanel(props: {
         ? {
             title: "确认转移待处理装备？",
             description: `将尝试把 ${cleanupTransferCount} 件装备转移到 ${targetCharacterLabel} 背包。`,
-            detail: "应用不会自动拆解；转移后仍需在游戏内逐件核对并处理。",
+            detail: `${props.protectedCleanupItemCount ? `${props.protectedCleanupItemCount} 件受保护装备已排除。` : ""}应用不会自动拆解；转移后仍需在游戏内逐件核对并处理。`,
             confirmLabel: "确认转移",
             tone: "primary" as const
           }
@@ -129,7 +130,7 @@ export function VaultOrganizePanel(props: {
         </div>
       ) : null}
 
-      <p className="vault-cleanup-boundary">本地状态只保存在应用内。已标记 {props.markedCleanupItemCount} 件待处理；转移不会自动拆解，仍需在游戏内逐件确认。</p>
+      <p className="vault-cleanup-boundary">本地状态只保存在应用内。已标记 {props.markedCleanupItemCount} 件待处理{props.protectedCleanupItemCount ? `，其中 ${props.protectedCleanupItemCount} 件受保护、不进入转移列表` : ""}；转移不会自动拆解，仍需在游戏内逐件确认。</p>
 
       {props.cleanupActionItems.length ? (
         <details className="vault-cleanup-locator">

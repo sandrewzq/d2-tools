@@ -36,6 +36,14 @@ type AccountSessionState = {
 let sessionState: AccountSessionState | null = null;
 let sessionRequest: Promise<AccountSessionState> | null = null;
 const loadAccountDefinitions = createAccountDefinitionLoader(getDefinitions);
+const accountSnapshotListeners = new Set<(snapshot: AccountSnapshot) => void>();
+
+export function subscribeAccountSnapshotChanged(
+  listener: (snapshot: AccountSnapshot) => void
+): () => void {
+  accountSnapshotListeners.add(listener);
+  return () => accountSnapshotListeners.delete(listener);
+}
 
 export type AccountItemLocation = {
   kind: "vault" | "character" | "postmaster";
@@ -159,6 +167,8 @@ export async function invalidateAccountSession(input: AccountInvalidation): Prom
   state.session.invalidate(input);
   if (input.scope === "item") {
     state.repository.invalidate({ scope: "item", instance_id: input.instance_id });
+  } else if (input.scope === "item-details") {
+    state.repository.invalidate({ scope: "items" });
   } else if (input.scope === "all" || input.scope === "snapshot" || input.scope === "profile") {
     state.repository.invalidate({ scope: input.scope === "profile" ? "all" : input.scope });
   }
@@ -166,7 +176,7 @@ export async function invalidateAccountSession(input: AccountInvalidation): Prom
 
 export async function invalidateAccountItemDetails(instanceIds?: readonly string[]): Promise<void> {
   if (!instanceIds?.length) {
-    await invalidateAccountSession({ scope: "all" });
+    await invalidateAccountSession({ scope: "item-details" });
     return;
   }
   await Promise.all(instanceIds.map((instanceId) => (
@@ -192,9 +202,11 @@ async function getAccountSession(): Promise<AccountSession> {
 async function getAccountSessionState(): Promise<AccountSessionState> {
   const config = loadConfig();
   const configuredAccountId = loadOAuthToken(config.data.data_dir)?.membership_id ?? "";
+  const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version?.trim() ?? "";
   const key = [
     config.data.data_dir,
     config.data.manifest_language,
+    manifestRevision,
     config.bungie.api_key,
     config.bungie.client_id,
     configuredAccountId
@@ -267,8 +279,12 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       ),
       loadDefinitions: loadAccountDefinitions,
       itemDetailStore: createAccountItemDetailStore(config.data.data_dir),
+      manifestRevision: manifestRevision || "manifest-unavailable",
       initialSnapshot: cached?.snapshot,
-      onSnapshot: enqueueSnapshotSave,
+      onSnapshot: (snapshot) => {
+        publishAccountSnapshotChanged(snapshot);
+        return enqueueSnapshotSave(snapshot);
+      },
       onDiagnostic: recordAccountSessionDiagnostic
     });
     const repository = createAccountDataRepository({
@@ -285,6 +301,16 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
     return await request;
   } finally {
     if (sessionRequest === request) sessionRequest = null;
+  }
+}
+
+function publishAccountSnapshotChanged(snapshot: AccountSnapshot): void {
+  for (const listener of accountSnapshotListeners) {
+    try {
+      listener(snapshot);
+    } catch {
+      // Renderer notification must never alter account refresh or persistence.
+    }
   }
 }
 

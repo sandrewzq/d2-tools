@@ -117,6 +117,10 @@ export type SelectedItemDetail = ItemDefinitionDetailLike & {
     definition: boolean;
     instance: boolean;
   };
+  detail_loaded?: {
+    definition: boolean;
+    instance: boolean;
+  };
 };
 
 export type SameNameItemSummary = AccountItemSummary & SelectedItemSource & {
@@ -214,10 +218,14 @@ export function createSelectedItemPreview(
     source_kind: source.source_kind,
     is_vault_item: source.is_vault_item,
     is_postmaster_item: source.is_postmaster_item,
-    is_detail_loading: true,
+    is_detail_loading: false,
     detail_loading: {
-      definition: true,
-      instance: Boolean("instance_id" in item && item.instance_id)
+      definition: false,
+      instance: false
+    },
+    detail_loaded: {
+      definition: "description" in item && Boolean(item.description),
+      instance: "sockets" in item && Boolean(item.sockets?.length)
     }
   };
 }
@@ -267,7 +275,11 @@ export function mergeSelectedItemDetail(
   return {
     ...current,
     ...detail,
-    is_detail_loading: false
+    is_detail_loading: false,
+    detail_loaded: {
+      definition: true,
+      instance: current.detail_loaded?.instance ?? false
+    }
   };
 }
 

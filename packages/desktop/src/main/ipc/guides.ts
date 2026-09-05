@@ -133,7 +133,9 @@ export function registerGuideIpcHandlers(): void {
     if (!extraction || extraction.status !== "confirmed") {
       throw new Error("攻略提取尚未确认，不能生成配装候选");
     }
-    const account = await getAccountSnapshot("refresh");
+    // 攻略候选读取当前全局账号事实，不在 IPC 内启动第二条远程刷新链。
+    // 玩家需要最新游戏状态时，由统一账号控制器先执行一次可见同步。
+    const account = await getAccountSnapshot("cached");
     const character = account.characters.find((entry) => entry.character_id === input.characterId);
     if (!character) throw new Error("目标角色不在当前账号快照中");
     const artifact = createGuideLoadoutCandidatesArtifact({

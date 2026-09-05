@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type {
   AccountSnapshot,
   DestinyProfileResponse,
@@ -12,10 +12,6 @@ const memberships: UserMembershipData = {
   primaryMembershipId: "destiny-1",
   destinyMemberships: [{ membershipId: "destiny-1", membershipType: 3 }]
 };
-
-afterEach(() => {
-  vi.useRealTimers();
-});
 
 describe("account session", () => {
   it("立即返回持久化快照，不等待 access token 或后台刷新", async () => {
@@ -133,7 +129,7 @@ describe("account session", () => {
     expect(itemRequests).toBe(2);
   });
 
-  it("刷新期间发生的局部 patch 不会被旧请求结果覆盖", async () => {
+  it("刷新期间发生的局部 patch 不会覆盖服务器快照", async () => {
     const initialSnapshot = snapshotWithItem(false);
     let resolveProfile!: (profile: DestinyProfileResponse) => void;
     let markProfileRequested!: () => void;
@@ -161,8 +157,8 @@ describe("account session", () => {
     resolveProfile(profileWithItem("item-1", false));
 
     const result = await refresh;
-    expect(result.vault.items[0]?.locked).toBe(true);
-    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
+    expect(result.vault.items[0]?.locked).toBe(false);
+    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(false);
   });
 
   it("快照只加载当前已选 plug 定义，不展开 reusable plug pool", async () => {
@@ -186,15 +182,13 @@ describe("account session", () => {
     expect(requestedItemHashes).not.toEqual(expect.arrayContaining([4002, 4003]));
   });
 
-  it("连续 patch 只安排一次后台强制 revalidate", async () => {
-    vi.useFakeTimers();
+  it("连续 patch 不修改账号事实，也不启动后台账号刷新", async () => {
     let profileRequests = 0;
     const session = createAccountSession({
       apiKey: "api",
       getAccessToken: () => "access",
       initialSnapshot: snapshotWithItem(false),
       definitions: itemDefinitions(),
-      patchRevalidateDelayMs: 100,
       fetchJson: async <T>(path: string) => {
         if (path === "/User/GetMembershipsForCurrentUser/") return memberships as T;
         profileRequests += 1;
@@ -206,61 +200,8 @@ describe("account session", () => {
     session.patch({ kind: "lock", item_instance_id: "item-1", locked: false });
     session.patch({ kind: "lock", item_instance_id: "item-1", locked: true });
     expect(profileRequests).toBe(0);
-
-    await vi.advanceTimersByTimeAsync(100);
-
-    expect(profileRequests).toBe(1);
-    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
-  });
-
-  it("已由轻量 Profile 确认的 patch 不再安排完整账号 revalidate", async () => {
-    vi.useFakeTimers();
-    let profileRequests = 0;
-    const session = createAccountSession({
-      apiKey: "api",
-      getAccessToken: () => "access",
-      initialSnapshot: snapshotWithItem(false),
-      definitions: itemDefinitions(),
-      patchRevalidateDelayMs: 100,
-      fetchJson: async <T>(path: string) => {
-        if (path === "/User/GetMembershipsForCurrentUser/") return memberships as T;
-        profileRequests += 1;
-        return profileWithItem("item-1", true) as T;
-      }
-    });
-
-    session.patch(
-      { kind: "lock", item_instance_id: "item-1", locked: true },
-      { revalidate: false }
-    );
-    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
-    await vi.advanceTimersByTimeAsync(100);
-
+    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(false);
     expect(profileRequests).toBe(0);
-  });
-
-  it("后台和权威刷新返回旧状态时都保留尚未确认的乐观 patch", async () => {
-    vi.useFakeTimers();
-    const session = createAccountSession({
-      apiKey: "api",
-      getAccessToken: () => "access",
-      initialSnapshot: snapshotWithItem(false),
-      definitions: itemDefinitions(),
-      patchRevalidateDelayMs: 50,
-      fetchJson: async <T>(path: string) => {
-        if (path === "/User/GetMembershipsForCurrentUser/") return memberships as T;
-        return profileWithItem("item-1", false) as T;
-      }
-    });
-
-    session.patch({ kind: "lock", item_instance_id: "item-1", locked: true });
-    await vi.advanceTimersByTimeAsync(50);
-
-    expect((await session.getSnapshot()).vault.items[0]?.locked).toBe(true);
-    expect((await session.getSnapshot({
-      freshness: "refresh",
-      authoritative: true
-    })).vault.items[0]?.locked).toBe(true);
   });
 });
 

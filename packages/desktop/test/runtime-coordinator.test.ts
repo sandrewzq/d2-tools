@@ -48,12 +48,11 @@ beforeEach(() => {
 });
 
 describe("runtime coordinator", () => {
-  it("按恢复、SQLite、账号缓存、后台刷新的顺序执行且并发调用去重", async () => {
+  it("按恢复、SQLite、账号缓存、首页刷新的顺序执行且并发调用去重", async () => {
     const order: string[] = [];
     mocks.recoverSqliteManifest.mockImplementation(() => { order.push("recover"); });
     mocks.verifyGameDataRuntime.mockImplementation(async () => { order.push("sqlite"); });
     mocks.warmAccountSession.mockImplementation(async () => { order.push("account-cache"); return true; });
-    mocks.getAccountSnapshot.mockImplementation(async () => { order.push("account-refresh"); return {}; });
     mocks.getHomeBriefing.mockImplementation(async () => { order.push("home-refresh"); return homeBriefing(); });
     const coordinator = await import("../src/main/runtime/runtimeCoordinator.js");
 
@@ -66,11 +65,11 @@ describe("runtime coordinator", () => {
       "recover",
       "sqlite",
       "account-cache",
-      "account-refresh",
       "home-refresh"
     ]);
     expect(mocks.verifyGameDataRuntime).toHaveBeenCalledTimes(1);
     expect(mocks.warmAccountSession).toHaveBeenCalledTimes(1);
+    expect(mocks.getAccountSnapshot).not.toHaveBeenCalled();
   });
 
   it("前台 HomeBriefing 与后台 warmup 共享同一个请求", async () => {

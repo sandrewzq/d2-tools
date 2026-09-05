@@ -124,6 +124,7 @@ export {
   buildVaultSelectedBulkMoveNoSelectionMessage,
   buildVaultSelectedBulkMovePrepareMessage,
   getVaultActionItemKey,
+  protectVaultCleanupTagPlan,
   selectDuplicateGroupItems,
   selectVaultActionableItems
 } from "./workspaces/vaultActions.js";

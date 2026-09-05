@@ -28,14 +28,20 @@ import {
   openRecommendationDatabase,
   recommendationDatabasePath,
   recommendationDatabaseSchemaVersion,
+  recommendationSemanticValidationVersion,
   recommendationMetadataValue
 } from "./recommendationDatabase.js";
+import { reconcileRecommendationRuleOverrides } from "./recommendationOverrides.js";
 
 const requiredCsvHeaders = [
   "页面", "分类", "武器", "评级", "排名", "来源URL", "页面更新时间", "来源位置",
   "图标", "图标图标URL", "属性", "框架", "赛季", "来源", "勇士", "勇士图标URL",
   "弹药生成", "枪管", "弹匣", "大师", "Perk 1", "Perk 2", "起源特性", "注解",
   "护盾", "充能效率", "武器ID", "英文名称", "版本", "推荐来源", "用途"
+] as const;
+const playerCsvHeaders = [
+  "武器", "武器ID", "英文名称", "推荐来源", "用途", "第一列", "第二列",
+  "Perk 1", "Perk 2", "大师", "起源特性", "评级", "备注"
 ] as const;
 const stableSourceKeys: Record<string, string> = {
   Aegis推荐: "aegis",
@@ -51,25 +57,36 @@ const stableSourceUrls: Record<string, string> = {
   Sayalarry推荐表: "https://sa7vp10ytxr.feishu.cn/wiki/W3ySwdahTiNRUJklJNBc0CMPnkb",
   DIM社区愿望单: "https://github.com/48klocs/dim-wish-list-sources"
 };
+const curatedSourceKeys = [...new Set(
+  Object.values(stableSourceKeys).filter((sourceKey) => sourceKey !== "dim_voltron")
+)];
 
 export type WeaponRecommendationKnowledgeStatus = {
   schema_version: number;
+  semantic_validation_version: number;
+  validated_manifest_version: string;
+  validation_state: "verified" | "unverified";
+  dataset_revision: string;
   database_path: string;
   source_fingerprint: string;
   imported_at: string;
   recommendation_count: number;
   weapon_count: number;
   source_count: number;
+  skipped_row_count: number;
 };
 
 export type WeaponKnowledgeImportPreview = {
   file_name: string;
+  import_mode: "merge" | "replace";
   recommendation_count: number;
+  importable_recommendation_count: number;
   weapon_count: number;
   source_count: number;
   source_labels: string[];
   fingerprint: string;
   blocking_issue_count: number;
+  skipped_row_count: number;
   blocking_issues: WeaponKnowledgeImportIssue[];
 };
 
@@ -77,7 +94,7 @@ export type WeaponKnowledgeImportIssue = {
   row_number: number;
   weapon_name: string;
   source_label: string;
-  field: "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+  field: "推荐来源" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
   value: string;
   message: string;
 };
@@ -88,12 +105,20 @@ export type WeaponKnowledgeSemanticDefinitions = {
   plug_definitions: DefinitionComponentData;
 };
 
+export type WeaponKnowledgeValidationContext = {
+  manifest_version: string;
+  semantic_definitions: WeaponKnowledgeSemanticDefinitions;
+};
+
 export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
   file_name: string;
+  imported_row_count: number;
+  import_mode: "merge" | "replace";
 };
 
 type KnowledgeRecommendation = {
   id: number;
+  rule_stable_id: string;
   identity_key: string;
   weapon_name: string;
   normalized_weapon_name: string;
@@ -117,13 +142,92 @@ type KnowledgeRecommendation = {
 type KnowledgeCache = {
   byName: Map<string, KnowledgeRecommendation[]>;
   byItemHash: Map<number, KnowledgeRecommendation[]>;
+  validatedManifestVersion: string;
+  legacyUnverified: boolean;
 };
 
 const knowledgeCaches = new Map<string, KnowledgeCache | null>();
 
-/** Returns the only supported column contract for manually maintained knowledge CSV files. */
+export function invalidateWeaponRecommendationKnowledgeCache(dataDir: string): void {
+  knowledgeCaches.delete(recommendationDatabasePath(dataDir));
+}
+
+/** Returns the player-editable column contract for manually maintained knowledge CSV files. */
 export function createWeaponRecommendationCsvTemplate(): string {
+  return `\uFEFF${playerCsvHeaders.join(",")}\r\n`;
+}
+
+/** Returns the publisher/maintainer-only complete evidence template. */
+export function createWeaponRecommendationFullCsvTemplate(): string {
   return `\uFEFF${requiredCsvHeaders.join(",")}\r\n`;
+}
+
+/** Exports the current curated knowledge as a player-editable CSV. */
+export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    const rows = database.prepare(`
+      SELECT r.id, r.weapon_name, r.english_name, r.rating, r.note,
+             s.label AS source_label
+      FROM weapon_recommendations r
+      JOIN recommendation_sources s ON s.id = r.source_id
+      WHERE s.source_key != 'dim_voltron'
+      ORDER BY s.source_key, r.weapon_name, r.id
+    `).all() as Array<{
+      id: number;
+      weapon_name: string;
+      english_name: string;
+      rating: string;
+      note: string;
+      source_label: string;
+    }>;
+    if (!rows.length) return `\uFEFF${playerCsvHeaders.join(",")}\r\n`;
+    const ids = database.prepare(`
+      SELECT recommendation_id, item_hash
+      FROM weapon_recommendation_item_ids
+      ORDER BY recommendation_id, item_hash
+    `).all() as Array<{ recommendation_id: number; item_hash: number }>;
+    const purposes = database.prepare(`
+      SELECT recommendation_id, purpose
+      FROM weapon_recommendation_purposes
+      ORDER BY recommendation_id, purpose
+    `).all() as Array<{ recommendation_id: number; purpose: string }>;
+    const perks = database.prepare(`
+      SELECT recommendation_id, slot, ordinal, perk_name
+      FROM weapon_recommendation_perks
+      ORDER BY recommendation_id, slot, ordinal
+    `).all() as Array<{ recommendation_id: number; slot: RecommendationRequirementSlot; ordinal: number; perk_name: string }>;
+    const idsByRecommendation = groupExportValues(ids, "item_hash");
+    const purposesByRecommendation = groupExportValues(purposes, "purpose");
+    const perksByRecommendation = new Map<number, Partial<Record<RecommendationRequirementSlot, string[]>>>();
+    for (const perk of perks) {
+      const bySlot = perksByRecommendation.get(perk.recommendation_id) ?? {};
+      bySlot[perk.slot] = [...(bySlot[perk.slot] ?? []), perk.perk_name];
+      perksByRecommendation.set(perk.recommendation_id, bySlot);
+    }
+    const output = [playerCsvHeaders.join(",")];
+    for (const row of rows) {
+      const rowPerks = perksByRecommendation.get(row.id) ?? {};
+      output.push([
+        row.weapon_name,
+        (idsByRecommendation.get(row.id) ?? []).join(" / "),
+        row.english_name,
+        row.source_label,
+        (purposesByRecommendation.get(row.id) ?? []).join(" / "),
+        (rowPerks.barrel ?? []).join(" / "),
+        (rowPerks.magazine ?? []).join(" / "),
+        (rowPerks.perk1 ?? []).join(" / "),
+        (rowPerks.perk2 ?? []).join(" / "),
+        (rowPerks.masterwork ?? []).join(" / "),
+        (rowPerks.origin ?? []).join(" / "),
+        row.rating,
+        row.note
+      ].map(csvEscape).join(","));
+    }
+    return `\uFEFF${output.join("\r\n")}\r\n`;
+  } finally {
+    database.close();
+  }
 }
 
 /** Validates a CSV without changing the active SQLite knowledge database. */
@@ -132,29 +236,51 @@ export function previewWeaponRecommendationCsv(
   fileName: string,
   semanticDefinitions?: WeaponKnowledgeSemanticDefinitions
 ): WeaponKnowledgeImportPreview {
-  const rows = parseKnowledgeCsv(text);
-  const sourceLabels = [...new Set(rows.map((row) => row["推荐来源"].trim()))].sort((left, right) => (
-    left.localeCompare(right, "zh-CN")
-  ));
+  const rows = prepareWeaponRecommendationRows(
+    curatedKnowledgeRows(parseKnowledgeCsv(text)),
+    semanticDefinitions
+  );
   const blockingIssues = semanticDefinitions
     ? validateWeaponRecommendationRows(rows, semanticDefinitions)
     : [];
+  const skippedRows = new Set(blockingIssues.map((issue) => issue.row_number));
+  const importableRows = rows.filter((row) => !skippedRows.has(csvRowNumber(row)));
+  const importMode = rows[0]?.__format === "player" || skippedRows.size > 0 ? "merge" : "replace";
+  const sourceLabels = [...new Set(importableRows.map((row) => row["推荐来源"].trim()))].sort((left, right) => (
+    left.localeCompare(right, "zh-CN")
+  ));
   return {
     file_name: basename(fileName) || "weapon-recommendations.csv",
+    import_mode: importMode,
     recommendation_count: rows.length,
-    weapon_count: new Set(rows.map(weaponIdentityKey)).size,
+    importable_recommendation_count: importableRows.length,
+    weapon_count: new Set(importableRows.map(weaponIdentityKey)).size,
     source_count: sourceLabels.length,
     source_labels: sourceLabels,
     fingerprint: csvFingerprint(text),
     blocking_issue_count: blockingIssues.length,
+    skipped_row_count: skippedRows.size,
     blocking_issues: blockingIssues.slice(0, 50)
   };
 }
 
 export function collectWeaponRecommendationItemHashes(text: string): number[] {
-  return [...new Set(parseKnowledgeCsv(text).flatMap((row) => (
+  return [...new Set(curatedKnowledgeRows(parseKnowledgeCsv(text)).flatMap((row) => (
     splitValues(row["武器ID"] ?? "").map(Number).filter(isUnsignedHash)
   )))];
+}
+
+export function collectWeaponRecommendationWeaponNames(text: string): string[] {
+  return [...new Set(curatedKnowledgeRows(parseKnowledgeCsv(text))
+    .map((row) => row["武器"]?.trim() ?? "")
+    .filter(Boolean))];
+}
+
+export function collectWeaponRecommendationNamesWithoutItemIds(text: string): string[] {
+  return [...new Set(curatedKnowledgeRows(parseKnowledgeCsv(text))
+    .filter((row) => !splitValues(row["武器ID"] ?? "").some((value) => isUnsignedHash(Number(value))))
+    .map((row) => row["武器"]?.trim() ?? "")
+    .filter(Boolean))];
 }
 
 export function collectWeaponRecommendationPlugSetHashes(
@@ -187,27 +313,39 @@ export function collectWeaponRecommendationPlugHashes(
 
 /**
  * Imports a previously previewed CSV and keeps a managed copy for later application starts.
- * Both the managed file and SQLite replacement are rolled back when the import fails.
+ * A clean maintainer-only full package replaces the curated dataset. Player CSV files and
+ * files with invalid rows merge only valid rows and leave unrelated existing records untouched.
+ * Both the managed file and SQLite update are rolled back when the import fails.
  */
 export async function importWeaponRecommendationCsv(
   dataDir: string,
   csvPath: string,
   expectedFingerprint: string,
+  validation: WeaponKnowledgeValidationContext,
   now = new Date()
 ): Promise<WeaponKnowledgeImportResult> {
   const csvText = readFileSync(csvPath, "utf8");
-  const preview = previewWeaponRecommendationCsv(csvText, csvPath);
+  const preview = previewWeaponRecommendationCsv(csvText, csvPath, validation.semantic_definitions);
   if (preview.fingerprint !== expectedFingerprint) {
     throw new Error("武器推荐 CSV 在预览后发生了变化，请重新选择文件。");
+  }
+  if (preview.importable_recommendation_count === 0) {
+    throw new Error("武器推荐 CSV 中没有可导入的有效记录，当前数据未更改。");
   }
 
   const managedPath = join(dataDir, "imports", "weapon-recommendations.csv");
   const staged = await stageManagedCsv(managedPath, csvText);
   try {
-    const status = await syncWeaponRecommendationKnowledge(dataDir, managedPath, now);
+    const status = await syncWeaponRecommendationKnowledge(dataDir, managedPath, validation, now);
     if (!status) throw new Error("武器推荐 CSV 导入失败。");
     await staged.commit();
-    return { ...status, file_name: preview.file_name };
+    return {
+      ...status,
+      file_name: preview.file_name,
+      imported_row_count: preview.importable_recommendation_count,
+      import_mode: preview.import_mode,
+      skipped_row_count: preview.skipped_row_count
+    };
   } catch (error) {
     await staged.rollback();
     throw error;
@@ -237,6 +375,7 @@ export function readWeaponRecommendationKnowledgeStatus(
 export async function syncWeaponRecommendationKnowledge(
   dataDir: string,
   csvPath: string,
+  validation: WeaponKnowledgeValidationContext,
   now = new Date()
 ): Promise<WeaponRecommendationKnowledgeStatus | null> {
   if (!existsSync(csvPath)) return null;
@@ -246,20 +385,56 @@ export async function syncWeaponRecommendationKnowledge(
 
   const csvText = readFileSync(csvPath, "utf8");
   const sourceFingerprint = csvFingerprint(csvText);
-  const rows = parseKnowledgeCsv(csvText);
+  const rows = prepareWeaponRecommendationRows(
+    curatedKnowledgeRows(parseKnowledgeCsv(csvText)),
+    validation.semantic_definitions
+  );
+  const manifestVersion = validation.manifest_version.trim();
+  if (!manifestVersion) throw new Error("严格校验缺少资料库版本，当前推荐数据未更改。");
+  const blockingIssues = validateWeaponRecommendationRows(rows, validation.semantic_definitions);
+  const skippedRows = new Set(blockingIssues.map((issue) => issue.row_number));
+  const validRows = rows.filter((row) => !skippedRows.has(csvRowNumber(row)));
+  if (validRows.length === 0) {
+    throw new Error("武器推荐 CSV 中没有可导入的有效记录，当前数据未更改。");
+  }
+  const partialImport = rows[0]?.__format === "player" || skippedRows.size > 0;
   const database = openRecommendationDatabase(dataDir);
   try {
     const currentFingerprint = recommendationMetadataValue(database, "source_fingerprint");
     const currentSchemaVersion = recommendationMetadataValue(database, "schema_version");
+    const currentSemanticVersion = recommendationMetadataValue(database, "semantic_validation_version");
+    const currentManifestVersion = recommendationMetadataValue(database, "validated_manifest_version");
+    const currentPartialImport = recommendationMetadataValue(database, "partial_import");
+    const currentCounts = database.prepare(`
+      SELECT
+        (SELECT COUNT(*) FROM weapon_recommendations) AS recommendation_count,
+        (SELECT COUNT(*) FROM recommendation_sources) AS source_count
+    `).get() as { recommendation_count: number; source_count: number };
+    const expectedSourceCount = new Set(validRows.map((row) => stableSourceKeys[row["推荐来源"]?.trim() ?? ""] ?? normalizeName(row["推荐来源"] ?? ""))).size;
     if (
       currentFingerprint === sourceFingerprint
       && currentSchemaVersion === String(recommendationDatabaseSchemaVersion)
+      && currentSemanticVersion === String(recommendationSemanticValidationVersion)
+      && currentManifestVersion === manifestVersion
+      && currentPartialImport === (partialImport ? "1" : "0")
+      && (partialImport || (
+        Number(currentCounts.recommendation_count) === validRows.length
+        && Number(currentCounts.source_count) === expectedSourceCount
+      ))
     ) {
       return knowledgeStatus(database, recommendationDatabasePath(dataDir));
     }
 
-    replaceKnowledge(database, rows, sourceFingerprint, now.toISOString());
-    knowledgeCaches.delete(recommendationDatabasePath(dataDir));
+    replaceKnowledge(
+      database,
+      validRows,
+      sourceFingerprint,
+      manifestVersion,
+      now.toISOString(),
+      partialImport,
+      skippedRows.size
+    );
+    invalidateWeaponRecommendationKnowledgeCache(dataDir);
     return knowledgeStatus(database, recommendationDatabasePath(dataDir));
   } finally {
     database.close();
@@ -287,6 +462,10 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
     async getRecommendations(item_hash: number, options: SourceOptions): Promise<WeaponRecommendation | null> {
       const knowledge = loadCache();
       if (!knowledge) return null;
+      if (
+        !options.manifest_version
+        || (!knowledge.legacyUnverified && options.manifest_version !== knowledge.validatedManifestVersion)
+      ) return null;
 
       const itemDefinition = options.itemDefinitions?.[String(item_hash)];
       const localizedNames = [
@@ -414,7 +593,10 @@ function replaceKnowledge(
   database: DatabaseSync,
   rows: Array<Record<string, string>>,
   sourceFingerprint: string,
-  importedAt: string
+  validatedManifestVersion: string,
+  importedAt: string,
+  partialImport: boolean,
+  skippedRowCount: number
 ): void {
   const insertSource = database.prepare(`
     INSERT INTO recommendation_sources (source_key, label, source_url)
@@ -424,16 +606,32 @@ function replaceKnowledge(
   const selectSource = database.prepare("SELECT id FROM recommendation_sources WHERE source_key = ?");
   const insertRecommendation = database.prepare(`
     INSERT INTO weapon_recommendations (
-      identity_key, normalized_weapon_name, weapon_name, normalized_english_name, english_name, source_id,
+      rule_stable_id, identity_key, normalized_weapon_name, weapon_name, normalized_english_name, english_name, source_id,
       page, rating, ranking, category, source_url, page_updated_at, version, source_location,
       icon, icon_url, stats, frame, season, acquisition_source, champion, champion_icon_url,
       ammo_generation, note, shield, charge_efficiency
     ) VALUES (
-      ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?, ?, ?, ?, ?,
       ?, ?, ?, ?
     )
+  `);
+  const updateRecommendation = database.prepare(`
+    UPDATE weapon_recommendations SET
+      rule_stable_id = ?, identity_key = ?, normalized_weapon_name = ?, weapon_name = ?,
+      normalized_english_name = ?, english_name = ?, source_url = ?, page = ?, rating = ?, ranking = ?,
+      category = ?, page_updated_at = ?, version = ?, source_location = ?, icon = ?, icon_url = ?, stats = ?,
+      frame = ?, season = ?, acquisition_source = ?, champion = ?, champion_icon_url = ?, ammo_generation = ?,
+      note = ?, shield = ?, charge_efficiency = ?
+    WHERE id = ?
+  `);
+  const selectExistingRecommendation = database.prepare(`
+    SELECT r.id
+    FROM weapon_recommendations r
+    WHERE r.source_id = ? AND (r.rule_stable_id = ? OR r.identity_key = ?)
+    ORDER BY CASE WHEN r.rule_stable_id = ? THEN 0 ELSE 1 END, r.id
+    LIMIT 1
   `);
   const insertItemId = database.prepare(`
     INSERT OR IGNORE INTO weapon_recommendation_item_ids (recommendation_id, item_hash) VALUES (?, ?)
@@ -453,15 +651,25 @@ function replaceKnowledge(
 
   database.exec("BEGIN IMMEDIATE;");
   try {
+    if (!partialImport) {
+      database.exec(`
+        DELETE FROM weapon_recommendation_perks;
+        DELETE FROM weapon_recommendation_purposes;
+        DELETE FROM weapon_recommendation_item_ids;
+        DELETE FROM weapon_recommendations;
+        DELETE FROM recommendation_sources;
+      `);
+    }
     database.exec(`
-      DELETE FROM weapon_recommendation_perks;
-      DELETE FROM weapon_recommendation_purposes;
-      DELETE FROM weapon_recommendation_item_ids;
-      DELETE FROM weapon_recommendations;
-      DELETE FROM recommendation_sources;
       DELETE FROM knowledge_metadata
-      WHERE key IN ('schema_version', 'source_fingerprint', 'imported_at');
+      WHERE key IN (
+        'schema_version', 'source_fingerprint', 'imported_at',
+        'semantic_validation_version', 'validated_manifest_version', 'dataset_revision',
+        'partial_import', 'skipped_row_count'
+      );
     `);
+
+    const ruleIdsBySource = new Map<string, Set<string>>();
 
     for (const row of rows) {
       const weaponName = row["武器"]?.trim();
@@ -469,6 +677,7 @@ function replaceKnowledge(
       if (!weaponName || !sourceLabel) continue;
 
       const sourceKey = stableSourceKeys[sourceLabel] ?? normalizeName(sourceLabel);
+      if (sourceKey === "dim_voltron") continue;
       insertSource.run(
         sourceKey,
         sourceLabel,
@@ -477,8 +686,11 @@ function replaceKnowledge(
       const source = selectSource.get(sourceKey) as { id: number } | undefined;
       if (!source) continue;
 
-      const result = insertRecommendation.run(
-        weaponIdentityKey(row),
+      const ruleStableId = curatedRuleStableId(sourceKey, row);
+      const identityKey = weaponIdentityKey(row);
+      const recommendationValues = [
+        ruleStableId,
+        identityKey,
         normalizeName(weaponName),
         weaponName,
         normalizeName(row["英文名称"] ?? ""),
@@ -504,8 +716,28 @@ function replaceKnowledge(
         row["注解"]?.trim() ?? "",
         row["护盾"]?.trim() ?? "",
         row["充能效率"]?.trim() ?? ""
-      );
-      const recommendationId = Number(result.lastInsertRowid);
+      ];
+      const existing = partialImport
+        ? selectExistingRecommendation.get(source.id, ruleStableId, identityKey, ruleStableId) as { id: number } | undefined
+        : undefined;
+      const updateValues = [
+        ...recommendationValues.slice(0, 6),
+        recommendationValues[11],
+        ...recommendationValues.slice(7, 11),
+        ...recommendationValues.slice(12)
+      ];
+      const recommendationId = existing
+        ? (updateRecommendation.run(
+            ...updateValues,
+            existing.id
+          ), Number(existing.id))
+        : Number(insertRecommendation.run(...recommendationValues).lastInsertRowid);
+      database.prepare("DELETE FROM weapon_recommendation_perks WHERE recommendation_id = ?").run(recommendationId);
+      database.prepare("DELETE FROM weapon_recommendation_purposes WHERE recommendation_id = ?").run(recommendationId);
+      database.prepare("DELETE FROM weapon_recommendation_item_ids WHERE recommendation_id = ?").run(recommendationId);
+      const sourceRuleIds = ruleIdsBySource.get(sourceKey) ?? new Set<string>();
+      sourceRuleIds.add(ruleStableId);
+      ruleIdsBySource.set(sourceKey, sourceRuleIds);
 
       const itemHashValues = splitValues(row["武器ID"] ?? "");
       const itemHashes = itemHashValues.map(Number);
@@ -533,8 +765,25 @@ function replaceKnowledge(
     }
 
     writeMetadata.run("schema_version", String(recommendationDatabaseSchemaVersion));
+    writeMetadata.run("semantic_validation_version", String(recommendationSemanticValidationVersion));
+    writeMetadata.run("validated_manifest_version", validatedManifestVersion);
     writeMetadata.run("source_fingerprint", sourceFingerprint);
+    writeMetadata.run("dataset_revision", sourceFingerprint);
     writeMetadata.run("imported_at", importedAt);
+    writeMetadata.run("partial_import", partialImport ? "1" : "0");
+    writeMetadata.run("skipped_row_count", String(skippedRowCount));
+    writeMetadata.run("curated_dataset_state", "active");
+    if (!partialImport) {
+      for (const sourceKey of curatedSourceKeys) {
+        reconcileRecommendationRuleOverrides(
+          database,
+          sourceKey,
+          ruleIdsBySource.get(sourceKey) ?? new Set<string>(),
+          sourceFingerprint,
+          importedAt
+        );
+      }
+    }
     database.exec("COMMIT;");
   } catch (error) {
     try {
@@ -552,13 +801,28 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
   let database: DatabaseSync | undefined;
   try {
     database = new DatabaseSync(path, { readOnly: true, timeout: 5_000 });
+    const semanticVersion = recommendationMetadataValue(database, "semantic_validation_version");
+    const validatedManifestVersion = recommendationMetadataValue(database, "validated_manifest_version");
+    const legacyUnverified = !semanticVersion || !validatedManifestVersion;
+    if (!legacyUnverified && semanticVersion !== String(recommendationSemanticValidationVersion)) return null;
     const recommendations = database.prepare(`
-      SELECT r.id, r.identity_key, r.weapon_name, r.normalized_weapon_name, r.english_name,
+      SELECT r.id, r.rule_stable_id, r.identity_key, r.weapon_name, r.normalized_weapon_name, r.english_name,
              r.normalized_english_name, s.source_key AS source_id, s.label AS source_label,
              r.source_url, s.source_url AS source_default_url, r.rating, r.ranking, r.note,
              r.page_updated_at, r.version, r.source_location
       FROM weapon_recommendations r
       JOIN recommendation_sources s ON s.id = r.source_id
+      LEFT JOIN recommendation_source_overrides source_override
+        ON source_override.source_key = s.source_key
+      WHERE COALESCE(source_override.state, 'active') = 'active'
+        AND NOT EXISTS (
+          SELECT 1
+          FROM recommendation_rule_overrides rule_override
+          WHERE rule_override.source_key = s.source_key
+            AND rule_override.rule_stable_id = r.rule_stable_id
+            AND rule_override.state = 'removed'
+            AND rule_override.review_required = 0
+        )
       ORDER BY r.id
     `).all() as Array<Omit<KnowledgeRecommendation, "purpose" | "requirements" | "item_hashes">>;
     if (recommendations.length === 0) return null;
@@ -604,7 +868,7 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
         byItemHash.set(itemHash, bucket);
       }
     }
-    return { byName, byItemHash };
+    return { byName, byItemHash, validatedManifestVersion, legacyUnverified };
   } catch {
     return null;
   } finally {
@@ -657,14 +921,7 @@ function resolveRecommendedPerks(names: string[], map: Map<string, PerkRef[]>): 
 
 function resolveRecommendedPerkName(name: string, map: Map<string, PerkRef[]>): PerkRef[] {
   const normalized = normalizeName(name);
-  const exact = map.get(normalized);
-  if (exact?.length) return exact;
-  if (!normalized) return [];
-
-  const matchingKeys = [...map.keys()].filter((candidate) => (
-    candidate.includes(normalized) || normalized.includes(candidate)
-  ));
-  return matchingKeys.length === 1 ? map.get(matchingKeys[0]) ?? [] : [];
+  return normalized ? map.get(normalized) ?? [] : [];
 }
 
 function buildSourceRecord(
@@ -686,6 +943,7 @@ function buildSourceRecord(
     }];
   });
   return {
+    rule_stable_id: recommendation.rule_stable_id,
     source_id: recommendation.source_id,
     source_label: recommendation.source_label,
     source_url: recommendation.source_url || recommendation.source_default_url || undefined,
@@ -764,13 +1022,86 @@ function validateWeaponRecommendationRows(
     ...definitions.plug_definitions
   };
 
+  const seenKeys = new Set<string>();
   rows.forEach((row, index) => {
-    const rowNumber = index + 2;
+    const rowNumber = csvRowNumber(row, index + 2);
     const weaponName = row["武器"]?.trim() ?? "";
     const sourceLabel = row["推荐来源"]?.trim() ?? "";
-    const itemHashes = splitValues(row["武器ID"] ?? "").map(Number).filter(isUnsignedHash);
+    const playerFormat = row.__format === "player";
+    const expectedColumnCount = playerFormat ? playerCsvHeaders.length : requiredCsvHeaders.length;
+    if (Number(row.__column_count ?? expectedColumnCount) !== expectedColumnCount) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "武器",
+        value: weaponName,
+        message: `该行有 ${row.__column_count ?? "未知"} 列，${playerFormat ? "普通玩家模板" : "T20 完整数据包"}要求 ${expectedColumnCount} 列。`
+      });
+      return;
+    }
+    if (!weaponName || !sourceLabel) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: !weaponName ? "武器" : "推荐来源",
+        value: !weaponName ? weaponName : sourceLabel,
+        message: !weaponName ? "缺少武器名称。" : "缺少推荐来源。"
+      });
+      return;
+    }
+    const uniqueKey = `${weaponIdentityKey(row)}\u0000${normalizeName(sourceLabel)}`;
+    if (seenKeys.has(uniqueKey)) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "武器",
+        value: weaponName,
+        message: "该武器身份与来源在文件前文已经存在。"
+      });
+      return;
+    }
+    seenKeys.add(uniqueKey);
+    const sourceKey = stableSourceKeys[sourceLabel];
+    if (sourceKey === "dim_voltron") return;
+    if (!sourceKey) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "推荐来源",
+        value: sourceLabel,
+        message: "人工推荐只接受 Aegis、LGpig、YXCRALLXY 和 Sayalarry 四个已管理来源；DIM 必须使用独立 Wishlist 数据链。"
+      });
+      return;
+    }
+    const rawItemHashValues = splitValues(row["武器ID"] ?? "");
+    const parsedItemHashes = rawItemHashValues.map(Number);
+    const invalidItemHashes = parsedItemHashes.filter((hash) => !isUnsignedHash(hash));
+    const itemHashes = parsedItemHashes.filter(isUnsignedHash);
+    if (invalidItemHashes.length) {
+      issues.push({
+        row_number: rowNumber,
+        weapon_name: weaponName,
+        source_label: sourceLabel,
+        field: "武器ID",
+        value: rawItemHashValues.join(" / "),
+        message: "武器 ID 必须是 0 到 4294967295 的整数。"
+      });
+      return;
+    }
+    const itemDefinitions = itemHashes.length
+      ? itemHashes
+        .filter((hash) => definitions.item_definitions[String(hash)])
+        .map((hash) => definitions.item_definitions[String(hash)])
+        .filter((definition): definition is DefinitionRecord => Boolean(definition))
+      : Object.values(definitions.item_definitions).filter((definition) => (
+        normalizeName(definition.displayProperties?.name ?? "") === normalizeName(weaponName)
+      ));
     const missingHashes = itemHashes.filter((hash) => !definitions.item_definitions[String(hash)]);
-    if (!itemHashes.length || missingHashes.length) {
+    if ((!itemHashes.length && itemDefinitions.length === 0) || missingHashes.length) {
       issues.push({
         row_number: rowNumber,
         weapon_name: weaponName,
@@ -779,14 +1110,11 @@ function validateWeaponRecommendationRows(
         value: missingHashes.length ? missingHashes.join(" / ") : row["武器ID"] ?? "",
         message: missingHashes.length
           ? "武器 ID 不在当前官方资料库中。"
-          : "严格校验要求每条记录提供可核对的武器 ID。"
+          : "无法根据官方中文名称找到可核对的武器；请补充武器 ID。"
       });
       return;
     }
 
-    const itemDefinitions = itemHashes
-      .map((hash) => definitions.item_definitions[String(hash)])
-      .filter((definition): definition is DefinitionRecord => Boolean(definition));
     const mismatchedWeaponNames = itemDefinitions
       .map((definition) => definition.displayProperties?.name?.trim() ?? "")
       .filter((officialName) => normalizeName(officialName) !== normalizeName(weaponName));
@@ -891,42 +1219,147 @@ function uniqueHashes(values: Array<number | undefined>): number[] {
 function parseKnowledgeCsv(text: string): Array<Record<string, string>> {
   const records = parseCsvRecords(text.replace(/^\uFEFF/, ""));
   const headers = records.shift()?.map((value) => value.trim()) ?? [];
-  if (
-    headers.length !== requiredCsvHeaders.length
-    || requiredCsvHeaders.some((header, index) => headers[index] !== header)
-  ) {
-    throw new Error(`武器推荐 CSV 表头必须与应用标准模板的 ${requiredCsvHeaders.length} 列完全一致。`);
+  const isFullFormat = headers.length === requiredCsvHeaders.length
+    && requiredCsvHeaders.every((header, index) => headers[index] === header);
+  const isPlayerFormat = headers.length === playerCsvHeaders.length
+    && playerCsvHeaders.every((header, index) => headers[index] === header);
+  if (!isFullFormat && !isPlayerFormat) {
+    throw new Error(`武器推荐 CSV 表头不受支持：请使用普通玩家模板（${playerCsvHeaders.length} 列）或 T20 完整数据包（${requiredCsvHeaders.length} 列）。`);
   }
-  const dataRecords = records.filter((record) => record.some((value) => value.trim()));
-  const invalidColumnIndex = dataRecords.findIndex((record) => record.length !== headers.length);
-  if (invalidColumnIndex >= 0) {
-    throw new Error(`武器推荐 CSV 第 ${invalidColumnIndex + 2} 行列数与表头不一致。`);
-  }
-  const rows = dataRecords
-    .map((record) => Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""])));
+  const rows = records
+    .map((record, index) => ({ record, rowNumber: index + 2 }))
+    .filter(({ record }) => record.some((value) => value.trim()))
+    .map(({ record, rowNumber }) => ({
+      ...(isFullFormat
+        ? Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""]))
+        : playerRowToKnowledgeRow(Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""])) as Record<string, string>)),
+      __row_number: String(rowNumber),
+      __column_count: String(record.length),
+      __format: isFullFormat ? "full" : "player"
+    }));
   if (rows.length === 0) {
     throw new Error("武器推荐 CSV 没有可导入的数据行。");
   }
-  if (rows.some((row) => !row["武器"]?.trim() || !row["推荐来源"]?.trim())) {
-    throw new Error("武器推荐 CSV 存在缺少武器名称或推荐来源的数据行。");
-  }
-  const uniqueKeys = new Set<string>();
-  for (const [index, row] of rows.entries()) {
-    const weaponName = row["武器"].trim();
-    const sourceLabel = row["推荐来源"].trim();
-    const uniqueKey = `${weaponIdentityKey(row)}\u0000${normalizeName(sourceLabel)}`;
-    if (uniqueKeys.has(uniqueKey)) {
-      const identityLabel = row["英文名称"]?.trim() || row["武器ID"]?.trim() || weaponName;
-      throw new Error(`武器推荐 CSV 第 ${index + 2} 行的武器身份与来源在前文已经存在：${weaponName} / ${identityLabel} / ${sourceLabel}`);
-    }
-    uniqueKeys.add(uniqueKey);
-
-    const itemHashes = splitValues(row["武器ID"] ?? "").map(Number);
-    if (itemHashes.some((value) => !isUnsignedHash(value))) {
-      throw new Error(`武器推荐 CSV 第 ${index + 2} 行的武器 ID 无效：${weaponName} / ${sourceLabel}`);
-    }
-  }
   return rows;
+}
+
+function playerRowToKnowledgeRow(row: Record<string, string>): Record<string, string> {
+  return {
+    页面: "",
+    分类: "",
+    武器: row["武器"] ?? "",
+    评级: row["评级"] ?? "",
+    排名: "",
+    来源URL: "",
+    页面更新时间: "",
+    来源位置: "",
+    图标: "",
+    图标图标URL: "",
+    属性: "",
+    框架: "",
+    赛季: "",
+    来源: "",
+    勇士: "",
+    勇士图标URL: "",
+    弹药生成: "",
+    枪管: row["第一列"] ?? "",
+    弹匣: row["第二列"] ?? "",
+    大师: row["大师"] ?? "",
+    "Perk 1": row["Perk 1"] ?? "",
+    "Perk 2": row["Perk 2"] ?? "",
+    起源特性: row["起源特性"] ?? "",
+    注解: row["备注"] ?? "",
+    护盾: "",
+    充能效率: "",
+    武器ID: row["武器ID"] ?? "",
+    英文名称: row["英文名称"] ?? "",
+    版本: "",
+    推荐来源: row["推荐来源"] ?? "",
+    用途: row["用途"] ?? ""
+  };
+}
+
+function prepareWeaponRecommendationRows(
+  rows: Array<Record<string, string>>,
+  definitions?: WeaponKnowledgeSemanticDefinitions
+): Array<Record<string, string>> {
+  if (!definitions) return rows;
+  return rows.map((row) => enrichWeaponRecommendationRow(row, definitions));
+}
+
+function enrichWeaponRecommendationRow(
+  row: Record<string, string>,
+  definitions: WeaponKnowledgeSemanticDefinitions
+): Record<string, string> {
+  const resolvedItems = resolveOfficialWeaponDefinitions(row, definitions.item_definitions);
+  if (!resolvedItems.length) return row;
+  const primary = resolvedItems[0].definition;
+  const sourceLabel = row["推荐来源"]?.trim() ?? "";
+  const resolvedHashes = uniqueHashes(resolvedItems.map((item) => item.hash));
+  return {
+    ...row,
+    武器: row["武器"]?.trim() || primary.displayProperties?.name?.trim() || "",
+    武器ID: row["武器ID"]?.trim() || resolvedHashes.join(" / "),
+    页面: row["页面"]?.trim() || sourceLabel,
+    分类: row["分类"]?.trim() || primary.itemTypeDisplayName?.trim() || "",
+    来源URL: row["来源URL"]?.trim() || stableSourceUrls[sourceLabel] || "",
+    来源位置: row["来源位置"]?.trim() || (row.__format === "player" ? "玩家简表导入" : ""),
+    图标图标URL: row["图标图标URL"]?.trim() || primary.displayProperties?.icon?.trim() || "",
+    来源: row["来源"]?.trim() || primary.sourceData?.sourceString?.trim() || ""
+  };
+}
+
+function resolveOfficialWeaponDefinitions(
+  row: Record<string, string>,
+  definitions: DefinitionComponentData
+): Array<{ hash: number; definition: DefinitionRecord }> {
+  const requestedHashes = splitValues(row["武器ID"] ?? "")
+    .map(Number)
+    .filter(isUnsignedHash);
+  if (requestedHashes.length) {
+    return requestedHashes.flatMap((hash) => {
+      const definition = definitions[String(hash)];
+      return definition ? [{ hash, definition }] : [];
+    });
+  }
+
+  const weaponName = normalizeName(row["武器"] ?? "");
+  if (!weaponName) return [];
+  return Object.entries(definitions).flatMap(([key, definition]) => {
+    if (normalizeName(definition.displayProperties?.name ?? "") !== weaponName) return [];
+    const hash = Number(definition.hash ?? key);
+    return isUnsignedHash(hash) ? [{ hash, definition }] : [];
+  });
+}
+
+function curatedKnowledgeRows(rows: Array<Record<string, string>>): Array<Record<string, string>> {
+  return rows.filter((row) => {
+    const sourceLabel = row["推荐来源"]?.trim() ?? "";
+    return (stableSourceKeys[sourceLabel] ?? normalizeName(sourceLabel)) !== "dim_voltron";
+  });
+}
+
+function csvRowNumber(row: Record<string, string>, fallback = 2): number {
+  const value = Number(row.__row_number);
+  return Number.isInteger(value) && value >= 2 ? value : fallback;
+}
+
+function groupExportValues<T extends { recommendation_id: number }, K extends Exclude<keyof T, "recommendation_id">>(
+  rows: T[],
+  field: K
+): Map<number, string[]> {
+  const grouped = new Map<number, string[]>();
+  for (const row of rows) {
+    const values = grouped.get(row.recommendation_id) ?? [];
+    values.push(String(row[field] ?? ""));
+    grouped.set(row.recommendation_id, values);
+  }
+  return grouped;
+}
+
+function csvEscape(value: string | number): string {
+  const text = String(value ?? "");
+  return /[",\r\n]/u.test(text) ? `"${text.replace(/"/gu, '""')}"` : text;
 }
 
 function parseCsvRecords(text: string): string[][] {
@@ -1001,6 +1434,18 @@ function weaponIdentityKey(row: Record<string, string>): string {
   return `zh:${normalizeName(row["武器"] ?? "")}`;
 }
 
+function curatedRuleStableId(sourceKey: string, row: Record<string, string>): string {
+  return createHash("sha256").update(JSON.stringify({
+    source_key: sourceKey,
+    weapon_identity: weaponIdentityKey(row),
+    purposes: [...parsePurposes(row["用途"] ?? "")].sort(),
+    requirements: Object.fromEntries(strictRequirementFields.map(([field, slot]) => [
+      slot,
+      requirementValues(row[field] ?? "").map(normalizeName).sort()
+    ]))
+  })).digest("hex");
+}
+
 function isUnsignedHash(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff;
 }
@@ -1016,14 +1461,23 @@ function knowledgeStatus(database: DatabaseSync, path: string): WeaponRecommenda
       (SELECT COUNT(DISTINCT identity_key) FROM weapon_recommendations) AS weapon_count,
       (SELECT COUNT(*) FROM recommendation_sources) AS source_count
   `).get() as { recommendation_count: number; weapon_count: number; source_count: number };
+  const semanticValidationVersion = Number(recommendationMetadataValue(database, "semantic_validation_version") || 0);
+  const validatedManifestVersion = recommendationMetadataValue(database, "validated_manifest_version");
+  const verified = semanticValidationVersion === recommendationSemanticValidationVersion
+    && Boolean(validatedManifestVersion);
   return {
     schema_version: recommendationDatabaseSchemaVersion,
+    semantic_validation_version: semanticValidationVersion,
+    validated_manifest_version: validatedManifestVersion,
+    validation_state: verified ? "verified" : "unverified",
+    dataset_revision: recommendationMetadataValue(database, "dataset_revision"),
     database_path: path,
     source_fingerprint: recommendationMetadataValue(database, "source_fingerprint"),
     imported_at: recommendationMetadataValue(database, "imported_at"),
     recommendation_count: Number(counts.recommendation_count),
     weapon_count: Number(counts.weapon_count),
-    source_count: Number(counts.source_count)
+    source_count: Number(counts.source_count),
+    skipped_row_count: Number(recommendationMetadataValue(database, "skipped_row_count") || 0)
   };
 }
 

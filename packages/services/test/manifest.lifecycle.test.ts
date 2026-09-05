@@ -55,10 +55,10 @@ describe("SQLite manifest lifecycle", () => {
   it("reuses a compatible English sidecar without downloading the English database again", () => {
     expect(scenarios["english-index-reuse"]).toEqual({
       firstDownloadCount: 2,
-      secondDownloadCount: 1,
+      secondDownloadCount: 0,
       englishIndexExists: true,
       englishSearchHashes: [3],
-      disabledDownloadCount: 1,
+      disabledDownloadCount: 0,
       disabledEnglishIndex: false
     });
   });

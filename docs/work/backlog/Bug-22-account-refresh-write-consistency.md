@@ -19,7 +19,7 @@
 
 - 保留 `responseMintedTimestamp`，并随 `AccountSummary` / `AccountSnapshot` 传递。
 - Session、持久化快照和 renderer Store 都不得接受比当前水位线更旧的 Profile。
-- 相同 Profile 版本不得覆盖包含本地已提交写结果的当前状态。
+- 相同 Profile 时间戳可能对应不同内容，只能由 Session 串行接受；Renderer 不得用页面局部缓存自行决定装备事实。
 - 快照构建完成时再次核对构建所依据的 Profile 版本，避免构建期间状态变化后提交旧结果。
 
 ### 2. 一个账号协调器负责所有账号装备状态
@@ -34,9 +34,9 @@
 
 `submitting → accepted → pending-confirmation → confirmed / mismatch / unavailable`
 
-- 转移、锁定、邮政官取回可以在 Bungie 成功后立即局部更新，但 pending patch 必须保留到更新版本的 Profile 确认。
-- 旧版或同版本 Profile 不能撤销 pending patch。
-- 只有更新版本的 Profile 明确与目标状态冲突时才回滚，并显示“游戏状态未确认”。
+- 转移、锁定、装备、邮政官取回和配装在 Bungie 受理后只进入 Pending，不提前改写当前账号 Store 中的位置、锁定或装备事实。
+- Pending 可以展示预期目标和确认进度，但不能叠加到后续权威 Profile 上冒充服务器事实。
+- 只有更新版本的 Profile 明确反映目标状态时才提交账号 Store；确认超时、失败或结果不一致时清除 Pending，并显示“游戏状态尚未确认”。
 - 装备不能把 HTTP 成功显示成“已装备”；确认成功后应使用同一 Session 中已接受的 Profile 更新完整快照。
 
 ### 4. 配装步骤必须依赖真实前置状态
@@ -70,7 +70,7 @@
 ## 验收标准
 
 - 游戏内移动装备后点击任意账号同步入口，账号、仓库、配装和首页账号摘要最终一致。
-- 转移成功后页面立即显示 pending 或目标位置，任何旧 Profile 都不能让物品跳回原位置。
+- 转移成功后页面立即显示 Pending 与预期目标，但当前位置仍保持服务器最后确认值；任何旧 Profile 都不能把预期状态误报为已确认。
 - 单击刷新时，如果 Bungie 没有返回更新版本，明确显示“服务器版本未变化”，不能伪装成读取到新状态。
 - 写后确认成功使用同一份已确认 Profile 更新页面，不再发生“后台确认成功，完整刷新又回退”。
 - 仓库转移后的装备步骤只有在服务器确认进入目标角色背包后执行。
@@ -80,13 +80,21 @@
 ## 本次实现
 
 - `AccountSummary` 保留 Bungie `responseMintedTimestamp`，Account Session 与 renderer Store 都拒绝旧 Profile；被拒绝的旧响应不再继续驱动页面提示、角色选择或仓库派生状态。
-- 账号完整刷新与写后轻量对账共用同一个 Account Session Profile 缓存，避免两套互不认识的请求结果互相覆盖。
-- 转移、锁定和邮政官取回仍可先显示待确认的目标位置；装备请求只显示确认中，不再把 HTTP 成功直接显示成游戏内已装备。
-- 写后对账以操作前 Profile 版本为 baseline；只有更新版本明确反映目标状态才确认，更新版本明确不一致才回滚并报告 mismatch。
-- 对账因认证或配置等不可重试原因终止时会释放 Session pending patch，避免它在后续每次手动同步时永久覆盖服务器状态；页面保留“未确认/已暂停”反馈，等待下一次可用的真实刷新。
+- Account Session 每次提交完整快照后都会通过主进程事件通知 Renderer；账号、仓库、配装和首页共享 Store 会消费同一份快照，不再出现主进程已落盘正确数据但页面仍停留在旧背包列表的分叉状态。
+- 手动同步只有在 Renderer Store 真正接受返回快照后才显示完成；若响应因版本倒退被拒绝，会明确保留当前状态并报告本次结果未应用。
+- 强制 Profile 读取允许相同 `responseMintedTimestamp` 的新内容替换 Session 中旧对象，避免 Bungie 在同一时间戳下更新物品位置时被内存缓存吞掉。
+- 账号页、仓库页、设置页、AI 空状态、首页和配装统一使用“同步装备数据”；设置概览不再重复执行同步，只导航到账号设置。“重新登录 Bungie”独立说明只用于登录失效、权限异常或切换账号。
+- 账号完整刷新与写后有限对账共用同一个 Account Session 请求协调器，避免两套互不认识的 Profile 请求互相覆盖。
+- 启动只恢复上次账号快照，不由主进程静默远程刷新；Renderer 全局账号控制器负责本次运行唯一一次可见初始同步，页面挂载与切换菜单不触发账号刷新。
+- 已删除共享 Shell 与账号控制器之间重复的初始同步触发；登录流程和已授权启动均只进入同一个账号刷新协调器。
+- 攻略和助手 IPC 只读取当前全局账号快照；配装执行前后的复核必须使用全局账号控制器，已移除功能 Hook 内直接强刷账号 API 的 fallback，避免 Session 与 Renderer Store 出现两套刷新所有者。
+- Repository 与 Session 的账号 TTL/SWR 已移除；手动同步始终作为权威请求穿透普通缓存，并以 Profile 水位线原子提交中央账号 Store。
+- 转移、锁定、装备、邮政官取回和配装只显示 Pending 与预期目标，不再把 Bungie HTTP 成功直接写成游戏内事实。
+- 写后对账以操作前 Profile 版本为 baseline；只有更新版本明确反映目标状态才确认并提交 Store，有限确认结束仍不一致时清除 Pending 并报告 mismatch 或未确认。
 - 最高光等和配装从仓库取出装备后，先读取真实角色 inventory / equipment，确认实例到达目标角色后才调用装备接口，避免转移尚未同步时产生 1623 / 1640。
 - 首页 force 请求遇到普通 in-flight 时会排队追加真正的强制请求，并把 force 传递到最底层 Request Broker；移除 Home Session 外层重复缓存造成的强制刷新失效。
 - 手动同步会清除已经结束的写操作提示，但保留仍在后台对账的 pending 状态，避免旧错误长期覆盖最新同步结果。
+- 推荐核对在账号快照原子提交后异步启动，不阻塞账号、仓库和配装更新；账号位置变化直接复用实例匹配缓存，Roll 变化只重算对应实例。
 - 诊断导出的应用版本优先读取产品 package version，不再把 Electron 版本误报为 d2-tools 版本。
 
 ## 待真实账号验收

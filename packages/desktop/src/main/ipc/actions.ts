@@ -62,7 +62,6 @@ import {
   getAccountItemDetailByInstanceId,
   invalidateAccountItemDetails,
   invalidateAccountSession,
-  patchAccountSession,
   resolveAccountItemLocation,
   type AccountItemLocation
 } from "../runtime/accountSession.js";
@@ -136,7 +135,7 @@ export function registerActionIpcHandlers(): void {
       successMessage: `已应用 Perk：${input.plug_name ?? input.plug_hash}`,
       run: async ({ config, token }) => {
         const location = await prepareSocketWrite(input.item_id);
-        await applySocketPlugWithRecovery({ config, token, input, location, refreshAfterSuccess: true });
+        await applySocketPlugWithRecovery({ config, token, input, location });
       }
     });
   });
@@ -159,7 +158,6 @@ export function registerActionIpcHandlers(): void {
             config,
             token,
             location,
-            refreshAfterSuccess: false,
             input: {
               membership_type: input.membership_type,
               character_id: input.character_id,
@@ -172,7 +170,6 @@ export function registerActionIpcHandlers(): void {
             }
           });
         }
-        await refreshAccountItemDetail(input.item_id);
       }
     });
   });
@@ -338,7 +335,6 @@ export function registerActionIpcHandlers(): void {
       itemName: input.loadout_name,
       characterId: input.character_id,
       successMessage: `清空游戏内配装栏请求已受理：${input.loadout_name ?? `槽位 ${input.loadout_index + 1}`}`,
-      invalidateAllItemDetails: true,
       run: async ({ config, token }) => {
         await bungieClearLoadout({
           config,
@@ -442,7 +438,7 @@ async function prepareSocketWrite(instanceId: string): Promise<AccountItemLocati
   let location = await resolveAccountItemLocation(instanceId);
   if (!location) location = await resolveAccountItemLocation(instanceId, "refresh");
   assertSocketWriteLocation(location);
-  await getAccountItemDetailByInstanceId(instanceId, "refresh");
+  await getAccountItemDetailByInstanceId(instanceId, "cached");
   return location;
 }
 
@@ -451,11 +447,9 @@ async function applySocketPlugWithRecovery(input: {
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
   location: AccountItemLocation;
-  refreshAfterSuccess: boolean;
 }): Promise<void> {
   try {
     await insertSocketPlugAtLocation(input);
-    if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
     return;
   } catch (error) {
     if (isItemRefreshRequiredWriteError(error)) {
@@ -470,7 +464,6 @@ async function applySocketPlugWithRecovery(input: {
       assertSocketWriteLocation(refreshedLocation);
       await refreshAccountItemDetail(input.input.item_id);
       await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
-      if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
       return;
     }
     throw error;
@@ -514,7 +507,6 @@ async function retrySocketPlugAfterRefresh(input: {
   config: D2Config;
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
-  refreshAfterSuccess: boolean;
 }): Promise<void> {
   // Bungie can keep an item mutation pending briefly after returning ErrorCode 1679.
   // Each retry obtains a new item response and location; no stale request is reused.
@@ -529,7 +521,6 @@ async function retrySocketPlugAfterRefresh(input: {
     assertSocketWriteLocation(refreshedLocation);
     try {
       await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
-      if (input.refreshAfterSuccess) await refreshAccountItemDetail(input.input.item_id);
       return;
     } catch (error) {
       if (!isItemRefreshRequiredWriteError(error)) throw error;
@@ -608,13 +599,6 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     const postprocessStartedAt = performance.now();
     if (input.invalidateAllItemDetails) {
       await invalidateAccountItemDetails();
-    } else if (input.itemInstanceId) {
-      await invalidateAccountItemDetails([input.itemInstanceId]);
-    }
-    if (input.accountPatch && input.accountPatch.kind !== "equip") {
-      // 装备位置必须等待真实 Profile 对账确认，不能把 EquipItem 的 HTTP
-      // 成功直接写入 Session 快照，否则缓存读取也会伪装成已装备。
-      await patchAccountSession(input.accountPatch, { revalidate: false });
     }
     postprocessDurationMs = performance.now() - postprocessStartedAt;
     const durationMs = performance.now() - startedAt;
@@ -807,16 +791,9 @@ async function performBatchWriteActions<T>(
       successCount += 1;
       const itemInstanceId = input.getItemInstanceId(item);
       if (itemInstanceId) succeededItemIds.push(itemInstanceId);
-      if (itemInstanceId) await invalidateAccountItemDetails([itemInstanceId]);
       const accountPatch = input.getAccountPatch?.(item);
       if (accountPatch) {
         accountPatches.push(accountPatch);
-        // 装备写入的 HTTP 成功只代表 Bungie 接受请求，不能把实例立即
-        // 写入 Session 的装备位置。必须等后台 Profile 对账确认后再清理
-        // pending 状态；转移、锁定和邮政官取回仍可立即反映。
-        if (accountPatch.kind !== "equip") {
-          await patchAccountSession(accountPatch, { revalidate: false });
-        }
       }
       appendActionLog(config.data.data_dir, {
         ...input.getTrace?.(item),
@@ -989,6 +966,7 @@ function describeEquipFailure(status: number): string {
 const latestWriteVerificationByScope = new Map<string, string>();
 const accountWriteVerificationWaits = [750, 2_000, 5_000, 10_000, 20_000] as const;
 const accountWriteMismatchMessage = "Bungie Profile 已返回更新版本，但目标实例状态仍与本次写入不一致。";
+const accountWriteUnconfirmedMessage = "Bungie 已受理写入，但在有限次数对账内仍未返回可确认的新状态。";
 
 function startAccountWriteVerification(input: AccountWriteVerificationInput) {
   const verificationKeys = getAccountWriteVerificationScopes(input).map((scope) => [
@@ -1078,9 +1056,6 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
           if (!reflected
             && attempt >= accountWriteVerificationWaits.length
             && isProfileNewerThanBaseline(profile, input.baseline_profile_minted_at)) {
-            await Promise.all(input.expected_patches.map((patch) => (
-              patchAccountSession(patch, { revalidate: false, preserve: false })
-            )));
             appendAccountWriteVerificationLog(
               config.data.data_dir,
               input,
@@ -1090,10 +1065,17 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             throw new Error(accountWriteMismatchMessage);
           }
 
+          if (!reflected && attempt >= accountWriteVerificationWaits.length) {
+            appendAccountWriteVerificationLog(
+              config.data.data_dir,
+              input,
+              "partial",
+              accountWriteUnconfirmedMessage
+            );
+            throw new Error(accountWriteUnconfirmedMessage);
+          }
+
           if (reflected) {
-            await Promise.all(input.expected_patches.map((patch) => (
-              patchAccountSession(patch, { revalidate: false, preserve: false })
-            )));
             appendAccountWriteVerificationLog(config.data.data_dir, input, "verified", input.failed_count > 0
               ? `已确认 ${matchedCount}/${input.accepted_count} 项变化已在游戏内生效，另有 ${input.failed_count} 项提交失败。`
               : `已确认 ${matchedCount} 项变化已在游戏内生效。`);
@@ -1121,7 +1103,10 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
               : `写入已完成，正在后台对账（已匹配 ${matchedCount}/${input.expected_patches.length}）。`
           });
         } catch (error) {
-          if (error instanceof Error && error.message === accountWriteMismatchMessage) {
+          if (error instanceof Error && (
+            error.message === accountWriteMismatchMessage
+            || error.message === accountWriteUnconfirmedMessage
+          )) {
             throw error;
           }
           const classified = classifyWriteActionIpcError(error);
@@ -1146,9 +1131,6 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             message: classified.message
           });
           if (!classified.retryable) {
-            await Promise.all(input.expected_patches.map((patch) => (
-              patchAccountSession(patch, { revalidate: false, preserve: false })
-            )));
             appendAccountWriteVerificationLog(
               config.data.data_dir,
               input,

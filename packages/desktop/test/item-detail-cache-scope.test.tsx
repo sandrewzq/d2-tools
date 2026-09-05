@@ -38,12 +38,14 @@ describe("item detail cache scope", () => {
     );
 
     await act(async () => result.current.openItemDetail(accountItem));
+    await act(async () => result.current.loadSelectedItemFullDetail());
     expect(result.current.selectedItem?.description).toBe("manifest-a");
     expect(result.current.selectedItem?.socket_plugs[0]?.name).toBe("account-a");
 
     rerender({ scopeKey: "account-b\u0000manifest-b" });
     await waitFor(() => expect(result.current.selectedItem).toBeNull());
     await act(async () => result.current.openItemDetail(accountItem));
+    await act(async () => result.current.loadSelectedItemFullDetail());
 
     expect(apiMocks.getItemDetail).toHaveBeenCalledTimes(2);
     expect(apiMocks.getAccountItemDetail).toHaveBeenCalledTimes(2);
@@ -61,9 +63,13 @@ describe("item detail cache scope", () => {
     let firstRequest!: Promise<void>;
     let secondRequest!: Promise<void>;
 
+    await act(async () => result.current.openItemDetail(accountItem));
     act(() => {
-      firstRequest = result.current.openItemDetail(accountItem);
-      secondRequest = result.current.openItemDetail(accountItem);
+      firstRequest = result.current.loadSelectedItemFullDetail();
+    });
+    await act(async () => result.current.openItemDetail(accountItem));
+    act(() => {
+      secondRequest = result.current.loadSelectedItemFullDetail();
     });
     await act(async () => {
       second.resolve(definitionDetail("latest"));
@@ -85,8 +91,9 @@ describe("item detail cache scope", () => {
     const { result } = renderHook(() => useItemDetail({ cacheScopeKey: "account-a\u0000manifest-a" }));
     let firstRequest!: Promise<void>;
 
+    await act(async () => result.current.openItemDetail(accountItem));
     act(() => {
-      firstRequest = result.current.openItemDetail(accountItem);
+      firstRequest = result.current.loadSelectedItemFullDetail();
     });
     act(() => result.current.closeSelectedItemDetail());
     await act(async () => {
@@ -96,6 +103,7 @@ describe("item detail cache scope", () => {
     expect(result.current.selectedItem).toBeNull();
 
     await act(async () => result.current.openItemDetail(accountItem));
+    await act(async () => result.current.loadSelectedItemFullDetail());
     expect(apiMocks.getItemDetail).toHaveBeenCalledTimes(2);
     expect(result.current.selectedItem?.description).toBe("fresh-after-close");
   });
@@ -109,6 +117,7 @@ describe("item detail cache scope", () => {
     const { result } = renderHook(() => useItemDetail({ cacheScopeKey: "account-refresh\u0000manifest-a" }));
 
     await act(async () => result.current.openItemDetail(accountItem));
+    await act(async () => result.current.loadSelectedItemFullDetail());
     await act(async () => result.current.refreshSelectedItemDetail());
 
     expect(apiMocks.getAccountItemDetail).toHaveBeenLastCalledWith("instance-1", { force: true });

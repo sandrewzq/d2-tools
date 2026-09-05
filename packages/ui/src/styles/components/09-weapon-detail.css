@@ -249,6 +249,9 @@
 .weapon-detail-sections { display: grid; min-width: 0; }
 .weapon-detail-section { display: grid; gap: 14px; min-width: 0; padding: 20px 18px 24px; border-bottom: 1px solid var(--section-divider); scroll-margin-top: 58px; }
 .weapon-detail-section:last-child { border-bottom: 0; }
+.weapon-detail-recommendation-section { box-shadow: inset 0 3px 0 var(--accent-primary); background: linear-gradient(180deg, color-mix(in srgb, var(--accent-primary) 7%, var(--surface-panel)) 0, var(--surface-panel) 150px); }
+.weapon-detail-recommendation-section .weapon-detail-section-heading > div > span { width: fit-content; padding: 2px 7px; border-radius: var(--radius-indicator); color: var(--selected-fg); background: var(--selected-bg); }
+.weapon-detail-recommendation-section .weapon-detail-section-heading h3 { font-size: 20px; }
 .weapon-detail-section-heading { display: flex; align-items: end; justify-content: space-between; gap: var(--space-16); }
 .weapon-detail-section-heading > div { display: grid; gap: 2px; }
 .weapon-detail-section-heading h3 { margin: 0; color: var(--text-title); font-size: 18px; }
@@ -311,6 +314,10 @@
 .weapon-detail-config-summary span { display: block; color: var(--text-muted); font-size: var(--font-caption); }
 .weapon-detail-config-summary strong { display: block; margin-top: 3px; overflow-wrap: anywhere; color: var(--text-title); font-size: var(--font-content); line-height: 1.35; }
 .weapon-detail-config-source { margin: -7px 0 0; color: var(--text-muted); font-size: var(--font-caption); text-align: right; }
+.weapon-detail-config-on-demand { display: flex; min-height: 64px; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: var(--radius-frame); background: var(--surface-interactive); }
+.weapon-detail-config-on-demand > span { display: grid; min-width: 0; gap: 3px; }
+.weapon-detail-config-on-demand strong { color: var(--text-title); font-size: var(--font-body); }
+.weapon-detail-config-on-demand small { color: var(--text-muted); font-size: var(--font-meta); line-height: 1.45; }
 .weapon-detail-config-loading-note { display: flex; min-height: 34px; align-items: center; gap: 8px; margin: -2px 0 0; padding: 7px 9px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-muted); background: var(--surface-subtle); font-size: var(--font-caption); line-height: 1.45; }
 .weapon-detail-config-loading-note > span { width: 8px; height: 8px; flex: 0 0 auto; border: 2px solid var(--selected-border); border-top-color: transparent; border-radius: 50%; animation: weapon-detail-config-spin 0.8s linear infinite; }
 .weapon-detail-config-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; align-items: start; }
@@ -416,42 +423,65 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-match-summary { display: flex; flex-wrap: wrap; gap: 5px; }
 .weapon-detail-match-summary span { padding: 4px 6px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-muted); background: var(--surface-interactive); font-size: var(--font-caption); }
 .weapon-detail-match-empty { margin: 0; padding: 14px; border: 1px dashed var(--border-control); color: var(--text-muted); text-align: center; }
-.weapon-detail-source-evidence { overflow: hidden; --weapon-recommendation-accent: var(--status-neutral); --weapon-recommendation-bg: var(--status-neutral-bg); border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
-.weapon-detail-source-evidence[data-match-state="full"] { --weapon-recommendation-accent: var(--status-ready); --weapon-recommendation-bg: var(--status-ready-bg); }
-.weapon-detail-source-evidence[data-match-state="partial"] { --weapon-recommendation-accent: var(--status-warning); --weapon-recommendation-bg: var(--status-warning-bg); }
-.weapon-detail-source-evidence[data-match-state="different"] { --weapon-recommendation-accent: var(--status-error); --weapon-recommendation-bg: var(--status-error-bg); }
+.weapon-detail-source-evidence { overflow: hidden; --weapon-recommendation-accent: var(--status-neutral); --weapon-recommendation-bg: var(--status-neutral-bg); border: 1px solid color-mix(in srgb, var(--weapon-recommendation-accent) 38%, var(--object-border)); border-radius: var(--radius-object); background: var(--card-bg); }
+.weapon-detail-source-evidence[data-match-state="full"],
+.weapon-detail-source-evidence[data-match-state="core"] { --weapon-recommendation-accent: var(--status-ready); --weapon-recommendation-bg: color-mix(in srgb, var(--status-ready) 8%, var(--surface-panel)); }
+.weapon-detail-source-evidence[data-match-state="close"] { --weapon-recommendation-accent: var(--status-warning); --weapon-recommendation-bg: var(--status-warning-bg); }
+.weapon-detail-source-evidence[data-match-state="key_missing"],
+.weapon-detail-source-evidence[data-match-state="not_matched"] { --weapon-recommendation-accent: var(--status-error); --weapon-recommendation-bg: var(--status-error-bg); }
 .weapon-detail-source-evidence[data-match-state="uncheckable"] { --weapon-recommendation-accent: var(--status-pending); --weapon-recommendation-bg: var(--status-pending-bg); }
-.weapon-detail-source-evidence > summary { display: flex; min-height: 54px; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; cursor: pointer; list-style: none; }
+.weapon-detail-source-evidence > summary { display: flex; min-height: 72px; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 12px; background: color-mix(in srgb, var(--weapon-recommendation-bg) 42%, var(--card-bg)); cursor: pointer; list-style: none; }
+.weapon-detail-source-evidence[data-match-state="full"] > summary,
+.weapon-detail-source-evidence[data-match-state="core"] > summary { background: linear-gradient(90deg, color-mix(in srgb, var(--status-ready) 7%, var(--card-bg)), var(--card-bg) 72%); }
 .weapon-detail-source-evidence > summary::-webkit-details-marker { display: none; }
 .weapon-detail-source-evidence > summary::before { width: 7px; height: 7px; flex: 0 0 auto; border-right: 2px solid var(--text-muted); border-bottom: 2px solid var(--text-muted); content: ""; transform: rotate(-45deg); transition: transform 120ms ease; }
 .weapon-detail-source-evidence[open] > summary::before { transform: rotate(45deg); }
 .weapon-detail-source-evidence > summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
-.weapon-detail-source-evidence > summary > span:first-of-type { display: grid; position: relative; min-width: 0; gap: 3px; margin-right: auto; padding-left: 14px; }
-.weapon-detail-source-evidence > summary > span:first-of-type::before { position: absolute; top: 6px; left: 0; width: 7px; height: 7px; border: 1px solid var(--weapon-recommendation-accent); border-radius: var(--radius-indicator); background: var(--weapon-recommendation-accent); content: ""; }
+.weapon-detail-source-evidence > summary > span:first-of-type { display: grid; position: relative; min-width: 0; gap: 4px; margin-right: auto; padding-left: 16px; }
+.weapon-detail-source-evidence > summary > span:first-of-type::before { position: absolute; top: 7px; left: 0; width: 8px; height: 8px; border: 1px solid var(--weapon-recommendation-accent); border-radius: var(--radius-indicator); background: var(--weapon-recommendation-accent); content: ""; }
 .weapon-detail-source-evidence[data-match-state="uncheckable"] > summary > span:first-of-type::before { background: transparent; }
-.weapon-detail-source-evidence > summary strong { color: var(--text-title); font-size: var(--font-row-title); }
+.weapon-detail-source-evidence > summary > span:first-of-type > strong { color: var(--text-title); font-size: var(--font-content); }
 .weapon-detail-source-evidence > summary small { color: var(--text-muted); font-size: var(--font-meta); line-height: 1.4; overflow-wrap: anywhere; }
-.weapon-detail-source-evidence > summary > .ui-badge { border-color: color-mix(in srgb, var(--weapon-recommendation-accent) 68%, var(--border-control)); color: var(--weapon-recommendation-accent); background: var(--weapon-recommendation-bg); font-weight: 700; }
+.weapon-detail-source-score { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(104px, auto); gap: 6px; flex: 0 0 auto; }
+.weapon-detail-source-score > span { display: grid; min-height: 48px; align-content: center; gap: 2px; padding: 6px 10px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); background: var(--surface-interactive); }
+.weapon-detail-source-score > span[data-score-kind="perk"] { border-color: color-mix(in srgb, var(--weapon-recommendation-accent) 72%, var(--border-control)); background: var(--weapon-recommendation-bg); }
+.weapon-detail-source-score > span[data-score-kind="complete"] { border-color: color-mix(in srgb, var(--weapon-recommendation-accent) 46%, var(--border-control)); background: color-mix(in srgb, var(--weapon-recommendation-bg) 36%, var(--surface-interactive)); }
+.weapon-detail-source-evidence[data-match-state="full"] .weapon-detail-source-score > span[data-score-kind="perk"],
+.weapon-detail-source-evidence[data-match-state="core"] .weapon-detail-source-score > span[data-score-kind="perk"] { border-color: var(--status-ready); background: color-mix(in srgb, var(--status-ready) 9%, var(--surface-panel)); box-shadow: inset 3px 0 0 var(--status-ready); }
+.weapon-detail-source-evidence[data-match-state="full"] .weapon-detail-source-score > span[data-score-kind="complete"],
+.weapon-detail-source-evidence[data-match-state="core"] .weapon-detail-source-score > span[data-score-kind="complete"] { border-color: color-mix(in srgb, var(--status-ready) 72%, var(--border-control)); background: color-mix(in srgb, var(--status-ready) 6%, var(--surface-panel)); }
+.weapon-detail-source-score > span[data-score-kind="pending"] { border-color: color-mix(in srgb, var(--status-pending) 62%, var(--border-control)); background: var(--status-pending-bg); }
+.weapon-detail-source-score > span[data-score-kind="weapon-only"] { min-width: 144px; grid-template-columns: auto auto; column-gap: 8px; }
+.weapon-detail-source-score > span[data-score-kind="weapon-only"] small { grid-column: 1 / -1; }
+.weapon-detail-source-score small { color: var(--text-muted); font-size: var(--font-micro); font-weight: 600; letter-spacing: 0.04em; }
+.weapon-detail-source-score strong { color: var(--weapon-recommendation-accent); font-size: var(--font-section-title); font-variant-numeric: tabular-nums; line-height: 1.05; }
+.weapon-detail-source-score em { align-self: end; color: var(--text-muted); font-size: var(--font-caption); font-style: normal; }
 .weapon-detail-source-evidence-body { display: grid; gap: 10px; padding: 0 12px 12px; border-top: 1px solid var(--section-divider); }
 .weapon-detail-source-evidence-body > :first-child { margin-top: 10px; }
 .weapon-detail-source-trace { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; color: var(--text-muted); font-size: var(--font-meta); overflow-wrap: anywhere; }
 .weapon-detail-source-trace a { color: var(--accent-primary); }
 .weapon-detail-source-slot-list { display: grid; border-top: 1px solid var(--section-divider); }
-.weapon-detail-source-slot { display: grid; grid-template-columns: minmax(88px, 0.6fr) repeat(3, minmax(120px, 1fr)) minmax(92px, auto); align-items: stretch; --weapon-slot-accent: var(--status-neutral); --weapon-slot-bg: var(--status-neutral-bg); border-bottom: 1px solid var(--border-subtle); background: color-mix(in srgb, var(--weapon-slot-bg) 28%, transparent); }
-.weapon-detail-source-slot[data-match-state="match"] { --weapon-slot-accent: var(--status-ready); --weapon-slot-bg: var(--status-ready-bg); }
-.weapon-detail-source-slot[data-match-state="different"] { --weapon-slot-accent: var(--status-error); --weapon-slot-bg: var(--status-error-bg); }
-.weapon-detail-source-slot[data-match-state="uncheckable"] { --weapon-slot-accent: var(--status-pending); --weapon-slot-bg: var(--status-pending-bg); }
+.weapon-detail-source-slot { display: grid; grid-template-columns: minmax(88px, 0.6fr) repeat(3, minmax(120px, 1fr)) minmax(92px, auto); align-items: stretch; --weapon-slot-accent: var(--status-neutral); --weapon-slot-bg: var(--status-neutral-bg); --weapon-slot-fill-strong: var(--surface-panel); --weapon-slot-fill-soft: var(--surface-panel); --weapon-slot-line-width: 0px; border-bottom: 1px solid var(--border-subtle); background: linear-gradient(90deg, var(--weapon-slot-fill-strong), var(--weapon-slot-fill-soft) 34%, var(--surface-panel) 72%); box-shadow: inset var(--weapon-slot-line-width) 0 0 var(--weapon-slot-accent); }
+.weapon-detail-source-slot[data-match-state="match"] { --weapon-slot-accent: var(--status-ready); --weapon-slot-bg: var(--status-ready-bg); --weapon-slot-fill-strong: color-mix(in srgb, var(--status-ready) 10%, var(--surface-panel)); --weapon-slot-fill-soft: color-mix(in srgb, var(--status-ready) 4%, var(--surface-panel)); --weapon-slot-line-width: 4px; }
+.weapon-detail-source-slot[data-match-state="different"] { --weapon-slot-accent: var(--status-error); --weapon-slot-bg: var(--status-error-bg); --weapon-slot-fill-strong: color-mix(in srgb, var(--status-error) 7%, var(--surface-panel)); --weapon-slot-fill-soft: color-mix(in srgb, var(--status-error) 2%, var(--surface-panel)); --weapon-slot-line-width: 4px; }
+.weapon-detail-source-slot[data-match-state="uncheckable"] { --weapon-slot-accent: var(--status-pending); --weapon-slot-bg: var(--status-pending-bg); --weapon-slot-fill-strong: color-mix(in srgb, var(--status-pending) 6%, var(--surface-panel)); --weapon-slot-fill-soft: color-mix(in srgb, var(--status-pending) 2%, var(--surface-panel)); --weapon-slot-line-width: 4px; }
+.weapon-detail-source-slot[data-core-slot="true"] { --weapon-slot-line-width: 5px; }
+.weapon-detail-source-slot[data-core-slot="true"][data-match-state="match"] { --weapon-slot-fill-strong: color-mix(in srgb, var(--status-ready) 13%, var(--surface-panel)); --weapon-slot-fill-soft: color-mix(in srgb, var(--status-ready) 5%, var(--surface-panel)); }
+.weapon-detail-source-slot[data-core-slot="true"] > strong { font-size: var(--font-content); }
 .weapon-detail-source-slot > strong,
 .weapon-detail-source-slot > div,
 .weapon-detail-source-slot > .ui-badge { min-width: 0; align-self: stretch; padding: 8px; }
 .weapon-detail-source-slot > strong { color: var(--text-title); font-size: var(--font-body); }
 .weapon-detail-source-slot > strong::before { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border: 1px solid var(--weapon-slot-accent); border-radius: var(--radius-indicator); background: var(--weapon-slot-accent); content: ""; vertical-align: 1px; }
+.weapon-detail-source-slot[data-match-state="different"] > strong::before { border-radius: 1px; transform: rotate(45deg); }
 .weapon-detail-source-slot[data-match-state="source_not_specified"] > strong::before,
 .weapon-detail-source-slot[data-match-state="uncheckable"] > strong::before { background: transparent; }
 .weapon-detail-source-slot > div { border-left: 1px solid var(--border-subtle); }
 .weapon-detail-source-slot > div > span { display: block; margin-bottom: 3px; color: var(--text-muted); font-size: var(--font-caption); }
 .weapon-detail-source-slot > div > p { margin: 0; color: var(--text-body); font-size: var(--font-meta); line-height: 1.45; overflow-wrap: anywhere; }
-.weapon-detail-source-slot > .ui-badge { align-self: center; justify-self: center; height: fit-content; border-color: color-mix(in srgb, var(--weapon-slot-accent) 68%, var(--border-control)); color: var(--weapon-slot-accent); background: var(--weapon-slot-bg); font-weight: 700; text-align: center; white-space: normal; }
+.weapon-detail-source-slot > .ui-badge { align-self: center; justify-self: center; height: fit-content; border-color: var(--weapon-slot-accent); color: var(--surface-panel); background: var(--weapon-slot-accent); box-shadow: none; font-weight: 700; text-align: center; white-space: normal; }
+.weapon-detail-source-unrequested { display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 0; padding: 7px 9px; border: 1px dashed var(--border-subtle); color: var(--text-muted); background: var(--surface-recessed); font-size: var(--font-caption); }
+.weapon-detail-source-unrequested strong { color: var(--text-body); }
 
 .weapon-detail-upgrade-layout { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr); gap: 22px; }
 .weapon-detail-upgrade-layout.without-catalyst { grid-template-columns: 1fr; }
@@ -482,30 +512,6 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-instance-actions { border-bottom: 0; }
 .weapon-detail-instance-actions > * { margin: 0; }
 .weapon-detail-instance-actions .weapon-detail-operation-feedback { margin: 0; }
-.weapon-detail-rail-instances { border-top: 1px solid var(--section-divider); }
-.weapon-detail-rail-heading { display: flex; align-items: end; justify-content: space-between; gap: 8px; padding: 11px 12px; cursor: pointer; list-style: none; }
-.weapon-detail-rail-heading::-webkit-details-marker { display: none; }
-.weapon-detail-rail-heading span { color: var(--accent-primary); font-size: var(--font-caption); font-weight: 700; }
-.weapon-detail-rail-heading h3 { margin: 2px 0 0; color: var(--text-title); font-size: 14px; }
-.weapon-detail-rail-heading > strong { color: var(--text-muted); font-size: var(--font-meta); }
-.weapon-detail-rail-heading > strong::after { content: " ▾"; color: var(--text-muted); }
-.weapon-detail-rail-instances:not([open]) .weapon-detail-rail-heading > strong::after { content: " ▸"; }
-.weapon-detail-rail-instances-body { padding: 0 12px 12px; }
-.weapon-detail-instance-list { display: grid; gap: 7px; }
-.weapon-detail-instance-list button { width: 100%; display: grid; gap: 7px; min-height: 44px; padding: 9px; border: 1px solid var(--object-border); border-radius: var(--radius-object); color: var(--body); background: var(--card-bg); text-align: left; }
-.weapon-detail-instance-list button:not(:disabled) { cursor: pointer; }
-.weapon-detail-instance-list button:not(:disabled):hover { border-color: var(--item-border-strong); background: var(--item-bg-hover); }
-.weapon-detail-instance-list button.is-current { color: var(--selected-fg); border-color: var(--selected-border); box-shadow: none; background: var(--selected-bg); }
-.weapon-detail-instance-list button:disabled { opacity: 1; cursor: default; }
-.weapon-detail-instance-list header { display: flex; align-items: start; justify-content: space-between; gap: 8px; }
-.weapon-detail-instance-list header strong { color: var(--text-title); font-size: var(--font-body); }
-.weapon-detail-instance-list header span { color: var(--text-muted); font-size: var(--font-caption); text-align: right; }
-.weapon-detail-instance-perks { display: grid; grid-template-columns: repeat(5, 30px); gap: 4px; }
-.weapon-detail-instance-perks img { width: 30px; height: 30px; border-radius: var(--radius-control); }
-.weapon-detail-instance-roll { overflow: hidden; color: var(--text-body); font-size: var(--font-meta); text-overflow: ellipsis; white-space: nowrap; }
-.weapon-detail-instance-meta { display: flex; flex-wrap: wrap; gap: 4px; }
-.weapon-detail-instance-meta > span { padding: 2px 4px; border-radius: var(--radius-control); color: var(--text-muted); background: var(--surface-interactive); font-size: var(--font-caption); }
-.weapon-detail-rail-note { margin: 9px 0 0; color: var(--text-muted); font-size: var(--font-caption); line-height: 1.4; }
 .weapon-detail-rail-scrim { display: none; }
 .weapon-detail-local-tools textarea { min-height: 84px; resize: vertical; }
 .weapon-detail-ai-external { display: flex; align-items: center; gap: 8px; color: var(--text-muted); font-size: var(--font-content); }
@@ -611,6 +617,8 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-config-summary > div { border-right: 0; border-bottom: 1px solid var(--section-divider); }
   .weapon-detail-config-summary > div:last-child { border-bottom: 0; }
   .weapon-detail-config-source { margin-top: -4px; text-align: left; }
+  .weapon-detail-config-on-demand { min-height: 96px; align-items: stretch; flex-direction: column; }
+  .weapon-detail-config-on-demand button { width: 100%; }
   .weapon-detail-catalyst > header { align-items: flex-start; }
   .weapon-detail-write-panel { grid-template-columns: 10px minmax(0, 1fr); align-items: stretch; }
   .weapon-detail-write-actions { grid-column: 1 / -1; justify-content: stretch; }
@@ -621,7 +629,9 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-match-grid span,
   .weapon-detail-match-grid strong { overflow-wrap: anywhere; }
   .weapon-detail-source-evidence > summary { align-items: flex-start; flex-wrap: wrap; }
-  .weapon-detail-source-evidence > summary > .ui-badge { margin-left: 19px; }
+  .weapon-detail-source-score { width: 100%; grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-left: 19px; }
+  .weapon-detail-source-score > span[data-score-kind="pending"],
+  .weapon-detail-source-score > span[data-score-kind="weapon-only"] { grid-column: 1 / -1; }
   .weapon-detail-source-slot { grid-template-columns: 1fr; gap: 0; padding: 8px 0; }
   .weapon-detail-source-slot > strong { padding-bottom: 4px; }
   .weapon-detail-source-slot > div { border-left: 0; padding-top: 4px; padding-bottom: 4px; }

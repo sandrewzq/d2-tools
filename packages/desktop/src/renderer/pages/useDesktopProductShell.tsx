@@ -1,5 +1,6 @@
 import {
   ControlButton,
+  buildVaultCleanupProtectionIndex,
   getLocaleCopy,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
@@ -11,7 +12,8 @@ import {
   type ShellStatusItem
 } from "@d2-tools/ui";
 import { buildVendorItemSourcePaths } from "@d2-tools/app/vendors";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { getAllKnownAccountItemsWithSource } from "@d2-tools/app/loadouts";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import type { AccountSummary, AppUpdateSnapshot, BackgroundTaskSnapshot, ManifestStatus, StartupState } from "../api/types";
 import { GlobalAssistantSidebar } from "../components/GlobalAssistantSidebar";
@@ -48,7 +50,6 @@ export function useDesktopProductShell(props: {
     props.state.cards.bungieConfig.status === "missing" ? "bungie" : "overview"
   );
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
-  const [hasAutoLoadedAccount, setHasAutoLoadedAccount] = useState(false);
   const [vaultFacts, setVaultFacts] = useState<string[]>([]);
   const [vaultLocateRequest, setVaultLocateRequest] = useState<{
     hash: number;
@@ -128,12 +129,10 @@ export function useDesktopProductShell(props: {
       ? `${accountSummary.membership_type}:${accountSummary.destiny_membership_id}`
       : "signed-out",
     diagnostics.manifestStatus?.version ?? "manifest-unavailable",
-    diagnostics.manifestStatus?.language ?? "",
-    diagnostics.manifestStatus?.cached_at ?? ""
+    diagnostics.manifestStatus?.language ?? ""
   ].join("\u0000"), [
     accountSummary?.destiny_membership_id,
     accountSummary?.membership_type,
-    diagnostics.manifestStatus?.cached_at,
     diagnostics.manifestStatus?.language,
     diagnostics.manifestStatus?.version
   ]);
@@ -143,6 +142,35 @@ export function useDesktopProductShell(props: {
     onEquipmentTargetStoreChanged: setEquipmentTargetStore
   });
   const loadoutLibrary = useLoadoutTemplates();
+  const cleanupProtectedItemKeys = useMemo(() => ({
+    instanceIds: new Set([
+      ...loadoutLibrary.templates.flatMap((template) => (
+        template.items.flatMap((item) => item.instance_id ? [item.instance_id] : [])
+      )),
+      ...(accountSummary?.characters.flatMap((character) => (
+        character.loadout_slots.flatMap((slot) => (
+          slot.items.flatMap((item) => item.instance_id ? [item.instance_id] : [])
+        ))
+      )) ?? [])
+    ]),
+    bucketHashKeys: new Set<string>(),
+    hashKeys: new Set<number>()
+  }), [accountSummary?.characters, loadoutLibrary.templates]);
+  const itemDetailCleanupProtection = useMemo(() => accountSummary
+    ? buildVaultCleanupProtectionIndex({
+        items: getAllKnownAccountItemsWithSource(accountSummary),
+        tags: vaultTags,
+        highlightedItemKeys: cleanupProtectedItemKeys,
+        communityInstanceMatch: vaultCommunityInstanceMatch,
+        recommendationReady: accountWorkspace.vaultRecommendationScan.phase === "complete"
+      })
+    : new Map<string, string[]>(), [
+      accountSummary,
+      cleanupProtectedItemKeys,
+      accountWorkspace.vaultRecommendationScan.phase,
+      vaultCommunityInstanceMatch,
+      vaultTags
+    ]);
   const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
@@ -153,7 +181,9 @@ export function useDesktopProductShell(props: {
     setVaultTags,
     importedWishlist,
     localTargetRules,
+    cleanupProtectionByItemKey: itemDetailCleanupProtection,
     itemDetailCacheScopeKey,
+    recommendationRevision: accountWorkspace.vaultRecommendationScan.recommendation_revision,
     setAccountError,
     loadAccountSummary: reloadAccountAfterWrite,
     loadoutLibrary,
@@ -234,6 +264,8 @@ export function useDesktopProductShell(props: {
         && !diagnostics.manifestStatus.missing_required_components?.length
       )
     : props.state.cards.manifest.status === "ready";
+  const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
+    && props.state.cards.account.status === "ready";
 
   useEffect(() => {
     if (startupStep !== "home") {
@@ -247,19 +279,6 @@ export function useDesktopProductShell(props: {
     if (isVisualCapture || !isManifestReady) return;
     void daily.loadDailySummary();
   }, [isManifestReady, isVisualCapture]);
-
-  const refreshAccountRef = useRef(refreshAccountSnapshot);
-  refreshAccountRef.current = refreshAccountSnapshot;
-  const canRefreshAccount = props.state.cards.bungieConfig.status === "ready"
-    && props.state.cards.account.status === "ready";
-
-  useEffect(() => {
-    if (hasAutoLoadedAccount || !canRefreshAccount) {
-      return;
-    }
-    setHasAutoLoadedAccount(true);
-    void refreshAccountRef.current("initial");
-  }, [canRefreshAccount, hasAutoLoadedAccount]);
 
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({
@@ -447,12 +466,12 @@ export function useDesktopProductShell(props: {
       ) : activePage === "account" ? (
         accountSummary ? (
           <>
-            <ControlButton variant="secondary" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新授权</ControlButton>
-            <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步游戏账号</ControlButton>
+            <ControlButton variant="secondary" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新登录 Bungie</ControlButton>
+            <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步装备数据</ControlButton>
           </>
         ) : null
       ) : activePage === "vault" ? (
-        accountSummary ? <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步仓库</ControlButton> : null
+        accountSummary ? <ControlButton variant="primary" aria-busy={isLoadingAccount} disabled={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步装备数据</ControlButton> : null
       ) : activePage === "library" ? (
         <>
           <ControlButton onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</ControlButton>
@@ -559,8 +578,8 @@ function formatAccountShellStatus(
   accountWarning: string,
   canRefreshAccount: boolean
 ): string {
-  if (isLoadingAccount) return accountSummary ? "正在同步游戏" : "正在读取游戏";
-  if (accountError && accountSummary) return "同步失败 · 显示旧数据";
+  if (isLoadingAccount) return accountSummary ? "正在同步装备数据" : "正在读取装备数据";
+  if (accountError && accountSummary) return "同步失败 · 显示上次装备数据";
   if (accountError) return "读取失败";
   if (accountWarning && accountSummary) return "增强数据异常";
   if (accountSummary) {
@@ -568,7 +587,7 @@ function formatAccountShellStatus(
     if (isShowingCachedAccount) return loadedAt ? `本地缓存 · ${loadedAt}` : "本地缓存";
     return loadedAt ? `已同步 · ${loadedAt}` : "已同步";
   }
-  return canRefreshAccount ? "可读取" : "未登录";
+  return canRefreshAccount ? "可同步" : "未登录";
 }
 
 function getAccountStatusTone(

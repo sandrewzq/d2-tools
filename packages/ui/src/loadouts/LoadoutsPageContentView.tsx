@@ -616,23 +616,23 @@ function InGameAccountFreshness(props: {
   error?: string;
 }) {
   const label = props.error
-    ? `账号同步失败：${props.error}`
+    ? `装备数据同步失败：${props.error}`
     : props.message
       || (props.status === "refreshing"
-        ? "正在从游戏同步账号装备"
+        ? "正在同步装备数据"
         : props.status === "stale"
-          ? "账号装备数据可能已过期"
+          ? "装备数据可能已过期"
           : props.status === "cached"
-            ? "使用本地账号装备数据"
+            ? "使用上次装备数据"
             : props.status === "ready"
-              ? "账号装备数据已就绪"
-              : "账号装备数据状态待确认");
+              ? "装备数据已同步"
+              : "装备数据状态待确认");
   const sourceLabel = props.source === "local"
     ? "本地缓存"
     : props.source === "remote"
-      ? "远端刷新"
+      ? "游戏数据"
       : props.source === "merged"
-        ? "本地与远端合并"
+        ? "本地缓存与游戏数据"
         : "";
   const detail = [sourceLabel, props.fetchedAt ? `更新于 ${props.fetchedAt}` : ""].filter(Boolean).join(" · ");
   return (
@@ -782,7 +782,7 @@ function InGameSummary(props: { detail: Extract<LoadoutsPageModel["selectedDetai
   const locatedElsewhereCount = Math.max(locatedCount - equippedCount, 0);
   return (
     <>
-      <div className="loadout-column-head"><div><strong>账号核对</strong><small>当前账号装备数据</small></div></div>
+      <div className="loadout-column-head"><div><strong>装备数据核对</strong><small>当前同步结果</small></div></div>
       <dl className="loadout-ledger">
         <div><dt>保存装备</dt><dd><b>{props.detail.itemRows.length}</b><small>槽位实际返回的装备记录</small></dd></div>
         <div data-status="success"><dt>已找到</dt><dd><b>{locatedCount}</b><small>当前账号中可以找到具体装备</small></dd></div>
@@ -859,22 +859,22 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
   }
 
   const accountDataLabel = !props.accountSummary
-    ? "账号数据尚未读取"
+    ? "装备数据尚未同步"
     : props.accountDataError
-    ? `账号同步失败：${props.accountDataError}`
+    ? `装备数据同步失败：${props.accountDataError}`
     : props.accountDataStatus === "refreshing"
-    ? "正在从游戏同步"
+    ? "正在同步装备数据"
     : props.accountDataStatus === "stale"
       ? "缓存可能已过期"
       : props.accountDataStatus === "cached"
         ? "使用本地缓存"
         : props.accountDataStatus === "error"
-          ? "账号刷新失败"
+          ? "装备数据同步失败"
           : props.accountDataStatus === "ready"
-            ? "账号数据已就绪"
-            : "账号状态待确认";
+            ? "装备数据已同步"
+            : "装备数据状态待确认";
   const accountDataDetail = [
-    props.accountDataSource === "local" ? "本地缓存" : props.accountDataSource === "remote" ? "远端刷新" : props.accountDataSource === "merged" ? "本地与远端合并" : "",
+    props.accountDataSource === "local" ? "本地缓存" : props.accountDataSource === "remote" ? "游戏数据" : props.accountDataSource === "merged" ? "本地缓存与游戏数据" : "",
     props.accountDataFetchedAt ? `更新于 ${props.accountDataFetchedAt}` : ""
   ].filter(Boolean).join(" · ");
 
@@ -3167,7 +3167,7 @@ function getArmorPlannerStatusMessage(input: {
   mode: ArmorPlannerMode;
 }): string {
   if (!input.hasClient) return "当前平台未接入真实账号护甲规划。";
-  if (!input.hasAccount && input.mode !== "theoretical") return "请先读取账号数据，才能核对账号中的具体护甲。";
+  if (!input.hasAccount && input.mode !== "theoretical") return "请先同步装备数据，才能核对账号中的具体护甲。";
   if (input.armorClass === "unknown") return "请先填写可识别的泰坦、猎人或术士职业。";
   if (!input.state || input.state.status === "idle") return "";
   if (input.state.status === "loading") return input.mode === "theoretical"

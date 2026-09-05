@@ -39,6 +39,7 @@ STATUS_JSON = MANIFEST_DIR / "status.json"
 YX_SOURCE = GUIDE_DIR / "YXCRALLXY推荐表.xlsx"
 SAYALARRY_SOURCE = GUIDE_DIR / "Sayalarry推荐表.xlsx"
 STARSIDE_AEGIS = GUIDE_DIR / "Starside-PVE终局刷取数据快照" / "Aegis武器推荐.csv"
+AEGIS_OFFICIAL_WEAPONS = GUIDE_DIR / "aegis推荐表_官方中文CSV" / "03_传奇武器.csv"
 STARSIDE_LGPIG_LEGENDARY = GUIDE_DIR / "Starside-PVE终局刷取数据快照" / "LGpig传说武器推荐.csv"
 STARSIDE_LGPIG_EXOTIC = GUIDE_DIR / "Starside-PVE终局刷取数据快照" / "LGpig异域武器推荐.csv"
 DEFAULT_DIM = ROOT / ".local-data" / "tmp" / "dim-voltron-reference.txt"
@@ -46,8 +47,12 @@ DEFAULT_DIM_REVISION = "ce2cbcc3b3b3d4b7ebc62f2ddf0502b00f4dadfd"
 
 WEAPON_OUTPUT = OUTPUT_DIR / "武器推荐.csv"
 CLASS_ITEM_OUTPUT = CLASS_ITEM_OUTPUT_DIR / "异域职业物品推荐组合.csv"
+WEAPON_CANDIDATE_OUTPUT = TMP_DIR / "武器推荐候选.csv"
+CLASS_ITEM_CANDIDATE_OUTPUT = TMP_DIR / "异域职业物品推荐组合候选.csv"
 ISSUE_OUTPUT = TMP_DIR / "异常报告.csv"
 RECORD_OUTPUT = TMP_DIR / "生成记录.txt"
+MAX_CSV_NOTE_LENGTH = 4_000
+TRUNCATED_NOTE_SUFFIX = "……（原文过长已截断，完整出处见‘来源URL’和‘来源位置’）"
 
 MAIN_NS = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
 REL_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -89,9 +94,27 @@ ISSUE_FIELDS = ["级别", "来源", "来源位置", "武器名称", "候选武�
 VERSION_MATCH_ISSUE_TYPES = {"来源核心Perk不属于候选版本", "候选版本缺少完整两栏推荐"}
 
 MASTERWORK_TRANSLATIONS = {
-    "Range": "射程", "Handling": "操控", "Reload": "换弹", "Reload Speed": "换弹",
-    "Stability": "稳定性", "Velocity": "弹速", "Charge Time": "充能时间", "Impact": "冲击",
-    "Blast Radius": "爆炸半径", "Draw Time": "拉弓时间", "Shield Duration": "护盾持续时间",
+    "range": "射程", "handling": "操控性", "reload": "填装速度", "reload speed": "填装速度",
+    "stability": "稳定性", "velocity": "弹头速度", "charge time": "充能时间", "impact": "冲击",
+    "blast radius": "爆炸范围", "draw time": "拔枪速度", "shield duration": "护盾持续时间",
+    "cooling efficiency": "冷却效率",
+    "换弹": "填装速度", "操控": "操控性", "稳定": "稳定性", "加速": "充能时间",
+    "爆炸": "爆炸范围", "爆炸半径": "爆炸范围", "拉弓速度": "拔枪速度", "拉弓时间": "拔枪速度",
+    "弹速": "弹头速度", "操控射程": "操控性 / 射程",
+}
+AEGIS_MASTERWORK_CATEGORY_SUFFIXES = {
+    "range": "range",
+    "handling": "handling",
+    "reload": "reload",
+    "reload speed": "reload",
+    "stability": "stability",
+    "velocity": "velocity",
+    "charge time": "charge_time",
+    "impact": "damage",
+    "blast radius": "blast_radius",
+    "draw time": "draw_time",
+    "shield duration": "shield_duration",
+    "cooling efficiency": "heat_efficiency",
 }
 TERM_ALIASES = {
     "自填": "自动填装枪套",
@@ -247,6 +270,8 @@ def plug_semantic_role(definition: dict) -> str:
     """按 Bungie Plug 元数据识别组件语义，不依赖武器的物理插槽编号。"""
     category = normalize(((definition.get("plug") or {}).get("plugCategoryIdentifier") or ""))
     item_type = normalize(definition.get("itemTypeDisplayName") or "")
+    if "masterwork" in category or any(value in item_type for value in ["大师杰作", "masterwork"]):
+        return "masterwork"
     if "origin" in category or any(value in item_type for value in ["起源特性", "原始特性", "origin trait"]):
         return "origin"
     if any(value in category for value in [
@@ -294,7 +319,7 @@ def source_terms(value: str | list[str]) -> list[str]:
     for raw in values:
         for part in re.split(r"[\n；;、]|\s+/\s+|/", raw or ""):
             cleaned = re.sub(r"[（(][^）)]*[）)]", "", part).strip().strip("*•- ")
-            if cleaned.startswith("【已划除】"):
+            if re.match(r"^(?:【|\[)?已(?:划除|删除)(?:】|\])?", cleaned):
                 continue
             cleaned = TERM_ALIASES.get(normalize(cleaned), cleaned)
             if cleaned and normalize(cleaned) not in IGNORED_SOURCE_TERMS:
@@ -497,7 +522,7 @@ class Manifest:
                 if compact_name(official_name) == compact_term
             ]
             hashes = sorted(set(value for values in compact_matches for value in values))
-            method = "当前武器组件类型忽略空格和标点后唯一匹配"
+            method = "官方名称仅空格和标点格式不同"
         if not hashes:
             folded_term = folded_name(term)
             folded_matches = [
@@ -506,16 +531,7 @@ class Manifest:
                 if folded_name(official_name) == folded_term
             ]
             hashes = sorted(set(value for values in folded_matches for value in values))
-            method = "当前武器组件类型忽略变音符后唯一匹配"
-        if not hashes:
-            folded_term = folded_name(term)
-            contained_hashes = []
-            for official_name, candidate_hashes in candidates_by_name.items():
-                official_folded = folded_name(official_name)
-                if folded_term in official_folded or official_folded in folded_term:
-                    contained_hashes.extend(candidate_hashes)
-            hashes = sorted(set(contained_hashes))
-            method = "当前武器组件类型官方名称唯一包含匹配"
+            method = "官方名称仅拉丁变音符格式不同"
         if not hashes:
             return None
         names = unique(index.display_by_hash.get(value, "") for value in hashes)
@@ -544,6 +560,50 @@ class Manifest:
             if method != "官方名称精确匹配" and normalize(term) != normalize(name):
                 contained_matches.append({"来源原文": term, "官方名称": name, "匹配方式": method})
         return unique(names), hashes_by_name, unresolved, contained_matches
+
+    def resolve_aegis_masterworks(self, item_hash: int, raw_values: str | list[str]) -> tuple[list[str], list[str]]:
+        """按 Aegis 原始英文语义定位当前武器官方大师 Plug，不使用中文简称或包含匹配。"""
+        index = self.socket_index(item_hash)
+        names = []
+        unresolved = []
+        masterwork_hashes = [
+            plug_hash
+            for plug_hash in index.by_hash
+            if plug_semantic_role(self.items.get(plug_hash) or {}) == "masterwork"
+        ]
+        for raw_term in source_terms(raw_values):
+            normalized_term = normalize(raw_term)
+            exact_hashes = [
+                plug_hash
+                for plug_hash in masterwork_hashes
+                if normalized_term in {
+                    normalize(index.display_by_hash.get(plug_hash, "")),
+                    normalize(re.sub(r"^大师杰作\s*[：:]\s*", "", index.display_by_hash.get(plug_hash, ""))),
+                }
+            ]
+            if not exact_hashes:
+                category_suffix = AEGIS_MASTERWORK_CATEGORY_SUFFIXES.get(normalized_term)
+                if category_suffix:
+                    exact_hashes = [
+                        plug_hash
+                        for plug_hash in masterwork_hashes
+                        if normalize(((self.items.get(plug_hash) or {}).get("plug") or {}).get("plugCategoryIdentifier") or "")
+                        .endswith(f".stat.{category_suffix}")
+                    ]
+            official_names = unique(
+                match.group(1).strip()
+                for plug_hash in exact_hashes
+                for match in [re.match(
+                    r"^(?:大师杰作|\d+阶)\s*[：:]\s*(.+)$",
+                    index.display_by_hash.get(plug_hash, "").strip(),
+                )]
+                if match
+            )
+            if len(official_names) != 1:
+                unresolved.append(raw_term)
+                continue
+            names.append(official_names[0])
+        return unique(names), unique(unresolved)
 
     def release_rank(self, item_hash: int) -> int:
         ranks = []
@@ -686,6 +746,23 @@ def source_fact_text(facts: dict[str, list[str]], field_name: str, separator: st
     return separator.join(facts.get(field_name, []))
 
 
+def truncate_csv_note(value: str) -> str:
+    """限制汇总注解长度，避免电子表格软件把超长字段拆成伪来源行。"""
+    if len(value) <= MAX_CSV_NOTE_LENGTH:
+        return value
+    available = MAX_CSV_NOTE_LENGTH - len(TRUNCATED_NOTE_SUFFIX)
+    prefix = value[:available]
+    minimum_boundary = int(available * 0.72)
+    boundary = prefix.rfind("；原文：", minimum_boundary)
+    if boundary < 0:
+        boundary = prefix.rfind(". ", minimum_boundary)
+        if boundary >= 0:
+            boundary += 1
+    if boundary < 0:
+        boundary = available
+    return value[:boundary].rstrip("；,，。 .") + TRUNCATED_NOTE_SUFFIX
+
+
 def add_issue(issues: list[dict], source: str, location: str, weapon_name: str, candidates, issue_type: str, description: str, severity: str = "阻塞"):
     issues.append({
         "级别": severity,
@@ -757,6 +834,7 @@ def build_source_record(
         resolved[label] = {name: hashes[name] for name in names}
         unresolved_by_label[label].extend(unresolved)
         contained_matches_by_label[label].extend(contained_matches)
+    resolved_masterworks, unresolved_masterworks = manifest.resolve_aegis_masterworks(item_hash, masterworks)
     weapon_name = ((manifest.items.get(item_hash) or {}).get("displayProperties") or {}).get("name") or str(item_hash)
     core_unresolved = [
         f"{label}:{value}"
@@ -779,6 +857,7 @@ def build_source_record(
         for label in ["枪管", "弹匣", "起源特性"]
         for value in unresolved_by_label.get(label, [])
     ]
+    optional_unresolved.extend(f"大师:{value}" for value in unresolved_masterworks)
     perk3_names = list(resolved["第三栏"])
     perk4_names = list(resolved["第四栏"])
     if not perk3_names or not perk4_names:
@@ -822,7 +901,7 @@ def build_source_record(
         magazines=list(resolved["弹匣"]),
         perk3=perk3_names,
         perk4=perk4_names,
-        masterworks=unique(masterworks),
+        masterworks=resolved_masterworks,
         origins=list(resolved["起源特性"]),
         note=note,
         hashes=resolved,
@@ -929,7 +1008,10 @@ def parse_sayalarry() -> list[dict]:
 
 
 def translate_masterworks(value: str | list[str]) -> list[str]:
-    return unique(MASTERWORK_TRANSLATIONS.get(part, part) for part in source_terms(value))
+    translated = []
+    for part in source_terms(value):
+        translated.extend(source_terms(MASTERWORK_TRANSLATIONS.get(normalize(part), part)))
+    return unique(translated)
 
 
 def prepared_core_terms(source_id: str, source_key: str, perk3, perk4) -> dict[int, list[str]]:
@@ -1093,6 +1175,30 @@ def parse_dim_masterworks(note: str) -> list[str]:
     return translate_masterworks(match.group(1)) if match else []
 
 
+def load_aegis_original_masterworks() -> dict[str, list[str]]:
+    """读取 Aegis 原始英文 MW；同名重复行只有内容一致时才可复用。
+
+    Aegis 会在部分特殊武器名称后追加 ``BRAVE version`` 等版本后缀，
+    而 Manifest 的英文名称通常只保留基础名称；同时建立去版本后缀别名，
+    让这些行仍能复用原始表的主实体证据。
+    """
+    values_by_name: dict[str, list[list[str]]] = defaultdict(list)
+    for row in read_csv(AEGIS_OFFICIAL_WEAPONS):
+        name = normalize(row.get("Name", ""))
+        if name:
+            values_by_name[name].append(source_terms(row.get("MW", "")))
+    result = {}
+    for name, candidates in values_by_name.items():
+        unique_candidates = unique(tuple(candidate) for candidate in candidates)
+        if len(unique_candidates) == 1:
+            result[name] = list(unique_candidates[0])
+    for name, values in list(result.items()):
+        base_name = re.sub(r"\s+(?:brave|pantheon)\s+version$", "", name, flags=re.IGNORECASE).strip()
+        if base_name and base_name not in result:
+            result[base_name] = list(values)
+    return result
+
+
 def load_aegis(
     manifest: Manifest,
     issues: list[dict],
@@ -1100,6 +1206,7 @@ def load_aegis(
     source_facts: dict[tuple[int, str], dict[str, list[str]]],
     weapon_facts: dict[int, dict],
 ):
+    original_masterworks = load_aegis_original_masterworks()
     for row in read_csv(STARSIDE_AEGIS):
         source_location = row.get("来源位置", "")
         source_key = f"starside:{source_location}"
@@ -1118,6 +1225,32 @@ def load_aegis(
         attempts = []
         matched_count = 0
         for item_hash in candidates:
+            english_name = manifest.english_names.get(item_hash, "")
+            source_masterworks = original_masterworks.get(normalize(english_name), [])
+            resolved_masterworks, unresolved_masterworks = manifest.resolve_aegis_masterworks(
+                item_hash,
+                source_masterworks,
+            )
+            # 旧版武器在当前 Manifest 中只有通用“大师杰作”升级插槽，
+            # 不再暴露具体属性 Plug；原始 Aegis 官方表已用主实体 Hash
+            # 记录了英文 MW，因此此处可直接复用其官方语义，避免把历史
+            # 复刻版本误报为阻塞项。
+            if unresolved_masterworks and source_masterworks:
+                translated_masterworks = translate_masterworks(source_masterworks)
+                if len(translated_masterworks) == len(source_masterworks):
+                    resolved_masterworks = translated_masterworks
+                    unresolved_masterworks = []
+            if unresolved_masterworks or (row.get("大师", "").strip() and not source_masterworks):
+                add_issue(
+                    issues,
+                    SOURCE_LABELS["aegis"],
+                    f"{source_key}:{item_hash}",
+                    row.get("武器", ""),
+                    [item_hash],
+                    "Aegis大师属性无法按官方数据确认",
+                    "原始英文大师项无法在当前武器官方 Masterwork Plug 中唯一定位："
+                    + " / ".join(unresolved_masterworks or source_terms(row.get("大师", ""))),
+                )
             weapon_facts[item_hash] = {
                 "acquisition": row.get("来源", ""),
                 "aegis_rating": f"Tier {row.get('评级', '')}".strip(),
@@ -1136,7 +1269,7 @@ def load_aegis(
                 magazines=row.get("弹匣", ""),
                 perk3=row.get("Perk 1", ""),
                 perk4=row.get("Perk 2", ""),
-                masterworks=translate_masterworks(row.get("大师", "")),
+                masterworks=resolved_masterworks or source_terms(row.get("大师", "")),
                 origins=row.get("起源特性", ""),
                 note=row.get("注解", ""),
                 evidence={
@@ -1880,16 +2013,18 @@ def aggregate_source_rows(
             "属性": row["属性"] or meta["属性"],
             "框架": row["框架"] or meta["框架"],
             "来源": row["来源"] or meta["来源"],
-            "枪管": " / ".join(unique(value for record in grouped_records for value in record.barrels)) or row["枪管"],
-            "弹匣": " / ".join(unique(value for record in grouped_records for value in record.magazines)) or row["弹匣"],
-            "大师": " / ".join(unique(value for record in grouped_records for value in record.masterworks)) or row["大师"],
-            "Perk 1": " / ".join(unique(value for record in grouped_records for value in record.perk3)) or row["Perk 1"],
-            "Perk 2": " / ".join(unique(value for record in grouped_records for value in record.perk4)) or row["Perk 2"],
-            "起源特性": " / ".join(unique(value for record in grouped_records for value in record.origins)) or row["起源特性"],
-            "注解": "；".join(unique([
+            # 严格栏位只能来自已通过当前 Manifest 精确确认的 SourceRecord。
+            # 原始来源字段仍保留在注解和证据中，但不得在过滤后再次回填进正式 CSV。
+            "枪管": " / ".join(unique(value for record in grouped_records for value in record.barrels)),
+            "弹匣": " / ".join(unique(value for record in grouped_records for value in record.magazines)),
+            "大师": " / ".join(unique(value for record in grouped_records for value in record.masterworks)),
+            "Perk 1": " / ".join(unique(value for record in grouped_records for value in record.perk3)),
+            "Perk 2": " / ".join(unique(value for record in grouped_records for value in record.perk4)),
+            "起源特性": " / ".join(unique(value for record in grouped_records for value in record.origins)),
+            "注解": truncate_csv_note("；".join(unique([
                 *facts.get("注解", []),
                 *[record.note for record in grouped_records],
-            ])),
+            ]))),
             "来源位置": "；".join(unique([
                 *facts.get("来源位置", []),
                 *[source_record_location(record) for record in grouped_records],
@@ -1912,6 +2047,7 @@ def aggregate_source_rows(
 def generate(dim_path: Path, dim_revision: str) -> dict:
     required = [
         STARSIDE_AEGIS,
+        AEGIS_OFFICIAL_WEAPONS,
         STARSIDE_LGPIG_LEGENDARY,
         STARSIDE_LGPIG_EXOTIC,
         YX_SOURCE,
@@ -1940,13 +2076,13 @@ def generate(dim_path: Path, dim_revision: str) -> dict:
 
     issues = collapse_family_optional_issues(manifest, issues, records)
     weapon_rows = aggregate_source_rows(manifest, records, source_facts, weapon_facts)
-    write_csv(WEAPON_OUTPUT, weapon_rows, WEAPON_FIELDS)
     class_item_rows.sort(key=lambda row: (
         row["职业"], row["物品ID"], PURPOSE_ORDER.get(row["用途"], 9), row["使用场景"],
         row["第一特性"], row["第二特性"], row["组合ID"],
     ))
-    write_csv(CLASS_ITEM_OUTPUT, class_item_rows, CLASS_ITEM_FIELDS)
     TMP_DIR.mkdir(parents=True, exist_ok=True)
+    write_csv(WEAPON_CANDIDATE_OUTPUT, weapon_rows, WEAPON_FIELDS)
+    write_csv(CLASS_ITEM_CANDIDATE_OUTPUT, class_item_rows, CLASS_ITEM_FIELDS)
     if issues:
         write_csv(ISSUE_OUTPUT, issues, ISSUE_FIELDS)
     elif ISSUE_OUTPUT.exists():
@@ -1954,6 +2090,7 @@ def generate(dim_path: Path, dim_revision: str) -> dict:
 
     input_files = [
         STARSIDE_AEGIS,
+        AEGIS_OFFICIAL_WEAPONS,
         STARSIDE_LGPIG_LEGENDARY,
         STARSIDE_LGPIG_EXOTIC,
         YX_SOURCE,
@@ -1962,6 +2099,10 @@ def generate(dim_path: Path, dim_revision: str) -> dict:
     ]
     blocking_count = sum(issue["级别"] == "阻塞" for issue in issues)
     warning_count = sum(issue["级别"] == "提示" for issue in issues)
+    activated = blocking_count == 0
+    if activated:
+        write_csv(WEAPON_OUTPUT, weapon_rows, WEAPON_FIELDS)
+        write_csv(CLASS_ITEM_OUTPUT, class_item_rows, CLASS_ITEM_FIELDS)
     record_lines = [
         f"生成时间：{datetime.now().astimezone().isoformat(timespec='seconds')}",
         f"Manifest版本：{manifest.version}",
@@ -1983,7 +2124,11 @@ def generate(dim_path: Path, dim_revision: str) -> dict:
         "class_item_combinations": len(class_item_rows),
         "blocking_issues": blocking_count,
         "warnings": warning_count,
-        "outputs": [str(WEAPON_OUTPUT), str(CLASS_ITEM_OUTPUT)],
+        "activated": activated,
+        "outputs": [
+            str(WEAPON_OUTPUT if activated else WEAPON_CANDIDATE_OUTPUT),
+            str(CLASS_ITEM_OUTPUT if activated else CLASS_ITEM_CANDIDATE_OUTPUT),
+        ],
         "temporary_issue_report": str(ISSUE_OUTPUT) if issues else "",
     }
 

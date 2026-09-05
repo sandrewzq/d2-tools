@@ -34,7 +34,8 @@ export function registerAssistantIpcHandlers(): void {
 }
 
 async function loadAssistantAccountSummary(): Promise<AccountSummary> {
-  return getAccountSnapshot("refresh");
+  // 助手只消费当前全局账号事实，避免后台刷新 Session 后 Renderer Store 未同步。
+  return getAccountSnapshot("cached");
 }
 
 function collectAssistantAccountItems(account: AccountSummary): AccountSummary["vault"]["items"] {

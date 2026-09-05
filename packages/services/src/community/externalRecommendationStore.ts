@@ -5,6 +5,7 @@ import {
   recommendationMetadataValue,
   writeRecommendationMetadata
 } from "./recommendationDatabase.js";
+import { reconcileRecommendationRuleOverrides } from "./recommendationOverrides.js";
 
 export type ExternalRecommendationSourceKind = "dim_wishlist" | "local_community";
 
@@ -18,6 +19,7 @@ export type ExternalRecommendationBlockRecord = {
 };
 
 export type ExternalRecommendationRuleRecord = {
+  rule_stable_id: string;
   item_hash: number;
   perk_hashes: number[];
   mode: "pve" | "pvp" | "general";
@@ -46,8 +48,9 @@ export type ExternalRecommendationSetRecord = {
 
 export type SaveExternalRecommendationSetInput = Omit<
   ExternalRecommendationSetRecord,
-  "source_fingerprint" | "imported_at"
+  "source_fingerprint" | "imported_at" | "rules"
 > & {
+  rules: Array<Omit<ExternalRecommendationRuleRecord, "rule_stable_id">>;
   migration_metadata_key: string;
   imported_at?: string;
   source_fingerprint?: string;
@@ -130,7 +133,7 @@ export function loadExternalRecommendationSet(
     }));
 
     const ruleRows = database.prepare(`
-      SELECT r.id, r.item_hash, r.mode, r.note, r.author, r.source_note,
+      SELECT r.id, r.rule_stable_id, r.item_hash, r.mode, r.note, r.author, r.source_note,
              r.source_title, r.source_description, r.source_label, b.block_key
       FROM external_recommendation_rules r
       LEFT JOIN external_recommendation_blocks b ON b.id = r.block_id
@@ -138,6 +141,7 @@ export function loadExternalRecommendationSet(
       ORDER BY r.ordinal
     `).all(sourceKind) as Array<{
       id: number;
+      rule_stable_id: string;
       item_hash: number;
       mode: "pve" | "pvp" | "general";
       note: string;
@@ -171,6 +175,7 @@ export function loadExternalRecommendationSet(
       value: row.tag
     })));
     const rules = ruleRows.map((rule) => ({
+      rule_stable_id: rule.rule_stable_id,
       item_hash: Number(rule.item_hash),
       perk_hashes: perksByRule.get(rule.id) ?? [],
       mode: rule.mode,
@@ -260,9 +265,9 @@ function replaceExternalSet(
   `);
   const insertRule = database.prepare(`
     INSERT INTO external_recommendation_rules (
-      source_kind, ordinal, item_hash, mode, note, author, source_note,
+      source_kind, rule_stable_id, ordinal, item_hash, mode, note, author, source_note,
       source_title, source_description, source_label, block_id
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertPerk = database.prepare(`
     INSERT INTO external_recommendation_rule_perks (rule_id, ordinal, perk_hash) VALUES (?, ?, ?)
@@ -304,6 +309,7 @@ function replaceExternalSet(
     set.rules.forEach((rule, ordinal) => {
       const result = insertRule.run(
         set.source_kind,
+        rule.rule_stable_id,
         ordinal,
         rule.item_hash,
         rule.mode,
@@ -328,6 +334,13 @@ function replaceExternalSet(
     if (Number(counts.rule_count) !== set.rules.length || Number(counts.block_count) !== set.blocks.length) {
       throw new Error("外部推荐数据写入后的数量校验失败。");
     }
+    reconcileRecommendationRuleOverrides(
+      database,
+      set.source_kind,
+      new Set(set.rules.map((rule) => rule.rule_stable_id)),
+      set.revision || set.source_fingerprint,
+      set.imported_at
+    );
     writeRecommendationMetadata(database, migrationMetadataKey, `complete:${set.imported_at}`);
     database.exec("COMMIT;");
   } catch (error) {
@@ -357,7 +370,7 @@ function normalizeExternalSet(
       tags: uniqueText(block.tags)
     };
   });
-  const rules = input.rules.map((rule, index) => {
+  const normalizedRules = input.rules.map((rule, index) => {
     if (!isUnsignedHash(rule.item_hash)) throw new Error(`外部推荐第 ${index + 1} 条武器 ID 无效。`);
     const perkHashes = [...new Set(rule.perk_hashes.map(Number))];
     if (perkHashes.length === 0 || perkHashes.some((hash) => !isUnsignedHash(hash))) {
@@ -366,7 +379,7 @@ function normalizeExternalSet(
     if (rule.block_key && !blockKeys.has(rule.block_key)) {
       throw new Error(`外部推荐第 ${index + 1} 条引用了不存在的来源块：${rule.block_key}`);
     }
-    return {
+    const normalizedRule = {
       item_hash: Number(rule.item_hash),
       perk_hashes: perkHashes,
       mode: rule.mode,
@@ -379,7 +392,12 @@ function normalizeExternalSet(
       ...(rule.block_key ? { block_key: rule.block_key } : {}),
       tags: uniqueText(rule.tags)
     };
+    return {
+      ...normalizedRule,
+      rule_stable_id: stableExternalRuleId(input.source_kind, normalizedRule)
+    };
   });
+  const rules = [...new Map(normalizedRules.map((rule) => [rule.rule_stable_id, rule])).values()];
   if (rules.length === 0) throw new Error("外部推荐数据至少需要一条有效规则。");
   return {
     source_kind: input.source_kind,
@@ -391,6 +409,22 @@ function normalizeExternalSet(
     blocks,
     rules
   };
+}
+
+function stableExternalRuleId(
+  sourceKind: ExternalRecommendationSourceKind,
+  rule: Omit<ExternalRecommendationRuleRecord, "rule_stable_id">
+): string {
+  return createHash("sha256").update(JSON.stringify({
+    source_kind: sourceKind,
+    item_hash: rule.item_hash,
+    mode: rule.mode,
+    perk_hashes: [...rule.perk_hashes].sort((left, right) => left - right),
+    block_key: rule.block_key ?? "",
+    source_label: rule.source_label,
+    source_title: rule.source_title,
+    source_note: rule.source_note
+  })).digest("hex");
 }
 
 function uniqueText(values: string[]): string[] {

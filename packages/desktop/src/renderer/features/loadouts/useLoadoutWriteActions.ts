@@ -597,7 +597,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     void analysis;
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先读取账号数据。");
+      input.setLoadoutMessage("请先同步装备数据。");
       return;
     }
     const account = input.accountSummary;
@@ -769,7 +769,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "transfer");
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先读取账号数据。");
+      input.setLoadoutMessage("请先同步装备数据。");
       return;
     }
     const account = input.accountSummary;
@@ -972,7 +972,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "equip");
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先读取账号数据。");
+      input.setLoadoutMessage("请先同步装备数据。");
       return;
     }
     const account = input.accountSummary;

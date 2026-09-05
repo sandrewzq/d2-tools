@@ -24,12 +24,14 @@ const initialWindow: VirtualWindow = {
   endIndex: 30,
   topSpacer: 0,
   bottomSpacer: 0,
-  rowStride: 194
+  rowStride: 243
 };
 
 export function VaultVirtualWeaponGrid(props: {
   items: AccountItemSummary[];
   className: string;
+  focusRequest?: { itemKey: string; requestId: number } | null;
+  getItemKey: (item: AccountItemSummary) => string;
   renderItem: (item: AccountItemSummary, index: number) => ReactNode;
 }) {
   const gridRef = useRef<HTMLDivElement>(null);
@@ -109,6 +111,13 @@ export function VaultVirtualWeaponGrid(props: {
     pendingFocusIndexRef.current = null;
     target.focus({ preventScroll: true });
   }, [windowState.endIndex, windowState.startIndex]);
+
+  useLayoutEffect(() => {
+    if (!props.focusRequest) return;
+    const index = props.items.findIndex((item) => props.getItemKey(item) === props.focusRequest?.itemKey);
+    if (index < 0) return;
+    focusItem(index);
+  }, [props.focusRequest, props.getItemKey, props.items]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;

@@ -4,12 +4,16 @@ import type {
   RecommendationSourceMatch,
   VaultItemInstanceMatchInfo
 } from "@d2-tools/core/community-perks";
+import {
+  isDimRecommendationSource,
+  presentCuratedRecommendationMatch
+} from "../recommendationMatchPresentation.js";
 
 export type VaultRecommendationSourceSummary = {
   sourceId: string;
   sourceLabel: string;
   shortLabel: string;
-  state: "full" | "partial" | "weapon_only" | "different" | "uncheckable";
+  state: "full" | "core" | "close" | "key_missing" | "not_matched" | "weapon_only" | "uncheckable";
   matched: number;
   available: number;
   unit: "item" | "combo";
@@ -23,6 +27,8 @@ export type VaultRecommendationSummaryIndex = ReadonlyMap<
   string,
   VaultRecommendationSourceSummary[]
 >;
+
+export type VaultRecommendationResult = "matched" | "partial" | "not_matched" | "uncheckable" | "uncovered";
 
 const sourceOrder = new Map([
   ["aegis", 0],
@@ -45,15 +51,16 @@ export function buildVaultRecommendationSourceSummaries(
 ): VaultRecommendationSourceSummary[] {
   const summaries = (instanceMatch?.source_matches ?? [])
     .filter((source) => (
-      source.state !== "not_covered"
-      && source.source_id !== "dim_voltron"
+      source.source_id !== "dim_voltron"
       && source.source_id !== "dim_wishlist"
     ))
     .map(sourceMatchSummary);
   // DIM 必须按完整愿望单组合核对。CSV 中为阅读汇总而展开的 dim_voltron
   // 候选池不能伪装成人工来源栏位，否则会把不同组合错误拼成 x/y。
-  const dimSummary = instanceMatch?.dim_wishlist
-    ? buildDimInstanceSummary(instanceMatch.dim_wishlist)
+  const dimSummary = instanceMatch
+    ? instanceMatch.dim_wishlist
+      ? buildDimInstanceSummary(instanceMatch.dim_wishlist)
+      : null
     : buildDimWishlistSummary(item, wishlist);
   if (dimSummary) summaries.push(dimSummary);
   return summaries.sort(compareSourceSummaries);
@@ -81,20 +88,14 @@ function buildDimInstanceSummary(
 ): VaultRecommendationSourceSummary {
   const missingRequirementCount = Math.max(0, match.best_requirement_count - match.best_matched_requirement_count);
   const isClose = match.matched_combo_count === 0 && match.best_matched_requirement_count > 0 && missingRequirementCount > 0;
-  const state = match.matched_combo_count > 0
-    ? "full" as const
-    : match.uncheckable_combo_count === match.combo_count
-      ? "uncheckable" as const
-      : isClose
-        ? "partial" as const
-        : "different" as const;
-  const text = match.matched_combo_count > 0
-    ? `DIM：符合 ${match.matched_combo_count} 套推荐`
-    : state === "uncheckable"
-      ? "DIM：数据不完整"
-      : isClose
-        ? `DIM：接近推荐，还缺 ${missingRequirementCount} 项`
-        : "DIM：未符合";
+  const state = match.state;
+  const bestCombinationText = match.best_requirement_count > 0
+    ? `最佳组合 ${match.best_matched_requirement_count}/${match.best_requirement_count}`
+    : "未指定组合";
+  const resultText = state === "uncheckable"
+    ? `组合无法判断 · ${bestCombinationText}`
+    : `符合 ${match.matched_combo_count} 套 · ${bestCombinationText}`;
+  const text = `DIM：${resultText}`;
   return {
     sourceId: "dim_wishlist",
     sourceLabel: "DIM社区愿望单",
@@ -104,15 +105,9 @@ function buildDimInstanceSummary(
     available: match.combo_count,
     unit: "combo",
     purposes: match.modes,
-    resultText: match.matched_combo_count > 0
-      ? `符合 ${match.matched_combo_count} 套推荐`
-      : state === "uncheckable"
-        ? "数据不完整"
-        : isClose
-          ? `接近推荐 · 缺 ${missingRequirementCount} 项`
-          : "未符合",
+    resultText,
     text,
-    detail: `DIM社区愿望单：${state === "uncheckable" ? "当前武器 Roll 数据不完整，暂时无法核对推荐组合" : match.matched_combo_count > 0 ? `符合 ${match.matched_combo_count} 套推荐组合` : isClose ? `最接近的一套还缺 ${missingRequirementCount} 项` : "当前 Roll 未符合推荐组合"}${state !== "uncheckable" && match.uncheckable_combo_count ? `；另有 ${match.uncheckable_combo_count} 套因 Roll 数据不完整未完成核对` : ""}。`
+    detail: `DIM社区愿望单：${resultText}${state === "uncheckable" ? "；当前武器 Roll 数据不完整" : isClose ? `；最接近的一套还缺 ${missingRequirementCount} 项` : ""}${state !== "uncheckable" && match.uncheckable_combo_count ? `；另有 ${match.uncheckable_combo_count} 套无法判断` : ""}。`
   };
 }
 
@@ -138,7 +133,35 @@ function selectBestDimCombination<T extends {
 }
 
 export function hasPositiveRecommendationSummary(summary: VaultRecommendationSourceSummary): boolean {
-  return summary.state === "weapon_only" || summary.matched > 0;
+  return summary.state === "full" || summary.state === "core";
+}
+
+export function inferVaultRecommendationResult(
+  summaries: readonly VaultRecommendationSourceSummary[],
+  aggregateState?: VaultItemInstanceMatchInfo["recommendation_state"]
+): VaultRecommendationResult {
+  if (!summaries.length) return "uncovered";
+  if (summaries.some((summary) => summary.state === "uncheckable")) return "uncheckable";
+  const hasPositive = summaries.some(hasPositiveRecommendationSummary);
+  if (hasPositive && aggregateState === "priority") return "matched";
+  if (hasPositive && aggregateState === "compare") return "partial";
+  const hasNegative = summaries.some((summary) => summary.state === "key_missing" || summary.state === "not_matched");
+  if (hasPositive && !hasNegative) return "matched";
+  if (hasPositive || summaries.some((summary) => (
+    summary.state === "core"
+    || summary.state === "close"
+    || summary.state === "weapon_only"
+    || summary.matched > 0
+  ))) return "partial";
+  return "not_matched";
+}
+
+export function vaultRecommendationResultLabel(result: VaultRecommendationResult): string {
+  if (result === "matched") return "符合推荐";
+  if (result === "partial") return "部分符合";
+  if (result === "not_matched") return "未符合";
+  if (result === "uncheckable") return "无法判断";
+  return "无推荐";
 }
 
 export function formatRecommendationPurposes(
@@ -153,58 +176,19 @@ export function formatRecommendationPurposes(
 function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendationSourceSummary {
   const sourceLabel = displayVaultRecommendationSourceLabel(source.source_id, source.source_label);
   const shortSourceLabel = compactVaultRecommendationSourceLabel(source.source_id, sourceLabel);
-  if (source.state === "weapon_only") {
-    return {
-      sourceId: source.source_id,
-      sourceLabel,
-      shortLabel: shortSourceLabel,
-      state: "weapon_only",
-      matched: 0,
-      available: 0,
-      unit: "item",
-      purposes: source.purposes,
-      resultText: "仅推荐武器",
-      text: `${shortSourceLabel}：仅推荐武器`,
-      detail: `${sourceLabel}：来源推荐这把武器，但没有指定需要核对的 Perk 项。`
-    };
-  }
-  const uncheckable = source.uncheckable_requirement_count
-    ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
-  if (uncheckable > 0) {
-    return {
-      sourceId: source.source_id,
-      sourceLabel,
-      shortLabel: shortSourceLabel,
-      state: "uncheckable",
-      matched: source.matched_requirement_count,
-      available: source.requirement_count,
-      unit: "item",
-      purposes: source.purposes,
-      resultText: "数据不完整",
-      text: `${shortSourceLabel}：数据不完整`,
-      detail: `${sourceLabel}：当前武器 Roll 数据没有完整读取，暂时无法准确核对推荐项。`
-    };
-  }
-  const isFullMatch = source.requirement_count > 0
-    && source.matched_requirement_count === source.requirement_count;
-  const hasAnyMatch = source.matched_requirement_count > 0;
-  const resultText = isFullMatch
-    ? "全部符合"
-    : hasAnyMatch
-      ? `符合 ${source.matched_requirement_count}/${source.requirement_count}`
-      : "未符合";
+  const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
   return {
     sourceId: source.source_id,
     sourceLabel,
     shortLabel: shortSourceLabel,
-    state: isFullMatch ? "full" : hasAnyMatch ? "partial" : "different",
-    matched: source.matched_requirement_count,
-    available: source.requirement_count,
+    state: source.state,
+    matched: presentation.matchedRequirementCount,
+    available: presentation.requirementCount,
     unit: "item",
     purposes: source.purposes,
-    resultText,
-    text: `${shortSourceLabel}：${resultText}`,
-    detail: `${sourceLabel}：${source.requirement_count} 项推荐中符合 ${source.matched_requirement_count} 项。`
+    resultText: presentation.summary,
+    text: `${shortSourceLabel}：${presentation.summary}`,
+    detail: presentation.detail
   };
 }
 
@@ -227,8 +211,8 @@ function buildDimWishlistSummary(
       available: 0,
       unit: "combo",
       purposes: [...new Set(weaponOnlyRules.map((rule) => rule.mode))],
-      resultText: "仅推荐武器",
-      text: "DIM：仅推荐武器",
+      resultText: "仅推荐武器 · 未指定组合",
+      text: "DIM：仅推荐武器 · 未指定组合",
       detail: "DIM社区愿望单：来源推荐这把武器，但没有指定需要核对的 Perk 组合。"
     };
   }
@@ -254,6 +238,10 @@ function buildDimWishlistSummary(
     : 0;
   const isClose = Boolean(bestRule && bestRule.matched_requirement_count > 0 && missingRequirementCount > 0);
   const purposes = [...new Set((matchedRules.length ? matchedRules : rules).map((rule) => rule.mode))];
+  const bestCombinationText = bestRule
+    ? `最佳组合 ${bestRule.matched_requirement_count}/${bestRule.requirement_count}`
+    : "未指定组合";
+  const combinationResultText = `符合 ${matched} 套 · ${bestCombinationText}`;
   if (!matched && weaponOnlyRules.length) {
     return {
       sourceId: "dim_voltron",
@@ -264,23 +252,23 @@ function buildDimWishlistSummary(
       available: comboRules.length,
       unit: "combo",
       purposes,
-      resultText: "仅推荐武器",
-      text: "DIM：仅推荐武器",
-      detail: `DIM社区愿望单：来源推荐这把武器，但没有可用于当前 Roll 核对的完整推荐组合${isClose ? `；最接近的一套还缺 ${missingRequirementCount} 项` : ""}。`
+      resultText: combinationResultText,
+      text: `DIM：${combinationResultText}`,
+      detail: `DIM社区愿望单：${combinationResultText}；来源同时包含仅推荐武器的记录${isClose ? `；最接近的一套还缺 ${missingRequirementCount} 项` : ""}。`
     };
   }
   return {
     sourceId: "dim_voltron",
     sourceLabel: "DIM社区愿望单",
     shortLabel: "DIM",
-    state: matched > 0 ? "full" : isClose ? "partial" : "different",
+    state: matched > 0 ? "full" : isClose ? "close" : "not_matched",
     matched,
     available: comboRules.length,
     unit: "combo",
     purposes,
-    resultText: matched > 0 ? `符合 ${matched} 套推荐` : isClose ? `接近推荐 · 缺 ${missingRequirementCount} 项` : "未符合",
-    text: matched > 0 ? `DIM：符合 ${matched} 套推荐` : isClose ? `DIM：接近推荐，还缺 ${missingRequirementCount} 项` : "DIM：未符合",
-    detail: `DIM社区愿望单：${matched > 0 ? `符合 ${matched} 套推荐组合` : isClose ? `最接近的一套还缺 ${missingRequirementCount} 项` : "当前 Roll 未符合推荐组合"}。`
+    resultText: combinationResultText,
+    text: `DIM：${combinationResultText}`,
+    detail: `DIM社区愿望单：${combinationResultText}${isClose ? `；最接近的一套还缺 ${missingRequirementCount} 项` : ""}。`
   };
 }
 
@@ -302,6 +290,9 @@ function compareSourceSummaries(
   left: VaultRecommendationSourceSummary,
   right: VaultRecommendationSourceSummary
 ): number {
+  const dimDifference = Number(isDimRecommendationSource(left.sourceId))
+    - Number(isDimRecommendationSource(right.sourceId));
+  if (dimDifference) return dimDifference;
   const rankDifference = summaryRank(left) - summaryRank(right);
   if (rankDifference) return rankDifference;
   const sourceDifference = (sourceOrder.get(left.sourceId) ?? 99) - (sourceOrder.get(right.sourceId) ?? 99);
@@ -311,10 +302,10 @@ function compareSourceSummaries(
 
 function summaryRank(summary: VaultRecommendationSourceSummary): number {
   if (summary.state === "full") return 0;
-  if (summary.state === "partial" && summary.matched > 0) return 0;
-  if (summary.state === "weapon_only") return 1;
-  if (summary.state === "partial" || summary.state === "different") return 2;
-  return 3;
+  if (summary.state === "core") return 1;
+  if (summary.state === "close" || summary.state === "weapon_only") return 2;
+  if (summary.state === "key_missing" || summary.state === "not_matched") return 3;
+  return 4;
 }
 
 export function displayVaultRecommendationSourceLabel(sourceId: string, sourceLabel?: string): string {

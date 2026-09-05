@@ -34,7 +34,7 @@ export const loadoutsCopy: Record<InterfaceLocale, LocaleCopy["loadouts"]> = {
         "应用到角色": "Apply to character",
         "用当前装备覆盖": "Overwrite with current gear",
         "当前账号还没有读取到游戏内配装栏。": "No in-game loadout slots were read for the current account.",
-        "读取账号数据后，这里会显示每个角色的游戏内配装槽。": "Read account data to show each character's in-game loadout slots here.",
+        "读取账号数据后，这里会显示每个角色的游戏内配装槽。": "Sync gear data to show each character's in-game loadout slots here.",
         "方案列表": "Template list",
         "个本地方案": "local templates",
         "方案详情": "Template detail",

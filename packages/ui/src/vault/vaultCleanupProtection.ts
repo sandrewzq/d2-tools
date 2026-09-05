@@ -9,6 +9,7 @@ export function buildVaultCleanupProtectionIndex(input: {
   tags: VaultTags;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
   communityInstanceMatch?: Map<string, VaultItemInstanceMatchInfo>;
+  recommendationReady?: boolean;
 }): Map<string, string[]> {
   const weapons = input.items.filter((item) => item.group_key === "weapons");
   const sameName = new Map<string, AccountItemSummary[]>();
@@ -17,54 +18,71 @@ export function buildVaultCleanupProtectionIndex(input: {
     sameName.set(key, [...(sameName.get(key) ?? []), item]);
   }
   const result = new Map<string, string[]>();
-  for (const item of weapons) {
+  for (const item of input.items) {
     const key = getVaultCommunityInstanceKey(item);
     const localTag = input.tags.items[key]?.tag;
-    const match = input.communityInstanceMatch?.get(key);
-    const nameGroup = sameName.get(normalizeName(item.name)) ?? [];
-    const sameFingerprintCount = item.weapon_roll?.fingerprint
+    const isWeapon = item.group_key === "weapons";
+    const match = isWeapon ? input.communityInstanceMatch?.get(key) : undefined;
+    const nameGroup = isWeapon ? sameName.get(normalizeName(item.name)) ?? [] : [];
+    const sameFingerprintCount = isWeapon && item.weapon_roll?.fingerprint
       ? nameGroup.filter((candidate) => candidate.weapon_roll?.fingerprint === item.weapon_roll?.fingerprint).length
       : 0;
     const sourceStates = match?.source_matches ?? [];
-    const hasPositiveSource = sourceStates.some((source) => (
-      source.state === "weapon_only"
-      || source.matched_requirement_count > 0
-    )) || Boolean(
-      match?.dim_wishlist
-      && (match.dim_wishlist.matched_combo_count > 0 || match.dim_wishlist.partial_combo_count > 0)
-    );
-    const hasNegativeSource = sourceStates.some((source) => (
-      source.requirement_count > 0
-      && source.matched_requirement_count === 0
-      && sourceUncheckableRequirementCount(source) === 0
-    )) || Boolean(
-      match?.dim_wishlist
-      && match.dim_wishlist.combo_count > 0
-      && match.dim_wishlist.matched_combo_count === 0
-      && match.dim_wishlist.partial_combo_count === 0
-      && match.dim_wishlist.uncheckable_combo_count === 0
-    );
+    const hasPositiveRecommendation = sourceStates.some((source) => (
+      source.state === "full" || source.state === "core"
+    )) || match?.dim_wishlist?.state === "full";
+    const hasWeaponOnlyRecommendation = sourceStates.some((source) => source.state === "weapon_only");
+    const hasUncheckableRecommendation = sourceStates.some((source) => source.state === "uncheckable")
+      || match?.dim_wishlist?.state === "uncheckable";
+    const hasRecommendationConflict = recommendationPurposesConflict(sourceStates, match);
     const reasons = [
       item.locked ? "已锁定" : "",
       item.instance_id && input.highlightedItemKeys?.instanceIds.has(item.instance_id) ? "配装实例" : "",
       localTag === "keep" ? "玩家手动保留" : "",
       !item.name.trim() || /^Hash\s+\d+$/i.test(item.name.trim()) ? "官方名称未解析" : "",
       !item.instance_id ? "缺少实例 ID" : "",
-      hasIncompleteRelevantWeaponRoll(item) ? "Roll 数据不完整" : "",
-      !match || match.coverage !== "covered" ? "推荐库未覆盖" : "",
+      isWeapon && hasIncompleteRelevantWeaponRoll(item) ? "Roll 数据不完整" : "",
+      isWeapon && input.recommendationReady === false ? "推荐核对尚未完成" : "",
+      isWeapon && (!match || match.coverage !== "covered") ? "推荐库未覆盖" : "",
+      hasPositiveRecommendation ? "明确推荐符合" : "",
+      hasWeaponOnlyRecommendation ? "来源只推荐武器，需人工选择实例" : "",
+      hasUncheckableRecommendation ? "推荐数据无法安全核对" : "",
       nameGroup.length > 1 && sameFingerprintCount === 1 ? "同名组独特 Roll" : "",
-      hasPositiveSource && hasNegativeSource ? "推荐来源存在冲突" : ""
+      hasRecommendationConflict ? "推荐来源存在冲突" : ""
     ].filter(Boolean);
     result.set(key, [...new Set(reasons)]);
   }
   return result;
 }
 
-function sourceUncheckableRequirementCount(
-  source: NonNullable<VaultItemInstanceMatchInfo["source_matches"]>[number]
-): number {
-  return source.uncheckable_requirement_count
-    ?? source.slots.filter((slot) => slot.state === "uncheckable").length;
+function recommendationPurposesConflict(
+  sources: NonNullable<VaultItemInstanceMatchInfo["source_matches"]>,
+  match: VaultItemInstanceMatchInfo | undefined
+): boolean {
+  const positiveCurated = sources
+    .filter((source) => source.state === "full" || source.state === "core")
+    .flatMap((source) => source.purposes);
+  const negativeCurated = sources
+    .filter((source) => source.state === "key_missing" || source.state === "not_matched")
+    .flatMap((source) => source.purposes);
+  const positiveDim = match?.dim_wishlist?.state === "full"
+    ? match.dim_wishlist.rules.filter((rule) => rule.state === "match").map((rule) => rule.mode)
+    : [];
+  const negativeDim = match?.dim_wishlist?.state === "not_matched"
+    ? match.dim_wishlist.modes
+    : [];
+  return hasOverlappingPurposePair(positiveCurated, negativeCurated)
+    || hasOverlappingPurposePair(positiveCurated, negativeDim)
+    || hasOverlappingPurposePair(positiveDim, negativeCurated);
+}
+
+function hasOverlappingPurposePair(
+  left: Array<"pve" | "pvp" | "general">,
+  right: Array<"pve" | "pvp" | "general">
+): boolean {
+  if (!left.length || !right.length) return false;
+  if (left.includes("general") || right.includes("general")) return true;
+  return left.some((purpose) => right.includes(purpose));
 }
 
 function hasIncompleteRelevantWeaponRoll(item: AccountItemSummary): boolean {

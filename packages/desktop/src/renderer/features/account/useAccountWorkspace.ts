@@ -62,6 +62,7 @@ export function useAccountWorkspace(input: {
   const recommendationScanAccountKeyRef = useRef("");
   const accountLoadingSequenceRef = useRef(0);
   const hasLoadedLocalAccountDataRef = useRef(false);
+  const hasStartedInitialAccountRefreshRef = useRef(false);
   const accountRefreshRequestRef = useRef<{
     promise: Promise<AccountSummary | null>;
     authoritative: boolean;
@@ -72,18 +73,40 @@ export function useAccountWorkspace(input: {
     void api.getCachedAccountSnapshot()
       .then((cached) => {
         if (!active || !cached || getAccountSummarySnapshot()) return;
-        applyAccountSummary(cached.snapshot);
+        if (!applyAccountSummary(cached.snapshot)) return;
         setIsShowingCachedAccount(true);
         const cachedAt = new Date(cached.saved_at);
         setLastAccountLoadedAt(Number.isNaN(cachedAt.getTime()) ? null : cachedAt);
         setAccountSyncMessage(`正在显示 ${formatCachedTime(cached.saved_at)} 的本地缓存`);
-        setActivityMessage(`正在显示上次账号数据（${formatCachedTime(cached.saved_at)}）；本次游戏同步完成后页面会自动更新`);
+        setActivityMessage(`正在显示上次装备数据（${formatCachedTime(cached.saved_at)}）；本次同步完成后页面会自动更新`);
       })
       .catch(() => undefined);
     return () => {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    // 开发模式只热更新 Renderer 时，旧 preload 可能暂时还没有这个事件入口。
+    // 保持页面可用；完整重启 Desktop 后会恢复主进程快照推送。
+    if (typeof api.onAccountSnapshotChanged !== "function") return undefined;
+    return api.onAccountSnapshotChanged((summary) => {
+      // Main AccountSession can be refreshed by another account consumer. Keep
+      // every menu on the same snapshot instead of waiting for a page-local read.
+      const acceptedSummary = applyAccountSummary(summary);
+      if (!acceptedSummary) return;
+      setIsShowingCachedAccount(false);
+      setLastAccountLoadedAt(new Date());
+      setAccountSyncMessage("装备数据已从游戏更新");
+    });
+  }, []);
+
+  useEffect(() => {
+    if (hasStartedInitialAccountRefreshRef.current) return;
+    if (input.state.cards.bungieConfig.status !== "ready" || input.state.cards.account.status !== "ready") return;
+    hasStartedInitialAccountRefreshRef.current = true;
+    void refreshAccountSnapshot("initial");
+  }, [input.state.cards.account.status, input.state.cards.bungieConfig.status]);
 
   function setAccountSummaryState(summary: AccountSummary | null) {
     replaceAccountSummary(summary);
@@ -93,9 +116,11 @@ export function useAccountWorkspace(input: {
     summary: AccountSummary,
     requestStartedRevision?: number,
     authoritative = false
-  ): AccountSummary {
-    replaceAccountSummary(summary, { requestStartedRevision, authoritative });
-    const acceptedSummary = getAccountSummarySnapshot() ?? summary;
+  ): AccountSummary | null {
+    const accepted = replaceAccountSummary(summary, { requestStartedRevision, authoritative });
+    if (!accepted) return null;
+    const acceptedSummary = getAccountSummarySnapshot();
+    if (!acceptedSummary) return null;
     setSelectedCharacterId((current) => {
       if (current && acceptedSummary.characters.some((character) => character.character_id === current)) {
         return current;
@@ -120,6 +145,7 @@ export function useAccountWorkspace(input: {
 
     try {
       const result = await api.loginBungie();
+      hasStartedInitialAccountRefreshRef.current = true;
       accountRequestSequenceRef.current += 1;
       accountRefreshRequestRef.current = null;
       hasLoadedLocalAccountDataRef.current = false;
@@ -171,7 +197,7 @@ export function useAccountWorkspace(input: {
     // 覆盖页面。主进程负责把权威请求排到已有 in-flight 请求之后。
     setAccountError("");
     const previousSummary = getAccountSummarySnapshot();
-    if (reason === "manual") setAccountSyncMessage("正在从游戏同步账号与仓库状态");
+    if (reason === "manual") setAccountSyncMessage("正在同步角色装备、背包、仓库和配装");
     // 初次读取和用户手动同步都属于可见的前台动作。只有明确写操作触发的
     // 对账刷新留在后台，并由写入反馈与任务 Dock 说明其进度。
     const foreground = reason !== "write-action";
@@ -225,11 +251,15 @@ export function useAccountWorkspace(input: {
           if (requestSequence !== accountRequestSequenceRef.current) return null;
         }
 
-        summary = applyAccountSummary(
+        const acceptedSummary = applyAccountSummary(
           summary,
           requestStartedRevision,
           reason === "manual" || reason === "write-action"
         );
+        if (!acceptedSummary) {
+          throw new Error("同步返回的账号快照早于页面当前状态，本次结果未应用");
+        }
+        summary = acceptedSummary;
         setIsShowingCachedAccount(false);
         setLastAccountLoadedAt(new Date());
         if (reason !== "write-action") {
@@ -245,17 +275,20 @@ export function useAccountWorkspace(input: {
           covered_weapon_count: [...vaultCommunityInstanceMatch.values()].filter((item) => item.coverage === "covered").length,
           retained_result_count: vaultCommunityInstanceMatch.size,
           message: vaultCommunityInstanceMatch.size
-            ? "账号数据已更新，当前显示的是上次推荐核对结果，进入仓库后会重新核对。"
+            ? "装备数据已更新，当前暂时显示上次推荐结果，后台正在按变化实例重新核对。"
             : undefined
         }));
         if (reason === "initial" || reason === "manual") {
           setActivityMessage(reason === "manual"
             ? hasSameProfileVersion(previousSummary, summary)
-              ? "同步请求已完成，Bungie 服务器版本没有变化"
-              : "已从游戏同步更新后的账号数据"
-            : "账号数据已同步，最近活动会继续在后台读取");
+              ? "装备数据已同步，游戏中的内容没有变化"
+              : "装备数据已从游戏更新"
+            : "装备数据已同步，最近活动会继续在后台读取");
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
+        // 推荐核对是账号快照提交后的派生任务，不阻塞账号、仓库和配装更新。
+        // 匹配服务会按账号、Roll 指纹和 revision 复用缓存，只重算新增或变化实例。
+        void loadVaultCommunityMatch(summary).catch(() => undefined);
         return summary;
       } catch (error) {
         if (requestSequence !== accountRequestSequenceRef.current) return null;
@@ -264,7 +297,7 @@ export function useAccountWorkspace(input: {
         if (getAccountSummarySnapshot()) {
           setIsShowingCachedAccount(true);
           if (reason !== "write-action") setAccountSyncMessage("同步失败，继续显示上次账号数据");
-          setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次读取数据。${resolvedMessage}`);
+          setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次装备数据。${resolvedMessage}`);
         } else {
           setAccountError(resolvedMessage);
           setAccountSummaryState(null);
@@ -308,14 +341,21 @@ export function useAccountWorkspace(input: {
 
   async function loadVaultCommunityMatch(
     summary = getAccountSummarySnapshot(),
-    options: { force?: boolean } = {}
+    options: { force?: boolean; weaponHashes?: readonly number[] } = {}
   ) {
     if (!summary) return;
+    const affectedWeaponHashes = options.weaponHashes?.length
+      ? new Set(options.weaponHashes)
+      : null;
+    if (options.weaponHashes && !affectedWeaponHashes?.size) return;
     const accountKey = `${summary.membership_type}:${summary.destiny_membership_id}`;
     if (!options.force && recommendationScanAccountKeyRef.current === accountKey) return;
 
     const requestSequence = ++communityRequestSequenceRef.current;
     const totalWeaponCount = countAccountWeapons(summary);
+    const scopedWeaponCount = affectedWeaponHashes
+      ? countAccountWeapons(summary, affectedWeaponHashes)
+      : totalWeaponCount;
     const retainedInstanceMatches = vaultCommunityInstanceMatch;
     const retainedResultCount = retainedInstanceMatches.size;
     const startedAt = new Date().toISOString();
@@ -327,14 +367,39 @@ export function useAccountWorkspace(input: {
       covered_weapon_count: 0,
       retained_result_count: retainedResultCount,
       started_at: startedAt,
-      message: retainedResultCount
-        ? `正在重新核对 ${totalWeaponCount} 件账号武器，暂时保留上次 ${retainedResultCount} 件结果。`
-        : `正在核对 ${totalWeaponCount} 件账号武器。`
+      message: affectedWeaponHashes
+        ? `推荐规则已变化，正在重新核对 ${scopedWeaponCount} 件受影响武器；其他结果保持不变。`
+        : retainedResultCount
+          ? `正在重新核对 ${totalWeaponCount} 件账号武器，暂时保留上次 ${retainedResultCount} 件结果。`
+          : `正在核对 ${totalWeaponCount} 件账号武器。`
     });
-    const derived = await loadAccountDerivedWorkspace(services, summary, {
-      includeActivity: false,
-      includeCommunityMatch: true
-    });
+    let derived: Awaited<ReturnType<typeof loadAccountDerivedWorkspace>>;
+    try {
+      derived = await loadAccountDerivedWorkspace(services, summary, {
+        includeActivity: false,
+        includeCommunityMatch: true,
+        ...(affectedWeaponHashes
+          ? { communityMatchWeaponHashes: [...affectedWeaponHashes] }
+          : {})
+      });
+    } catch (error) {
+      if (requestSequence !== communityRequestSequenceRef.current) return;
+      const message = error instanceof Error ? error.message : "武器推荐来源核对失败";
+      setVaultRecommendationScan({
+        phase: retainedResultCount ? "partial" : "error",
+        total_weapon_count: totalWeaponCount,
+        scanned_weapon_count: retainedResultCount,
+        covered_weapon_count: [...retainedInstanceMatches.values()].filter((item) => item.coverage === "covered").length,
+        retained_result_count: retainedResultCount,
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        message: retainedResultCount
+          ? `本次核对失败，继续显示上次 ${retainedResultCount} 件结果：${message}`
+          : message
+      });
+      setIsVaultCommunityMatchLoading(false);
+      return;
+    }
     if (requestSequence !== communityRequestSequenceRef.current) return;
     if (derived.status === "success") {
       const blockingIssue = derived.data.vaultRecommendationIssues.find((issue) => issue.severity === "blocking");
@@ -360,13 +425,20 @@ export function useAccountWorkspace(input: {
         return;
       }
       recommendationScanAccountKeyRef.current = accountKey;
-      setVaultCommunityInstanceMatch(derived.data.vaultCommunityInstanceMatch);
+      const nextInstanceMatches = affectedWeaponHashes
+        ? mergeIncrementalRecommendationMatches(
+            retainedInstanceMatches,
+            derived.data.vaultCommunityInstanceMatch,
+            affectedWeaponHashes
+          )
+        : derived.data.vaultCommunityInstanceMatch;
+      setVaultCommunityInstanceMatch(nextInstanceMatches);
       const warningMessage = derived.data.vaultRecommendationIssues.map((issue) => issue.message).join(" ");
       setVaultRecommendationScan({
         phase: derived.data.vaultRecommendationIssues.length ? "partial" : "complete",
         total_weapon_count: totalWeaponCount,
-        scanned_weapon_count: derived.data.vaultCommunityInstanceMatch.size,
-        covered_weapon_count: [...derived.data.vaultCommunityInstanceMatch.values()].filter((item) => item.coverage === "covered").length,
+        scanned_weapon_count: nextInstanceMatches.size,
+        covered_weapon_count: [...nextInstanceMatches.values()].filter((item) => item.coverage === "covered").length,
         retained_result_count: 0,
         started_at: startedAt,
         completed_at: new Date().toISOString(),
@@ -448,7 +520,7 @@ function createIdleVaultRecommendationScan(): VaultRecommendationScanState {
   };
 }
 
-function countAccountWeapons(summary: AccountSummary): number {
+function countAccountWeapons(summary: AccountSummary, hashes?: ReadonlySet<number>): number {
   return [
     ...summary.characters.flatMap((character) => [
       ...character.equipped_items,
@@ -456,7 +528,20 @@ function countAccountWeapons(summary: AccountSummary): number {
       ...character.postmaster_items
     ]),
     ...summary.vault.items
-  ].filter((item) => item.group_key === "weapons").length;
+  ].filter((item) => item.group_key === "weapons" && (!hashes || hashes.has(item.hash))).length;
+}
+
+function mergeIncrementalRecommendationMatches(
+  current: ReadonlyMap<string, VaultItemInstanceMatchInfo>,
+  fresh: ReadonlyMap<string, VaultItemInstanceMatchInfo>,
+  affectedWeaponHashes: ReadonlySet<number>
+): Map<string, VaultItemInstanceMatchInfo> {
+  const merged = new Map<string, VaultItemInstanceMatchInfo>();
+  for (const [key, match] of current) {
+    if (!affectedWeaponHashes.has(match.hash)) merged.set(key, match);
+  }
+  for (const [key, match] of fresh) merged.set(key, match);
+  return merged;
 }
 
 function formatCachedTime(value: string): string {
@@ -477,9 +562,9 @@ function formatAccountWarningSource(source: string): string {
 }
 
 function formatAccountRefreshFailurePrefix(reason: AccountRefreshReason): string {
-  if (reason === "write-action") return "操作后刷新账号数据失败";
-  if (reason === "manual") return "从游戏同步账号数据失败";
-  return "读取账号数据失败";
+  if (reason === "write-action") return "操作后同步装备数据失败";
+  if (reason === "manual") return "同步装备数据失败";
+  return "读取装备数据失败";
 }
 
 function formatAccountSyncMessage(
@@ -487,9 +572,9 @@ function formatAccountSyncMessage(
   next: AccountSummary,
   reason: AccountRefreshReason
 ): string {
-  if (reason === "initial" || !previous) return "账号与仓库已从游戏同步";
+  if (reason === "initial" || !previous) return "装备数据已从游戏同步";
   if (hasSameProfileVersion(previous, next)) {
-    return "同步完成：Bungie 服务器版本没有变化，继续显示当前账号与仓库状态";
+    return "装备数据已同步，游戏中的内容没有变化";
   }
   const previousVaultIds = new Set(previous.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
   const nextVaultIds = new Set(next.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
@@ -499,10 +584,10 @@ function formatAccountSyncMessage(
     movedOut ? `${movedOut} 件装备移出仓库` : "",
     movedIn ? `${movedIn} 件装备移入仓库` : ""
   ].filter(Boolean);
-  if (changes.length) return `同步完成：${changes.join("，")}`;
+  if (changes.length) return `装备数据已同步：${changes.join("，")}`;
   const countDelta = next.vault.item_count - previous.vault.item_count;
-  if (countDelta) return `同步完成：仓库总数${countDelta > 0 ? "增加" : "减少"} ${Math.abs(countDelta)} 件`;
-  return "同步完成：游戏中的账号与仓库状态没有变化";
+  if (countDelta) return `装备数据已同步：仓库总数${countDelta > 0 ? "增加" : "减少"} ${Math.abs(countDelta)} 件`;
+  return "装备数据已同步，游戏中的内容没有变化";
 }
 
 function hasSameProfileVersion(

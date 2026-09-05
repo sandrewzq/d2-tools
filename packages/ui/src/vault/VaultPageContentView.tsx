@@ -2,7 +2,6 @@ import { memo, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, use
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
@@ -30,6 +29,7 @@ import {
   lockFilterLabels,
   locationFilterLabels,
   normalizeCoreItem,
+  protectVaultCleanupTagPlan,
   rarityFilterLabels,
   getVaultSelectionItemKey,
   selectMarkedCleanupItems,
@@ -75,24 +75,37 @@ import {
   buildVaultRecommendationSummaryIndex,
   getVaultCommunityInstanceKey,
   hasPositiveRecommendationSummary,
+  inferVaultRecommendationResult,
+  vaultRecommendationResultLabel,
+  type VaultRecommendationResult,
   type VaultRecommendationSummaryIndex
 } from "./vaultRecommendationMatch.js";
 import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 
 type VaultWorkspaceTab = "filters" | "duplicates" | "recommendations";
 type VaultRecommendationView = "weapons" | "targets";
+type VaultRecommendationFilter = VaultRecommendationResult | "all";
+type VaultQuickAction = "lock" | "transfer";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
 
 const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
-  { key: "filters", label: "筛选列表" },
-  { key: "recommendations", label: "推荐与目标" },
-  { key: "duplicates", label: "同名整理" }
+  { key: "filters", label: "1 浏览装备" },
+  { key: "recommendations", label: "2 看推荐" },
+  { key: "duplicates", label: "3 整理同名" }
 ];
 const emptyDuplicateSummary: ReturnType<typeof buildVaultDuplicateSummary> = {
   total_duplicate_groups: 0,
   total_duplicate_items: 0,
   groups: []
 };
+const vaultRecommendationFilters: Array<{ key: VaultRecommendationFilter; label: string }> = [
+  { key: "all", label: "全部" },
+  { key: "matched", label: "符合推荐" },
+  { key: "partial", label: "部分符合" },
+  { key: "not_matched", label: "未符合" },
+  { key: "uncheckable", label: "无法判断" },
+  { key: "uncovered", label: "无推荐" }
+];
 
 const DormantVaultWorkspacePanel = memo(function DormantVaultWorkspacePanel(props: {
   active: boolean;
@@ -154,6 +167,7 @@ export function VaultPageContentView(props: {
   const [sortKey, setSortKey] = useState<VaultSortKey>("name");
   const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
   const [signalFilters, setSignalFilters] = useState<VaultSignalFilter[]>([]);
+  const [recommendationFilter, setRecommendationFilter] = useState<VaultRecommendationFilter>("all");
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [locationFilter, setLocationFilter] = useState<VaultLocationFilter>("vault");
@@ -172,10 +186,13 @@ export function VaultPageContentView(props: {
   const [duplicateLocateRequest, setDuplicateLocateRequest] = useState<{ groupKey: string; requestId: number } | null>(null);
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
+  const [hasPendingDuplicateChanges, setHasPendingDuplicateChanges] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [isCleanupMode, setIsCleanupMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [cleanupTargetCharacterId, setCleanupTargetCharacterId] = useState("");
+  const [activeQuickAction, setActiveQuickAction] = useState<{ itemKey: string; action: VaultQuickAction } | null>(null);
+  const [quickActionFocusRequest, setQuickActionFocusRequest] = useState<{ itemKey: string; requestId: number } | null>(null);
   const workspaceScrollPositionsRef = useRef<Record<VaultWorkspaceTab, number>>({
     filters: 0,
     recommendations: 0,
@@ -260,7 +277,7 @@ export function VaultPageContentView(props: {
     ),
     [ammoFilter, armorSetFilter, armorStatRules, classFilter, damageFilter, deferredQuery, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.currentCharacterId, props.items, props.localTargetRules, props.tags, props.wishlist, rarityFilter, slotFilter, sortKey, tagFilter]
   );
-  const filteredItems = useMemo(
+  const signalFilteredItems = useMemo(
     () => filteredVaultItems.filter((item) => matchesSignalFilters(
       item,
       signalFilters,
@@ -268,6 +285,35 @@ export function VaultPageContentView(props: {
       recommendationSummaryByInstance
     )),
     [filteredVaultItems, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.wishlist, recommendationSummaryByInstance, signalFilters]
+  );
+  const recommendationResultByItemKey = useMemo(() => {
+    const index = new Map<string, VaultRecommendationResult>();
+    for (const item of signalFilteredItems) {
+      const result = resolveVaultRecommendationResult(
+        item,
+        recommendationSummaryByInstance,
+        props.communityInstanceMatch,
+        props.recommendationSourceState?.recommendationScan.phase === "complete"
+      );
+      if (result) index.set(getVaultSelectionItemKey(item), result);
+    }
+    return index;
+  }, [props.communityInstanceMatch, props.recommendationSourceState?.recommendationScan.phase, recommendationSummaryByInstance, signalFilteredItems]);
+  const recommendationFilterOptions = useMemo(() => vaultRecommendationFilters.map((option) => ({
+    ...option,
+    count: option.key === "all"
+      ? signalFilteredItems.length
+      : signalFilteredItems.reduce((count, item) => (
+        count + Number(recommendationResultByItemKey.get(getVaultSelectionItemKey(item)) === option.key)
+      ), 0)
+  })), [recommendationResultByItemKey, signalFilteredItems]);
+  const filteredItems = useMemo(
+    () => recommendationFilter === "all"
+      ? signalFilteredItems
+      : signalFilteredItems.filter((item) => (
+        recommendationResultByItemKey.get(getVaultSelectionItemKey(item)) === recommendationFilter
+      )),
+    [recommendationFilter, recommendationResultByItemKey, signalFilteredItems]
   );
   const selectedItems = useMemo(
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
@@ -292,8 +338,12 @@ export function VaultPageContentView(props: {
     items: props.items,
     tags: props.tags,
     highlightedItemKeys: props.cleanupProtectedItemKeys ?? props.highlightedItemKeys,
-    communityInstanceMatch: props.communityInstanceMatch
-  }), [props.cleanupProtectedItemKeys, props.communityInstanceMatch, props.highlightedItemKeys, props.items, props.tags]);
+    communityInstanceMatch: props.communityInstanceMatch,
+    recommendationReady: props.recommendationSourceState?.recommendationScan.phase === "complete"
+  }), [props.cleanupProtectedItemKeys, props.communityInstanceMatch, props.highlightedItemKeys, props.items, props.recommendationSourceState?.recommendationScan.phase, props.tags]);
+  const safeCleanupActionItems = useMemo(() => cleanupActionItems.filter((item) => (
+    (cleanupProtectionByItemKey.get(getVaultCommunityInstanceKey(item))?.length ?? 0) === 0
+  )), [cleanupActionItems, cleanupProtectionByItemKey]);
   const selectedProtectedCount = useMemo(() => selectedItems.filter((item) => (
     (cleanupProtectionByItemKey.get(getVaultCommunityInstanceKey(item))?.length ?? 0) > 0
   )).length, [cleanupProtectionByItemKey, selectedItems]);
@@ -308,7 +358,7 @@ export function VaultPageContentView(props: {
   const batchActions = useVaultBatchActions({
     selectedItems,
     vaultActionItems: selectedVaultItems,
-    cleanupActionItems,
+    cleanupActionItems: safeCleanupActionItems,
     filteredItems,
     tags: props.tags,
     isCleanupMode,
@@ -319,7 +369,6 @@ export function VaultPageContentView(props: {
     setSelectedKeys,
     setIsOrganizing,
     setIsCleanupMode,
-    onSaveTag: props.onSaveTag,
     onSaveTagBatch: props.onSaveTagBatch
   });
   const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
@@ -438,9 +487,10 @@ export function VaultPageContentView(props: {
     lockFilter,
     tagFilter,
     signalFilters,
+    recommendationFilter,
     frameFilterCount: frameFilters.length,
     armorRuleCount: armorStatRules.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, signalFilters, slotFilter, sortKey, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, classFilter, damageFilter, frameFilters.length, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationFilter, signalFilters, slotFilter, sortKey, tagFilter]);
   const contextFacts = useMemo(() => buildVaultContextFacts({
     group,
     query,
@@ -466,9 +516,10 @@ export function VaultPageContentView(props: {
     props.onContextFactsChange?.([
       ...contextFacts,
       ...signalFilters.map((signal) => `保护与匹配：${signalLabel(signal)}`),
+      ...(recommendationFilter === "all" ? [] : [`推荐命中：${vaultRecommendationResultLabel(recommendationFilter)}`]),
       `当前结果：${filteredItems.length} 件`
     ]);
-  }, [contextFacts, filteredItems.length, props.onContextFactsChange, signalFilters]);
+  }, [contextFacts, filteredItems.length, props.onContextFactsChange, recommendationFilter, signalFilters]);
 
   function resetFilterState(
     resetQuery = true,
@@ -478,6 +529,7 @@ export function VaultPageContentView(props: {
     setSortKey("name");
     setTagFilter("all");
     setSignalFilters([]);
+    setRecommendationFilter("all");
     setLockFilter("all");
     setSlotFilter("all");
     setLocationFilter(nextLocation);
@@ -498,6 +550,7 @@ export function VaultPageContentView(props: {
     setSlotFilter("all");
     setLocationFilter(nextGroup === "weapons" ? "vault" : "all");
     if (nextGroup !== "weapons") {
+      setRecommendationFilter("all");
       setAmmoFilter("all");
       setItemTypeFilter("all");
       setDamageFilter("all");
@@ -583,8 +636,11 @@ export function VaultPageContentView(props: {
     setIsBatchSaving(true);
     setBatchMessage(`正在应用 ${groupName} 的整理状态...`);
     try {
-      await props.onSaveTagBatch(inputs);
-      setBatchMessage(`已应用 ${groupName} 的整理状态。`);
+      const plan = protectVaultCleanupTagPlan(inputs, cleanupProtectionByItemKey, props.tags);
+      await props.onSaveTagBatch(plan.inputs);
+      setBatchMessage(`已应用 ${groupName} 的整理状态。${plan.protectedCount
+        ? ` ${plan.protectedCount} 件受保护，已保持原标签。`
+        : ""}`);
     } catch (error) {
       setBatchMessage(error instanceof Error ? error.message : "同名组整理状态保存失败");
     } finally {
@@ -613,6 +669,51 @@ export function VaultPageContentView(props: {
     batchActions.mergeSelectedKeys(candidates.map(getVaultSelectionItemKey));
   }
 
+  function requestQuickActionFocus(itemKey: string) {
+    setQuickActionFocusRequest((current) => ({
+      itemKey,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+  }
+
+  async function runQuickAction(item: AccountItemSummary, action: VaultQuickAction) {
+    if (!props.cleanupActions || activeQuickAction) return;
+    const itemKey = getVaultSelectionItemKey(item);
+    const itemIndex = filteredItems.findIndex((candidate) => getVaultSelectionItemKey(candidate) === itemKey);
+    const itemWillLeaveResults = (action === "transfer" && locationFilter === "vault")
+      || (action === "lock" && lockFilter === "unlocked");
+    const fallbackItem = itemWillLeaveResults
+      ? filteredItems[itemIndex + 1] ?? filteredItems[itemIndex - 1]
+      : item;
+    const targetCharacterId = getQuickActionCharacterId(item, props.cleanupActions.currentCharacterId);
+    if (!targetCharacterId) {
+      setBatchMessage(`${action === "lock" ? "加锁" : "取出"}失败：当前没有可用角色。`);
+      requestQuickActionFocus(itemKey);
+      return;
+    }
+
+    setActiveQuickAction({ itemKey, action });
+    setBatchMessage(action === "lock" ? `正在加锁：${item.name}` : `正在取出到${props.cleanupActions.currentCharacterLabel ?? "当前角色"}：${item.name}`);
+    try {
+      if (action === "lock") {
+        await props.cleanupActions.onLockItem(item, targetCharacterId);
+        setBatchMessage(`已提交加锁：${item.name}，正在后台确认。`);
+      } else {
+        const result = await props.cleanupActions.onBatchTransferToCharacter([item], targetCharacterId);
+        if (!result.success_count) {
+          throw new Error(result.failure_messages?.[0] || result.message || "Bungie 未接受这次取出操作");
+        }
+        setBatchMessage(`已提交取出到${props.cleanupActions.currentCharacterLabel ?? "当前角色"}：${item.name}，正在后台确认。`);
+      }
+      if (fallbackItem) requestQuickActionFocus(getVaultSelectionItemKey(fallbackItem));
+    } catch (error) {
+      setBatchMessage(`${action === "lock" ? "加锁" : "取出"}失败：${error instanceof Error ? error.message : "操作未完成"}`);
+      requestQuickActionFocus(itemKey);
+    } finally {
+      setActiveQuickAction(null);
+    }
+  }
+
   return (
     <div className="vault-page">
       <div className="vault-workflow-bar" data-surface="section">
@@ -623,6 +724,23 @@ export function VaultPageContentView(props: {
             </button>
           ))}
         </div>
+        {activeVaultTab === "filters" && group === "weapons" ? (
+          <div className="vault-recommendation-filter" role="group" aria-label="推荐命中筛选">
+            <span>推荐命中</span>
+            <div>
+              {recommendationFilterOptions.map((option) => (
+                <button
+                  type="button"
+                  key={option.key}
+                  aria-pressed={recommendationFilter === option.key}
+                  onClick={() => setRecommendationFilter(option.key)}
+                >
+                  <span>{option.label}</span><small>{option.count}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="vault-workflow-meta">
           {props.accountResourceStatus ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
           <span className="ui-badge status-neutral" data-ui-kind="status-chip">
@@ -701,7 +819,8 @@ export function VaultPageContentView(props: {
                 cleanupCharacters={props.cleanupActions?.characters ?? []}
                 cleanupTargetCharacterId={cleanupTargetCharacterId}
                 markedCleanupItemCount={cleanupActionItems.length}
-                cleanupActionItems={cleanupActionItems}
+                protectedCleanupItemCount={cleanupActionItems.length - safeCleanupActionItems.length}
+                cleanupActionItems={safeCleanupActionItems}
                 tags={props.tags}
                 onGroupChange={switchVaultFilterMode}
                 onToggleOrganizing={() => setIsOrganizing((current) => !current)}
@@ -730,9 +849,15 @@ export function VaultPageContentView(props: {
                 isSearchActive={Boolean(query.trim())}
                 selectedKeys={selectedKeys}
                 openingItemKey={props.openingItemKey}
+                currentCharacterId={props.cleanupActions?.currentCharacterId}
+                currentCharacterLabel={props.cleanupActions?.currentCharacterLabel}
+                activeQuickAction={activeQuickAction}
+                quickActionsDisabled={Boolean(activeQuickAction) || isBatchSaving || batchActions.isBatchSaving}
+                focusRequest={quickActionFocusRequest}
                 emptyMessage="没有匹配的装备。请调整左侧条件或重置筛选。"
                 onSelectItem={props.onOpenItem}
                 onToggleSelected={toggleSelectedItem}
+                onQuickAction={runQuickAction}
               />
             </section>
           </div>
@@ -763,9 +888,11 @@ export function VaultPageContentView(props: {
             locateRequest={duplicateLocateRequest}
             openingItemKey={props.openingItemKey}
             isBatchSaving={isBatchSaving}
+            recommendationRevision={props.recommendationSourceState?.recommendationScan.recommendation_revision}
             onLoadItemDetail={props.onLoadItemDetail}
             onOpenItem={props.onOpenItem}
             onApplyGroupTags={applyDuplicateGroupTags}
+            onPendingChange={setHasPendingDuplicateChanges}
           />
         </DormantVaultWorkspacePanel>
       ) : null}
@@ -787,6 +914,7 @@ export function VaultPageContentView(props: {
                 highlightedItemKeys={props.highlightedItemKeys}
                 sourceState={props.recommendationSourceState}
                 wishlistActions={props.wishlistActions}
+                managementLocked={hasPendingDuplicateChanges}
                 canOrganizeItem={(item) => duplicateGroupKeyByItemKey.has(getVaultSelectionItemKey(item))}
                 onCopyAuditReport={props.onCopyRecommendationAudit}
                 onOpenItem={props.onOpenItem}
@@ -809,11 +937,11 @@ function vaultResourceStatusLabel(status: VaultAccountResourceStatus): string {
   switch (status) {
     case "cached": return "本地缓存";
     case "stale": return "缓存已过期";
-    case "refreshing": return "正在从游戏同步";
-    case "loading": return "正在读取账号";
-    case "ready": return "已同步";
+    case "refreshing": return "正在同步装备数据";
+    case "loading": return "正在读取装备数据";
+    case "ready": return "装备数据已同步";
     case "error": return "读取失败";
-    default: return "账号数据不可用";
+    default: return "装备数据不可用";
   }
 }
 
@@ -834,11 +962,11 @@ function vaultRecommendationWorkflowStatus(scan?: VaultRecommendationSourceState
     || scan?.issues?.some((issue) => issue.code === "recommendation_unavailable")) {
     return { label: "推荐数据未准备", tone: "pending" };
   }
-  if (scan?.phase === "scanning") return { label: "推荐核对中", tone: "pending" };
-  if (scan?.phase === "partial") return { label: "推荐部分可用", tone: "pending" };
+  if (scan?.phase === "scanning") return { label: "正在核对推荐", tone: "pending" };
+  if (scan?.phase === "partial") return { label: "部分核对完成", tone: "pending" };
   if (scan?.phase === "error") return { label: "推荐核对失败", tone: "error" };
-  if (scan?.phase === "complete") return { label: `推荐已核对 ${scan.scanned_weapon_count} 件`, tone: "success" };
-  return { label: "推荐待核对", tone: "neutral" };
+  if (scan?.phase === "complete") return { label: `已核对 ${scan.scanned_weapon_count} 件`, tone: "success" };
+  return { label: "尚未核对", tone: "neutral" };
 }
 
 function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilter[], props: {
@@ -849,15 +977,15 @@ function matchesSignalFilters(item: AccountItemSummary, filters: VaultSignalFilt
 }, recommendationSummaryByInstance: VaultRecommendationSummaryIndex): boolean {
   if (!filters.length) return true;
   return filters.every((filter) => {
-    if (filter === "wishlist") return evaluateWishlistRoll(normalizeCoreItem(item), props.wishlist ?? undefined).matched;
+    if (filter === "wishlist") return (recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? [])
+      .some((summary) => summary.sourceId === "dim_wishlist" && hasPositiveRecommendationSummary(summary));
     if (filter === "target") {
       const coreItem = normalizeCoreItem(item);
       return evaluateEquipmentTargets(coreItem, props.equipmentTargetStore ?? undefined).matched
         || evaluateLocalTargets(coreItem, props.localTargetRules ?? undefined).matched;
     }
     if (filter === "loadout") return matchesLoadoutTemplateItem(item, props.highlightedItemKeys);
-    return (recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? [])
-      .some(hasPositiveRecommendationSummary);
+    return false;
   });
 }
 
@@ -878,6 +1006,7 @@ function buildActiveFilterLabels(input: {
   lockFilter: VaultLockFilter;
   tagFilter: VaultTagFilter;
   signalFilters: VaultSignalFilter[];
+  recommendationFilter: VaultRecommendationFilter;
   frameFilterCount: number;
   armorRuleCount: number;
 }): string[] {
@@ -896,6 +1025,7 @@ function buildActiveFilterLabels(input: {
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
     input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? input.group === "weapons" ? "未整理" : "未标记" : input.tagFilter === "keep" ? "保留" : input.tagFilter === "review" ? "待复查" : "待处理"}` : "",
     ...input.signalFilters.map((signal) => signalLabel(signal)),
+    input.recommendationFilter !== "all" ? `推荐命中：${vaultRecommendationResultLabel(input.recommendationFilter)}` : "",
     input.frameFilterCount ? `武器框架：${input.frameFilterCount} 项` : "",
     input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""
   ].filter(Boolean);
@@ -904,8 +1034,28 @@ function buildActiveFilterLabels(input: {
 function signalLabel(signal: VaultSignalFilter): string {
   if (signal === "wishlist") return "愿望单";
   if (signal === "loadout") return "配装引用";
-  if (signal === "target") return "目标命中";
-  return "推荐组合";
+  return "目标命中";
+}
+
+function resolveVaultRecommendationResult(
+  item: AccountItemSummary,
+  recommendationSummaryByInstance: VaultRecommendationSummaryIndex,
+  communityInstanceMatch: ReadonlyMap<string, VaultItemInstanceMatchInfo> | undefined,
+  recommendationScanComplete: boolean
+): VaultRecommendationResult | undefined {
+  if (item.group_key !== "weapons") return undefined;
+  const instanceKey = getVaultCommunityInstanceKey(item);
+  const summaries = recommendationSummaryByInstance.get(instanceKey) ?? [];
+  const instanceMatch = communityInstanceMatch?.get(instanceKey);
+  if (!summaries.length && !recommendationScanComplete) return undefined;
+  return inferVaultRecommendationResult(summaries, instanceMatch?.recommendation_state);
+}
+
+function getQuickActionCharacterId(item: AccountItemSummary, currentCharacterId?: string): string {
+  const locatedItem = item as AccountItemSummary & { source_character_id?: string };
+  return getItemSourceKind(item) === "vault"
+    ? currentCharacterId ?? ""
+    : locatedItem.source_character_id ?? currentCharacterId ?? "";
 }
 
 function getItemSourceKind(item: AccountItemSummary): "equipped" | "inventory" | "vault" | "postmaster" {

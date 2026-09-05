@@ -9,12 +9,16 @@ import {
   saveExternalRecommendationSet,
   type ExternalRecommendationSetRecord
 } from "../community/externalRecommendationStore.js";
+import { listRecommendationSourceOverrides } from "../community/recommendationOverrides.js";
 
 const wishlistFileName = "dim-wishlist.json";
 const sourceKind = "dim_wishlist" as const;
 const legacyMigrationMetadataKey = "legacy_dim_wishlist_migration";
 
 export function loadDimWishlist(dataDir: string): DimWishlist | null {
+  const sourceState = listRecommendationSourceOverrides(dataDir)
+    .find((entry) => entry.source_key === sourceKind)?.state ?? "active";
+  if (sourceState !== "active") return null;
   const stored = loadExternalRecommendationSet(dataDir, sourceKind);
   if (stored) return externalSetToDimWishlist(stored);
 
@@ -123,6 +127,9 @@ function normalizeDimWishlist(wishlist: DimWishlist): DimWishlist {
       : [];
     if (!isUnsignedHash(itemHash) || perkHashes.length === 0) return [];
     return [{
+      ...(typeof rule.rule_stable_id === "string" && rule.rule_stable_id.trim()
+        ? { rule_stable_id: rule.rule_stable_id.trim() }
+        : {}),
       item_hash: itemHash,
       perk_hashes: perkHashes,
       mode: rule.mode === "pve" || rule.mode === "pvp" ? rule.mode : "general" as const,
@@ -175,6 +182,7 @@ function externalSetToDimWishlist(set: ExternalRecommendationSetRecord): DimWish
         }
       : {}),
     rules: set.rules.map((rule) => ({
+      rule_stable_id: rule.rule_stable_id,
       item_hash: rule.item_hash,
       perk_hashes: rule.perk_hashes,
       mode: rule.mode,

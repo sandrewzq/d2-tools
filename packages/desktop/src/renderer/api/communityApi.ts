@@ -4,6 +4,8 @@ import type {
   DimWishlistOnlinePreview,
   DimWishlistOnlineStatus,
   FileExportResult,
+  RecommendationManagedRule,
+  RecommendationManagementSnapshot,
   VaultCommunityMatchResult,
   VaultItemMatchInput,
   WeaponKnowledgeImportResult,
@@ -27,9 +29,15 @@ export type CommunityApi = {
   checkDimWishlistOnlineUpdate(): Promise<DimWishlistOnlinePreview>;
   confirmDimWishlistOnlineUpdate(token: string): Promise<DimWishlistOnlineActivationResult>;
   exportWeaponKnowledgeCsvTemplate(): Promise<FileExportResult>;
+  exportWeaponKnowledgePlayerCsv(): Promise<FileExportResult>;
   selectWeaponKnowledgeCsv(): Promise<WeaponKnowledgeImportSelection | null>;
   confirmWeaponKnowledgeCsvImport(token: string): Promise<WeaponKnowledgeImportResult>;
   getWeaponKnowledgeStatus(): Promise<WeaponRecommendationKnowledgeStatus | null>;
+  getRecommendationManagement(): Promise<RecommendationManagementSnapshot>;
+  listRecommendationRules(sourceKey: string, query?: string): Promise<RecommendationManagedRule[]>;
+  setRecommendationSourceState(sourceKey: string, state: "active" | "disabled" | "removed"): Promise<RecommendationManagementSnapshot>;
+  setRecommendationRuleState(input: { source_key: string; rule_stable_id: string; state: "active" | "removed"; reason?: string; source_revision?: string }): Promise<RecommendationManagementSnapshot>;
+  clearCuratedRecommendationDataset(): Promise<RecommendationManagementSnapshot>;
   getLocalCommunityRecommendations(): Promise<LocalCommunityRecommendationTable | null>;
   saveLocalCommunityRecommendations(table: LocalCommunityRecommendationTable): Promise<LocalCommunityRecommendationTable>;
   clearLocalCommunityRecommendations(): Promise<null>;

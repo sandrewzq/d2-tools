@@ -9,6 +9,7 @@
 
 :where(.app-shell) .vault-workflow-bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -17,6 +18,71 @@
   border-bottom: 1px solid var(--border-subtle);
   border-radius: 0;
   background: transparent;
+}
+
+:where(.app-shell) .vault-recommendation-filter {
+  display: flex;
+  flex: 1 1 520px;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+:where(.app-shell) .vault-recommendation-filter > span {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-recommendation-filter > div {
+  display: flex;
+  min-width: 0;
+  overflow-x: auto;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-recommendation-filter button {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-muted);
+  background: transparent;
+  box-shadow: none;
+  font-size: var(--font-caption);
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-recommendation-filter button:last-child {
+  border-right: 0;
+}
+
+:where(.app-shell) .vault-recommendation-filter button:hover {
+  color: var(--text-title);
+  background: var(--surface-interactive);
+}
+
+:where(.app-shell) .vault-recommendation-filter button[aria-pressed="true"] {
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+}
+
+:where(.app-shell) .vault-recommendation-filter button small {
+  min-width: 18px;
+  color: inherit;
+  font-size: var(--font-micro);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 :where(.app-shell) .vault-workflow-meta {
@@ -613,6 +679,43 @@
   padding: 9px 10px;
   border-radius: var(--radius-control);
   box-shadow: none;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-quick-actions {
+  display: flex;
+  min-width: 0;
+  margin-top: 4px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-quick-actions button {
+  min-width: 54px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  color: var(--text-body);
+  background: var(--surface-interactive);
+  box-shadow: none;
+  font-size: var(--font-caption);
+  font-weight: 700;
+}
+
+:where(.app-shell) .vault-results-column .vault-card-quick-actions button:last-child:not(:only-child) {
+  border-color: var(--state-selected-border);
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-quick-actions button:hover:not(:disabled) {
+  border-color: var(--focus-ring);
+  color: var(--text-title);
+}
+
+:where(.app-shell) .vault-results-column .vault-card-quick-actions button:disabled {
+  opacity: 0.58;
 }
 
 :where(.app-shell) .vault-results-column .vault-card-main {
@@ -1325,6 +1428,52 @@
   color: var(--text-muted);
 }
 
+:where(.app-shell) .vault-recommendation-workflow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin: 0 12px 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-frame);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-recommendation-workflow > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-right: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .vault-recommendation-workflow > span:last-child { border-right: 0; }
+:where(.app-shell) .vault-recommendation-workflow strong { color: var(--text-title); }
+:where(.app-shell) .vault-recommendation-workflow small { color: var(--text-muted); }
+
+:where(.app-shell) .vault-recommendation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 12px 12px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-frame);
+  color: var(--text-muted);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-recommendation-summary > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-recommendation-summary [data-ui-kind="button"] {
+  flex: 0 0 auto;
+}
+
 :where(.app-shell) .vault-wishlist-manager,
 :where(.app-shell) .vault-wishlist-manager[data-surface="section"] {
   display: grid;
@@ -1398,6 +1547,173 @@
 :where(.app-shell) .vault-import-secondary-actions p {
   margin: 0;
   font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-recommendation-management {
+  gap: 12px;
+}
+
+:where(.app-shell) .vault-management-lock,
+:where(.app-shell) .vault-management-state {
+  margin: 0;
+  padding: 9px 10px;
+  color: var(--text-body);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .vault-managed-source-list,
+:where(.app-shell) .vault-managed-rule-list {
+  display: grid;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .vault-managed-source,
+:where(.app-shell) .vault-managed-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  background: transparent;
+}
+
+:where(.app-shell) .vault-managed-source:last-child,
+:where(.app-shell) .vault-managed-rule:last-child {
+  border-bottom: 0;
+}
+
+:where(.app-shell) .vault-managed-source[data-source-state="disabled"],
+:where(.app-shell) .vault-managed-rule[data-rule-state="removed"] {
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-managed-source[data-source-state="removed"] {
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .vault-managed-source-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+  gap: 12px;
+  align-items: center;
+  min-width: 0;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  box-shadow: none;
+}
+
+:where(.app-shell) .vault-managed-source-select:hover,
+:where(.app-shell) .vault-managed-source-select[aria-pressed="true"] {
+  border-color: var(--state-selected-border);
+  background: var(--state-selected-bg);
+}
+
+:where(.app-shell) .vault-managed-source-select > span,
+:where(.app-shell) .vault-managed-rule > div,
+:where(.app-shell) .vault-managed-rule-title,
+:where(.app-shell) .vault-curated-dataset-danger > span,
+:where(.app-shell) .vault-management-confirm > span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-managed-source-select small,
+:where(.app-shell) .vault-managed-rule small,
+:where(.app-shell) .vault-curated-dataset-danger small,
+:where(.app-shell) .vault-management-confirm small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-managed-source-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+:where(.app-shell) .vault-managed-rules {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+:where(.app-shell) .vault-managed-rules-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+:where(.app-shell) .vault-managed-rules-head > span {
+  display: grid;
+  gap: 3px;
+}
+
+:where(.app-shell) .vault-managed-rules-head form {
+  display: flex;
+  gap: 6px;
+  min-width: min(100%, 320px);
+}
+
+:where(.app-shell) .vault-managed-rules-head input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-managed-rule p {
+  margin: 0;
+  color: var(--text-body);
+  font-size: var(--font-content);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .vault-managed-rule em {
+  color: var(--status-pending);
+  font-size: var(--font-caption);
+  font-style: normal;
+}
+
+:where(.app-shell) .vault-removed-rules {
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 8px;
+}
+
+:where(.app-shell) .vault-removed-rules summary {
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+:where(.app-shell) .vault-removed-rules .vault-managed-rule-list {
+  margin-top: 8px;
+}
+
+:where(.app-shell) .vault-curated-dataset-danger {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--status-error);
+  background: var(--status-error-bg);
+}
+
+:where(.app-shell) .vault-management-confirm {
+  border: 1px solid var(--status-pending);
 }
 
 :where(.app-shell) .vault-dim-secondary-actions {
@@ -1619,7 +1935,7 @@
 
 :where(.app-shell) .vault-evidence-result-row {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) minmax(180px, 1fr) minmax(90px, 0.5fr) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(100px, 0.45fr) minmax(220px, 1fr) auto;
   gap: 12px;
   align-items: center;
   min-height: 58px;
@@ -1675,6 +1991,20 @@
   min-width: 0;
 }
 
+:where(.app-shell) .vault-evidence-result-state {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-evidence-result-state small { color: var(--text-muted); font-size: var(--font-micro); }
+:where(.app-shell) .vault-evidence-result-state strong { color: var(--text-title); font-size: var(--font-caption); }
+:where(.app-shell) .vault-evidence-result-state[data-status="matched"] strong { color: var(--status-ready); }
+:where(.app-shell) .vault-evidence-result-state[data-status="partial"] strong,
+:where(.app-shell) .vault-evidence-result-state[data-status="uncheckable"] strong { color: var(--status-warning); }
+:where(.app-shell) .vault-evidence-result-state[data-status="not_matched"] strong { color: var(--status-error); }
+:where(.app-shell) .vault-evidence-result-state[data-status="uncovered"] strong { color: var(--text-muted); }
+
 :where(.app-shell) .vault-evidence-source-match {
   display: block;
   position: relative;
@@ -1702,17 +2032,19 @@
   transform: translateY(-50%);
 }
 
-:where(.app-shell) .vault-evidence-source-match[data-match-state="full"] {
+:where(.app-shell) .vault-evidence-source-match[data-match-state="full"],
+:where(.app-shell) .vault-evidence-source-match[data-match-state="core"] {
   --vault-recommendation-accent: var(--status-ready);
   color: var(--status-ready);
 }
 
-:where(.app-shell) .vault-evidence-source-match[data-match-state="partial"] {
+:where(.app-shell) .vault-evidence-source-match[data-match-state="close"] {
   --vault-recommendation-accent: var(--status-warning);
   color: var(--status-warning);
 }
 
-:where(.app-shell) .vault-evidence-source-match[data-match-state="different"] {
+:where(.app-shell) .vault-evidence-source-match[data-match-state="key_missing"],
+:where(.app-shell) .vault-evidence-source-match[data-match-state="not_matched"] {
   --vault-recommendation-accent: var(--status-error);
   color: var(--status-error);
 }
@@ -2001,6 +2333,17 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
+  :where(.app-shell) .vault-recommendation-workflow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-recommendation-workflow > span {
+    border-right: 0;
+    border-bottom: 1px solid var(--section-divider);
+  }
+
+  :where(.app-shell) .vault-recommendation-workflow > span:last-child { border-bottom: 0; }
+
   :where(.app-shell) .vault-recommendation-data-backdrop {
     align-items: end;
     padding: 0;
@@ -2017,9 +2360,20 @@
 
   :where(.app-shell) .vault-wishlist-paste,
   :where(.app-shell) .vault-wishlist-preview,
-  :where(.app-shell) .vault-dim-online-status {
+  :where(.app-shell) .vault-dim-online-status,
+  :where(.app-shell) .vault-managed-source,
+  :where(.app-shell) .vault-managed-rule,
+  :where(.app-shell) .vault-managed-source-select {
     grid-template-columns: minmax(0, 1fr);
     align-items: stretch;
+  }
+
+  :where(.app-shell) .vault-managed-source-actions {
+    justify-content: flex-start;
+  }
+
+  :where(.app-shell) .vault-managed-rules-head form {
+    width: 100%;
   }
 
   :where(.app-shell) .vault-wishlist-manager > header,
@@ -3096,6 +3450,24 @@
   background: var(--surface-panel);
 }
 
+:where(.app-shell) .duplicate-compare-workspace {
+  min-width: 0;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .duplicate-compare-workspace > .status-message {
+  margin: 0;
+  border-width: 0 0 1px;
+  border-radius: 0;
+}
+
+:where(.app-shell) .duplicate-protection-block {
+  margin: 0;
+  padding: 9px 12px;
+  border-top: 1px solid var(--status-pending);
+  color: var(--text-body);
+}
+
 :where(.app-shell) .duplicate-compare-head {
   display: flex;
   align-items: center;
@@ -3974,8 +4346,8 @@
 :where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons {
   --item-thumb: 52px;
   box-sizing: border-box;
-  height: 184px;
-  min-height: 184px;
+  height: 233px;
+  min-height: 233px;
   padding: 8px 10px;
   border-color: var(--object-border);
   background: var(--card-bg);
@@ -3992,14 +4364,19 @@
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 32%, transparent);
 }
 
+:where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons:has(.vault-card-quick-actions button:focus-visible) {
+  border-color: var(--focus-ring);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--focus-ring) 32%, transparent);
+}
+
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-main {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 52px 22px 62px 18px;
+  grid-template-rows: 52px 22px 79px 18px;
   gap: 4px;
   width: 100%;
   min-height: 0;
-  height: 100%;
+  height: auto;
   align-content: start;
   align-items: stretch;
   justify-items: stretch;
@@ -4083,10 +4460,21 @@
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-head small {
+  min-width: 0;
+  overflow: hidden;
   color: var(--text-muted);
   font-size: var(--font-micro);
   font-weight: 400;
   line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-head > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-list {
@@ -4131,15 +4519,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="full"] {
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="full"],
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="core"] {
   --vault-recommendation-accent: var(--status-ready);
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="partial"] {
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="close"] {
   --vault-recommendation-accent: var(--status-warning);
 }
 
-:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="different"] {
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="key_missing"],
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-source-row[data-match-state="not_matched"] {
   --vault-recommendation-accent: var(--status-error);
 }
 
@@ -4199,13 +4589,13 @@
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-card.vault-item-weapons {
   --item-thumb: 48px;
-  height: 176px;
-  min-height: 176px;
+  height: 225px;
+  min-height: 225px;
   padding: 7px 8px;
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-weapons .vault-card-main {
-  grid-template-rows: 48px 20px 60px 18px;
+  grid-template-rows: 48px 20px 77px 18px;
   gap: 3px;
 }
 
@@ -4216,13 +4606,13 @@
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-card.vault-item-weapons {
   --item-thumb: 58px;
-  height: 190px;
-  min-height: 190px;
+  height: 239px;
+  min-height: 239px;
   padding: 9px 11px;
 }
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-weapons .vault-card-main {
-  grid-template-rows: 58px 22px 60px 18px;
+  grid-template-rows: 58px 22px 77px 18px;
   gap: 4px;
 }
 

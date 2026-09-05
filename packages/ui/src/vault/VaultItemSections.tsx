@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
@@ -20,10 +20,17 @@ export function VaultItemSections(props: {
   isSearchActive: boolean;
   selectedKeys: Set<string>;
   openingItemKey?: string;
+  currentCharacterId?: string;
+  currentCharacterLabel?: string;
+  activeQuickAction?: { itemKey: string; action: "lock" | "transfer" } | null;
+  quickActionsDisabled?: boolean;
+  focusRequest?: { itemKey: string; requestId: number } | null;
   emptyMessage?: string;
   onSelectItem: (item: AccountItemSummary) => void;
   onToggleSelected: (item: AccountItemSummary) => void;
+  onQuickAction?: (item: AccountItemSummary, action: "lock" | "transfer") => void | Promise<void>;
 }) {
+  const sectionListRef = useRef<HTMLDivElement>(null);
   const totalItemCount = useMemo(
     () => props.sections.reduce((total, section) => total + section.items.length, 0),
     [props.sections]
@@ -63,16 +70,19 @@ export function VaultItemSections(props: {
       item,
       tagValue,
       isLoadoutMatch: matchesLoadoutTemplateItem(item, props.highlightedItemKeys),
-      sourceSummaries: allSourceSummaries.slice(0, 2),
-      additionalSourceCount: Math.max(0, allSourceSummaries.length - 2)
+      sourceSummaries: allSourceSummaries.slice(0, 3),
+      additionalSourceCount: Math.max(0, allSourceSummaries.length - 3)
     };
   }, [props.highlightedItemKeys, props.recommendationSummaryByInstance, props.tags]);
   const onSelectItemRef = useRef(props.onSelectItem);
   const onToggleSelectedRef = useRef(props.onToggleSelected);
+  const onQuickActionRef = useRef(props.onQuickAction);
   onSelectItemRef.current = props.onSelectItem;
   onToggleSelectedRef.current = props.onToggleSelected;
+  onQuickActionRef.current = props.onQuickAction;
   const handleSelectItem = useCallback((item: AccountItemSummary) => onSelectItemRef.current(item), []);
   const handleToggleSelected = useCallback((item: AccountItemSummary) => onToggleSelectedRef.current(item), []);
+  const handleQuickAction = useCallback((item: AccountItemSummary, action: "lock" | "transfer") => onQuickActionRef.current?.(item, action), []);
   const renderCard = useCallback((item: AccountItemSummary, index: number) => {
     const { tagValue, isLoadoutMatch, sourceSummaries, additionalSourceCount } = buildCardItem(item);
     return (
@@ -87,18 +97,31 @@ export function VaultItemSections(props: {
         isOrganizing={props.isOrganizing}
         isSelected={props.selectedKeys.has(getVaultItemKey(item))}
         isOpening={props.openingItemKey === getVaultItemKey(item)}
+        currentCharacterId={props.currentCharacterId}
+        currentCharacterLabel={props.currentCharacterLabel}
+        activeQuickAction={props.activeQuickAction}
+        quickActionsDisabled={props.quickActionsDisabled}
         onSelectItem={handleSelectItem}
         onToggleSelected={handleToggleSelected}
+        onQuickAction={handleQuickAction}
       />
     );
-  }, [buildCardItem, handleSelectItem, handleToggleSelected, props.isOrganizing, props.openingItemKey, props.selectedKeys]);
+  }, [buildCardItem, handleQuickAction, handleSelectItem, handleToggleSelected, props.activeQuickAction, props.currentCharacterId, props.currentCharacterLabel, props.isOrganizing, props.openingItemKey, props.quickActionsDisabled, props.selectedKeys]);
+
+  useLayoutEffect(() => {
+    if (isWeaponOnly || !props.focusRequest) return;
+    const cards = [...(sectionListRef.current?.querySelectorAll<HTMLElement>("[data-vault-item-key]") ?? [])];
+    const card = cards.find((candidate) => candidate.dataset.vaultItemKey === props.focusRequest?.itemKey)
+      ?? cards[cards.length - 1];
+    card?.querySelector<HTMLElement>(".vault-card-main")?.focus({ preventScroll: true });
+  }, [isWeaponOnly, props.focusRequest]);
 
   if (!props.sections.length) {
     return <p className="status-message status-neutral">{props.emptyMessage ?? "没有匹配的仓库物品。"}</p>;
   }
 
   return (
-    <div className="vault-section-list">
+    <div ref={sectionListRef} className="vault-section-list">
       {!isWeaponOnly && totalItemCount > INITIAL_VAULT_RENDER_LIMIT ? (
         <div className="vault-render-limit-message">
           <span>{props.isSearchActive ? "搜索结果" : "当前范围"}先显示 {renderedItemCount} / {totalItemCount} 件，避免一次挂载全部装备。</span>
@@ -117,6 +140,8 @@ export function VaultItemSections(props: {
         <VaultVirtualWeaponGrid
           items={allItems}
           className="vault-card-grid-weapons"
+          focusRequest={props.focusRequest}
+          getItemKey={getVaultItemKey}
           renderItem={renderCard}
         />
       ) : (

@@ -21,11 +21,14 @@ export type {
 export type AccountApi = {
   loginBungie(): Promise<AuthLoginResult>;
   getAccountSummary(options?: AccountSummaryRequestOptions): Promise<AccountSummary>;
+  onAccountSnapshotChanged(callback: (snapshot: AccountSummary) => void): () => void;
   getCachedAccountSnapshot(): Promise<CachedAccountSnapshot | null>;
   getAccountItemDetail(instanceId: string, options?: AccountItemDetailRequestOptions): Promise<AccountItemDetail>;
   getAccountSnapshotResource(options?: AccountResourceRequestOptions): Promise<AccountSnapshotResource>;
   getAccountItemDetailResource(instanceId: string, options?: AccountResourceRequestOptions): Promise<AccountItemDetailResource>;
 };
+
+export const accountSnapshotChangedChannel = "account:snapshot:changed";
 
 export type AccountResourceRequestOptions = { force?: boolean };
 export type AccountSnapshotResource = DataResource<AccountSnapshot>;

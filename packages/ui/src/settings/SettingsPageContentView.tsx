@@ -275,7 +275,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
               onQuitAndInstallAppUpdate={props.onQuitAndInstallAppUpdate}
               onOpenAppUpdateDownloadPage={props.onOpenAppUpdateDownloadPage}
               onCopyAppUpdateDiagnostic={props.onCopyAppUpdateDiagnostic}
-              onRefreshAccount={props.onRefreshAccount}
+              onOpenAccount={() => setActiveSection("account")}
               onRefreshManifestStatus={props.onRefreshManifestStatus}
               isLoadingManifestStatus={props.isLoadingManifestStatus}
               onOpenDiagnostics={() => setActiveSection("diagnostics")}
@@ -350,7 +350,7 @@ function OverviewSection(props: any) {
       />
     </SettingsPanel>
     <SettingsPanel title={copy.overview.commonActionsTitle} subtitle={copy.overview.commonActionsSubtitle}>
-      <div className="settings-group" data-surface="list"><SettingRow label={settingsText(copy, "管理账号")} detail={settingsText(copy, "查看当前账号、同步游戏状态，并为后续切换账号预留入口。")}><SettingsButton data-control-variant="secondary" onClick={props.onRefreshAccount}>{settingsText(copy, "同步游戏账号")}</SettingsButton></SettingRow>
+      <div className="settings-group" data-surface="list"><SettingRow label={settingsText(copy, "管理账号")} detail={settingsText(copy, "查看装备同步状态、Bungie 登录状态和账号操作说明。")}><SettingsButton data-control-variant="secondary" onClick={props.onOpenAccount}>{settingsText(copy, "打开账号设置")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "检查资料库更新")} detail={settingsText(copy, "手动检查不受“每天自动检查一次”限制。")}><SettingsButton data-control-variant="secondary" disabled={props.isLoadingManifestStatus} onClick={props.onRefreshManifestStatus}>{settingsText(copy, "检查资料库版本")}</SettingsButton></SettingRow>
       <SettingRow label={settingsText(copy, "运行诊断")} detail={settingsText(copy, "检查账号、资料库、后台任务和本地数据目录。")}><SettingsButton data-control-variant="secondary" onClick={props.onOpenDiagnostics}>{settingsText(copy, "查看诊断")}</SettingsButton></SettingRow></div>
     </SettingsPanel>
@@ -475,11 +475,12 @@ function LanguageSection(props: any) {
 
 function AccountSection(props: any) {
   const { copy, accountUi, accountSummary } = props;
-  return <SettingsSection id="account" copy={copy} title={copy.menu.account.label} subtitle={settingsText(copy, "当前账号、授权状态、读取规则和后续切换账号入口。")} badge={accountUi.statusLabel} tone={accountUi.tone}>
-    <MetricGrid><Metric label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} detail={accountSummary ? settingsText(copy, "Bungie 账号已授权") : settingsText(copy, "登录后可读取账号")} /><Metric label={settingsText(copy, "账号读取")} value={accountUi.statusLabel} detail={accountUi.summary} /><Metric label={settingsText(copy, "上次同步")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} detail={settingsText(copy, "成功同步游戏账号的时间")} /><Metric label={settingsText(copy, "同步规则")} value={settingsText(copy, "启动自动读取一次")} detail={settingsText(copy, "不定时轮询；手动同步始终读取游戏当前状态")} /></MetricGrid>
-    <VersionTable><VersionRow label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} /><VersionRow label={settingsText(copy, "当前版本")} value={formatAccountSnapshot(accountSummary, copy)} /><VersionRow label={settingsText(copy, "最新版本")} value={settingsText(copy, "已是当前读取结果")} /><VersionRow label={settingsText(copy, "上次同步")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} /><VersionRow label={settingsText(copy, "打开应用时")} value={settingsText(copy, "自动读取一次当前账号，避免每次进页面都重复加载")} /><VersionRow label={settingsText(copy, "需要重新读取时")} value={settingsText(copy, "首次登录、重新授权、切换账号或本地记录不可用时会重新读取；失败时保留上次成功结果")} /><VersionRow label={settingsText(copy, "手动操作")} value={settingsText(copy, "同步游戏账号、重新授权、管理账号和未来切换账号始终立即执行")} /><VersionRow label={settingsText(copy, "默认账号")} value={settingsText(copy, "当前账号；切换账号功能上线后可修改")} /></VersionTable>
+  return <SettingsSection id="account" copy={copy} title={copy.menu.account.label} subtitle={settingsText(copy, "管理 Bungie 登录，并控制角色装备、背包、仓库和配装的数据同步。")} badge={accountUi.statusLabel} tone={accountUi.tone}>
+    <MetricGrid><Metric label={settingsText(copy, "当前账号")} value={accountSummary?.account_name ?? settingsText(copy, "未登录")} detail={accountSummary ? settingsText(copy, "Bungie 登录正常") : settingsText(copy, "登录后可同步装备数据")} /><Metric label={settingsText(copy, "装备数据")} value={accountUi.statusLabel} detail={accountUi.summary} /><Metric label={settingsText(copy, "上次同步")} value={formatAccountLoadedAt(props.lastAccountLoadedAt, accountSummary, copy)} detail={settingsText(copy, "最近一次从游戏同步装备数据的时间")} /><Metric label={settingsText(copy, "自动同步")} value={settingsText(copy, "启动后一次")} detail={settingsText(copy, "应用内写操作完成后也会自动确认并更新")} /></MetricGrid>
+    <VersionTable><VersionRow label={settingsText(copy, "打开应用时")} value={settingsText(copy, "自动同步一次装备数据")} /><VersionRow label={settingsText(copy, "需要手动同步时")} value={settingsText(copy, "在游戏内或其他设备移动装备后，或页面显示与游戏不一致时")} /><VersionRow label={settingsText(copy, "需要重新登录时")} value={settingsText(copy, "登录失效、权限异常或需要切换 Bungie 账号时")} /><VersionRow label={settingsText(copy, "同步范围")} value={settingsText(copy, "角色装备、背包、仓库和游戏内配装")} /></VersionTable>
     <div className="settings-group settings-spaced-group" data-surface="list">
-      <SettingRow label={settingsText(copy, "账号操作")} detail={settingsText(copy, "手动同步始终绕过缓存并读取游戏当前状态。")}><SettingsActions><SettingsButton data-control-variant="secondary" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新授权")}</SettingsButton><SettingsButton data-control-variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onRefreshAccount}>{settingsText(copy, "同步游戏账号")}</SettingsButton></SettingsActions></SettingRow>
+      <SettingRow label={settingsText(copy, "同步装备数据")} detail={settingsText(copy, "从游戏更新角色装备、背包、仓库和配装。游戏内或其他设备发生变化后使用。")}><SettingsButton data-control-variant="primary" aria-busy={props.isLoadingAccount} disabled={props.isLoadingAccount} onClick={props.onRefreshAccount}>{settingsText(copy, "同步装备数据")}</SettingsButton></SettingRow>
+      <SettingRow label={settingsText(copy, "Bungie 登录")} detail={settingsText(copy, "仅在登录失效、权限异常或需要切换账号时使用；日常更新装备不需要重新登录。")}><SettingsButton data-control-variant="secondary" onClick={props.onReauthorizeAccount}>{settingsText(copy, "重新登录 Bungie")}</SettingsButton></SettingRow>
     </div>
   </SettingsSection>;
 }
@@ -606,12 +607,12 @@ function DiagnosticsSection(props: any) {
 }
 
 function getAccountUi(accountSummary: AccountSummary | null, error: string, warning: string, isLoading: boolean, copy: SettingsCopy): { statusLabel: string; summary: string; tone: StatusTone } {
-  if (error && accountSummary) return { statusLabel: settingsText(copy, "同步失败"), summary: `${settingsText(copy, "显示上次账号数据")}：${error}`, tone: "error" };
+  if (error && accountSummary) return { statusLabel: settingsText(copy, "同步失败"), summary: `${settingsText(copy, "显示上次装备数据")}：${error}`, tone: "error" };
   if (error) return { statusLabel: settingsText(copy, "读取失败"), summary: error, tone: "error" };
-  if (isLoading) return accountSummary ? { statusLabel: settingsText(copy, "同步中"), summary: settingsText(copy, "正在从游戏同步账号和仓库。"), tone: "warning" } : { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取账号和仓库。"), tone: "warning" };
-  if (warning && accountSummary) return { statusLabel: settingsText(copy, "已读取"), summary: warning, tone: "warning" };
-  if (accountSummary) return { statusLabel: settingsText(copy, "已读取"), summary: `${settingsText(copy, "角色")} ${accountSummary.characters.length} ${settingsText(copy, "个")}，${settingsText(copy, "仓库")} ${accountSummary.vault.item_count} ${settingsText(copy, "件")}`, tone: "ready" };
-  return { statusLabel: settingsText(copy, "未登录"), summary: settingsText(copy, "登录后可读取角色和仓库。"), tone: "neutral" };
+  if (isLoading) return accountSummary ? { statusLabel: settingsText(copy, "同步中"), summary: settingsText(copy, "正在同步角色装备、背包、仓库和配装。"), tone: "warning" } : { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取装备数据。"), tone: "warning" };
+  if (warning && accountSummary) return { statusLabel: settingsText(copy, "已同步"), summary: warning, tone: "warning" };
+  if (accountSummary) return { statusLabel: settingsText(copy, "已同步"), summary: `${settingsText(copy, "角色")} ${accountSummary.characters.length} ${settingsText(copy, "个")}，${settingsText(copy, "仓库")} ${accountSummary.vault.item_count} ${settingsText(copy, "件")}`, tone: "ready" };
+  return { statusLabel: settingsText(copy, "未登录"), summary: settingsText(copy, "登录后可同步角色装备、背包和仓库。"), tone: "neutral" };
 }
 
 function getBungieUi(input: { isLoading: boolean; apiKey: string; clientId: string; clientSecret: string; redirectUri: string }, copy: SettingsCopy): { statusLabel: string; summary: string; tone: "neutral" | "ready" | "warning" } {
@@ -659,7 +660,6 @@ function formatLibraryVersion(version?: string): string | undefined { const matc
 function formatLibraryIntegrity(status: ManifestStatus | null, copy: SettingsCopy): string { if (!status?.initialized) return settingsText(copy, "未准备"); if (status.missing_required_components?.length) return `${settingsText(copy, "缺失")} ${status.missing_required_components.length} ${settingsText(copy, "项，需修复")}`; if (status.missing_optional_components?.length) return `${settingsText(copy, "辅助数据缺失")} ${status.missing_optional_components.length} ${settingsText(copy, "项")}`; return settingsText(copy, "完整"); }
 function formatDateTime(value: string | undefined, copy: SettingsCopy): string { return formatFullDateTime(value, settingsText(copy, "未读取")); }
 function formatUpdateCheckedAt(value: string | undefined, copy: SettingsCopy): string { return formatFullDateTime(value, settingsText(copy, "未检查")); }
-function formatAccountSnapshot(accountSummary: AccountSummary | null, copy: SettingsCopy): string { return accountSummary ? `${settingsText(copy, "账号快照")} · ${settingsText(copy, "角色")} ${accountSummary.characters.length} · ${settingsText(copy, "仓库")} ${accountSummary.vault.item_count}` : settingsText(copy, "未读取账号"); }
 function formatAccountLoadedAt(loadedAt: Date | null, accountSummary: AccountSummary | null, copy: SettingsCopy): string { if (!accountSummary) return settingsText(copy, "未读取"); if (!loadedAt) return settingsText(copy, "本次启动已读取"); return formatFullDateTime(loadedAt, settingsText(copy, "本次启动已读取")); }
 function formatActionLogTitle(entry: ActionLogEntry, copy: SettingsCopy): string { const labels: Record<string, string> = { "set-lock": settingsText(copy, "锁定状态"), equip: settingsText(copy, "装备"), "insert-socket-plug": settingsText(copy, "切换武器 Perk"), transfer: settingsText(copy, "仓库转移"), "postmaster-pull": settingsText(copy, "邮政官取回"), "loadout-equip": settingsText(copy, "应用游戏内配装栏"), "loadout-snapshot": settingsText(copy, "覆盖游戏内配装栏"), "execution-verification": settingsText(copy, "执行验证") }; return [actionLogStatusLabel(entry, copy), labels[entry.action], entry.item_name].filter(Boolean).join(" / "); }
 function formatActionTraceReference(value: string): string { const suffix = value.split(":").at(-1) ?? value; return suffix.slice(0, 12); }

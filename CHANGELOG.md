@@ -2,6 +2,48 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.19 - 2026-09-05
+
+### 中文
+
+#### 新增
+
+- 仓库武器卡新增推荐命中筛选、单件加锁和取出到当前角色，并在清理前保护推荐、收藏、配装和其他重要装备。
+- 推荐数据管理支持查看来源状态、导入简化武器表、按来源管理规则，并为无法验证的旧推荐库提供明确隔离提示。
+
+#### 改进
+
+- 账号、仓库、配装、首页和设置统一使用“同步装备数据”，一次同步会从 Bungie 读取角色装备、背包、仓库和配装的同一份真实快照。
+- 武器详情改为先显示账号快照中的真实实例信息，再按需读取完整定义、Roll 和推荐证据；同一实例的详情请求支持范围隔离、去重与写后强制刷新。
+- 武器推荐统一使用官方栏位和严格匹配语义，补充来源、核心 Roll、逐栏命中状态、缓存版本和完整包导入诊断。
+- 资料库更新可复用兼容的中英文 SQLite 与搜索索引，减少重复下载和切换期间的不可用时间。
+
+#### 修复
+
+- 修复应用内写操作已经成功、游戏与其他电脑已变化，但当前页面仍被旧 Profile、旧缓存或并发请求覆盖的问题。
+- 修复批量装备与单件装备状态不一致、写后确认提示卡住，以及刷新成功但页面内容没有真正采用最新快照的问题。
+- 修复仓库推荐缓存未随数据源变化失效、完整 Roll 被误判为未读取，以及不同页面使用不同推荐状态描述的问题。
+
+### English
+
+#### Added
+
+- Added recommendation filtering, per-item locking, and transfer-to-current-character actions to Vault weapon cards, with cleanup protection for recommended, favorited, loadout, and other important items.
+- Added recommendation-source status, simplified weapon-table imports, per-source rule management, and explicit isolation for unverifiable legacy recommendation databases.
+
+#### Improved
+
+- Unified Account, Vault, Loadouts, Home, and Settings around one “Sync equipment data” action that reads equipped items, character inventories, Vault, and loadouts from the same Bungie profile snapshot.
+- Changed weapon details to render real snapshot data first and load full definitions, rolls, and recommendation evidence on demand, with scoped request deduplication and forced post-write refreshes.
+- Standardized weapon recommendations around official slot names and strict matching semantics, with source evidence, core rolls, per-slot states, cache revisions, and full-package import diagnostics.
+- Reused compatible Chinese and English Manifest databases and search indexes to reduce repeated downloads and downtime during activation.
+
+#### Fixed
+
+- Fixed successful game writes being hidden or overwritten by stale profiles, caches, or concurrent requests in the current application window.
+- Fixed inconsistent batch-versus-single equip state, write-confirmation messages that never completed, and refreshes that reported success without accepting the latest snapshot.
+- Fixed stale Vault recommendation caches, complete rolls being shown as unread, and inconsistent recommendation-state wording across pages.
+
 ## 0.0.18 - 2026-09-03
 
 ### 中文

@@ -19,11 +19,7 @@ import {
 import { fetchBungieJson } from "../bungie/client.js";
 import { createServiceError } from "../errors.js";
 import type { BungieRequestOptions } from "../bungie/session.js";
-import {
-  applyAccountItemPatch,
-  isAccountItemPatchReflected,
-  type AccountItemPatch
-} from "./itemPatches.js";
+import type { AccountItemPatch } from "./itemPatches.js";
 import type {
   AccountItemDetailCacheKey,
   AccountItemDetailCacheStore
@@ -35,6 +31,7 @@ export type AccountInvalidation =
   | { scope: "all" }
   | { scope: "profile" }
   | { scope: "snapshot" }
+  | { scope: "item-details" }
   | { scope: "item"; instance_id: string };
 
 export type { AccountItemPatch } from "./itemPatches.js";
@@ -87,12 +84,8 @@ export type CreateAccountSessionOptions = {
   now?: () => number;
   membershipTtlMs?: number;
   profileTtlMs?: number;
-  snapshotTtlMs?: number;
-  itemDetailTtlMs?: number;
-  /** Durable cache freshness window. Defaults to 30 minutes. */
-  itemDetailPersistentTtlMs?: number;
   maxItemDetails?: number;
-  patchRevalidateDelayMs?: number;
+  manifestRevision?: string;
   /** Optional durable cache. Memory remains the hot path; this is consulted before Bungie. */
   itemDetailStore?: AccountItemDetailCacheStore;
 };
@@ -119,7 +112,6 @@ type ProfileRequest = {
 
 type ItemDetailCacheEntry = {
   detail: AccountItemDetail;
-  freshUntil: number;
 };
 
 type SnapshotRequest = {
@@ -158,11 +150,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     }));
   const membershipTtlMs = options.membershipTtlMs ?? 30 * 60_000;
   const profileTtlMs = options.profileTtlMs ?? 45_000;
-  const snapshotTtlMs = options.snapshotTtlMs ?? 45_000;
-  const itemDetailTtlMs = options.itemDetailTtlMs ?? 45_000;
-  const itemDetailPersistentTtlMs = options.itemDetailPersistentTtlMs ?? 30 * 60_000;
   const maxItemDetails = options.maxItemDetails ?? 48;
-  const patchRevalidateDelayMs = options.patchRevalidateDelayMs ?? 750;
 
   let currentAccessToken: string | undefined;
   let sessionEpoch = 0;
@@ -171,15 +159,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   let profileCache: ProfileCache | undefined;
   let profileInFlight: ProfileRequest | undefined;
   let snapshot: AccountSnapshot | undefined = options.initialSnapshot;
-  let snapshotFreshUntil = 0;
   let snapshotInFlight: SnapshotRequest | undefined;
-  let snapshotMutationRevision = 0;
-  let snapshotRevalidatedRevision = -1;
-  let patchRevalidateTimer: ReturnType<typeof setTimeout> | undefined;
   const itemDetails = new Map<string, ItemDetailCacheEntry>();
   const itemDetailInFlight = new Map<string, Promise<AccountItemDetailResult>>();
   const itemDetailVersions = new Map<string, number>();
-  const pendingItemPatches = new Map<string, AccountItemPatch>();
+  let itemDetailEpoch = 0;
   const itemDetailStore = options.itemDetailStore;
   const reportDiagnostic = (event: AccountSessionDiagnosticEvent) => {
     try {
@@ -199,11 +183,6 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           outcome: "cache-hit",
           duration_ms: 0
         });
-        if (now() >= snapshotFreshUntil && !snapshotInFlight) {
-          void getScopedAccessToken(true)
-            .then((accessToken) => refreshSnapshot(accessToken))
-            .catch(() => undefined);
-        }
         return snapshot;
       }
       const accessToken = await getScopedAccessToken(true);
@@ -250,7 +229,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       const forceRefresh = options.freshness === "refresh";
       const cacheKey = detailKey(input);
       const cached = itemDetails.get(cacheKey);
-      if (!forceRefresh && cached && now() < cached.freshUntil) {
+      if (!forceRefresh && cached) {
         touchDetail(cacheKey, cached);
         return markItemDetailStatus(cached.detail, "fresh");
       }
@@ -266,31 +245,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       if (!forceRefresh && itemDetailStore) {
         const persisted = await itemDetailStore.get(cacheInputKey(input)).catch(() => null);
         if (persisted) {
-          // The durable entry may be newer than an expired in-memory entry
-          // after an app restart or another page has refreshed it.
-          staleFallback = persisted.detail;
-          staleFetchedAt = persisted.fetched_at;
-          const fetchedAt = Date.parse(persisted.fetched_at);
-          const freshUntil = Number.isFinite(fetchedAt)
-            ? fetchedAt + itemDetailPersistentTtlMs
-            : 0;
-          if (freshUntil > now()) {
-            itemDetails.set(cacheKey, {
-              detail: persisted.detail,
-              freshUntil
-            });
-            touchDetail(cacheKey, itemDetails.get(cacheKey)!);
-            trimItemDetails();
-            return markItemDetailStatus(persisted.detail, "fresh", persisted.fetched_at);
-          }
+          itemDetails.set(cacheKey, { detail: persisted.detail });
+          touchDetail(cacheKey, itemDetails.get(cacheKey)!);
+          trimItemDetails();
+          return markItemDetailStatus(persisted.detail, "fresh", persisted.fetched_at);
         }
-      }
-      // Stale-while-revalidate: keep the last known detail interactive while
-      // a refresh runs in the background. The forced call below shares the
-      // existing in-flight map and therefore cannot duplicate a request.
-      if (!forceRefresh && staleFallback) {
-        void session.getItemDetail(input, { freshness: "refresh" }).catch(() => undefined);
-        return markItemDetailStatus(staleFallback, "stale", staleFetchedAt);
       }
       let accessToken: string;
       try {
@@ -305,18 +264,19 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       }
 
       const requestEpoch = sessionEpoch;
+      const requestItemDetailEpoch = itemDetailEpoch;
       const itemVersion = itemDetailVersions.get(input.instance_id) ?? 0;
       let promise: Promise<AccountItemDetailResult>;
       promise = loadItemDetail(input, accessToken, { forceRefresh })
         .then((detail) => {
           assertActiveRequest(accessToken, requestEpoch);
+          if (itemDetailEpoch !== requestItemDetailEpoch) {
+            throw new Error("Account item details were invalidated while the request was running");
+          }
           if ((itemDetailVersions.get(input.instance_id) ?? 0) !== itemVersion) {
             throw new Error("Account item detail was invalidated while the request was running");
           }
-          itemDetails.set(cacheKey, {
-            detail,
-            freshUntil: now() + itemDetailTtlMs
-          });
+          itemDetails.set(cacheKey, { detail });
           trimItemDetails();
           if (itemDetailStore) {
             void itemDetailStore.set(cacheInputKey(input), detail, new Date(now()))
@@ -352,38 +312,28 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         sessionEpoch += 1;
         profileCache = undefined;
         profileInFlight = undefined;
-        snapshotFreshUntil = 0;
         return;
       }
       if (input.scope === "snapshot") {
-        snapshotFreshUntil = 0;
+        snapshot = undefined;
+        return;
+      }
+      if (input.scope === "item-details") {
+        const account = currentAccountKey();
+        itemDetailEpoch += 1;
+        itemDetails.clear();
+        itemDetailInFlight.clear();
+        itemDetailVersions.clear();
+        void clearPersistentItemDetails(account).catch(() => undefined);
         return;
       }
       deleteItemDetail(input.instance_id);
       void deletePersistentItemDetail(input.instance_id).catch(() => undefined);
     },
 
-    patch(input, patchOptions = {}) {
-      if (snapshot) {
-        if (patchOptions.preserve === false) {
-          if (isSameAccountItemPatch(pendingItemPatches.get(input.item_instance_id), input)) {
-            pendingItemPatches.delete(input.item_instance_id);
-          }
-        } else {
-          clearConflictingPendingItemPatches(snapshot, input, pendingItemPatches);
-          snapshot = applyAccountItemPatch(snapshot, input);
-          pendingItemPatches.set(input.item_instance_id, input);
-          snapshotMutationRevision += 1;
-          snapshotFreshUntil = Math.max(
-            snapshotFreshUntil,
-            now() + patchRevalidateDelayMs
-          );
-          void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
-          if (patchOptions.revalidate !== false) {
-            scheduleSnapshotRevalidate();
-          }
-        }
-      }
+    patch(input) {
+      // Bungie 写入只使详情缓存失效；账号事实必须等待 Profile 确认后，
+      // 由下一次权威快照整体提交，不能在 Session 中叠加乐观 patch。
       deleteItemDetail(input.item_instance_id);
       void deletePersistentItemDetail(input.item_instance_id).catch(() => undefined);
     }
@@ -449,14 +399,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     profileCache = undefined;
     profileInFlight = undefined;
     snapshot = undefined;
-    snapshotMutationRevision += 1;
-    snapshotFreshUntil = 0;
     snapshotInFlight = undefined;
-    if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
-    patchRevalidateTimer = undefined;
     itemDetails.clear();
     itemDetailInFlight.clear();
-    pendingItemPatches.clear();
+    itemDetailVersions.clear();
+    itemDetailEpoch += 1;
   }
 
   async function getMembership(
@@ -591,7 +538,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           : undefined;
         if (existingProfile
           && isSuperset(existingProfile.components, components)
-          && isProfileNotNewer(profile, existingProfile.profile)) {
+          && isProfileOlder(profile, existingProfile.profile)) {
           if (diagnoseSnapshotRefresh) {
             reportDiagnostic({
               stage: "profile",
@@ -659,7 +606,6 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       );
     }
     const requestEpoch = sessionEpoch;
-    const requestMutationRevision = snapshotMutationRevision;
     const snapshotStartedAt = performance.now();
     reportDiagnostic({ stage: "snapshot-request", outcome: "started", duration_ms: 0 });
     let promise: Promise<AccountSnapshot>;
@@ -715,20 +661,9 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           throw error;
         }
         assertActiveRequest(accessToken, requestEpoch);
-        if (snapshotMutationRevision !== requestMutationRevision && snapshot) {
-          snapshotFreshUntil = 0;
-          scheduleSnapshotRevalidate();
-          reportDiagnostic({
-            stage: "snapshot-request",
-            outcome: "completed",
-            duration_ms: performance.now() - snapshotStartedAt
-          });
-          return snapshot;
-        }
         const currentProfileVersion = snapshot ? accountProfileVersion(snapshot) : 0;
         const nextProfileVersion = accountProfileVersion(nextSnapshot);
         if (snapshot && nextProfileVersion > 0 && currentProfileVersion > nextProfileVersion) {
-          snapshotFreshUntil = 0;
           reportDiagnostic({
             stage: "snapshot-request",
             outcome: "cache-hit",
@@ -736,16 +671,8 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           });
           return snapshot;
         }
-        snapshot = reconcilePendingItemPatches(nextSnapshot);
-        if (authoritative && !pendingItemPatches.size && patchRevalidateTimer) {
-          clearTimeout(patchRevalidateTimer);
-          patchRevalidateTimer = undefined;
-        }
-        snapshotRevalidatedRevision = Math.max(
-          snapshotRevalidatedRevision,
-          requestMutationRevision
-        );
-        snapshotFreshUntil = now() + snapshotTtlMs;
+        if (snapshot) invalidateChangedItemDetails(snapshot, nextSnapshot);
+        snapshot = nextSnapshot;
         void Promise.resolve(options.onSnapshot?.(snapshot)).catch(() => undefined);
         reportDiagnostic({
           stage: "snapshot-request",
@@ -768,35 +695,6 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     });
     snapshotInFlight = { authoritative, promise };
     return promise;
-  }
-
-  function scheduleSnapshotRevalidate(): void {
-    if (!snapshot || !pendingItemPatches.size) return;
-    if (patchRevalidateTimer) clearTimeout(patchRevalidateTimer);
-    const scheduledRevision = snapshotMutationRevision;
-    patchRevalidateTimer = setTimeout(() => {
-      patchRevalidateTimer = undefined;
-      if (snapshotRevalidatedRevision >= scheduledRevision) return;
-      void getScopedAccessToken(true)
-        .then((accessToken) => refreshSnapshot(accessToken, true))
-        .catch(() => {
-          snapshotFreshUntil = 0;
-        });
-    }, patchRevalidateDelayMs);
-  }
-
-  function reconcilePendingItemPatches(
-    serverSnapshot: AccountSnapshot
-  ): AccountSnapshot {
-    let reconciled = serverSnapshot;
-    for (const [instanceId, patch] of pendingItemPatches) {
-      if (isAccountItemPatchReflected(serverSnapshot, patch)) {
-        pendingItemPatches.delete(instanceId);
-      } else {
-        reconciled = applyAccountItemPatch(reconciled, patch);
-      }
-    }
-    return reconciled;
   }
 
   async function loadItemDetail(
@@ -857,10 +755,22 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     }
   }
 
+  function invalidateChangedItemDetails(previous: AccountSnapshot, next: AccountSnapshot): void {
+    const previousItems = snapshotItemsByInstance(previous);
+    const nextItems = snapshotItemsByInstance(next);
+    for (const [instanceId, previousItem] of previousItems) {
+      const nextItem = nextItems.get(instanceId);
+      if (nextItem && accountItemDetailRevision(previousItem) === accountItemDetailRevision(nextItem)) continue;
+      deleteItemDetail(instanceId);
+      void deletePersistentItemDetail(instanceId).catch(() => undefined);
+    }
+  }
+
   function cacheInputKey(input: AccountItemDetailQuery): AccountItemDetailCacheKey {
     return {
       membership_type: input.membership_type,
       destiny_membership_id: input.destiny_membership_id,
+      manifest_revision: options.manifestRevision?.trim() || "manifest-unavailable",
       instance_id: input.instance_id
     };
   }
@@ -873,7 +783,11 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     // entries and leave durable entries untouched rather than risking another
     // account's data.
     if (!account) return Promise.resolve();
-    return itemDetailStore.delete({ ...account, instance_id: instanceId }).then(() => undefined);
+    return itemDetailStore.delete({
+      ...account,
+      manifest_revision: options.manifestRevision?.trim() || "manifest-unavailable",
+      instance_id: instanceId
+    }).then(() => undefined);
   }
 
   function clearPersistentItemDetails(account?: {
@@ -920,6 +834,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     return error instanceof Error && (
       error.message === "Bungie account session changed while the request was running"
       || error.message === "Account item detail was invalidated while the request was running"
+      || error.message === "Account item details were invalidated while the request was running"
     );
   }
 
@@ -937,51 +852,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   }
 }
 
-function clearConflictingPendingItemPatches(
-  snapshot: AccountSnapshot,
-  patch: AccountItemPatch,
-  pendingPatches: Map<string, AccountItemPatch>
-): void {
-  if (patch.kind !== "equip") return;
-  const incomingItem = findSnapshotItem(snapshot, patch.item_instance_id);
-  if (incomingItem?.bucket_hash === undefined) return;
-  for (const [instanceId, pendingPatch] of pendingPatches) {
-    if (pendingPatch.kind !== "equip" || pendingPatch.character_id !== patch.character_id) continue;
-    const pendingItem = findSnapshotItem(snapshot, instanceId);
-    if (pendingItem?.bucket_hash === incomingItem.bucket_hash) {
-      pendingPatches.delete(instanceId);
-    }
-  }
-}
-
-function findSnapshotItem(snapshot: AccountSnapshot, instanceId: string) {
-  const vaultItem = snapshot.vault.items.find((item) => item.instance_id === instanceId);
-  if (vaultItem) return vaultItem;
-  for (const character of snapshot.characters) {
-    const item = character.equipped_items.find((candidate) => candidate.instance_id === instanceId)
-      ?? character.inventory_items.find((candidate) => candidate.instance_id === instanceId)
-      ?? character.postmaster_items.find((candidate) => candidate.instance_id === instanceId);
-    if (item) return item;
-  }
-}
-
-function isSameAccountItemPatch(
-  left: AccountItemPatch | undefined,
-  right: AccountItemPatch
-): boolean {
-  if (!left || left.kind !== right.kind || left.item_instance_id !== right.item_instance_id) return false;
-  if (left.kind === "lock" && right.kind === "lock") return left.locked === right.locked;
-  if (left.kind === "equip" && right.kind === "equip") return left.character_id === right.character_id;
-  if (left.kind === "postmaster-pull" && right.kind === "postmaster-pull") {
-    return left.character_id === right.character_id
-      && left.source_bucket_hash === right.source_bucket_hash;
-  }
-  return left.kind === "transfer" && right.kind === "transfer"
-    && left.character_id === right.character_id
-    && left.target === right.target;
-}
-
-function isProfileNotNewer(
+function isProfileOlder(
   incoming: DestinyProfileResponse,
   current: DestinyProfileResponse
 ): boolean {
@@ -989,7 +860,7 @@ function isProfileNotNewer(
   const currentVersion = profileVersion(current.responseMintedTimestamp);
   return incomingVersion > 0
     && currentVersion > 0
-    && incomingVersion <= currentVersion;
+    && incomingVersion < currentVersion;
 }
 
 function accountProfileVersion(account: Pick<AccountSummary, "profile_minted_at">): number {
@@ -1043,6 +914,28 @@ function isSuperset(values: ReadonlySet<number>, requested: ReadonlySet<number>)
 
 function detailKey(input: AccountItemDetailQuery): string {
   return `${input.membership_type}:${input.destiny_membership_id}:${input.instance_id}`;
+}
+
+function snapshotItemsByInstance(snapshot: AccountSnapshot): Map<string, AccountSnapshot["vault"]["items"][number]> {
+  const items = [
+    ...snapshot.vault.items,
+    ...snapshot.characters.flatMap((character) => [
+      ...character.equipped_items,
+      ...character.inventory_items,
+      ...character.postmaster_items
+    ])
+  ];
+  return new Map(items.flatMap((item) => item.instance_id ? [[item.instance_id, item] as const] : []));
+}
+
+function accountItemDetailRevision(item: AccountSnapshot["vault"]["items"][number]): string {
+  return JSON.stringify({
+    hash: item.hash,
+    roll: item.weapon_roll?.fingerprint ?? "",
+    plugs: [...(item.socket_plugs ?? [])]
+      .map((plug) => [plug.socket_index ?? -1, plug.hash] as const)
+      .sort((left, right) => left[0] - right[0] || left[1] - right[1])
+  });
 }
 
 function mergeDefinitionData(

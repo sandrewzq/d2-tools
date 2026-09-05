@@ -7,11 +7,15 @@ import type {
   VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { openRecommendationDatabase } from "./recommendationDatabase.js";
+import { recommendationOverrideRevision } from "./recommendationOverrides.js";
 
 const databaseFileName = "account-cache.sqlite";
-const matchAlgorithmVersion = 6;
+// 旧缓存可能是在中文推荐库不可用、或未解析名称被误判为无法核对时生成；
+// 当前匹配语义已改变，必须整体失效，避免继续显示历史错误结果。
+const matchAlgorithmVersion = 10;
 
 export type VaultRecommendationMatchCacheContext = {
+  account_key: string;
   manifest_version: string;
   manifest_language: string;
   recommendation_revision: string;
@@ -36,7 +40,8 @@ export function buildVaultRecommendationMatchRevision(
     return sha256(JSON.stringify({
       match_algorithm_version: matchAlgorithmVersion,
       curated_revision: curatedRevision,
-      external_revisions: externalRows
+      external_revisions: externalRows,
+      override_revision: recommendationOverrideRevision(dataDir)
     }));
   } finally {
     database.close();
@@ -50,13 +55,19 @@ export function partitionVaultRecommendationMatchCache(
 ): VaultRecommendationMatchCachePartition {
   const cachedByIndex = new Map<number, VaultItemInstanceMatchInfo>();
   const missing: VaultRecommendationMatchCachePartition["missing"] = [];
+  if (!context.account_key) {
+    items.forEach((item, index) => {
+      missing.push({ index, item, roll_fingerprint: createVaultWeaponRollFingerprint(item) });
+    });
+    return { cached_by_index: cachedByIndex, missing };
+  }
   const database = openAccountCacheDatabase(dataDir);
   try {
     const read = database.prepare(`
       SELECT item_hash, roll_fingerprint, manifest_version, manifest_language,
              recommendation_revision, match_json
       FROM vault_weapon_match_cache
-      WHERE instance_id = ?
+      WHERE account_key = ? AND instance_id = ?
     `);
     items.forEach((item, index) => {
       const rollFingerprint = createVaultWeaponRollFingerprint(item);
@@ -64,7 +75,7 @@ export function partitionVaultRecommendationMatchCache(
         missing.push({ index, item, roll_fingerprint: rollFingerprint });
         return;
       }
-      const row = read.get(item.instance_id) as MatchCacheRow | undefined;
+      const row = read.get(context.account_key, item.instance_id) as MatchCacheRow | undefined;
       const cached = row
         && row.item_hash === item.hash
         && row.roll_fingerprint === rollFingerprint
@@ -92,16 +103,17 @@ export function saveVaultRecommendationMatchCache(
   context: VaultRecommendationMatchCacheContext,
   now = new Date()
 ): void {
+  if (!context.account_key) return;
   const persistable = entries.filter((entry) => Boolean(entry.item.instance_id));
   if (!persistable.length) return;
   const database = openAccountCacheDatabase(dataDir);
   try {
     const write = database.prepare(`
       INSERT INTO vault_weapon_match_cache (
-        instance_id, item_hash, roll_fingerprint, manifest_version, manifest_language,
+        account_key, instance_id, item_hash, roll_fingerprint, manifest_version, manifest_language,
         recommendation_revision, match_json, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(instance_id) DO UPDATE SET
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(account_key, instance_id) DO UPDATE SET
         item_hash = excluded.item_hash,
         roll_fingerprint = excluded.roll_fingerprint,
         manifest_version = excluded.manifest_version,
@@ -116,6 +128,7 @@ export function saveVaultRecommendationMatchCache(
         const instanceId = item.instance_id;
         if (!instanceId) return;
         write.run(
+          context.account_key,
           instanceId,
           item.hash,
           roll_fingerprint,
@@ -126,6 +139,35 @@ export function saveVaultRecommendationMatchCache(
           now.toISOString()
         );
       });
+      database.exec("COMMIT;");
+    } catch (error) {
+      database.exec("ROLLBACK;");
+      throw error;
+    }
+  } finally {
+    database.close();
+  }
+}
+
+/**
+ * A source/rule edit changes the composite recommendation revision globally,
+ * but only weapons covered by that edit need to be recalculated. Remove those
+ * rows and advance every unaffected row to the new revision so the next account
+ * sync does not repeat work that is known to be semantically unchanged.
+ */
+export function advanceVaultRecommendationMatchCacheRevision(
+  dataDir: string,
+  recommendationRevision: string,
+  affectedWeaponHashes: readonly number[]
+): void {
+  const database = openAccountCacheDatabase(dataDir);
+  try {
+    const removeAffected = database.prepare("DELETE FROM vault_weapon_match_cache WHERE item_hash = ?");
+    database.exec("BEGIN IMMEDIATE;");
+    try {
+      for (const itemHash of new Set(affectedWeaponHashes)) removeAffected.run(itemHash);
+      database.prepare("UPDATE vault_weapon_match_cache SET recommendation_revision = ?")
+        .run(recommendationRevision);
       database.exec("COMMIT;");
     } catch (error) {
       database.exec("ROLLBACK;");
@@ -176,19 +218,35 @@ function openAccountCacheDatabase(dataDir: string): DatabaseSync {
   mkdirSync(join(dataDir, "cache"), { recursive: true });
   const database = new DatabaseSync(join(dataDir, "cache", databaseFileName), { timeout: 5_000 });
   database.exec("PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;");
+  const existingColumns = database.prepare("PRAGMA table_info(vault_weapon_match_cache)").all() as Array<{
+    name?: string;
+    pk?: number;
+  }>;
+  const existingPrimaryKey = existingColumns
+    .filter((column) => Number(column.pk ?? 0) > 0)
+    .sort((left, right) => Number(left.pk ?? 0) - Number(right.pk ?? 0))
+    .map((column) => column.name);
+  if (existingColumns.length > 0 && (
+    !existingColumns.some((column) => column.name === "account_key")
+    || JSON.stringify(existingPrimaryKey) !== JSON.stringify(["account_key", "instance_id"])
+  )) {
+    database.exec("DROP TABLE vault_weapon_match_cache;");
+  }
   database.exec(`
     CREATE TABLE IF NOT EXISTS vault_weapon_match_cache (
-      instance_id TEXT PRIMARY KEY,
+      account_key TEXT NOT NULL,
+      instance_id TEXT NOT NULL,
       item_hash INTEGER NOT NULL CHECK (item_hash >= 0 AND item_hash <= 4294967295),
       roll_fingerprint TEXT NOT NULL,
       manifest_version TEXT NOT NULL,
       manifest_language TEXT NOT NULL,
       recommendation_revision TEXT NOT NULL,
       match_json TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      updated_at TEXT NOT NULL,
+      PRIMARY KEY (account_key, instance_id)
     ) STRICT;
     CREATE INDEX IF NOT EXISTS idx_vault_weapon_match_revision
-      ON vault_weapon_match_cache(manifest_version, manifest_language, recommendation_revision);
+      ON vault_weapon_match_cache(account_key, manifest_version, manifest_language, recommendation_revision);
     CREATE INDEX IF NOT EXISTS idx_vault_weapon_match_item
       ON vault_weapon_match_cache(item_hash);
   `);
@@ -205,6 +263,9 @@ function parseMatch(
     if (parsed.instance_id !== instanceId || parsed.hash !== itemHash) return null;
     if (typeof parsed.canonical_weapon_name !== "string" || !parsed.canonical_weapon_name) return null;
     if (parsed.coverage !== "covered" && parsed.coverage !== "uncovered") return null;
+    if (parsed.recommendation_state !== "priority"
+      && parsed.recommendation_state !== "compare"
+      && parsed.recommendation_state !== "uncovered") return null;
     if (!Array.isArray(parsed.modes)) return null;
     return parsed as VaultItemInstanceMatchInfo;
   } catch {

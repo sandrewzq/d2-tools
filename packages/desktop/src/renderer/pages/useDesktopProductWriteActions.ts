@@ -21,6 +21,7 @@ import { useBackgroundTasks } from "../shared/hooks/useBackgroundTasks";
 type AccountWriteSyncState = {
   taskId: string;
   operationId: string;
+  startedAtMs: number;
   characterName: string;
   acceptedCount: number;
   failedCount: number;
@@ -28,6 +29,10 @@ type AccountWriteSyncState = {
   expectedPatches: AccountItemActionPatch[];
   surfaceFeedback: boolean;
 };
+
+// 后台对账目前最多等待 750ms + 2s + 5s + 10s + 20s，另加有限次
+// Profile 请求时间。留出缓冲后，Renderer 不应再无限保留“确认中”。
+const ACCOUNT_WRITE_SYNC_UI_TIMEOUT_MS = 75_000;
 
 type DiagnosticsBridge = {
   aiSettings: { enable_lightgg: boolean };
@@ -47,9 +52,11 @@ export function useDesktopProductWriteActions(input: {
   diagnostics: DiagnosticsBridge;
   importedWishlist: DimWishlist | null;
   itemDetailCacheScopeKey: string;
+  recommendationRevision?: string;
   loadAccountSummary: () => Promise<void>;
   loadoutLibrary: LoadoutLibraryBridge;
   localTargetRules: LocalTargetRules;
+  cleanupProtectionByItemKey?: ReadonlyMap<string, readonly string[]>;
   onRecentHistoryChanged: (history: LibraryHistory) => void;
   setAccountError: (message: string) => void;
   setVaultTags: (tags: VaultTags) => void;
@@ -61,8 +68,70 @@ export function useDesktopProductWriteActions(input: {
   const [accountOperationFeedback, setAccountOperationFeedback] = useState<AccountOperationFeedbackView>();
   const [accountWriteSyncs, setAccountWriteSyncs] = useState<AccountWriteSyncState[]>([]);
   const reloadedTerminalTaskIdsRef = useRef(new Set<string>());
+  const accountWriteSyncsRef = useRef<AccountWriteSyncState[]>([]);
+  const writeSyncTimeoutsRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const { backgroundTasks } = useBackgroundTasks();
   const loadoutActionFeedback = useLoadoutActionFeedback();
+
+  accountWriteSyncsRef.current = accountWriteSyncs;
+
+  useEffect(() => {
+    const currentTaskIds = new Set(accountWriteSyncs.map((sync) => sync.taskId));
+    for (const [taskId, timer] of writeSyncTimeoutsRef.current) {
+      if (!currentTaskIds.has(taskId)) {
+        clearTimeout(timer);
+        writeSyncTimeoutsRef.current.delete(taskId);
+      }
+    }
+
+    for (const sync of accountWriteSyncs) {
+      if (writeSyncTimeoutsRef.current.has(sync.taskId)) continue;
+      const remainingMs = Math.max(
+        0,
+        ACCOUNT_WRITE_SYNC_UI_TIMEOUT_MS - (Date.now() - sync.startedAtMs)
+      );
+      const timer = setTimeout(() => {
+        writeSyncTimeoutsRef.current.delete(sync.taskId);
+        const currentSyncs = accountWriteSyncsRef.current;
+        const stillPending = currentSyncs.some((entry) => entry.taskId === sync.taskId);
+        if (!stillPending) return;
+
+        const hasNewerSameItemSync = currentSyncs.some((entry) => (
+          entry.taskId !== sync.taskId
+          && entry.startedAtMs > sync.startedAtMs
+          && entry.itemInstanceIds.some((instanceId) => sync.itemInstanceIds.includes(instanceId))
+        ));
+        if (!hasNewerSameItemSync) {
+          setAccountOperationFeedback((current) => {
+            if (!current || !current.itemInstanceIds?.some((instanceId) => sync.itemInstanceIds.includes(instanceId))) {
+              return current;
+            }
+            return {
+              tone: "warning",
+              phase: "paused",
+              itemInstanceIds: sync.itemInstanceIds,
+              message: "后台确认任务未及时返回，已刷新账号状态；请以当前页面显示的装备位置为准。"
+            };
+          });
+          setItemActionMessage("");
+        }
+        // 即使后台任务的终态事件丢失，也先把页面从“确认中”释放出来。
+        // 账号刷新失败时保留当前缓存，不再让状态无限等待。
+        input.confirmCommittedAccountActionPatches(sync.expectedPatches);
+        void input.loadAccountSummary().catch(() => undefined);
+        void input.diagnostics.loadActionLog().catch(() => undefined);
+        setAccountWriteSyncs((current) => current.filter((entry) => entry.taskId !== sync.taskId));
+      }, remainingMs);
+      writeSyncTimeoutsRef.current.set(sync.taskId, timer);
+    }
+
+    return () => undefined;
+  }, [accountWriteSyncs]);
+
+  useEffect(() => () => {
+    for (const timer of writeSyncTimeoutsRef.current.values()) clearTimeout(timer);
+    writeSyncTimeoutsRef.current.clear();
+  }, []);
 
   useEffect(() => {
     if (!accountWriteSyncs.length) return;
@@ -84,12 +153,58 @@ export function useDesktopProductWriteActions(input: {
       ...resolved.filter((entry) => entry.task && ["success", "failed", "blocked", "superseded"].includes(entry.task.status))
         .map((entry) => entry.sync.taskId)
     ]);
+    const hiddenTerminal = resolved.filter((entry) => (
+      !entry.sync.surfaceFeedback
+      && entry.task
+      && terminalTaskIds.has(entry.sync.taskId)
+    ));
+    const latestHiddenTerminal = hiddenTerminal.at(-1);
+    if (latestHiddenTerminal?.task) {
+      const { sync, task } = latestHiddenTerminal;
+      const hasNewerSameItemSync = accountWriteSyncs.some((entry) => (
+        entry.taskId !== sync.taskId
+        && entry.startedAtMs > sync.startedAtMs
+        && entry.itemInstanceIds.some((instanceId) => sync.itemInstanceIds.includes(instanceId))
+      ));
+      if (!hasNewerSameItemSync) {
+        setAccountOperationFeedback((current) => {
+          if (!current?.itemInstanceIds?.some((instanceId) => sync.itemInstanceIds.includes(instanceId))) {
+            return current;
+          }
+          if (task.status === "success") {
+            return {
+              tone: sync.failedCount > 0 ? "warning" : "success",
+              phase: sync.failedCount > 0 ? "partial-confirmed" : "confirmed",
+              itemInstanceIds: sync.itemInstanceIds,
+              message: sync.failedCount > 0
+                ? `已确认 ${sync.acceptedCount} 项变化，另有 ${sync.failedCount} 项提交失败。`
+                : `已确认 ${sync.acceptedCount} 项变化已在游戏内生效。`
+            };
+          }
+          if (task.status === "superseded") {
+            return {
+              tone: "warning",
+              phase: "superseded",
+              itemInstanceIds: sync.itemInstanceIds,
+              message: "旧对账任务已由同范围的新操作替代；页面等待最新操作确认。"
+            };
+          }
+          return {
+            tone: "warning",
+            phase: "paused",
+            itemInstanceIds: sync.itemInstanceIds,
+            message: task.error ?? "写入请求未在游戏内确认，页面已按最新账号状态刷新。"
+          };
+        });
+        setItemActionMessage("");
+      }
+    }
     for (const entry of resolved) {
       if (!entry.task || !terminalTaskIds.has(entry.sync.taskId)) continue;
       if (reloadedTerminalTaskIdsRef.current.has(entry.sync.taskId)) continue;
       reloadedTerminalTaskIdsRef.current.add(entry.sync.taskId);
-      // 验证任务结束后必须用真实 Bungie 快照刷新页面。不能只清除本地
-      // patch，否则失败或未生效时页面仍可能显示旧的乐观状态。
+      // 验证任务结束后必须用真实 Bungie 快照刷新页面。Pending 只记录
+      // 预期目标；最终账号事实始终以本次权威 Profile 为准。
       void input.loadAccountSummary().catch(() => undefined);
       // 对账结果会追加到操作日志；任务结束后立即拉取，避免设置页继续
       // 只显示“请求已受理”而看不到最终“已确认/不可用”。
@@ -166,33 +281,49 @@ export function useDesktopProductWriteActions(input: {
   }, [accountWriteSyncs, backgroundTasks]);
 
   async function startAccountWriteVerification(
-    input: AccountWriteVerificationInput,
+    verificationInput: AccountWriteVerificationInput,
     options: { surfaceFeedback?: boolean } = {}
   ): Promise<void> {
+    const itemInstanceIds = [...new Set(verificationInput.expected_patches.map((patch) => patch.item_instance_id))];
     try {
-      const task = await api.startAccountWriteVerification(input);
-      const itemInstanceIds = [...new Set(input.expected_patches.map((patch) => patch.item_instance_id))];
-      setAccountWriteSyncs((current) => [...current.filter((entry) => entry.operationId !== input.operation_id), {
+      const task = await api.startAccountWriteVerification(verificationInput);
+      setAccountWriteSyncs((current) => [...current.filter((entry) => entry.operationId !== verificationInput.operation_id), {
         taskId: task.task_id,
-        operationId: input.operation_id,
-        characterName: input.character_name ?? "当前角色",
-        acceptedCount: input.accepted_count,
-        failedCount: input.failed_count,
+        operationId: verificationInput.operation_id,
+        startedAtMs: Date.parse(task.started_at ?? "") || Date.now(),
+        characterName: verificationInput.character_name ?? "当前角色",
+        acceptedCount: verificationInput.accepted_count,
+        failedCount: verificationInput.failed_count,
         itemInstanceIds,
-        expectedPatches: input.expected_patches,
+        expectedPatches: verificationInput.expected_patches,
         surfaceFeedback: options.surfaceFeedback !== false
       }]);
     } catch (error) {
-      if (options.surfaceFeedback === false) return;
-      const hasEquipPatch = input.expected_patches.some((patch) => patch.kind === "equip");
-      setAccountOperationFeedback({
-        tone: "warning",
-        phase: "paused",
-        itemInstanceIds: input.expected_patches.map((patch) => patch.item_instance_id),
-        message: hasEquipPatch
-          ? `写入请求已受理，但未能启动后台对账；页面保持原账号状态：${error instanceof Error ? error.message : "后台任务不可用"}`
-          : `写入已完成且页面已更新，但未能启动后台对账：${error instanceof Error ? error.message : "后台任务不可用"}`
-      });
+      const message = `写入请求已受理，但未能启动后台对账；页面保持服务器最后确认的账号状态：${error instanceof Error ? error.message : "后台任务不可用"}`;
+      input.confirmCommittedAccountActionPatches(verificationInput.expected_patches);
+      if (options.surfaceFeedback === false) {
+        setAccountOperationFeedback((current) => {
+          if (!current?.itemInstanceIds?.some((instanceId) => itemInstanceIds.includes(instanceId))) {
+            return current;
+          }
+          return {
+            tone: "warning",
+            phase: "paused",
+            itemInstanceIds,
+            message
+          };
+        });
+      } else {
+        setAccountOperationFeedback({
+          tone: "warning",
+          phase: "paused",
+          itemInstanceIds,
+          message
+        });
+      }
+      setItemActionMessage("");
+      void input.loadAccountSummary().catch(() => undefined);
+      void input.diagnostics.loadActionLog().catch(() => undefined);
     }
   }
 
@@ -220,7 +351,9 @@ export function useDesktopProductWriteActions(input: {
     vaultTags: input.vaultTags,
     setVaultTags: input.setVaultTags,
     importedWishlist: input.importedWishlist,
+    cleanupProtectionByItemKey: input.cleanupProtectionByItemKey,
     detailCacheScopeKey: input.itemDetailCacheScopeKey,
+    recommendationRevision: input.recommendationRevision,
     localTargetRules: input.localTargetRules,
     diagnostics: input.diagnostics,
     setAccountError: input.setAccountError,
