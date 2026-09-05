@@ -481,7 +481,10 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
       );
       if (matching.length === 0) return null;
 
-      const perkMap = buildWeaponPerkMap(item_hash, options);
+      const perkMap = buildWeaponPerkMap([
+        item_hash,
+        ...matching.flatMap((recommendation) => recommendation.item_hashes)
+      ], options);
       const combos: PerkCombo[] = [];
       const weaponLevelRecommendations: NonNullable<WeaponRecommendation["weapon_level_recommendations"]> = [];
       // DIM Voltron 必须由原生 Wishlist 解析器保留一行一个完整组合。
@@ -587,6 +590,26 @@ function selectKnowledgeRecommendations(
     }
   }
   return uniqueById(selected);
+}
+
+export function collectRelatedWeaponRecommendationItemHashes(
+  dataDir: string,
+  queries: ReadonlyArray<{
+    item_hash: number;
+    localized_names?: string[];
+    english_name?: string;
+  }>
+): number[] {
+  const knowledge = loadKnowledgeCache(dataDir);
+  if (!knowledge) return [];
+  return uniqueHashes(queries.flatMap((query) => (
+    selectKnowledgeRecommendations(
+      knowledge,
+      query.item_hash,
+      query.localized_names ?? [],
+      query.english_name
+    ).flatMap((recommendation) => recommendation.item_hashes)
+  )));
 }
 
 function replaceKnowledge(
@@ -876,21 +899,66 @@ function loadKnowledgeCache(dataDir: string): KnowledgeCache | null {
   }
 }
 
-function buildWeaponPerkMap(itemHash: number, options: SourceOptions): Map<string, PerkRef[]> {
+function buildWeaponPerkMap(itemHashes: readonly number[], options: SourceOptions): Map<string, PerkRef[]> {
   const map = new Map<string, PerkRef[]>();
-  const itemDefinition = options.itemDefinitions?.[String(itemHash)];
-  if (!itemDefinition || !options.itemDefinitions) return map;
+  if (!options.itemDefinitions) return map;
 
-  const groups = summarizeItemPerks(itemDefinition, options.itemDefinitions, {
-    plugSetDefinitions: options.plugSetDefinitions,
-    maxPlugsPerSocket: null
-  });
-  for (const plug of groups.flatMap((group) => group.plugs)) {
-    addPerkReference(map, plug.name, plug);
-    const englishName = options.englishItemDefinitions?.[String(plug.hash)]?.displayProperties?.name?.trim();
-    if (englishName) addPerkReference(map, englishName, plug, englishName);
+  for (const itemHash of uniqueHashes([...itemHashes])) {
+    const itemDefinition = options.itemDefinitions[String(itemHash)];
+    if (!itemDefinition) continue;
+    const groups = summarizeItemPerks(itemDefinition, options.itemDefinitions, {
+      plugSetDefinitions: options.plugSetDefinitions,
+      maxPlugsPerSocket: null
+    });
+    for (const group of groups) {
+      const role = classifyWeaponRollSocket(group.plugs.map((plug) => ({
+        hash: plug.hash,
+        name: plug.name,
+        ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
+        ...(plug.item_type ? { item_type: plug.item_type } : {}),
+        selected: false
+      })));
+      for (const plug of group.plugs) {
+        addPerkReference(map, plug.name, plug);
+        const englishName = options.englishItemDefinitions?.[String(plug.hash)]?.displayProperties?.name?.trim();
+        if (englishName) addPerkReference(map, englishName, plug, englishName);
+      }
+      if (role === "masterwork") {
+        const aliases = new Map<string, ItemPlugSummary>();
+        for (const plug of group.plugs) {
+          const alias = officialMasterworkName(plug.name);
+          if (!alias) continue;
+          const existing = aliases.get(alias);
+          if (!existing || masterworkVisualPriority(plug.name) > masterworkVisualPriority(existing.name)) {
+            aliases.set(alias, plug);
+          }
+        }
+        for (const [alias, plug] of aliases) addPerkAliasReference(map, alias, plug);
+      }
+    }
   }
   return map;
+}
+
+function masterworkVisualPriority(value: string): number {
+  if (/^\s*大师杰作\s*[：:]/u.test(value)) return 100;
+  const level = Number(value.match(/^\s*(\d+)\s*阶\s*[：:]/u)?.[1] ?? 0);
+  return Number.isFinite(level) ? level : 0;
+}
+
+function addPerkAliasReference(
+  map: Map<string, PerkRef[]>,
+  alias: string,
+  plug: ItemPlugSummary
+): void {
+  const key = normalizeName(alias);
+  if (!key || map.has(key)) return;
+  map.set(key, [{
+    hash: plug.hash,
+    name: alias,
+    description: plug.description,
+    icon: plug.icon
+  }]);
 }
 
 function addPerkReference(

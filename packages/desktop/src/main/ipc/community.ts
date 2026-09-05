@@ -25,6 +25,7 @@ import {
   collectWeaponRecommendationNamesWithoutItemIds,
   collectWeaponRecommendationPlugHashes,
   collectWeaponRecommendationPlugSetHashes,
+  collectRelatedWeaponRecommendationItemHashes,
   createWeaponRecommendationCsvTemplate,
   exportWeaponRecommendationPlayerCsv,
   importWeaponRecommendationCsv,
@@ -260,19 +261,35 @@ export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:recommendations:get", async (_event, item_hash: number, options?: SourceOptions) => {
     const config = loadConfig();
     const service = createDefaultCommunityPerkService(config);
-    const dimPerkHashes = dimRulePerkHashes(config.data.data_dir, [Number(item_hash)]);
-    const definitions = await loadCommunityDefinitions([Number(item_hash)], dimPerkHashes);
+    const itemHash = Number(item_hash);
+    const rootItems = await getDefinitions(
+      "DestinyInventoryItemDefinition",
+      [itemHash],
+      { projection: "community-match" }
+    );
+    const relatedItemHashes = collectRelatedWeaponRecommendationItemHashes(config.data.data_dir, [{
+      item_hash: itemHash,
+      localized_names: [
+        options?.item_name?.trim() ?? "",
+        rootItems[String(itemHash)]?.displayProperties?.name?.trim() ?? ""
+      ].filter(Boolean)
+    }]);
+    const dimPerkHashes = dimRulePerkHashes(config.data.data_dir, [itemHash]);
+    const definitions = await loadCommunityDefinitions(
+      uniqueHashes([itemHash, ...relatedItemHashes]),
+      dimPerkHashes
+    );
 
     const merged: SourceOptions = {
       manifest_version: getDesktopManifestStatus().version,
-      itemDefinitions: options?.itemDefinitions ?? definitions.items,
-      plugSetDefinitions: options?.plugSetDefinitions ?? definitions.plugSets,
+      itemDefinitions: { ...definitions.items, ...options?.itemDefinitions },
+      plugSetDefinitions: { ...definitions.plugSets, ...options?.plugSetDefinitions },
       englishItemDefinitions: options?.englishItemDefinitions,
       englishPlugSetDefinitions: options?.englishPlugSetDefinitions,
       item_name: options?.item_name
     };
 
-    return service.getRecommendationsWithAllSources(Number(item_hash), merged);
+    return service.getRecommendationsWithAllSources(itemHash, merged);
   });
 
   ipcMain.handle("community:vault:match", async (_event, items: VaultItemMatchInput[]) => {
@@ -420,8 +437,23 @@ async function matchVaultCommunityItems(items: VaultItemMatchInput[]): Promise<V
     const service = createDefaultCommunityPerkService(config);
     const missingItems = cachePartition.missing.map((entry) => entry.item);
     const itemHashes = missingItems.map((item) => item.hash);
-    const definitions = await loadCommunityDefinitions(
+    const rootItems = await getDefinitions(
+      "DestinyInventoryItemDefinition",
       itemHashes,
+      { projection: "community-match" }
+    );
+    const relatedItemHashes = collectRelatedWeaponRecommendationItemHashes(
+      config.data.data_dir,
+      missingItems.map((item) => ({
+        item_hash: item.hash,
+        localized_names: [
+          item.item_name?.trim() ?? "",
+          rootItems[String(item.hash)]?.displayProperties?.name?.trim() ?? ""
+        ].filter(Boolean)
+      }))
+    );
+    const definitions = await loadCommunityDefinitions(
+      uniqueHashes([...itemHashes, ...relatedItemHashes]),
       dimRulePerkHashes(config.data.data_dir, itemHashes)
     );
     const freshMatches = await service.matchVaultItemInstances(missingItems, {

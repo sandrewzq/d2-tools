@@ -5,6 +5,7 @@ import type {
   RecommendationRequirementSlot,
   RecommendationSourceMatch,
   RecommendationSourceRecord,
+  RecommendationSourceSlotMatch,
   SourceOptions,
   VaultItemInstanceMatchInfo,
   VaultItemMatchInfo,
@@ -197,7 +198,11 @@ export class CommunityPerkRecommendationService {
 
       const actualHashes = ownedPlugHashes(item);
       const weaponLevelRecommendations = recommendation.weapon_level_recommendations ?? [];
-      const sourceMatches = matchSourceRecords(item, recommendation.source_records ?? []);
+      const sourceMatches = matchSourceRecords(
+        item,
+        recommendation.source_records ?? [],
+        options.itemDefinitions
+      );
       const dimWishlistMatch = matchDimWishlistCombos(item, recommendation.combos, actualHashes);
       if (sourceMatches.length > 0) {
         return sourceMatchCompatibilityResult(
@@ -299,13 +304,20 @@ const recommendationSlots: Array<{ slot: RecommendationRequirementSlot; label: s
 
 function matchSourceRecords(
   item: VaultItemMatchInput,
-  records: readonly RecommendationSourceRecord[]
+  records: readonly RecommendationSourceRecord[],
+  itemDefinitions?: SourceOptions["itemDefinitions"]
 ): RecommendationSourceMatch[] {
   return records.map((record) => {
     const requirements = new Map(record.requirements.map((requirement) => [requirement.slot, requirement]));
     const slots = recommendationSlots.map(({ slot, label }) => {
       const requirement = requirements.get(slot);
       const rollSocket = item.weapon_roll?.sockets.find((socket) => socket.slot === slot);
+      const instanceOwned = (rollSocket?.owned_plugs ?? []).map((plug) => (
+        hydrateWeaponRollPlug(plug, itemDefinitions)
+      ));
+      const currentEnabled = rollSocket?.current_plug
+        ? [hydrateWeaponRollPlug(rollSocket.current_plug, itemDefinitions)]
+        : [];
       if (!requirement) {
         return {
           slot,
@@ -314,12 +326,12 @@ function matchSourceRecords(
           source_candidate_names: [],
           source_candidates: [],
           unresolved_source_candidate_names: [],
-          instance_owned: rollSocket?.owned_plugs ?? [],
-          current_enabled: rollSocket?.current_plug ? [rollSocket.current_plug] : []
+          instance_owned: instanceOwned,
+          current_enabled: currentEnabled
         };
       }
 
-      const matches = Boolean(rollSocket) && rollSocket!.owned_plugs.some((plug) => (
+      const matches = Boolean(rollSocket) && instanceOwned.some((plug) => (
         requirement.candidates.some((candidate) => (
           plug.hash === candidate.hash || perkIdentityMatches(plug.name, candidate.name)
         ))
@@ -343,8 +355,8 @@ function matchSourceRecords(
         source_candidate_names: requirement.candidate_names,
         source_candidates: requirement.candidates,
         unresolved_source_candidate_names: requirement.unresolved_candidate_names,
-        instance_owned: rollSocket?.owned_plugs ?? [],
-        current_enabled: rollSocket?.current_plug ? [rollSocket.current_plug] : []
+        instance_owned: instanceOwned,
+        current_enabled: currentEnabled
       };
     });
     const specified = slots.filter((slot) => slot.state !== "source_not_specified");
@@ -385,6 +397,21 @@ function matchSourceRecords(
       slots
     };
   });
+}
+
+function hydrateWeaponRollPlug(
+  plug: RecommendationSourceSlotMatch["instance_owned"][number],
+  itemDefinitions: SourceOptions["itemDefinitions"]
+): RecommendationSourceSlotMatch["instance_owned"][number] {
+  if (plug.icon && plug.description) return plug;
+  const definition = itemDefinitions?.[String(plug.hash)];
+  const icon = definition?.displayProperties?.icon?.trim();
+  const description = definition?.displayProperties?.description?.trim();
+  return {
+    ...plug,
+    ...(!plug.icon && icon ? { icon } : {}),
+    ...(!plug.description && description ? { description } : {})
+  };
 }
 
 function sourceMatchCompatibilityResult(

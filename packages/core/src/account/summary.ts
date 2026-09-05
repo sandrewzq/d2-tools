@@ -192,6 +192,8 @@ export type AccountWeaponRollIncompleteReason =
 export type AccountWeaponRollPlugSummary = {
   hash: number;
   name: string;
+  icon?: string;
+  description?: string;
   category_identifier?: string;
   item_type?: string;
   selected: boolean;
@@ -1701,6 +1703,12 @@ function summarizeWeaponRoll(
       ownedByHash.set(hash, {
         hash,
         name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+        ...(definition?.displayProperties?.icon
+          ? { icon: normalizeBungieAssetUrl(definition.displayProperties.icon) }
+          : {}),
+        ...(definition?.displayProperties?.description
+          ? { description: definition.displayProperties.description }
+          : {}),
         ...(definition?.plug?.plugCategoryIdentifier
           ? { category_identifier: definition.plug.plugCategoryIdentifier }
           : {}),
