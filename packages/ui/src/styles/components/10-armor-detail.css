@@ -34,7 +34,6 @@
 .armor-detail-core-feature p,
 .armor-detail-source-row p,
 .armor-detail-recommendation p,
-.armor-detail-ai-result p { margin: 0; color: var(--text-muted); line-height: 1.45; }
 .armor-detail-identity p { color: var(--body); font-size: 12px; }
 
 .armor-detail-facts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
@@ -226,29 +225,6 @@
 .armor-detail-upgrade-table > div:not(:first-child) > strong { color: var(--text-title); }
 .armor-detail-upgrade-table > div:not(:first-child) > span { color: var(--text-body); }
 
-.armor-detail-ai-layout { display: grid; grid-template-columns: minmax(0, 1fr) 330px; gap: 16px; }
-.armor-detail-ai-analysis { display: grid; align-content: start; gap: 10px; min-width: 0; }
-.armor-detail-ai-result { min-height: 170px; padding: 14px; background: var(--violet-bg); }
-.armor-detail-ai-result > span { color: var(--accent-primary); font-size: var(--font-body); font-weight: 700; }
-.armor-detail-ai-result h4 { margin: 8px 0 5px; color: var(--text-title); font-size: 14px; }
-.armor-detail-ai-result p { color: var(--body); font-size: 12px; line-height: 1.55; }
-.armor-detail-ai-result dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 7px; margin: 12px 0 0; }
-.armor-detail-ai-result dl > div { padding: 8px; border: 1px solid var(--border-subtle); background: var(--surface-panel); }
-.armor-detail-ai-result dt { color: var(--text-muted); font-size: var(--font-meta); }
-.armor-detail-ai-result dd { margin: 3px 0 0; color: var(--text-title); font-size: var(--font-body); font-weight: 700; }
-.armor-detail-ai-tools { display: grid; align-content: start; gap: 8px; }
-.armor-detail-ai-tools > label:first-child { color: var(--text-title); font-size: 12px; font-weight: 700; }
-.armor-detail-ai-tools textarea { width: 100%; min-height: 84px; padding: 8px; resize: vertical; border: 1px solid var(--field-border); border-radius: var(--radius-control); color: var(--text-body); background: var(--field-bg); }
-.armor-detail-ai-external { display: flex; align-items: center; gap: 7px; color: var(--body); font-size: 12px; }
-.armor-detail-ai-external input { width: 16px; height: 16px; }
-.armor-detail-ai-tools button { min-height: 40px; }
-.armor-detail-ai-tools button:disabled { opacity: 0.5; cursor: not-allowed; }
-.armor-detail-ai-tools small { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
-.armor-detail-external-sources { display: grid; gap: 8px; padding-top: 4px; }
-.armor-detail-external-sources ul { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
-.armor-detail-external-sources li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid var(--item-border); border-radius: var(--radius-control); background: var(--item-bg); }
-.armor-detail-external-sources a { min-width: 0; overflow-wrap: anywhere; color: var(--link-text); }
-.armor-detail-external-sources li > span { flex: 0 0 auto; color: var(--text-muted); font-size: var(--font-body); }
 
 .armor-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: 55px; max-height: calc(100dvh - 180px); overflow-y: auto; overflow-wrap: anywhere; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
 .armor-detail-rail-drawer-head,
@@ -323,7 +299,6 @@
   .armor-detail-overview-grid,
   .armor-detail-configuration-grid,
   .armor-detail-upgrade-layout,
-  .armor-detail-ai-layout { grid-template-columns: 1fr; }
   .armor-detail-object-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .armor-detail-object-summary > div:nth-child(2) { border-right: 0; }
   .armor-detail-object-summary > div:nth-child(-n + 2) { border-bottom: 1px solid var(--section-divider); }
@@ -365,8 +340,6 @@
   .armor-detail-condition-list em { justify-self: start; }
   .armor-detail-upgrade-table > div { grid-template-columns: minmax(92px, 0.75fr) minmax(0, 1.25fr); }
   .armor-detail-upgrade-table > div > * { overflow-wrap: anywhere; }
-  .armor-detail-ai-result dl { grid-template-columns: 1fr; }
-  .armor-detail-external-sources li { align-items: flex-start; flex-direction: column; }
 }
 
 @media (prefers-reduced-motion: reduce) {

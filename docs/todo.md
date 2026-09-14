@@ -24,6 +24,7 @@
 | T55 | P1 | 🟠 代码完成，待本地启动复验 | 仓库推荐筛选支持多来源（AND 聚合） | [任务说明](work/backlog/T20-weapon-recommendation-vault-cleanup.md) | 先与 T56 的唯一 `sourceId` 模型对齐，再重启 Desktop 多选人工来源、多个 DIM 来源与 DIM，核对每行命中件数、分段徽标与卡片来源摘要一致；来源管理快照已改为删除项按需读取、来源影响件数批量聚合，并固定管理读取回调；管理快照延后到进入“推荐来源”页，首屏点击仓库不再触发大体量 SQLite 聚合。 |
 | T56 | P1 | 🟠 开发中 | 统一推荐模型与多来源导入 | [任务说明](work/backlog/T56-unified-recommendation-model.md) | 已接入空 perks 规则保留、weapon_only 语义、DIM source block 独立 sourceId、文档/来源/规则持久化、统一匹配入口，以及仓库卡片、详情和审计的多 DIM 来源摘要；DIM 已改为无内置依赖、仅手动在线或本地导入；待真实数据验收。 |
 | T57 | P1 | 🟠 重新设计中，待真实账号与窄屏实窗验收 | 仓库推荐工作流简化 | [任务说明](work/backlog/T57-vault-recommendation-workflow-simplification.md) | 推荐来源作为独立工作台直接展示平级来源列表、统计和结果；导入与管理在同一页完成，详情、规则和 DIM 作者分组进入弹框；来源删除后不再残留在管理列表或浏览筛选中。 |
+| T58 | P1 | 🟠 首批修正已完成，待真实账号验收 | 游戏内配装完整子职业配置 | [任务说明](work/backlog/T58-ingame-loadout-subclass-fidelity.md) | 保留 Bungie 配装 Plug 的 socket 位置，按超能/技能、星象、碎片和其他配置展示；复制到应用配装与 DIM 导出保留原始 socket 映射；后续补齐 Manifest SocketTypeDefinition 后再替换启发式分类。 |
 
 ## 已完成基线
 

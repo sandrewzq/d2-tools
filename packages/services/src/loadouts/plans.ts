@@ -152,6 +152,12 @@ function normalizeSubclassTarget(value: unknown): LoadoutPlanSubclassTarget | un
   if (!isRecord(value)) return undefined;
   return {
     subclass_hash: optionalNumber(value.subclass_hash),
+    socket_overrides: isRecord(value.socket_overrides)
+      ? Object.fromEntries(Object.entries(value.socket_overrides).flatMap(([key, hash]) => {
+          const number = optionalNumber(hash);
+          return number === undefined ? [] : [[key, number >>> 0]];
+        }))
+      : undefined,
     ability_hashes: numberArray(value.ability_hashes),
     aspect_hashes: numberArray(value.aspect_hashes),
     fragment_hashes: numberArray(value.fragment_hashes),

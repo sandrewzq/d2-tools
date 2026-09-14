@@ -77,7 +77,7 @@ export function createLocalLoadoutPlanDraftFromInGameLoadout(input: {
     class_name: input.character.class_name,
     target_character_id: input.character.character_id,
     source: { kind: "bungie-loadout", label: `Bungie 槽位 ${input.slot.index + 1}` },
-    item_targets: input.slot.items.map((slotItem, index) => {
+    item_targets: input.slot.items.filter((slotItem) => !slotItem.subclass_configuration && !/子职业|subclass/i.test(slotItem.bucket_name ?? "")).map((slotItem, index) => {
       const item = slotItem.instance_id ? itemsByInstanceId.get(slotItem.instance_id) : undefined;
       return {
         slot: slotItem.bucket_name ?? item?.bucket_name ?? `Bungie 装备 ${index + 1}`,
@@ -85,7 +85,23 @@ export function createLocalLoadoutPlanDraftFromInGameLoadout(input: {
         ...(slotItem.instance_id ? { selected_instance_id: slotItem.instance_id } : {}),
         plug_hashes: slotItem.plug_hashes ?? []
       };
-    })
+    }),
+    ...(input.slot.items.find((slotItem) => slotItem.subclass_configuration || /子职业|subclass/i.test(slotItem.bucket_name ?? ""))?.subclass_configuration
+      ? (() => {
+          const item = input.slot.items.find((slotItem) => slotItem.subclass_configuration || /子职业|subclass/i.test(slotItem.bucket_name ?? ""))!;
+          const config = item.subclass_configuration!;
+          return {
+              subclass_target: {
+              ...(item.item_hash ? { subclass_hash: item.item_hash } : {}),
+              ...(item.plugs?.length ? { socket_overrides: Object.fromEntries(item.plugs.flatMap((plug) => typeof plug.socket_index === "number" ? [[String(plug.socket_index), plug.hash] as const] : [])) } : {}),
+              ability_hashes: config.abilities.map((plug) => plug.hash),
+              aspect_hashes: config.aspects.map((plug) => plug.hash),
+              fragment_hashes: config.fragments.map((plug) => plug.hash),
+              mod_hashes: config.other.map((plug) => plug.hash)
+            }
+          };
+        })()
+      : {})
   };
 }
 

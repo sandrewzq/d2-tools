@@ -51,6 +51,8 @@ export type LoadoutPlanItemTarget = {
 
 export type LoadoutPlanSubclassTarget = {
   subclass_hash?: number;
+  /** 原始 DIM/Bungie socket index 到 Plug Hash 的映射，确保未分类配置仍可往返。 */
+  socket_overrides?: Record<string, number>;
   ability_hashes: number[];
   aspect_hashes: number[];
   fragment_hashes: number[];

@@ -15,30 +15,17 @@ import type {
 } from "@d2-tools/app/items";
 import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 import { GameAssetImage } from "../../media/GameAssetImage.js";
-import { formatStandardDateTime } from "../../time/formatTime.js";
 import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
 
-export type ArmorDetailSection = "overview" | "configuration" | "targets" | "upgrades" | "analysis";
+export type ArmorDetailSection = "overview" | "configuration" | "targets" | "upgrades";
 
 export type ArmorDetailContentActions = {
   selectInstance?: (instance: ArmorDetailInstance) => boolean | void;
-  runAnalysis?: (request: { prompt: string; allow_external_search: boolean }) => void;
-};
-
-export type ArmorDetailAnalysis = {
-  status?: "idle" | "running" | "ready" | "error";
-  title?: string;
-  body?: string;
-  evidence?: Array<{ label: string; value: string }>;
-  externalSources?: Array<{ title?: string; url: string; queried_at: string }>;
-  externalSearchMessage?: string;
-  message?: string;
 };
 
 export type ArmorDetailContentProps = {
   model: ArmorDetailViewModel;
   actions?: ArmorDetailContentActions;
-  analysis?: ArmorDetailAnalysis;
   activeSection?: ArmorDetailSection;
   onSectionChange?: (section: ArmorDetailSection) => void;
   instanceActions?: ReactNode;
@@ -51,8 +38,7 @@ const sectionLabels: Array<{ key: ArmorDetailSection; label: string }> = [
   { key: "overview", label: "属性与获取" },
   { key: "configuration", label: "护甲配置" },
   { key: "targets", label: "目标匹配" },
-  { key: "upgrades", label: "强化状态" },
-  { key: "analysis", label: "AI 分析" }
+  { key: "upgrades", label: "强化状态" }
 ];
 
 export function ArmorDetailContent(props: ArmorDetailContentProps) {
@@ -61,8 +47,6 @@ export function ArmorDetailContent(props: ArmorDetailContentProps) {
     || model.loading_state.definition
     || (model.context.kind === "account_item" && model.loading_state.instance);
   const [internalSection, setInternalSection] = useState<ArmorDetailSection>("overview");
-  const [analysisPrompt, setAnalysisPrompt] = useState(() => armorAnalysisPrompt(model));
-  const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const [instanceRailOpen, setInstanceRailOpen] = useState(false);
   const section = props.activeSection ?? internalSection;
   const sectionIdPrefix = useId();
@@ -75,14 +59,11 @@ export function ArmorDetailContent(props: ArmorDetailContentProps) {
     overview: null,
     configuration: null,
     targets: null,
-    upgrades: null,
-    analysis: null
+    upgrades: null
   });
 
   useEffect(() => {
     setInternalSection("overview");
-    setAnalysisPrompt(armorAnalysisPrompt(model));
-    setAllowExternalSearch(false);
     setInstanceRailOpen(false);
     observedSectionRef.current = "overview";
   }, [model.identity.hash, model.context.object_id, model.context.kind]);
@@ -209,17 +190,6 @@ export function ArmorDetailContent(props: ArmorDetailContentProps) {
             </section>
             <section ref={(node) => { sectionRefs.current.upgrades = node; }} id={`${sectionIdPrefix}-upgrades`} className="armor-detail-section">
               <UpgradeSection model={model} />
-            </section>
-            <section ref={(node) => { sectionRefs.current.analysis = node; }} id={`${sectionIdPrefix}-analysis`} className="armor-detail-section">
-              <AnalysisSection
-                model={model}
-                analysis={props.analysis}
-                prompt={analysisPrompt}
-                allowExternalSearch={allowExternalSearch}
-                onPromptChange={setAnalysisPrompt}
-                onAllowExternalSearchChange={setAllowExternalSearch}
-                onRun={props.actions?.runAnalysis}
-              />
             </section>
           </div>
 
@@ -591,18 +561,6 @@ function armorUpgradeEmptyText(kind: ArmorObjectKind): string {
   return "资料库不保存单件护甲的能量和升级进度。";
 }
 
-function armorAnalysisPrompt(model: ArmorDetailViewModel): string {
-  if (model.context.kind === "account_item") return "结合本件属性、已安装配置、强化状态、目标匹配和获取来源分析这件护甲。";
-  if (model.context.kind === "vendor_offer") return "结合当前售卖属性、价格条件、配置、目标匹配和账号已有同版本护甲分析是否值得关注。";
-  return "结合这个护甲版本的固定能力、套装规则、获取方式和目标要求分析其用途。";
-}
-
-function armorAnalysisDescription(kind: ArmorObjectKind): string {
-  if (kind === "vendor_offer") return "AI 可以解释当前售卖价值，但不会把主观建议写入购买状态或事实区。";
-  if (kind === "account_item") return "AI 可以解释本件属性与用途，但不会自动修改、锁定或装备护甲。";
-  return "AI 可以解释版本用途和获取方向，但不会为资料库定义伪造单件属性。";
-}
-
 function armorTargetUnknownText(kind: ArmorObjectKind): string {
   if (kind === "definition") return "资料库版本没有单件属性，无法判断属性门槛。";
   if (kind === "vendor_offer") return "当前售卖没有可确认的属性匹配数据。";
@@ -908,50 +866,6 @@ function UpgradeSection({ model }: { model: ArmorDetailViewModel }) {
         ) : upgradeLoading
           ? <ArmorDataSkeleton rows={3} />
           : <EmptyState text={armorUpgradeEmptyText(model.context.kind)} />}
-      </div>
-    </>
-  );
-}
-
-function AnalysisSection(props: {
-  model: ArmorDetailViewModel;
-  analysis?: ArmorDetailAnalysis;
-  prompt: string;
-  allowExternalSearch: boolean;
-  onPromptChange: (value: string) => void;
-  onAllowExternalSearchChange: (value: boolean) => void;
-  onRun?: (request: { prompt: string; allow_external_search: boolean }) => void;
-}) {
-  const status = props.analysis?.status ?? "idle";
-  return (
-    <>
-      <SectionHeading eyebrow="智能分析" title="AI 护甲分析" description={armorAnalysisDescription(props.model.context.kind)} />
-      <div className="armor-detail-ai-layout" aria-busy={status === "running"}>
-        <div className="armor-detail-ai-analysis">
-          {props.analysis?.message || status === "running" ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis?.message ?? "正在分析这件护甲..."}</p> : null}
-          {props.analysis?.body ? (
-            <article className="armor-detail-ai-result" data-ui-kind="callout" data-callout-tone="ai">
-              <span>AI 生成 · 用户尚未确认</span>
-              <h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4>
-              <p>{props.analysis.body}</p>
-              {props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}
-            </article>
-          ) : <EmptyState text="运行分析后，这里会显示主观结论和使用依据。" />}
-          {props.analysis?.externalSearchMessage ? <p className="armor-detail-note" data-ui-kind="callout" data-callout-tone="info">{props.analysis.externalSearchMessage}</p> : null}
-          {props.analysis?.externalSources?.length ? (
-            <section className="armor-detail-external-sources" aria-label="AI 外部知识来源">
-              <DataBlockHeading title="外部知识来源" source="最低优先级" />
-              <ul>{props.analysis.externalSources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title ?? source.url}</a><span>{formatStandardDateTime(source.queried_at)}</span></li>)}</ul>
-            </section>
-          ) : null}
-        </div>
-        <aside className="armor-detail-ai-tools">
-          <label htmlFor="armor-detail-question">询问这件护甲</label>
-          <textarea id="armor-detail-question" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} />
-          <label className="armor-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
-          <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "正在分析..." : "分析这件护甲"}</button>
-          <small>AI 结果不会自动进入可靠数据区。</small>
-        </aside>
       </div>
     </>
   );

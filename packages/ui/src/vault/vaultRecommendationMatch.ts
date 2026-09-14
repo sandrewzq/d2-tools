@@ -171,6 +171,28 @@ export function buildVaultRecommendationSummaryIndex(
   return index;
 }
 
+/**
+ * Keep recommendation evidence aligned with the active source registry.
+ *
+ * The scan/card cache can outlive a source that was removed from management.
+ * Callers that have an authoritative registry should filter the cached index
+ * before using it for cards, facts, or source counts so a deleted source cannot
+ * reappear through stale scan data.
+ */
+export function filterVaultRecommendationSummaryIndex(
+  summaryIndex: VaultRecommendationSummaryIndex,
+  allowedSourceIds: ReadonlySet<string>
+): Map<string, VaultRecommendationSourceSummary[]> {
+  const filtered = new Map<string, VaultRecommendationSourceSummary[]>();
+  for (const [instanceKey, summaries] of summaryIndex) {
+    const next = summaries.filter((summary) => (
+      allowedSourceIds.has(canonicalVaultRecommendationSourceId(summary.sourceId))
+    ));
+    if (next.length) filtered.set(instanceKey, next);
+  }
+  return filtered;
+}
+
 function recommendationItemSignature(item: AccountItemSummary): string {
   return [
     item.hash,

@@ -413,7 +413,7 @@ function WebApp() {
           vaultCapacity={fixture.accountSummary.vault.capacity}
         />
       )}
-      sidebarFooter={<ShellSidebarActions />}
+      sidebarFooter={<ShellSidebarActions isAiOpen={assistantMode !== null} onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)} />}
       pageHeader={(page) => getWebPageHeader(page, preferences.interfaceLocale)}
       assistantPanel={(
         <AiAssistantPanelView

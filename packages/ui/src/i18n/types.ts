@@ -70,6 +70,8 @@ export type ShellCopy = {
     switchToChinese: string;
     switchToEnglish: string;
     github: string;
+    openAiAssistant: string;
+    aiAssistant: string;
     settings: string;
     languageBadge: string;
   };

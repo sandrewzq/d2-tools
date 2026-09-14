@@ -310,6 +310,12 @@ export type CharacterLoadoutSlotItemSummary = {
   bucket_name?: string;
   plug_hashes?: number[];
   plugs?: AccountItemPlugSummary[];
+  subclass_configuration?: {
+    abilities: AccountItemPlugSummary[];
+    aspects: AccountItemPlugSummary[];
+    fragments: AccountItemPlugSummary[];
+    other: AccountItemPlugSummary[];
+  };
 };
 
 export type CharacterLoadoutSlotSummary = {
@@ -1709,6 +1715,28 @@ function summarizeCharacterLoadouts(
       items: loadoutItems.map((item) => {
         const matched = itemsByInstanceId.get(item.itemInstanceId as string);
         const plugItemHashes = (item.plugItemHashes ?? []).filter(isValidLoadoutPlugHash);
+        const plugs = (item.plugItemHashes ?? []).flatMap((hash, socketIndex) => {
+          if (!isValidLoadoutPlugHash(hash)) return [];
+          const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
+          if (isEmptyWeaponMasterworkPlugDefinition(definition)) return [];
+          return [{
+            hash,
+            socket_index: socketIndex,
+            name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
+            icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
+            description: definition?.displayProperties?.description,
+            category_identifier: definition?.plug?.plugCategoryIdentifier,
+            item_type: definition?.itemTypeDisplayName
+          }];
+        });
+        const subclassConfiguration = plugs.length && (matched?.bucket_hash === 3284755031 || matched?.equipment_bucket_hash === 3284755031)
+          ? {
+              abilities: plugs.filter((plug) => classifySubclassPlug(plug) === "ability"),
+              aspects: plugs.filter((plug) => classifySubclassPlug(plug) === "aspect"),
+              fragments: plugs.filter((plug) => classifySubclassPlug(plug) === "fragment"),
+              other: plugs.filter((plug) => classifySubclassPlug(plug) === "other")
+            }
+          : undefined;
         return {
           instance_id: item.itemInstanceId,
           ...(matched ? { item_hash: matched.hash } : {}),
@@ -1718,22 +1746,20 @@ function summarizeCharacterLoadouts(
           icon: matched?.icon,
           bucket_name: matched?.bucket_name,
           plug_hashes: plugItemHashes,
-          plugs: (item.plugItemHashes ?? []).flatMap((hash, socketIndex) => {
-            if (!isValidLoadoutPlugHash(hash)) return [];
-            const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
-            if (isEmptyWeaponMasterworkPlugDefinition(definition)) return [];
-            return [{
-              hash,
-              socket_index: socketIndex,
-              name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
-              icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
-              category_identifier: definition?.plug?.plugCategoryIdentifier
-            }];
-          })
+          plugs,
+          ...(subclassConfiguration ? { subclass_configuration: subclassConfiguration } : {})
         };
       })
     };
   });
+}
+
+function classifySubclassPlug(plug: AccountItemPlugSummary): "ability" | "aspect" | "fragment" | "other" {
+  const value = `${plug.category_identifier ?? ""} ${plug.item_type ?? ""} ${plug.name}`.toLocaleLowerCase();
+  if (/aspect|星相/.test(value)) return "aspect";
+  if (/fragment|碎片/.test(value)) return "fragment";
+  if (/ability|super|grenade|melee|movement|class|技能|超能|手雷|近战|职业/.test(value)) return "ability";
+  return "other";
 }
 
 function isValidLoadoutItemInstanceId(instanceId: string | undefined): boolean {

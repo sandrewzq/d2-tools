@@ -95,7 +95,6 @@ export type {
 } from "./item-detail/weapon/WeaponDetailContent.js";
 export { ArmorDetailContent } from "./item-detail/armor/ArmorDetailContent.js";
 export type {
-  ArmorDetailAnalysis,
   ArmorDetailContentActions,
   ArmorDetailContentProps,
   ArmorDetailSection

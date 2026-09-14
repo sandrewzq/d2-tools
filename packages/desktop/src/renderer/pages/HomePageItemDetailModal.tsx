@@ -146,20 +146,6 @@ export function HomePageItemDetailModal(props: {
               ) : null}
               <ArmorDetailContent
                 model={vendorArmorModel}
-                analysis={{
-                  status: vendorDefinitionState.isGeneratingAi
-                    ? "running"
-                    : vendorDefinitionState.aiError
-                      ? "error"
-                      : vendorDefinitionState.aiResult?.ai
-                        ? "ready"
-                        : "idle",
-                  title: vendorDefinitionState.aiResult?.ai ? `${vendorArmorModel.identity.name}售卖分析` : undefined,
-                  body: vendorDefinitionState.aiResult?.ai?.text,
-                  message: vendorDefinitionState.aiError || vendorDefinitionState.aiResult?.skipped_reason,
-                  externalSources: vendorDefinitionState.aiResult?.ai?.external_search?.sources,
-                  externalSearchMessage: vendorDefinitionState.aiResult?.ai?.external_search?.message
-                }}
                 actions={{
                   selectInstance: (instance) => {
                     const item = vendorSameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
@@ -171,8 +157,7 @@ export function HomePageItemDetailModal(props: {
                       is_vault_item: item.is_vault_item,
                       is_postmaster_item: item.is_postmaster_item
                     });
-                  },
-                  runAnalysis: (request) => void props.vendorDefinitionDetail.generateAi(request.prompt, request.allow_external_search)
+                  }
                 }}
               />
             </>

@@ -11,6 +11,7 @@ export type AppShellProps = AppShellLayoutProps & {
 
 export function AppShell(props: AppShellProps) {
   const [isMobileStatusOpen, setIsMobileStatusOpen] = useState(false);
+  const assistantTriggerRef = useRef<HTMLButtonElement>(null);
   const assistantPanelRef = useRef<HTMLElement>(null);
   const mobileStatusRef = useRef<HTMLDivElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -32,6 +33,11 @@ export function AppShell(props: AppShellProps) {
     "app-shell",
     isAssistantOpen ? "assistant-open" : ""
   ].filter(Boolean).join(" ");
+
+  function toggleAssistant() {
+    setIsMobileStatusOpen(false);
+    props.onAssistantModeChange(isAssistantOpen ? null : "ai");
+  }
 
   function handleNavigationKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>, currentIndex: number) {
     const nextIndex = getRovingFocusIndex({
@@ -125,7 +131,7 @@ export function AppShell(props: AppShellProps) {
       document.removeEventListener("keydown", handleDrawerKeyDown);
       sidebarRef.current?.removeAttribute("inert");
       contentRef.current?.removeAttribute("inert");
-      previousFocus?.focus();
+      (previousFocus ?? assistantTriggerRef.current)?.focus();
     };
   }, [isAssistantOpen, isAssistantOverlay]);
 
@@ -210,6 +216,19 @@ export function AppShell(props: AppShellProps) {
           </button>
           <button className="shell-tool-button" type="button" data-ui-kind="button" data-control-variant="quiet" title={copy.tools.settings} aria-label={copy.tools.settings} onClick={() => props.onNavigate("settings")}>
             <SettingsToolIcon />
+          </button>
+          <button
+            type="button"
+            className={isAssistantOpen ? "shell-tool-button shell-tool-ai active" : "shell-tool-button shell-tool-ai"}
+            ref={assistantTriggerRef}
+            data-ui-kind="button"
+            data-control-variant="quiet"
+            aria-pressed={isAssistantOpen}
+            aria-label={copy.tools.openAiAssistant}
+            title={copy.tools.aiAssistant}
+            onClick={toggleAssistant}
+          >
+            AI
           </button>
         </div>
         <div className="shell-window-controls" aria-label={copy.windowControlsAriaLabel}>

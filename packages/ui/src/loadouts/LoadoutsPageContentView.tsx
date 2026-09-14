@@ -659,6 +659,7 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
   const plugSummary = plugNames.length
     ? plugNames.join("、")
     : props.row.plug_count ? `${props.row.plug_count} 项未解析配置` : "未返回模组配置";
+  const subclassConfiguration = item.subclass_configuration;
   return (
     <details className="loadout-in-game-item-card" data-surface="object-card" data-ui-kind="object-card" data-status={located ? "success" : "warning"}>
       <summary className="loadout-in-game-item-row">
@@ -686,6 +687,16 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
         <div><dt>当前位置</dt><dd>{locationLabel}</dd></div>
         <div><dt>配置类型</dt><dd>{plugNames.length ? "已读取模组配置" : props.row.plug_count ? "配置名称尚未解析" : "未返回配置"}</dd></div>
         <div><dt>已确认配置</dt><dd>{plugEntries.length ? plugEntries.map((plug) => formatSocketPlugLabel(plug.name, plug.socketIndex)).join("、") : plugSummary}</dd></div>
+        {subclassConfiguration ? <div className="loadout-in-game-subclass-detail"><dt>子职业构筑</dt><dd>
+          {[
+            ["超能与技能", subclassConfiguration.abilities],
+            ["星象", subclassConfiguration.aspects],
+            ["碎片", subclassConfiguration.fragments],
+            ["其他配置", subclassConfiguration.other]
+          ].filter(([, plugs]) => (plugs as AccountItemSummary["socket_plugs"]).length > 0).map(([label, plugs]) => (
+            <section key={label as string}><strong>{label as string}</strong><span>{(plugs as NonNullable<typeof subclassConfiguration.abilities>).map((plug) => formatSocketPlugLabel(plug.name, plug.socket_index)).join("、")}</span></section>
+          ))}
+        </dd></div> : null}
         <div><dt>核对结果</dt><dd>{located ? props.row.equipped_on_target_character ? "目标角色已处于槽位保存状态" : "具体装备已找到，应用时由 Bungie 处理" : "保留原始记录，不根据名称猜测具体装备"}</dd></div>
         {locatedItem ? <div className="loadout-in-game-item-actions"><dt>装备操作</dt><dd><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenItemDetail(locatedItem)}>查看装备详情与操作</button><small>转移、穿戴和模组修改会作用于真实装备；如需更新此槽位，完成后再覆盖保存。</small></dd></div> : null}
       </dl>

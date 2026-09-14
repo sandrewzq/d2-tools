@@ -248,9 +248,13 @@ export function createDimLoadoutExport(input: {
   const warnings: string[] = [];
   const subclass = input.plan.subclass_target;
   if (subclass?.subclass_hash) {
-    equipped.push({ hash: subclass.subclass_hash >>> 0, bucketName: "子职业" });
+    equipped.push({
+      hash: subclass.subclass_hash >>> 0,
+      bucketName: "子职业",
+      ...(subclass.socket_overrides ? { socketOverrides: subclass.socket_overrides } : {})
+    });
   }
-  if (subclass && (subclass.ability_hashes.length || subclass.aspect_hashes.length || subclass.fragment_hashes.length)) {
+  if (subclass && !subclass.socket_overrides && (subclass.ability_hashes.length || subclass.aspect_hashes.length || subclass.fragment_hashes.length)) {
     warnings.push("子职业技能、星相和碎片缺少原始插槽索引，本次只导出可确认的子职业定义与模组。");
   }
   const payload: DimApiLoadout = {
@@ -368,14 +372,19 @@ function extractArmorConstraints(
 function extractSubclass(parameters: Record<string, unknown>, warnings: string[], subclassItem?: unknown) {
   const subclass = object(parameters.subclass ?? parameters.subclassConfig);
   const subclassHash = finiteNumber(subclass.hash ?? subclass.subclassHash ?? object(subclassItem).hash);
+  const socketOverrides = object(subclassItem).socketOverrides;
   const abilityHashes = numberArray(subclass.abilities ?? subclass.abilityHashes);
   const aspectHashes = numberArray(subclass.aspects ?? subclass.aspectHashes);
   const fragmentHashes = numberArray(subclass.fragments ?? subclass.fragmentHashes);
   const modHashes = numberArray(parameters.mods ?? subclass.mods);
-  if (!subclassHash && !abilityHashes.length && !aspectHashes.length && !fragmentHashes.length && !modHashes.length) return undefined;
+  if (!subclassHash && !abilityHashes.length && !aspectHashes.length && !fragmentHashes.length && !modHashes.length && !Object.keys(socketOverrides).length) return undefined;
   if (!subclassHash) warnings.push("DIM 子职业配置未提供稳定子职业 Hash，仅保留可确认的技能和模组 Hash。");
   return {
     ...(subclassHash ? { subclass_hash: subclassHash >>> 0 } : {}),
+    ...(Object.keys(socketOverrides).length ? { socket_overrides: Object.fromEntries(Object.entries(socketOverrides).flatMap(([key, value]) => {
+      const hash = finiteNumber(value);
+      return hash === undefined ? [] : [[key, hash >>> 0]];
+    })) } : {}),
     ability_hashes: abilityHashes,
     aspect_hashes: aspectHashes,
     fragment_hashes: fragmentHashes,

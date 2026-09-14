@@ -409,26 +409,6 @@ function ItemDetailReadyContent(
       <ArmorDetailContent
         key={selectedItem.item_key}
         model={armorModel}
-        analysis={{
-              status: props.isGeneratingItemAi
-                ? "running"
-                : props.itemAiError
-                  ? "error"
-                  : props.itemAiResult?.ai
-                    ? "ready"
-                    : "idle",
-              title: props.itemAiResult?.ai ? `${selectedItem.name}分析` : undefined,
-              body: props.itemAiResult?.ai?.text,
-              message: props.itemAiError || props.itemAiResult?.skipped_reason || undefined,
-              evidence: props.itemAiResult?.ai
-                ? [
-                    { label: "模型", value: props.itemAiResult.ai.model },
-                    { label: "信息范围", value: "这件护甲、账号属性与当前推荐" }
-                  ]
-                : undefined,
-              externalSources: props.itemAiResult?.ai?.external_search?.sources,
-              externalSearchMessage: props.itemAiResult?.ai?.external_search?.message
-            }}
             actions={{
               selectInstance: (instance) => {
                 const item = props.sameNameItems.find((candidate) => candidate.instance_id === instance.instance_id);
@@ -439,8 +419,7 @@ function ItemDetailReadyContent(
                   is_vault_item: item.is_vault_item,
                   is_postmaster_item: item.is_postmaster_item
                 });
-              },
-              runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search)
+              }
         }}
         instanceActions={instanceActions}
       />

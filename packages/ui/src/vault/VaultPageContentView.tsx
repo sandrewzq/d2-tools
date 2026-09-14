@@ -72,6 +72,7 @@ import {
   buildVaultRecommendationSummaryIndex,
   canonicalVaultRecommendationSourceId,
   compareVaultRecommendationMetricKeys,
+  filterVaultRecommendationSummaryIndex,
   getVaultRecommendationFilterFact,
   getVaultCommunityInstanceKey,
   vaultRecommendationPrimaryFilterLabel,
@@ -160,7 +161,7 @@ export function VaultPageContentView(props: {
   const quickActionStore = useMemo(createVaultQuickActionStore, []);
   const [quickActionFocusRequest, setQuickActionFocusRequest] = useState<{ itemKey: string; requestId: number } | null>(null);
   const [managedRecommendationSources, setManagedRecommendationSources] = useState<VaultRecommendationManagedSource[]>([]);
-  const [managedRecommendationSourcesLoaded, setManagedRecommendationSourcesLoaded] = useState(false);
+  const [managedRecommendationSourcesLoadState, setManagedRecommendationSourcesLoadState] = useState<"idle" | "loading" | "ready" | "error" | "unsupported">("idle");
   const workspaceScrollPositionsRef = useRef<Record<VaultWorkspaceTab, number>>({
     filters: 0,
     recommendations: 0
@@ -177,7 +178,7 @@ export function VaultPageContentView(props: {
   useLayoutEffect(() => {
     itemCollectionStore.replaceItems(props.items);
   }, [itemCollectionStore, props.items]);
-  const recommendationSummaryByInstance = useMemo(
+  const rawRecommendationSummaryByInstance = useMemo(
     () => buildVaultRecommendationSummaryIndex(
       props.items,
       undefined,
@@ -186,35 +187,53 @@ export function VaultPageContentView(props: {
     ),
     [props.items, props.recommendationCardSummary, props.wishlist]
   );
+  const managedRecommendationSourceIds = useMemo(() => {
+    if (!props.wishlistActions?.getRecommendationManagement) return null;
+    if (managedRecommendationSourcesLoadState !== "ready") return new Set<string>();
+    return new Set(
+      managedRecommendationSources
+        .filter((source) => source.configured && source.state === "active")
+        .map((source) => canonicalVaultRecommendationSourceId(source.source_key))
+    );
+  }, [managedRecommendationSources, managedRecommendationSourcesLoadState, props.wishlistActions?.getRecommendationManagement]);
+  const recommendationSummaryByInstance = useMemo(() => (
+    managedRecommendationSourceIds
+      ? filterVaultRecommendationSummaryIndex(rawRecommendationSummaryByInstance, managedRecommendationSourceIds)
+      : rawRecommendationSummaryByInstance
+  ), [managedRecommendationSourceIds, rawRecommendationSummaryByInstance]);
   const recommendationFilterFactByInstance = useMemo(
     () => buildVaultRecommendationFilterFactIndex(recommendationSummaryByInstance),
     [recommendationSummaryByInstance]
   );
 
   useEffect(() => {
-    // 来源管理快照包含 SQLite 聚合查询，只在进入推荐页时读取。
-    // 仓库首屏只需要装备和已生成的推荐摘要，挂载时读取会阻塞主进程并拖慢首屏。
-    if (activeVaultTab !== "recommendations") return;
     const getRecommendationManagement = props.wishlistActions?.getRecommendationManagement;
     if (!getRecommendationManagement) {
       setManagedRecommendationSources([]);
-      setManagedRecommendationSourcesLoaded(true);
+      setManagedRecommendationSourcesLoadState("unsupported");
       return;
     }
     let active = true;
+    setManagedRecommendationSourcesLoadState("loading");
     void getRecommendationManagement().then(
       (snapshot) => {
-        if (active) setManagedRecommendationSources((current) => (
+        if (!active) return;
+        setManagedRecommendationSources((current) => (
           sameManagedRecommendationSources(current, snapshot.sources) ? current : snapshot.sources
         ));
-        if (active) setManagedRecommendationSourcesLoaded(true);
+        setManagedRecommendationSourcesLoadState("ready");
       },
-      () => undefined
+      () => {
+        if (!active) return;
+        // 管理接口失败时不能回退到旧的推荐摘要，否则已删除来源会重新出现。
+        setManagedRecommendationSources([]);
+        setManagedRecommendationSourcesLoadState("error");
+      }
     );
     return () => {
       active = false;
     };
-  }, [activeVaultTab, props.recommendationSourceState?.recommendationScan.recommendation_revision, props.wishlistActions?.getRecommendationManagement]);
+  }, [props.recommendationSourceState?.recommendationScan.recommendation_revision, props.wishlistActions?.getRecommendationManagement]);
 
   useLayoutEffect(() => {
     if (typeof document === "undefined") return;
@@ -312,19 +331,21 @@ export function VaultPageContentView(props: {
       recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? []
     )),
     managedRecommendationSources,
-    managedRecommendationSourcesLoaded
-  ), [managedRecommendationSources, managedRecommendationSourcesLoaded, recommendationSummaryByInstance, staticCatalogItems]);
+    Boolean(props.wishlistActions?.getRecommendationManagement)
+  ), [managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance, staticCatalogItems]);
   const recommendationSourceOptions = useMemo(() => {
     const contextualCounts = new Map(buildVaultRecommendationSourceOptions(
       filteredVaultItems.map((item) => (
         recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? []
-      ))
+      )),
+      managedRecommendationSources,
+      Boolean(props.wishlistActions?.getRecommendationManagement)
     ).map((option) => [option.sourceId, option.count]));
     return availableRecommendationSources.map((option) => ({
       ...option,
       count: contextualCounts.get(option.sourceId) ?? 0
     }));
-  }, [availableRecommendationSources, filteredVaultItems, recommendationSummaryByInstance]);
+  }, [availableRecommendationSources, filteredVaultItems, managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance]);
   const selectedRecommendationSourceIds = recommendationSourceSelections.map((selection) => selection.sourceId);
   const firstRecommendationSelection = recommendationSourceSelections[0];
   const recommendationPrimaryFilter = firstRecommendationSelection?.primaryFilter ?? "all";

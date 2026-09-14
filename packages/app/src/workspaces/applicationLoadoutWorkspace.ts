@@ -763,6 +763,7 @@ function formatApplicationSubclassConfiguration(plan: LocalLoadoutPlan): string 
 
 function subclassConfigurationFingerprint(target: NonNullable<LocalLoadoutPlan["subclass_target"]>): string {
   return sortedNumbers([
+    ...Object.values(target.socket_overrides ?? {}),
     ...target.ability_hashes,
     ...target.aspect_hashes,
     ...target.fragment_hashes,
