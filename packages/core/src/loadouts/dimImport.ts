@@ -372,7 +372,7 @@ function extractArmorConstraints(
 function extractSubclass(parameters: Record<string, unknown>, warnings: string[], subclassItem?: unknown) {
   const subclass = object(parameters.subclass ?? parameters.subclassConfig);
   const subclassHash = finiteNumber(subclass.hash ?? subclass.subclassHash ?? object(subclassItem).hash);
-  const socketOverrides = object(subclassItem).socketOverrides;
+  const socketOverrides = object(object(subclassItem).socketOverrides);
   const abilityHashes = numberArray(subclass.abilities ?? subclass.abilityHashes);
   const aspectHashes = numberArray(subclass.aspects ?? subclass.aspectHashes);
   const fragmentHashes = numberArray(subclass.fragments ?? subclass.fragmentHashes);

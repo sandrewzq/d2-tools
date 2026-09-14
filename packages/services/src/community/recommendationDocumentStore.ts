@@ -46,7 +46,8 @@ export function saveDimRecommendationDocument(
       "SELECT source_id FROM recommendation_source_instances WHERE document_id = ?"
     ).all(documentId) as Array<{ source_id: string }>).map((row) => row.source_id));
     for (const { key, rules, block } of groups) {
-      const base = block?.title?.trim() || "未标注来源 #1";
+      const base = block?.title?.trim()
+        || (groups.length === 1 && key === "unlabeled" ? "DIM Wishlist" : "未标注来源 #1");
       const label = block?.author?.trim() ? `${base} · ${block.author.trim()}` : base;
       const sourceId = `dim:${documentId.slice("dim-document:".length)}:${sha256(key).slice(0, 16)}`;
       database.prepare(`

@@ -2206,7 +2206,7 @@
 :where(.app-shell) .vault-evidence-panel .vault-recommendation-source-toggle small {
   color: var(--text-muted);
   font-size: var(--font-micro);
-  font-weight: 500;
+  font-weight: 400;
 }
 
 :where(.app-shell) .vault-evidence-panel .vault-recommendation-source-row.active {

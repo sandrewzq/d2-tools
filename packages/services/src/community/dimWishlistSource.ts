@@ -50,7 +50,8 @@ export function createDimWishlistSources(dataDir: string): CommunityPerkSource[]
   const groups = groupWishlistRules(wishlist);
   const documentKey = createHash("sha256").update(wishlist.title).digest("hex").slice(0, 12);
   return groups.map(({ key, rules, block }, index) => {
-    const base = block?.title?.trim() || `未标注来源 #${index + 1}`;
+    const base = block?.title?.trim()
+      || (groups.length === 1 && key === "unlabeled" ? "DIM Wishlist" : `未标注来源 #${index + 1}`);
     const author = block?.author?.trim() || wishlist.author?.trim();
     const label = author ? `${base} · ${author}` : base;
     const sourceKey = createHash("sha256").update(key).digest("hex").slice(0, 16);

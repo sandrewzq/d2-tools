@@ -1036,7 +1036,7 @@ export function VaultPageContentView(props: {
                 onCopyAuditReport={props.onCopyRecommendationAudit}
                 onManagedSourcesChange={(sources) => {
                   setManagedRecommendationSources([...sources]);
-                  setManagedRecommendationSourcesLoaded(true);
+                  setManagedRecommendationSourcesLoadState("ready");
                 }}
               />
           </div>

@@ -123,7 +123,7 @@ export function parseDimWishlist(text: string): DimWishlist {
       rules.push({
         item_hash: itemHash,
         perk_hashes: [...new Set(perkHashes)],
-        kind: perkHashes.length > 0 ? "roll" : "weapon_only",
+        ...(perkHashes.length === 0 ? { kind: "weapon_only" as const } : {}),
         mode: modeFromMetadata([blockMetadata.note, note].filter(Boolean).join(" | "), metadata.tags ?? []),
         note,
         ...(inlineMetadata.tags?.length ? { tags: inlineMetadata.tags } : {}),
