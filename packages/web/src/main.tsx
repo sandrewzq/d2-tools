@@ -413,7 +413,7 @@ function WebApp() {
           vaultCapacity={fixture.accountSummary.vault.capacity}
         />
       )}
-      sidebarFooter={<ShellSidebarActions isAiOpen={assistantMode !== null} onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)} />}
+      sidebarFooter={<ShellSidebarActions />}
       pageHeader={(page) => getWebPageHeader(page, preferences.interfaceLocale)}
       assistantPanel={(
         <AiAssistantPanelView
@@ -504,7 +504,6 @@ function WebApp() {
               tags={vaultModel.tags}
               openingItemKey=""
               wishlist={webRecommendationWishlist}
-              localTargetRules={vaultModel.targetRules}
               recommendationSourceState={{
                 recommendationScan: {
                   phase: "idle",

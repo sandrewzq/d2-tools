@@ -40,6 +40,12 @@ export function GameCombatIcon(props: GameCombatIconProps) {
   const ammoSegments = props.kind === "ammo" && isAmmoTypeKey(props.type)
     ? props.type === "heavy" ? 3 : props.type === "special" ? 2 : 1
     : 0;
+  const content = src
+    ? <GameAssetImage src={src} alt="" loading={props.loading ?? "eager"} />
+    : ammoSegments
+      ? <span className="game-ammo-glyph">{Array.from({ length: ammoSegments }, (_, index) => <i key={index} />)}</span>
+      : null;
+  if (!content) return null;
   return (
     <span
       className={props.size === "compact" ? "game-combat-icon is-compact" : "game-combat-icon"}
@@ -47,11 +53,7 @@ export function GameCombatIcon(props: GameCombatIconProps) {
       data-combat-type={props.type}
       aria-hidden="true"
     >
-      {src
-        ? <GameAssetImage src={src} alt="" loading={props.loading ?? "eager"} />
-        : ammoSegments
-          ? <span className="game-ammo-glyph">{Array.from({ length: ammoSegments }, (_, index) => <i key={index} />)}</span>
-          : null}
+      {content}
     </span>
   );
 }

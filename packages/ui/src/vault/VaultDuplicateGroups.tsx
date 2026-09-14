@@ -26,7 +26,7 @@ import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
-import { presentRecommendationSlotMatch } from "../recommendationMatchPresentation.js";
+import { isDimRecommendationSource, presentRecommendationSlotMatch } from "../recommendationMatchPresentation.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import {
   displayVaultRecommendationSourceLabel,
@@ -882,7 +882,7 @@ function buildDuplicateSourceOptions(
   for (const item of items) {
     const sourceSummaries = recommendationSummaryByInstance?.get(getVaultCommunityInstanceKey(item)) ?? [];
     for (const source of sourceSummaries) {
-      if (source.sourceId === "dim_wishlist" || source.sourceId === "dim_voltron") continue;
+      if (isDimRecommendationSource(source.sourceId)) continue;
       if (options.has(source.sourceId)) continue;
       options.set(source.sourceId, {
         sourceId: source.sourceId,
@@ -964,7 +964,7 @@ function duplicateSourceOrder(sourceId: string): number {
   if (sourceId === "lgpig") return 1;
   if (sourceId === "yxcrallxy") return 2;
   if (sourceId === "sayalarry") return 3;
-  if (sourceId === "dim_voltron" || sourceId === "dim_wishlist") return 4;
+  if (isDimRecommendationSource(sourceId)) return 4;
   return 99;
 }
 

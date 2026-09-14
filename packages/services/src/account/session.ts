@@ -1122,6 +1122,7 @@ function mergeDefinitionData(
       ...loaded?.inventoryItemConstantsDefinitions
     },
     bucketDefinitions: { ...base?.bucketDefinitions, ...loaded?.bucketDefinitions },
+    breakerTypeDefinitions: { ...base?.breakerTypeDefinitions, ...loaded?.breakerTypeDefinitions },
     damageTypeDefinitions: { ...base?.damageTypeDefinitions, ...loaded?.damageTypeDefinitions },
     equipableItemSetDefinitions: {
       ...base?.equipableItemSetDefinitions,

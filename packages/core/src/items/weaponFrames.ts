@@ -77,7 +77,8 @@ function isFrameLikePlug(definition: DefinitionRecord | undefined, name: string)
   return lowerName.includes("frame")
     || name.includes("框架")
     || lowerType.includes("intrinsic")
-    || lowerType.includes("内在");
+    || lowerType.includes("内在")
+    || lowerType.includes("固有");
 }
 
 function normalizeFrameKey(name: string): string {

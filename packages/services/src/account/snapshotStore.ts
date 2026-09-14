@@ -6,12 +6,13 @@ import {
 } from "@d2-tools/core/account/summary";
 
 export type CachedAccountSnapshot = {
-  version: 2;
+  /** Snapshot schema includes the canonical champion mapping from intrinsic perks and frames. */
+  version: 5;
   account_id?: string;
   saved_at: string;
   /**
    * Monotonic, lexicographically sortable revision for this persisted snapshot.
-   * Older version=2 files may not contain this field.
+   * Older cache files may not contain this field.
    */
   snapshot_revision?: string;
   /**
@@ -38,14 +39,17 @@ export async function loadCachedAccountSnapshot(
 ): Promise<CachedAccountSnapshot | null> {
   try {
     const parsed = JSON.parse(await readFile(snapshotPath(dataDir), "utf8")) as Partial<CachedAccountSnapshot>;
-    if (parsed.version !== 2
+    const expectedManifestRevision = normalizeManifestRevision(options.manifestRevision);
+    const cachedManifestRevision = normalizeManifestRevision(parsed.manifest_revision);
+    if (parsed.version !== 5
       || !parsed.saved_at
       || !isAccountSnapshot(parsed.snapshot)
-      || (options.accountId !== undefined && parsed.account_id !== options.accountId)) {
+      || (options.accountId !== undefined && parsed.account_id !== options.accountId)
+      || (expectedManifestRevision !== undefined && cachedManifestRevision !== expectedManifestRevision)) {
       return null;
     }
     return {
-      version: 2,
+      version: 5,
       ...(typeof parsed.account_id === "string" ? { account_id: parsed.account_id } : {}),
       saved_at: parsed.saved_at,
       ...(normalizeRevision(parsed.snapshot_revision)
@@ -73,7 +77,7 @@ export async function saveCachedAccountSnapshot(
     await mkdir(dataDir, { recursive: true });
     const previousRevision = await readPersistedRevision(target);
     const cached: CachedAccountSnapshot = {
-      version: 2,
+      version: 5,
       ...(options.accountId ? { account_id: options.accountId } : {}),
       saved_at: now.toISOString(),
       snapshot_revision: createNextRevision(previousRevision, now.getTime()),

@@ -341,8 +341,8 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("community:personal:set-enabled", id, enabled) as Promise<PersonalWeaponKnowledgeTable>,
   deletePersonalWeaponKnowledge: (id: string) =>
     ipcRenderer.invoke("community:personal:delete", id) as Promise<PersonalWeaponKnowledgeTable>,
-  exportWeaponKnowledgeCsvTemplate: () =>
-    ipcRenderer.invoke("community:knowledge:template:export") as Promise<{
+  exportWeaponKnowledgeCsvTemplate: (language?: "zh" | "en") =>
+    ipcRenderer.invoke("community:knowledge:template:export", language ?? "zh") as Promise<{
       canceled: boolean;
       file_path?: string;
       message: string;

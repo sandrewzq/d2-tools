@@ -250,7 +250,8 @@ function toItemSearchResult(
   }
   const breakerType = summarizeWeaponBreakerType(definition, definitions, {
     plugSetDefinitions: options.plugSetDefinitions,
-    breakerTypeDefinitions: options.breakerTypeDefinitions
+    breakerTypeDefinitions: options.breakerTypeDefinitions,
+    weaponFrame
   });
   if (breakerType) {
     result.breaker_type = breakerType;

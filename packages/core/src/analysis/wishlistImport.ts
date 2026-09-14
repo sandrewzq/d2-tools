@@ -4,6 +4,7 @@ export type DimWishlistRule = {
   rule_stable_id?: string;
   item_hash: number;
   perk_hashes: number[];
+  kind?: "roll" | "weapon_only";
   mode: DimWishlistMode;
   note: string;
   tags?: string[];
@@ -99,7 +100,7 @@ export function parseDimWishlist(text: string): DimWishlist {
       continue;
     }
 
-    const match = line.match(/^dimwishlist:item=(\d+)&perks=([0-9,]+)(?:#(.*))?$/i);
+    const match = line.match(/^dimwishlist:item=(\d+)&perks=([0-9,]*)(?:#(.*))?$/i);
     if (!match) continue;
 
     const inlineMetadata = parseMetadata(match[3] ?? "");
@@ -109,7 +110,7 @@ export function parseDimWishlist(text: string): DimWishlist {
       .split(",")
       .map(Number)
       .filter(isUnsignedHash);
-    if (isUnsignedHash(itemHash) && perkHashes.length > 0) {
+    if (isUnsignedHash(itemHash)) {
       const sourceBlockId = ensureSourceBlock({
         currentBlockId,
         sourceBlocks,
@@ -122,6 +123,7 @@ export function parseDimWishlist(text: string): DimWishlist {
       rules.push({
         item_hash: itemHash,
         perk_hashes: [...new Set(perkHashes)],
+        kind: perkHashes.length > 0 ? "roll" : "weapon_only",
         mode: modeFromMetadata([blockMetadata.note, note].filter(Boolean).join(" | "), metadata.tags ?? []),
         note,
         ...(inlineMetadata.tags?.length ? { tags: inlineMetadata.tags } : {}),

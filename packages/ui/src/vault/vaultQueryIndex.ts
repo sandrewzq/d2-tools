@@ -5,6 +5,7 @@ import {
   type VaultAmmoFilter,
   type VaultArmorSetFilter,
   type VaultClassFilter,
+  type VaultChampionFilter,
   type VaultDamageFilter,
   type VaultGearTierFilter,
   type VaultGroupFilter,
@@ -25,6 +26,7 @@ export type VaultIndexedQuery = {
   gearTier: VaultGearTierFilter;
   classType: VaultClassFilter;
   damageType: VaultDamageFilter;
+  championType: VaultChampionFilter;
   armorSet: VaultArmorSetFilter;
   frames: string[];
 };
@@ -104,6 +106,7 @@ export class VaultQueryIndex {
     addFacet("gearTier", filter.gearTier);
     addFacet("classType", filter.classType);
     addFacet("damageType", filter.damageType);
+    addFacet("championType", filter.championType);
     addFacet("armorSet", filter.armorSet);
     if (!omit?.has("frames") && filter.frames.length) {
       sets.push(unionFacetSets(this.facetSets.get("frames"), filter.frames));
@@ -164,6 +167,7 @@ function indexedItemSignature(item: AccountItemSummary, currentCharacterId: stri
     item.instance?.gear_tier ?? 0,
     item.class_type ?? "",
     item.instance?.damage_type ?? "",
+    item.breaker_type?.champion_type ?? "",
     item.armor_set?.hash ?? "",
     item.weapon_frame?.key ?? "",
     "source_kind" in item ? item.source_kind ?? "" : "vault",
@@ -187,6 +191,7 @@ function buildItemFacets(
     ["gearTier", String(item.instance?.gear_tier ?? 0)],
     ["classType", classForItem(item)],
     ["damageType", damageForItem(item)],
+    ["championType", championForItem(item)],
     ["armorSet", String(item.armor_set?.hash ?? "")],
     ["frames", item.weapon_frame?.key ?? ""]
   ];
@@ -224,6 +229,10 @@ function damageForItem(item: AccountItemSummary): string {
   if (item.instance?.damage_type === 6) return "stasis";
   if (item.instance?.damage_type === 7) return "strand";
   return "";
+}
+
+function championForItem(item: AccountItemSummary): string {
+  return item.breaker_type?.champion_type ?? "";
 }
 
 function unionFacetSets(

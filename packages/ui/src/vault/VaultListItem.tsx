@@ -4,7 +4,7 @@ import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemKey, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
-import { VaultAmmoTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
+import { championTypeLabels, VaultAmmoTypeIcon, VaultChampionTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 import type { VaultRecommendationSourceSummary } from "./vaultRecommendationMatch.js";
 import {
   useVaultQuickAction,
@@ -38,6 +38,7 @@ export function VaultListItem(props: VaultListItemProps) {
   const detailAvailable = props.item.group_key === "weapons" || props.item.group_key === "armor";
   const gearTierOverlay = props.item.instance?.gear_tier_overlay ?? gearTierOverlayUrl(gearTier);
   const crafting = isWeapon && props.item.crafting?.kind === "crafted" ? props.item.crafting : undefined;
+  const championType = isWeapon ? props.item.breaker_type?.champion_type : undefined;
   const visual = (
     <div
       className="vault-card-visual"
@@ -119,6 +120,15 @@ export function VaultListItem(props: VaultListItemProps) {
           <VaultDamageTypeIcon damageType={props.item.instance?.damage_type} src={props.item.instance?.damage_type_icon} size="compact" />
           <span>{formatVaultCardContext(props.item) || "属性未知"}</span>
         </span>
+        {championType ? (
+          <span
+            className={`vault-weapon-fact champion-${championType}`}
+            title={`${championTypeLabels[championType]}${props.item.breaker_type?.source_frame_name ? ` · ${props.item.breaker_type.source_frame_name}` : ""}`}
+          >
+            <VaultChampionTypeIcon type={championType} src={props.item.breaker_type?.icon} size="compact" />
+            <span>{championTypeLabels[championType]}</span>
+          </span>
+        ) : null}
         <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
           <small>光</small><strong>{props.item.power ?? "—"}</strong>
         </span>
@@ -283,6 +293,8 @@ export const MemoizedVaultListItem = memo(VaultListItem, sameVaultListItemProps)
 
 function sameVaultListItemProps(previous: VaultListItemProps, next: VaultListItemProps): boolean {
   return previous.item === next.item
+    && previous.item.breaker_type?.champion_type === next.item.breaker_type?.champion_type
+    && previous.item.breaker_type?.icon === next.item.breaker_type?.icon
     && previous.tagValue === next.tagValue
     && previous.isLoadoutMatch === next.isLoadoutMatch
     && previous.additionalSourceCount === next.additionalSourceCount
@@ -437,6 +449,9 @@ function formatVaultCardTitle(
     formatVaultCardMeta(item),
     item.group_key === "weapons" ? formatWeaponSlot(item) : "",
     item.group_key === "weapons" && item.ammo_type ? ammoFilterLabels[item.ammo_type] : "",
+    item.group_key === "weapons" && item.breaker_type?.champion_type
+      ? championTypeLabels[item.breaker_type.champion_type]
+      : "",
     item.crafting ? craftingLabel(item.crafting.kind, true) : "",
     formatVaultCardContext(item),
     item.power !== undefined ? `光等 ${item.power}` : "",

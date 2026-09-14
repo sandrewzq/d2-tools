@@ -22,6 +22,7 @@ export type ExternalRecommendationRuleRecord = {
   rule_stable_id: string;
   item_hash: number;
   perk_hashes: number[];
+  kind?: "roll" | "weapon_only";
   mode: "pve" | "pvp" | "general";
   note: string;
   author: string;
@@ -373,15 +374,16 @@ function normalizeExternalSet(
   const normalizedRules = input.rules.map((rule, index) => {
     if (!isUnsignedHash(rule.item_hash)) throw new Error(`外部推荐第 ${index + 1} 条武器 ID 无效。`);
     const perkHashes = [...new Set(rule.perk_hashes.map(Number))];
-    if (perkHashes.length === 0 || perkHashes.some((hash) => !isUnsignedHash(hash))) {
+    if (perkHashes.some((hash) => !isUnsignedHash(hash))) {
       throw new Error(`外部推荐第 ${index + 1} 条 Perk ID 无效。`);
     }
     if (rule.block_key && !blockKeys.has(rule.block_key)) {
       throw new Error(`外部推荐第 ${index + 1} 条引用了不存在的来源块：${rule.block_key}`);
     }
-    const normalizedRule = {
+    const normalizedRule: Omit<ExternalRecommendationRuleRecord, "rule_stable_id"> = {
       item_hash: Number(rule.item_hash),
       perk_hashes: perkHashes,
+      kind: perkHashes.length > 0 ? "roll" : "weapon_only",
       mode: rule.mode,
       note: rule.note.trim(),
       author: rule.author.trim(),

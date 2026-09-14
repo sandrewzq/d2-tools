@@ -27,6 +27,7 @@ import {
   armorStatKeys
 } from "../armor/statDefinitions.js";
 import { readArmorArchetypeStatPair } from "../armor/manifestRuleset.js";
+import { summarizeWeaponBreakerType, type WeaponBreakerTypeSummary } from "../items/breakerTypes.js";
 
 export type { AmmoTypeKey, EquipmentGroupKey } from "../items/classification.js";
 export type { WeaponFrameSummary } from "../items/weaponFrames.js";
@@ -50,6 +51,7 @@ export type AccountItemSummary = {
     name: string;
   };
   weapon_frame?: WeaponFrameSummary;
+  breaker_type?: WeaponBreakerTypeSummary;
   power?: number;
   locked?: boolean;
   armor_stats?: ArmorStatSummary;
@@ -468,6 +470,7 @@ export type AccountDefinitionData = {
   inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
   damageTypeDefinitions?: DefinitionComponentData;
+  breakerTypeDefinitions?: DefinitionComponentData;
   equipableItemSetDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
@@ -487,6 +490,7 @@ export type FetchAccountSummaryOptions = {
   inventoryItemConstantsDefinitions?: DefinitionComponentData;
   bucketDefinitions?: DefinitionComponentData;
   damageTypeDefinitions?: DefinitionComponentData;
+  breakerTypeDefinitions?: DefinitionComponentData;
   equipableItemSetDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   objectiveDefinitions?: DefinitionComponentData;
@@ -895,6 +899,7 @@ export function buildAccountItemDetailFromResponse(
     input.plugSetDefinitions ?? {},
     input.objectiveDefinitions ?? {},
     input.damageTypeDefinitions ?? {},
+    input.breakerTypeDefinitions ?? {},
     input.inventoryItemConstantsDefinitions ?? {},
     input.equipableItemSetDefinitions ?? {},
     input.query.character_id,
@@ -956,6 +961,10 @@ async function hydrateAccountDefinitions(
       loaded.inventoryItemConstantsDefinitions
     ),
     bucketDefinitions: mergeDefinitionData(options.bucketDefinitions, loaded.bucketDefinitions),
+    breakerTypeDefinitions: mergeDefinitionData(
+      options.breakerTypeDefinitions,
+      loaded.breakerTypeDefinitions
+    ),
     damageTypeDefinitions: mergeDefinitionData(
       options.damageTypeDefinitions,
       loaded.damageTypeDefinitions
@@ -1028,6 +1037,7 @@ function buildAccountSummary(
     options.plugSetDefinitions ?? {},
     options.objectiveDefinitions ?? {},
     options.damageTypeDefinitions ?? {},
+    options.breakerTypeDefinitions ?? {},
     options.inventoryItemConstantsDefinitions ?? {},
     options.equipableItemSetDefinitions ?? {},
     mode
@@ -1051,6 +1061,7 @@ function buildAccountSummary(
       options.plugSetDefinitions ?? {},
       options.objectiveDefinitions ?? {},
       options.damageTypeDefinitions ?? {},
+      options.breakerTypeDefinitions ?? {},
       options.inventoryItemConstantsDefinitions ?? {},
       options.equipableItemSetDefinitions ?? {},
       profileInventory.vault.items,
@@ -1085,6 +1096,7 @@ function summarizeCharacters(
   plugSetDefinitions: DefinitionComponentData,
   objectiveDefinitions: DefinitionComponentData,
   damageTypeDefinitions: DefinitionComponentData,
+  breakerTypeDefinitions: DefinitionComponentData,
   inventoryItemConstantsDefinitions: DefinitionComponentData,
   equipableItemSetDefinitions: DefinitionComponentData,
   vaultItems: AccountItemSummary[],
@@ -1103,6 +1115,7 @@ function summarizeCharacters(
         plugSetDefinitions,
         objectiveDefinitions,
         damageTypeDefinitions,
+        breakerTypeDefinitions,
         inventoryItemConstantsDefinitions,
         equipableItemSetDefinitions,
         character.characterId,
@@ -1117,6 +1130,7 @@ function summarizeCharacters(
         plugSetDefinitions,
         objectiveDefinitions,
         damageTypeDefinitions,
+        breakerTypeDefinitions,
         inventoryItemConstantsDefinitions,
         equipableItemSetDefinitions,
         character.characterId,
@@ -1162,6 +1176,7 @@ function summarizeProfileInventory(
   plugSetDefinitions: DefinitionComponentData,
   objectiveDefinitions: DefinitionComponentData,
   damageTypeDefinitions: DefinitionComponentData,
+  breakerTypeDefinitions: DefinitionComponentData,
   inventoryItemConstantsDefinitions: DefinitionComponentData,
   equipableItemSetDefinitions: DefinitionComponentData,
   mode: AccountSummaryMode
@@ -1177,6 +1192,7 @@ function summarizeProfileInventory(
       plugSetDefinitions,
       objectiveDefinitions,
       damageTypeDefinitions,
+      breakerTypeDefinitions,
       inventoryItemConstantsDefinitions,
       equipableItemSetDefinitions,
       undefined,
@@ -1273,6 +1289,7 @@ function summarizeItem(
   plugSetDefinitions: DefinitionComponentData = {},
   objectiveDefinitions: DefinitionComponentData = {},
   damageTypeDefinitions: DefinitionComponentData = {},
+  breakerTypeDefinitions: DefinitionComponentData = {},
   inventoryItemConstantsDefinitions: DefinitionComponentData = {},
   equipableItemSetDefinitions: DefinitionComponentData = {},
   characterId?: string,
@@ -1339,6 +1356,13 @@ function summarizeItem(
   const crafting = groupKey === "weapons"
     ? summarizeWeaponCrafting(item.state, definition, inventoryItemConstantsDefinitions)
     : undefined;
+  const weaponFrame = groupKey === "weapons"
+    ? mode === "snapshot"
+      ? summarizeSelectedWeaponFrame(selectedPlugs)
+      : definition
+        ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
+        : undefined
+    : undefined;
   const summary: AccountItemSummary = {
     hash: item.itemHash,
     instance_id: instanceId,
@@ -1355,6 +1379,17 @@ function summarizeItem(
     equipment_bucket_hash: equipmentBucketHash,
     equipment_bucket_name: bucket?.name ?? equipmentBucketDefinition?.displayProperties?.name?.trim(),
     group_key: groupKey,
+    ...(groupKey === "weapons" && definition
+      ? (() => {
+          const breakerType = summarizeWeaponBreakerType(definition, definitions, {
+            breakerTypeDefinitions,
+            plugSetDefinitions,
+            insertedPlugHashes: selectedPlugs.map((plug) => plug.hash),
+            weaponFrame
+          });
+          return breakerType ? { breaker_type: breakerType } : {};
+        })()
+      : {}),
     ...(armorSet ? { armor_set: { hash: armorSet.hash, name: armorSet.name } } : {}),
     power: instance?.primaryStat?.value,
     locked: isLocked(item.state),
@@ -1394,11 +1429,6 @@ function summarizeItem(
   if (weaponStats) {
     summary.weapon_stats = weaponStats;
   }
-  const weaponFrame = mode === "snapshot"
-    ? summarizeSelectedWeaponFrame(selectedPlugs)
-    : definition
-      ? summarizeWeaponFrame(definition, definitions, { plugSetDefinitions })
-      : undefined;
   if (weaponFrame) {
     summary.weapon_frame = weaponFrame;
   }

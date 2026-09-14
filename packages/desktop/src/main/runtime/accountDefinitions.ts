@@ -139,6 +139,7 @@ export async function loadAccountDefinitions(
 
   const [
     bucketDefinitions,
+    breakerTypeDefinitions,
     damageTypeDefinitions,
     equipableItemSetDefinitions,
     inventoryItemConstantsDefinitions,
@@ -146,6 +147,7 @@ export async function loadAccountDefinitions(
     loadoutNameDefinitions
   ] = await Promise.all([
     getDefinitions("DestinyInventoryBucketDefinition", bucketHashes, definitionOptions),
+    getDefinitions("DestinyBreakerTypeDefinition", [], definitionOptions),
     getDefinitions("DestinyDamageTypeDefinition", request.damageTypeHashes ?? [], definitionOptions),
     getDefinitions("DestinyEquipableItemSetDefinition", equipableItemSetHashes, definitionOptions),
     getDefinitions("DestinyInventoryItemConstantsDefinition", [1], definitionOptions),
@@ -157,6 +159,7 @@ export async function loadAccountDefinitions(
     inventoryItemConstantsDefinitions,
     plugSetDefinitions,
     bucketDefinitions,
+    breakerTypeDefinitions,
     damageTypeDefinitions,
     equipableItemSetDefinitions,
     objectiveDefinitions,

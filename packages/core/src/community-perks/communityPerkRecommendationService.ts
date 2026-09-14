@@ -133,7 +133,7 @@ export class CommunityPerkRecommendationService {
         const combo = rec.combos[index];
         for (const item of itemsForHash) {
           const actualHashes = ownedPlugHashes(item);
-          const allIn = comboMatchRequirements(combo).every((hashes) => hashes.some((hash) => actualHashes.has(hash)));
+          const allIn = comboMatchesItem(combo, actualHashes);
           if (allIn) {
             matchedComboIndexes.add(index);
             matchedModes.add(combo.mode);
@@ -252,10 +252,9 @@ export class CommunityPerkRecommendationService {
         };
       }
 
-      const fullMatches = recommendation.combos.filter((combo) => (
-        comboMatchRequirements(combo).every((hashes) => hashes.some((hash) => actualHashes.has(hash)))
-      ));
+      const fullMatches = recommendation.combos.filter((combo) => comboMatchesItem(combo, actualHashes));
       const partialMatches = recommendation.combos.filter((combo) => {
+        if (combo.kind === "weapon_only") return false;
         const requirements = comboMatchRequirements(combo);
         const matchedPerks = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
         return matchedPerks > 0 && matchedPerks < requirements.length;
@@ -507,6 +506,18 @@ function matchDimWishlistCombos(
   const dimCombos = combos.filter((combo) => combo.source === "dim_wishlist");
   if (!dimCombos.length) return undefined;
   const rules = dimCombos.map((combo) => {
+    if (combo.kind === "weapon_only") {
+      return {
+        ...(combo.rule_stable_id ? { rule_stable_id: combo.rule_stable_id } : {}),
+        ...(combo.source_id ? { source_id: combo.source_id } : {}),
+        ...(combo.source_label ? { source_label: combo.source_label } : {}),
+        mode: combo.mode,
+        state: "match" as const,
+        matched_requirement_count: 0,
+        requirement_count: 0,
+        ...(combo.dim_diagnostic ? { diagnostic_status: combo.dim_diagnostic.status } : {})
+      };
+    }
     const requirements = comboMatchRequirements(combo);
     const matched = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
     const incomplete = hasIncompleteRelevantRollData(item);
@@ -515,6 +526,8 @@ function matchDimWishlistCombos(
       || combo.dim_diagnostic?.status === "special_socket";
     return {
       ...(combo.rule_stable_id ? { rule_stable_id: combo.rule_stable_id } : {}),
+      ...(combo.source_id ? { source_id: combo.source_id } : {}),
+      ...(combo.source_label ? { source_label: combo.source_label } : {}),
       mode: combo.mode,
       state: matched === requirements.length
         ? "match" as const
@@ -532,6 +545,37 @@ function matchDimWishlistCombos(
   const matchedComboCount = rules.filter((rule) => rule.state === "match").length;
   const partialComboCount = rules.filter((rule) => rule.state === "partial").length;
   const uncheckableComboCount = rules.filter((rule) => rule.state === "uncheckable").length;
+  const sourceGroups = new Map<string, typeof rules>();
+  for (const rule of rules) {
+    const sourceId = rule.source_id ?? "dim_wishlist";
+    sourceGroups.set(sourceId, [...(sourceGroups.get(sourceId) ?? []), rule]);
+  }
+  const sources = [...sourceGroups.entries()].map(([sourceId, sourceRules]) => {
+    const best = selectBestDimRuleProgress(sourceRules);
+    const matched = sourceRules.filter((rule) => rule.state === "match").length;
+    const partial = sourceRules.filter((rule) => rule.state === "partial").length;
+    const uncheckable = sourceRules.filter((rule) => rule.state === "uncheckable").length;
+    return {
+      source_id: sourceId,
+      source_label: sourceRules.find((rule) => rule.source_label)?.source_label ?? "DIM社区愿望单",
+      state: matched > 0
+        ? "full" as const
+        : uncheckable > 0
+          ? "uncheckable" as const
+          : partial > 0
+            ? "close" as const
+            : sourceRules.some((rule) => rule.requirement_count === 0)
+              ? "weapon_only" as const
+              : "not_matched" as const,
+      matched_combo_count: matched,
+      partial_combo_count: partial,
+      uncheckable_combo_count: uncheckable,
+      combo_count: sourceRules.length,
+      best_matched_requirement_count: best?.matched_requirement_count ?? 0,
+      best_requirement_count: best?.requirement_count ?? 0,
+      modes: [...new Set(sourceRules.map((rule) => rule.mode))]
+    };
+  });
   return {
     state: matchedComboCount > 0
       ? "full"
@@ -547,7 +591,8 @@ function matchDimWishlistCombos(
     best_matched_requirement_count: bestRule?.matched_requirement_count ?? 0,
     best_requirement_count: bestRule?.requirement_count ?? 0,
     modes: [...new Set(rules.map((rule) => rule.mode))],
-    rules
+    rules,
+    ...(sources.length ? { sources } : {})
   };
 }
 
@@ -666,6 +711,13 @@ function comboMatchRequirements(combo: PerkCombo): number[][] {
   return combo.dim_diagnostic.perks.map((perk) => (
     perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
   ));
+}
+
+function comboMatchesItem(combo: PerkCombo, actualHashes: ReadonlySet<number>): boolean {
+  if (combo.kind === "weapon_only") return true;
+  const requirements = comboMatchRequirements(combo);
+  return requirements.length > 0
+    && requirements.every((hashes) => hashes.some((hash) => actualHashes.has(hash)));
 }
 
 export type { PerkCombo };

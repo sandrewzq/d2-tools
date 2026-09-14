@@ -17,6 +17,8 @@ const pageDefinitions = [
   { directory: "legendary-special", dataset: "lgpig-legendary", output: "LGpig传说武器推荐.csv" },
   { directory: "legendary-heavy", dataset: "lgpig-legendary", output: "LGpig传说武器推荐.csv" },
   { directory: "exotic-weapons", dataset: "lgpig-exotic", output: "LGpig异域武器推荐.csv" },
+  { directory: "exotic-armors", dataset: "exotic-armors", output: "异域护甲推荐.csv" },
+  { directory: "farming-sets", dataset: "farming-sets", output: "护甲套装推荐.csv" },
   { directory: "crafting", dataset: "crafting", output: "锻造与异域来源.csv" },
 ];
 
@@ -194,7 +196,9 @@ function main() {
     ]),
   };
   writeFileSync(join(output, "抓取元数据.json"), `${JSON.stringify(metadata, null, 2)}\n`, "utf8");
-  writeFileSync(join(output, "来源与使用说明.md"), `# Starside PVE 终局刷取公开页面数据快照\n\n- 来源入口：<${ENTRY_URL}>\n- 页面标注更新时间：2026.8.30\n- 页面版权标注：© 2026 日栎w\n- 许可状态：页面未声明可再分发许可。当前文件仅作为本地研究、人工核对和数据源可行性分析，不直接并入公开发布物。\n- 原始网页：与结构化 CSV 一起保存在当前数据目录的 \`原始网页/\` 中；CSV 均保留来源 URL、页面更新时间和来源位置。\n- 图标：没有复制图片文件，只保存公开图片 URL。\n\n## 文件\n\n${metadata.outputs.map((item) => `- \`${item.file}\`：${item.rows} 行`).join("\n")}\n`, "utf8");
+  const pageDates = [...new Set(parsedPages.map((page) => page.updatedAt).filter(Boolean))];
+  const updatedLabel = pageDates.length === 1 ? pageDates[0] : pageDates.join(" / ");
+  writeFileSync(join(output, "来源与使用说明.md"), `# Starside PVE 终局刷取公开页面数据快照\n\n- 来源入口：<${ENTRY_URL}>\n- 页面标注更新时间：${updatedLabel || "以各文件页面更新时间为准"}\n- 页面版权标注：© 2026 日栎w\n- 许可状态：页面未声明可再分发许可。当前文件仅作为本地研究、人工核对和数据源可行性分析，不直接并入公开发布物。\n- 原始网页：与结构化 CSV 一起保存在当前数据目录的 \`原始网页/\` 中；CSV 均保留来源 URL、页面更新时间和来源位置。\n- 图标：没有复制图片文件，只保存公开图片 URL。\n\n## 文件\n\n${metadata.outputs.map((item) => `- \`${item.file}\`：${item.rows} 行`).join("\n")}\n`, "utf8");
 
   console.log(JSON.stringify(metadata.outputs, null, 2));
 }

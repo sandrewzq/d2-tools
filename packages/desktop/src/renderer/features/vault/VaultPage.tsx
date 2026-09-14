@@ -82,6 +82,10 @@ export function VaultPage(props: {
     );
     return result.matches;
   }, []);
+  const getRecommendationManagement = useCallback(() => api.getRecommendationManagement(), []);
+  const listRecommendationRules = useCallback((sourceKey: string, query?: string) => (
+    api.listRecommendationRules(sourceKey, query)
+  ), []);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
     save: async (wishlist) => {
       const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, wishlist);
@@ -117,7 +121,7 @@ export function VaultPage(props: {
       await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
       return result;
     },
-    exportKnowledgeTemplate: () => api.exportWeaponKnowledgeCsvTemplate(),
+    exportKnowledgeTemplate: (language) => api.exportWeaponKnowledgeCsvTemplate(language),
     exportKnowledgeCsv: () => api.exportWeaponKnowledgePlayerCsv(),
     selectKnowledgeCsv: () => api.selectWeaponKnowledgeCsv(),
     confirmKnowledgeImport: async (token) => {
@@ -125,8 +129,8 @@ export function VaultPage(props: {
       await props.onCommunityRecommendationsChanged();
       return imported;
     },
-    getRecommendationManagement: () => api.getRecommendationManagement(),
-    listRecommendationRules: (sourceKey, query) => api.listRecommendationRules(sourceKey, query),
+    getRecommendationManagement,
+    listRecommendationRules,
     setRecommendationSourceState: async (sourceKey, state) => {
       const snapshot = await api.setRecommendationSourceState(sourceKey, state);
       if (sourceKey === "dim_wishlist") {
@@ -148,7 +152,7 @@ export function VaultPage(props: {
       await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
       return snapshot;
     }
-  }), [props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged, props.wishlist]);
+  }), [getRecommendationManagement, listRecommendationRules, props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged, props.wishlist]);
   const loadLocalCommunityTable = useCallback(async () => {
     setLocalCommunityLoadState("loading");
     setLocalCommunityLoadError("");
@@ -257,7 +261,6 @@ export function VaultPage(props: {
       tags={model.tags}
       openingItemKey={props.openingItemKey}
       locateRequest={props.locateRequest}
-      targetLocateRequest={props.targetLocateRequest}
       onSaveTagBatch={props.onSaveTagBatch}
       cleanupActions={{
         characters: props.account.characters,
@@ -268,8 +271,6 @@ export function VaultPage(props: {
         onBatchTransferToCharacter: props.onBatchTransferToCharacter
       }}
       wishlist={model.wishlist}
-      localTargetRules={model.targetRules}
-      equipmentTargetStore={props.equipmentTargetStore}
       recommendationCardSummary={props.recommendationCardSummary}
       recommendationSourceState={{
         recommendationScan: props.recommendationScan,
@@ -300,32 +301,6 @@ export function VaultPage(props: {
           ])),
           scan: props.recommendationScan
         }));
-      }}
-      targetRulesActions={{
-        onSaveRules: async (rules) => {
-          const saved = await services.localData.saveLocalTargetRules(rules);
-          props.onLocalTargetRulesChanged(saved);
-          props.onEquipmentTargetStoreChanged(await services.localData.getEquipmentTargetStore());
-          return saved;
-        },
-        onClearRules: async () => {
-          const cleared = await services.localData.clearLocalTargetRules();
-          props.onLocalTargetRulesChanged(cleared);
-          props.onEquipmentTargetStoreChanged(await services.localData.getEquipmentTargetStore());
-          return cleared;
-        },
-        onSearchPerks: (query) => api.searchPerks(query),
-        onSaveEquipmentTargetStore: async (store) => {
-          const saved = await services.localData.saveEquipmentTargetStore(store);
-          props.onEquipmentTargetStoreChanged(saved);
-          return saved;
-        },
-        onClearEquipmentTargetStore: async () => {
-          const cleared = await services.localData.clearEquipmentTargetStore();
-          props.onEquipmentTargetStoreChanged(cleared);
-          return cleared;
-        },
-        onOpenArmorResult: props.onOpenArmorResult
       }}
       onContextFactsChange={props.onContextFactsChange}
       onLoadItemDetail={loadItemDetail}

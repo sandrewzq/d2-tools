@@ -27,8 +27,7 @@ export type WeaponDetailSection =
   | "overview"
   | "configuration"
   | "recommendations"
-  | "upgrades"
-  | "analysis";
+  | "upgrades";
 
 type WeaponTargetSource = "dim" | "community" | "personal";
 
@@ -41,7 +40,6 @@ export type WeaponDetailContentActions = {
   refreshConfiguration?: () => void | Promise<void>;
   loadConfiguration?: () => void | Promise<void>;
   activateSection?: (section: WeaponDetailSection) => void;
-  runAnalysis?: (request: { prompt: string; allow_external_search: boolean }) => void;
 };
 
 export type WeaponConfigurationWriteFeedback = {
@@ -49,21 +47,10 @@ export type WeaponConfigurationWriteFeedback = {
   message?: string;
 };
 
-export type WeaponDetailAnalysis = {
-  status?: "idle" | "running" | "ready" | "error";
-  title?: string;
-  body?: string;
-  evidence?: Array<{ label: string; value: string }>;
-  externalSources?: Array<{ title?: string; url: string; queried_at: string }>;
-  externalSearchMessage?: string;
-  message?: string;
-};
-
 export type WeaponDetailContentProps = {
   model: WeaponDetailViewModel;
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
-  analysis?: WeaponDetailAnalysis;
   recommendationEvidence?: {
     sourceMatches: RecommendationSourceMatch[];
     status: "idle" | "loading" | "partial" | "ready" | "error";
@@ -79,16 +66,13 @@ const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
   { key: "configuration", label: "当前配置" },
   { key: "recommendations", label: "推荐 Roll" },
   { key: "overview", label: "属性与获取" },
-  { key: "upgrades", label: "升级与锻造" },
-  { key: "analysis", label: "AI 分析" }
+  { key: "upgrades", label: "升级与锻造" }
 ];
 
 export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
   const [internalSection, setInternalSection] = useState<WeaponDetailSection>("configuration");
   const [poolOpen, setPoolOpen] = useState(false);
-  const [analysisPrompt, setAnalysisPrompt] = useState("");
-  const [allowExternalSearch, setAllowExternalSearch] = useState(false);
   const [targetSource, setTargetSource] = useState<WeaponTargetSource>(() => (
     preferredWeaponTargetSource(model, props.recommendationEvidence)
   ));
@@ -107,16 +91,13 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     overview: null,
     configuration: null,
     recommendations: null,
-    upgrades: null,
-    analysis: null
+    upgrades: null
   });
   activateSectionRef.current = props.actions?.activateSection;
 
   useEffect(() => {
     setPoolOpen(false);
     setInternalSection("configuration");
-    setAnalysisPrompt("");
-    setAllowExternalSearch(false);
     setTargetSource(preferredWeaponTargetSource(model, props.recommendationEvidence));
     setInstanceRailOpen(false);
     setMountedSections(new Set(["configuration"]));
@@ -309,19 +290,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             {mountedSections.has("upgrades")
               ? <UpgradeSection model={model} />
               : <DeferredWeaponSection label="升级与锻造" />}
-          </section>
-          <section ref={(node) => { sectionRefs.current.analysis = node; }} id={`${sectionIdPrefix}-analysis`} className="weapon-detail-section">
-            {mountedSections.has("analysis") ? (
-              <AnalysisSection
-                model={model}
-                analysis={props.analysis}
-                prompt={analysisPrompt}
-                onPromptChange={setAnalysisPrompt}
-                allowExternalSearch={allowExternalSearch}
-                onAllowExternalSearchChange={setAllowExternalSearch}
-                onRun={props.actions?.runAnalysis}
-              />
-            ) : <DeferredWeaponSection label="AI 分析" />}
           </section>
         </div>
         <aside
@@ -1334,7 +1302,7 @@ function recommendationSourceLabel(sourceId: string, fallback: string): string {
   if (sourceId === "lgpig") return "LGpig推荐";
   if (sourceId === "yxcrallxy") return "YXCRALLXY推荐表";
   if (sourceId === "sayalarry") return "Sayalarry推荐表";
-  if (sourceId === "dim_voltron" || sourceId === "dim_wishlist") return "DIM社区愿望单";
+  if (isDimRecommendationSource(sourceId)) return fallback || "DIM社区愿望单";
   return fallback || sourceId || "推荐来源";
 }
 
@@ -1584,46 +1552,6 @@ function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
             {rows.map((row) => <div key={row.key} role="row"><strong role="cell">{row.label}</strong><span role="cell">{row.current}</span><span role="cell">{row.detail}</span><span role="cell">{row.source}</span></div>)}
           </div>
         ) : <EmptyState text="这件武器没有可显示的升级或附加能力。" />}
-      </div>
-    </>
-  );
-}
-
-function AnalysisSection(props: {
-  model: WeaponDetailViewModel;
-  analysis?: WeaponDetailAnalysis;
-  prompt: string;
-  onPromptChange: (value: string) => void;
-  allowExternalSearch: boolean;
-  onAllowExternalSearchChange: (value: boolean) => void;
-  onRun?: (request: { prompt: string; allow_external_search: boolean }) => void;
-}) {
-  const status = props.analysis?.status ?? "idle";
-  const isFixedExotic = props.model.identity.is_exotic && props.model.configuration.kind === "fixed";
-  return (
-    <>
-      <SectionHeading eyebrow="AI 分析" title="结合这件武器与推荐来源分析" description="AI 只提供辅助解释，不修改装备、标签或推荐数据。" />
-      <div className="weapon-detail-ai-layout">
-        <div className="weapon-detail-ai-analysis">
-          {props.analysis?.message ? <p className={`status-message status-${status === "error" ? "error" : status === "ready" ? "ready" : "pending"}`} role="status">{props.analysis.message}</p> : null}
-          {props.analysis?.body ? <article className="weapon-detail-ai-result" data-ui-kind="callout" data-callout-tone="ai"><span>AI 生成 · 可以查看依据</span><h4>{props.analysis.title ?? `${props.model.identity.name}分析`}</h4><p>{props.analysis.body}</p>{props.analysis.evidence?.length ? <dl>{props.analysis.evidence.map((entry) => <div key={entry.label}><dt>{entry.label}</dt><dd>{entry.value}</dd></div>)}</dl> : null}</article> : <EmptyState text="运行分析后，这里会显示结论和使用依据。" />}
-          {props.analysis?.externalSearchMessage ? <p className="weapon-detail-note">{props.analysis.externalSearchMessage}</p> : null}
-          {props.analysis?.externalSources?.length ? (
-            <section className="weapon-detail-external-sources" aria-label="AI 外部知识来源">
-              <div className="weapon-detail-block-heading"><h4>外部知识来源</h4><span>最低优先级</span></div>
-              <ul>{props.analysis.externalSources.map((source) => <li key={source.url}><a href={source.url} target="_blank" rel="noreferrer">{source.title || source.url}</a><span>{formatStandardDateTime(source.queried_at)}</span></li>)}</ul>
-            </section>
-          ) : null}
-        </div>
-        <aside className="weapon-detail-ai-tools">
-          <div className="weapon-detail-ai-input">
-            <label htmlFor="weapon-analysis-prompt">询问这件武器</label>
-            <textarea id="weapon-analysis-prompt" value={props.prompt} onChange={(event) => props.onPromptChange(event.target.value)} placeholder={isFixedExotic ? "例如：结合固定配置、当前催化剂状态和获取来源，分析 PvE 使用方向。" : "例如：结合这件武器的全部可切换 Perk，分析 PvE 推荐匹配情况。"} />
-            <label className="weapon-detail-ai-external"><input type="checkbox" checked={props.allowExternalSearch} onChange={(event) => props.onAllowExternalSearchChange(event.target.checked)} />允许 AI 查询外部知识，必须保留引用</label>
-            <button type="button" data-ui-kind="button" data-control-variant="ai" data-control-size="prominent" disabled={!props.onRun || status === "running"} onClick={() => props.onRun?.({ prompt: props.prompt, allow_external_search: props.allowExternalSearch })}>{status === "running" ? "分析中..." : "结合全部来源分析"}</button>
-            <small>AI 结果仅供参考，不会写入装备或推荐数据。</small>
-          </div>
-        </aside>
       </div>
     </>
   );

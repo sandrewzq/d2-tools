@@ -3,7 +3,7 @@ import type { InterfaceLocale, LocaleCopy } from "../types.js";
 export const vaultCopy: Record<InterfaceLocale, LocaleCopy["vault"]> = {
     "zh-CN": {
       title: "仓库",
-      subtitle: "查看完整仓库列表、清理候选、同名整理和推荐命中。",
+      subtitle: "查看完整仓库列表、清理候选和推荐来源命中。",
       emptyTitle: "仓库",
       emptySubtitle: "先同步装备数据，然后查看完整仓库列表。",
       loading: "读取中...",

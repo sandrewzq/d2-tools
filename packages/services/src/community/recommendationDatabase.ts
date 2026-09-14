@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const databaseFileName = "weapon-recommendations.sqlite";
-export const recommendationDatabaseSchemaVersion = 5;
+export const recommendationDatabaseSchemaVersion = 6;
 export const recommendationSemanticValidationVersion = 1;
 
 export function openRecommendationDatabase(dataDir: string): DatabaseSync {
@@ -186,6 +186,55 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         PRIMARY KEY (rule_id, tag)
       ) STRICT;
 
+      CREATE TABLE IF NOT EXISTS recommendation_documents (
+        document_id TEXT PRIMARY KEY,
+        origin TEXT NOT NULL CHECK (origin IN ('url', 'file', 'paste')),
+        source_url TEXT NOT NULL DEFAULT '',
+        revision TEXT NOT NULL DEFAULT '',
+        fingerprint TEXT NOT NULL,
+        imported_at TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        description TEXT NOT NULL DEFAULT '',
+        author TEXT NOT NULL DEFAULT ''
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS recommendation_source_instances (
+        source_id TEXT PRIMARY KEY,
+        document_id TEXT NOT NULL REFERENCES recommendation_documents(document_id) ON DELETE CASCADE,
+        kind TEXT NOT NULL CHECK (kind IN ('dim', 'excel', 'csv', 'builtin')),
+        label TEXT NOT NULL,
+        title TEXT NOT NULL DEFAULT '',
+        author TEXT NOT NULL DEFAULT '',
+        block_id TEXT NOT NULL DEFAULT '',
+        origin TEXT NOT NULL CHECK (origin IN ('community', 'local-file', 'paste', 'builtin')),
+        source_url TEXT NOT NULL DEFAULT '',
+        revision TEXT NOT NULL DEFAULT '',
+        fingerprint TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('active', 'disabled', 'removed'))
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS recommendation_source_rules (
+        source_id TEXT NOT NULL REFERENCES recommendation_source_instances(source_id) ON DELETE CASCADE,
+        rule_id TEXT NOT NULL,
+        item_hash INTEGER NOT NULL CHECK (item_hash >= 0 AND item_hash <= 4294967295),
+        mode TEXT NOT NULL CHECK (mode IN ('pve', 'pvp', 'general')),
+        kind TEXT NOT NULL CHECK (kind IN ('roll', 'weapon_only')),
+        perk_hashes TEXT NOT NULL DEFAULT '[]',
+        note TEXT NOT NULL DEFAULT '',
+        tags TEXT NOT NULL DEFAULT '[]',
+        author TEXT NOT NULL DEFAULT '',
+        source_note TEXT NOT NULL DEFAULT '',
+        source_title TEXT NOT NULL DEFAULT '',
+        source_description TEXT NOT NULL DEFAULT '',
+        block_id TEXT NOT NULL DEFAULT '',
+        PRIMARY KEY (source_id, rule_id)
+      ) STRICT;
+
+      CREATE INDEX IF NOT EXISTS idx_recommendation_source_rules_item
+        ON recommendation_source_rules(item_hash);
+      CREATE INDEX IF NOT EXISTS idx_recommendation_source_rules_source
+        ON recommendation_source_rules(source_id);
+
       CREATE TABLE IF NOT EXISTS recommendation_source_overrides (
         source_key TEXT PRIMARY KEY,
         state TEXT NOT NULL CHECK (state IN ('active', 'disabled', 'removed')),
@@ -293,6 +342,9 @@ function hasRecommendationTables(database: DatabaseSync): boolean {
 
 function dropRecommendationTables(database: DatabaseSync): void {
   database.exec(`
+    DROP TABLE IF EXISTS recommendation_source_rules;
+    DROP TABLE IF EXISTS recommendation_source_instances;
+    DROP TABLE IF EXISTS recommendation_documents;
     DROP TABLE IF EXISTS external_recommendation_rule_tags;
     DROP TABLE IF EXISTS external_recommendation_rule_perks;
     DROP TABLE IF EXISTS external_recommendation_rules;

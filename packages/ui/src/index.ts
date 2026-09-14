@@ -88,7 +88,6 @@ export type {
 } from "./item-detail/DetailInstanceActionPanel.js";
 export { WeaponDetailContent } from "./item-detail/weapon/WeaponDetailContent.js";
 export type {
-  WeaponDetailAnalysis,
   WeaponDetailContentActions,
   WeaponConfigurationWriteFeedback,
   WeaponDetailContentProps,
@@ -148,13 +147,13 @@ export type {
 } from "./vendors/VendorsPageContentView.js";
 export { VaultPageContentView } from "./vault/VaultPageContentView.js";
 export { VaultArmorFilterPanel } from "./vault/VaultArmorFilterPanel.js";
-export { VaultDuplicateGroups } from "./vault/VaultDuplicateGroups.js";
 export { VaultFilterToolbar } from "./vault/VaultFilterToolbar.js";
 export { VaultItemSections } from "./vault/VaultItemSections.js";
 export { MemoizedVaultListItem, VaultListItem, formatVaultItemMeta } from "./vault/VaultListItem.js";
 export { VaultOrganizePanel } from "./vault/VaultOrganizePanel.js";
 export { VaultRecommendationEvidencePanel } from "./vault/VaultRecommendationEvidencePanel.js";
 export type { VaultRecommendationSourceState } from "./vault/VaultRecommendationEvidencePanel.js";
+export { VaultRecommendationSourceManager } from "./vault/VaultRecommendationSourceManager.js";
 export { buildVaultCleanupProtectionIndex } from "./vault/vaultCleanupProtection.js";
 export {
   buildVaultRecommendationSourceSummaries,
@@ -172,8 +171,6 @@ export type {
 } from "./vault/vaultRecommendationMatch.js";
 export { VaultWishlistManager } from "./vault/VaultWishlistManager.js";
 export type { VaultWishlistActions } from "./vault/VaultWishlistManager.js";
-export { VaultTargetRulesPanel } from "./vault/VaultTargetRulesPanel.js";
-export type { VaultTargetRulesActions } from "./vault/VaultTargetRulesPanel.js";
 export { useVaultBatchActions } from "./vault/useVaultBatchActions.js";
 export type { VaultCleanupActions } from "./vault/useVaultBatchActions.js";
 export type {

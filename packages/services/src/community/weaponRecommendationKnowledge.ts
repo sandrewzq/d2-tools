@@ -44,6 +44,14 @@ const playerCsvHeaders = [
   "武器", "武器ID", "英文名称", "推荐来源", "用途", "第一列", "第二列",
   "Perk 1", "Perk 2", "大师", "起源特性", "评级", "备注"
 ] as const;
+const unifiedChineseCsvHeaders = [
+  "武器", "规则名称", "用途/分类", "枪管/瞄具", "弹匣", "大师",
+  "Perk 1", "Perk 2", "起源特性", "评级", "备注"
+] as const;
+const unifiedEnglishCsvHeaders = [
+  "Weapon", "Rule Name", "Mode / Category", "Barrel / Sight", "Magazine", "Masterwork",
+  "Perk 1", "Perk 2", "Origin Trait", "Rating", "Note"
+] as const;
 const stableSourceKeys: Record<string, string> = {
   Aegis推荐: "aegis",
   LGpig推荐: "lgpig",
@@ -95,7 +103,7 @@ export type WeaponKnowledgeImportIssue = {
   row_number: number;
   weapon_name: string;
   source_label: string;
-  field: "推荐来源" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+  field: "推荐来源" | "规则名称" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
   value: string;
   message: string;
 };
@@ -159,7 +167,12 @@ export function invalidateWeaponRecommendationKnowledgeCache(dataDir: string): v
 
 /** Returns the player-editable column contract for manually maintained knowledge CSV files. */
 export function createWeaponRecommendationCsvTemplate(): string {
-  return `\uFEFF${playerCsvHeaders.join(",")}\r\n`;
+  return `\uFEFF${unifiedChineseCsvHeaders.join(",")}\r\n`;
+}
+
+/** Returns the English player-editable column contract for manually maintained knowledge CSV files. */
+export function createWeaponRecommendationEnglishCsvTemplate(): string {
+  return `\uFEFF${unifiedEnglishCsvHeaders.join(",")}\r\n`;
 }
 
 /** Returns the publisher/maintainer-only complete evidence template. */
@@ -186,12 +199,7 @@ export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
       note: string;
       source_label: string;
     }>;
-    if (!rows.length) return `\uFEFF${playerCsvHeaders.join(",")}\r\n`;
-    const ids = database.prepare(`
-      SELECT recommendation_id, item_hash
-      FROM weapon_recommendation_item_ids
-      ORDER BY recommendation_id, item_hash
-    `).all() as Array<{ recommendation_id: number; item_hash: number }>;
+    if (!rows.length) return `\uFEFF${unifiedChineseCsvHeaders.join(",")}\r\n`;
     const purposes = database.prepare(`
       SELECT recommendation_id, purpose
       FROM weapon_recommendation_purposes
@@ -202,7 +210,6 @@ export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
       FROM weapon_recommendation_perks
       ORDER BY recommendation_id, slot, ordinal
     `).all() as Array<{ recommendation_id: number; slot: RecommendationRequirementSlot; ordinal: number; perk_name: string }>;
-    const idsByRecommendation = groupExportValues(ids, "item_hash");
     const purposesByRecommendation = groupExportValues(purposes, "purpose");
     const perksByRecommendation = new Map<number, Partial<Record<RecommendationRequirementSlot, string[]>>>();
     for (const perk of perks) {
@@ -210,20 +217,18 @@ export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
       bySlot[perk.slot] = [...(bySlot[perk.slot] ?? []), perk.perk_name];
       perksByRecommendation.set(perk.recommendation_id, bySlot);
     }
-    const output = [playerCsvHeaders.join(",")];
+    const output = [unifiedChineseCsvHeaders.join(",")];
     for (const row of rows) {
       const rowPerks = perksByRecommendation.get(row.id) ?? {};
       output.push([
         row.weapon_name,
-        (idsByRecommendation.get(row.id) ?? []).join(" / "),
-        row.english_name,
         row.source_label,
         (purposesByRecommendation.get(row.id) ?? []).join(" / "),
         (rowPerks.barrel ?? []).join(" / "),
         (rowPerks.magazine ?? []).join(" / "),
+        (rowPerks.masterwork ?? []).join(" / "),
         (rowPerks.perk1 ?? []).join(" / "),
         (rowPerks.perk2 ?? []).join(" / "),
-        (rowPerks.masterwork ?? []).join(" / "),
         (rowPerks.origin ?? []).join(" / "),
         row.rating,
         row.note
@@ -250,7 +255,7 @@ export function previewWeaponRecommendationCsv(
     : [];
   const skippedRows = new Set(blockingIssues.map((issue) => issue.row_number));
   const importableRows = rows.filter((row) => !skippedRows.has(csvRowNumber(row)));
-  const importMode = rows[0]?.__format === "player" || skippedRows.size > 0 ? "merge" : "replace";
+  const importMode = isEditableTemplateRow(rows[0]) || skippedRows.size > 0 ? "merge" : "replace";
   const sourceLabels = [...new Set(importableRows.map((row) => row["推荐来源"].trim()))].sort((left, right) => (
     left.localeCompare(right, "zh-CN")
   ));
@@ -277,14 +282,14 @@ export function collectWeaponRecommendationItemHashes(text: string): number[] {
 
 export function collectWeaponRecommendationWeaponNames(text: string): string[] {
   return [...new Set(curatedKnowledgeRows(parseKnowledgeCsv(text))
-    .map((row) => row["武器"]?.trim() ?? "")
+    .map((row) => row["武器"]?.trim() || row["英文名称"]?.trim() || "")
     .filter(Boolean))];
 }
 
 export function collectWeaponRecommendationNamesWithoutItemIds(text: string): string[] {
   return [...new Set(curatedKnowledgeRows(parseKnowledgeCsv(text))
     .filter((row) => !splitValues(row["武器ID"] ?? "").some((value) => isUnsignedHash(Number(value))))
-    .map((row) => row["武器"]?.trim() ?? "")
+    .map((row) => row["武器"]?.trim() || row["英文名称"]?.trim() || "")
     .filter(Boolean))];
 }
 
@@ -402,7 +407,7 @@ export async function syncWeaponRecommendationKnowledge(
   if (validRows.length === 0) {
     throw new Error("武器推荐 CSV 中没有可导入的有效记录，当前数据未更改。");
   }
-  const partialImport = rows[0]?.__format === "player" || skippedRows.size > 0;
+  const partialImport = isEditableTemplateRow(rows[0]) || skippedRows.size > 0;
   const database = openRecommendationDatabase(dataDir);
   try {
     const currentFingerprint = recommendationMetadataValue(database, "source_fingerprint");
@@ -1150,8 +1155,10 @@ function validateWeaponRecommendationRows(
     const rowNumber = csvRowNumber(row, index + 2);
     const weaponName = row["武器"]?.trim() ?? "";
     const sourceLabel = row["推荐来源"]?.trim() ?? "";
-    const playerFormat = row.__format === "player";
-    const expectedColumnCount = playerFormat ? playerCsvHeaders.length : requiredCsvHeaders.length;
+    const playerFormat = isEditableTemplateRow(row);
+    const expectedColumnCount = row.__format === "template"
+      ? unifiedChineseCsvHeaders.length
+      : row.__format === "player" ? playerCsvHeaders.length : requiredCsvHeaders.length;
     if (Number(row.__column_count ?? expectedColumnCount) !== expectedColumnCount) {
       issues.push({
         row_number: rowNumber,
@@ -1159,18 +1166,19 @@ function validateWeaponRecommendationRows(
         source_label: sourceLabel,
         field: "武器",
         value: weaponName,
-        message: `该行有 ${row.__column_count ?? "未知"} 列，${playerFormat ? "普通玩家模板" : "T20 完整数据包"}要求 ${expectedColumnCount} 列。`
+        message: `该行有 ${row.__column_count ?? "未知"} 列，${row.__format === "template" ? "统一推荐模板" : row.__format === "player" ? "旧版普通玩家模板" : "T20 完整数据包"}要求 ${expectedColumnCount} 列。`
       });
       return;
     }
     if (!weaponName || !sourceLabel) {
+      const sourceField = row.__format === "template" ? "规则名称" : "推荐来源";
       issues.push({
         row_number: rowNumber,
         weapon_name: weaponName,
         source_label: sourceLabel,
-        field: !weaponName ? "武器" : "推荐来源",
+        field: !weaponName ? "武器" : sourceField,
         value: !weaponName ? weaponName : sourceLabel,
-        message: !weaponName ? "缺少武器名称。" : "缺少推荐来源。"
+        message: !weaponName ? "缺少武器名称。" : `缺少${sourceField}。`
       });
       return;
     }
@@ -1194,11 +1202,25 @@ function validateWeaponRecommendationRows(
         row_number: rowNumber,
         weapon_name: weaponName,
         source_label: sourceLabel,
-        field: "推荐来源",
+        field: row.__format === "template" ? "规则名称" : "推荐来源",
         value: sourceLabel,
         message: "人工推荐只接受 Aegis、LGpig、YXCRALLXY 和 Sayalarry 四个已管理来源；DIM 必须使用独立 Wishlist 数据链。"
       });
       return;
+    }
+    if (row.__format === "template") {
+      for (const field of ["Perk 1", "Perk 2"] as const) {
+        if (requirementValues(row[field] ?? "").length > 0) continue;
+        issues.push({
+          row_number: rowNumber,
+          weapon_name: weaponName,
+          source_label: sourceLabel,
+          field,
+          value: "",
+          message: `${field} 是统一推荐模板的必填核心栏位。`
+        });
+      }
+      if (issues.some((issue) => issue.row_number === rowNumber)) return;
     }
     const rawItemHashValues = splitValues(row["武器ID"] ?? "");
     const parsedItemHashes = rawItemHashValues.map(Number);
@@ -1346,8 +1368,12 @@ function parseKnowledgeCsv(text: string): Array<Record<string, string>> {
     && requiredCsvHeaders.every((header, index) => headers[index] === header);
   const isPlayerFormat = headers.length === playerCsvHeaders.length
     && playerCsvHeaders.every((header, index) => headers[index] === header);
-  if (!isFullFormat && !isPlayerFormat) {
-    throw new Error(`武器推荐 CSV 表头不受支持：请使用普通玩家模板（${playerCsvHeaders.length} 列）或 T20 完整数据包（${requiredCsvHeaders.length} 列）。`);
+  const isUnifiedChineseFormat = headers.length === unifiedChineseCsvHeaders.length
+    && unifiedChineseCsvHeaders.every((header, index) => headers[index] === header);
+  const isUnifiedEnglishFormat = headers.length === unifiedEnglishCsvHeaders.length
+    && unifiedEnglishCsvHeaders.every((header, index) => headers[index] === header);
+  if (!isFullFormat && !isPlayerFormat && !isUnifiedChineseFormat && !isUnifiedEnglishFormat) {
+    throw new Error(`武器推荐 CSV 表头不受支持：请使用中文模板（${unifiedChineseCsvHeaders.length} 列）或英文模板（${unifiedEnglishCsvHeaders.length} 列）。`);
   }
   const rows = records
     .map((record, index) => ({ record, rowNumber: index + 2 }))
@@ -1355,15 +1381,61 @@ function parseKnowledgeCsv(text: string): Array<Record<string, string>> {
     .map(({ record, rowNumber }) => ({
       ...(isFullFormat
         ? Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""]))
-        : playerRowToKnowledgeRow(Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""])) as Record<string, string>)),
+        : isPlayerFormat
+          ? playerRowToKnowledgeRow(Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""])) as Record<string, string>)
+          : unifiedRowToKnowledgeRow(
+              Object.fromEntries(headers.map((header, index) => [header, record[index] ?? ""])) as Record<string, string>,
+              isUnifiedEnglishFormat
+            )),
       __row_number: String(rowNumber),
       __column_count: String(record.length),
-      __format: isFullFormat ? "full" : "player"
+      __format: isFullFormat ? "full" : isPlayerFormat ? "player" : "template"
     }));
   if (rows.length === 0) {
     throw new Error("武器推荐 CSV 没有可导入的数据行。");
   }
   return rows;
+}
+
+function unifiedRowToKnowledgeRow(row: Record<string, string>, english: boolean): Record<string, string> {
+  const value = (chinese: string, englishHeader: string): string => row[english ? englishHeader : chinese] ?? "";
+  return {
+    页面: "",
+    分类: "",
+    武器: english ? "" : value("武器", "Weapon"),
+    评级: value("评级", "Rating"),
+    排名: "",
+    来源URL: "",
+    页面更新时间: "",
+    来源位置: "",
+    图标: "",
+    图标图标URL: "",
+    属性: "",
+    框架: "",
+    赛季: "",
+    来源: "",
+    勇士: "",
+    勇士图标URL: "",
+    弹药生成: "",
+    枪管: value("枪管/瞄具", "Barrel / Sight"),
+    弹匣: value("弹匣", "Magazine"),
+    大师: value("大师", "Masterwork"),
+    "Perk 1": value("Perk 1", "Perk 1"),
+    "Perk 2": value("Perk 2", "Perk 2"),
+    起源特性: value("起源特性", "Origin Trait"),
+    注解: value("备注", "Note"),
+    护盾: "",
+    充能效率: "",
+    武器ID: "",
+    英文名称: english ? value("英文名称", "Weapon") : "",
+    版本: "",
+    推荐来源: value("规则名称", "Rule Name"),
+    用途: value("用途/分类", "Mode / Category")
+  };
+}
+
+function isEditableTemplateRow(row: Record<string, string> | undefined): boolean {
+  return row?.__format === "player" || row?.__format === "template";
 }
 
 function playerRowToKnowledgeRow(row: Record<string, string>): Record<string, string> {
@@ -1426,7 +1498,7 @@ function enrichWeaponRecommendationRow(
     页面: row["页面"]?.trim() || sourceLabel,
     分类: row["分类"]?.trim() || primary.itemTypeDisplayName?.trim() || "",
     来源URL: row["来源URL"]?.trim() || stableSourceUrls[sourceLabel] || "",
-    来源位置: row["来源位置"]?.trim() || (row.__format === "player" ? "玩家简表导入" : ""),
+    来源位置: row["来源位置"]?.trim() || (isEditableTemplateRow(row) ? "统一推荐模板导入" : ""),
     图标图标URL: row["图标图标URL"]?.trim() || primary.displayProperties?.icon?.trim() || "",
     来源: row["来源"]?.trim() || primary.sourceData?.sourceString?.trim() || ""
   };
@@ -1446,10 +1518,12 @@ function resolveOfficialWeaponDefinitions(
     });
   }
 
-  const weaponName = normalizeName(row["武器"] ?? "");
-  if (!weaponName) return [];
+  const weaponNames = [row["武器"] ?? "", row["英文名称"] ?? ""]
+    .map(normalizeName)
+    .filter(Boolean);
+  if (!weaponNames.length) return [];
   return Object.entries(definitions).flatMap(([key, definition]) => {
-    if (normalizeName(definition.displayProperties?.name ?? "") !== weaponName) return [];
+    if (!weaponNames.includes(normalizeName(definition.displayProperties?.name ?? ""))) return [];
     const hash = Number(definition.hash ?? key);
     return isUnsignedHash(hash) ? [{ hash, definition }] : [];
   });

@@ -535,12 +535,7 @@ export function useDesktopProductShell(props: {
         vaultCapacity={accountSummary?.vault.capacity}
       />
     ),
-    sidebarFooter: (
-      <ShellSidebarActions
-        isAiOpen={assistantMode !== null}
-        onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)}
-      />
-    ),
+    sidebarFooter: <ShellSidebarActions />,
     shellStatus
   };
 }

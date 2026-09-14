@@ -127,7 +127,7 @@ export function buildWeaponDetailView(
           icon: item.breaker_type.icon,
           source: item.breaker_type.source === "item"
             ? "weapon"
-            : item.breaker_type.source === "intrinsic-perk"
+            : item.breaker_type.source === "intrinsic-perk" || item.breaker_type.source === "intrinsic-frame"
               ? "frame_perk"
               : "plug"
         }
@@ -315,7 +315,7 @@ export function buildWeaponRecommendationViews(
     ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
   ]);
   const sourceRecords = (recommendation?.source_records ?? [])
-    .filter((record) => record.source_id !== "dim_voltron" && record.source_id !== "dim_wishlist")
+    .filter((record) => !record.source_id.startsWith("dim:") && record.source_id !== "dim_voltron" && record.source_id !== "dim_wishlist")
     .map((record) => {
       const requirements = record.requirements.filter((requirement) => requirement.candidate_names.length > 0);
       const matched = requirements.filter((requirement) => (
@@ -454,14 +454,16 @@ export function buildWeaponPersonalTargetViews(
     .filter((combo) => combo.source === "dim_wishlist")
     .map((combo, index) => {
       const diagnosticPerks = combo.dim_diagnostic?.perks;
-      const requirements = diagnosticPerks?.map((perk) => (
-        perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
-      )) ?? combo.perks.map((perk) => [perk.hash]);
+      const requirements = combo.kind === "weapon_only"
+        ? []
+        : diagnosticPerks?.map((perk) => (
+          perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
+        )) ?? combo.perks.map((perk) => [perk.hash]);
       const matched = requirements.filter((hashes) => hashes.some((hash) => availableHashes.has(hash))).length;
       return { combo, index, diagnosticPerks, requirements, matched };
     });
-  const matchedComboCount = dimCombos.filter(({ matched, requirements }) => (
-    requirements.length > 0 && matched === requirements.length
+  const matchedComboCount = dimCombos.filter(({ matched, requirements, combo }) => (
+    combo.kind === "weapon_only" || (requirements.length > 0 && matched === requirements.length)
   )).length;
   const visibleCombos = (isDefinition
     ? [...dimCombos]
@@ -476,14 +478,16 @@ export function buildWeaponPersonalTargetViews(
       ? `当前 Roll 符合 DIM 的 ${matchedComboCount} 套推荐，下面显示其中 ${visibleCombos.length} 套。`
       : `当前 Roll 未完全符合 DIM 推荐，下面显示最接近的 ${visibleCombos.length} 套。`;
     const definitionSummary = dimCombos.length > visibleCombos.length
-      ? `DIM 原始数据共提供 ${dimCombos.length} 套完整组合，当前展示前 ${visibleCombos.length} 套。`
-      : `DIM 原始数据提供 ${dimCombos.length} 套完整组合。`;
+      ? `DIM 原始数据共提供 ${dimCombos.length} 条规则，当前展示前 ${visibleCombos.length} 条。`
+      : `DIM 原始数据提供 ${dimCombos.length} 条规则。`;
     return {
       id: `dim:${combo.mode}:${index}`,
       mode: combo.mode,
       purposes: [combo.mode],
       presentation: "combo" as const,
-      title: isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 完整组合`,
+      title: combo.kind === "weapon_only"
+        ? "DIM 仅推荐武器"
+        : isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 完整组合`,
       reason: isDefinition
         ? visibleIndex === 0
           ? [definitionSummary, combo.note].filter(Boolean).join(" ")
@@ -494,7 +498,7 @@ export function buildWeaponPersonalTargetViews(
             ? `${visibleSummary} 这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。`
             : "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
       source: "dim" as const,
-      source_label: "DIM社区愿望单",
+      source_label: combo.source_label || "DIM社区愿望单",
       perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
         column_key: dimDiagnosticSlotLabel(diagnosticPerks?.[perkIndex]?.slot_candidates[0]) ?? `项目 ${perkIndex + 1}`,
         names: [perk.name],
@@ -506,7 +510,7 @@ export function buildWeaponPersonalTargetViews(
       })),
       masterwork_names: [],
       mod_names: [],
-      match: isDefinition || isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, requirements.length),
+      match: isDefinition || isFixedExotic ? "not_applicable" as const : combo.kind === "weapon_only" ? "full" as const : matchRecommendation(item, matched, requirements.length),
       match_notes: isDefinition
         ? []
         : isFixedExotic

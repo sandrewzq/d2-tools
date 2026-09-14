@@ -235,7 +235,8 @@ function ItemDetailReadyContent(
     props.communityInstanceMatch?.source_matches ?? [],
     props.communityRecommendations?.source_records ?? []
   ).filter((source) => (
-    source.source_id !== "dim_voltron"
+    !source.source_id.startsWith("dim:")
+    && source.source_id !== "dim_voltron"
     && source.source_id !== "dim_wishlist"
   )) : [], [isWeapon, props.communityInstanceMatch?.source_matches, props.communityRecommendations?.source_records]);
   const persistedNote = props.vaultTags.items[selectedItem.item_key]?.note ?? "";
@@ -296,26 +297,6 @@ function ItemDetailReadyContent(
               ),
               message: props.communityRecommendationError || props.recommendationScan.message
             }}
-            analysis={{
-              status: props.isGeneratingItemAi
-                ? "running"
-                : props.itemAiError
-                  ? "error"
-                  : props.itemAiResult?.ai
-                    ? "ready"
-                    : "idle",
-              title: props.itemAiResult?.ai ? `${selectedItem.name}分析` : undefined,
-              body: props.itemAiResult?.ai?.text,
-              message: props.itemAiError || props.itemAiResult?.skipped_reason || undefined,
-              evidence: props.itemAiResult?.ai
-                ? [
-                    { label: "模型", value: props.itemAiResult.ai.model },
-                    { label: "分析范围", value: "这件武器、官方数据与推荐来源" }
-                  ]
-                : undefined,
-              externalSources: props.itemAiResult?.ai?.external_search?.sources,
-              externalSearchMessage: props.itemAiResult?.ai?.external_search?.message
-            }}
             actions={{
               activateSection: props.onActivateItemDetailSection,
               selectVersion: (hash) => {
@@ -323,7 +304,6 @@ function ItemDetailReadyContent(
                 if (version) return openItemDetail(version, {});
                 return false;
               },
-              runAnalysis: (request) => props.onGenerateItemAiAdvice(request.prompt, request.allow_external_search),
               loadConfiguration: selectedItem.detail_loaded?.definition && selectedItem.detail_loaded?.instance
                 ? undefined
                 : props.onLoadSelectedItemFullDetail,

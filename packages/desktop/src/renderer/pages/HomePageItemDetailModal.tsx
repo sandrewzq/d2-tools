@@ -105,23 +105,6 @@ export function HomePageItemDetailModal(props: {
               ) : null}
               <WeaponDetailContent
                 model={vendorWeaponModel}
-                analysis={{
-                  status: vendorDefinitionState.isGeneratingAi
-                    ? "running"
-                    : vendorDefinitionState.aiError
-                      ? "error"
-                      : vendorDefinitionState.aiResult?.ai
-                        ? "ready"
-                        : "idle",
-                  title: vendorDefinitionState.aiResult?.ai ? `${vendorWeaponModel.identity.name}售卖分析` : undefined,
-                  body: vendorDefinitionState.aiResult?.ai?.text,
-                  message: vendorDefinitionState.aiError || vendorDefinitionState.aiResult?.skipped_reason,
-                  externalSources: vendorDefinitionState.aiResult?.ai?.external_search?.sources,
-                  externalSearchMessage: vendorDefinitionState.aiResult?.ai?.external_search?.message
-                }}
-                actions={{
-                  runAnalysis: (request) => void props.vendorDefinitionDetail.generateAi(request.prompt, request.allow_external_search)
-                }}
               />
             </>
           )}

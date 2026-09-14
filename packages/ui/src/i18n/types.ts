@@ -71,8 +71,6 @@ export type ShellCopy = {
     switchToEnglish: string;
     github: string;
     settings: string;
-    openAiAssistant: string;
-    aiAssistant: string;
     languageBadge: string;
   };
 };

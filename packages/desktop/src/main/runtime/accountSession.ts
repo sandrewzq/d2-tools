@@ -280,7 +280,10 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       return snapshotSavePromise;
     };
     const cached = activeAccountId
-      ? await loadCachedAccountSnapshot(config.data.data_dir, { accountId: activeAccountId })
+      ? await loadCachedAccountSnapshot(config.data.data_dir, {
+          accountId: activeAccountId,
+          manifestRevision: manifestRevision || undefined
+        })
       : null;
     const cachedPursuits = activeAccountId
       ? await loadCachedAccountPursuits(config.data.data_dir, activeAccountId)

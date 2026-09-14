@@ -30,7 +30,7 @@ export type CommunityApi = {
   getDimWishlistOnlineStatus(): Promise<DimWishlistOnlineStatus>;
   checkDimWishlistOnlineUpdate(): Promise<DimWishlistOnlinePreview>;
   confirmDimWishlistOnlineUpdate(token: string): Promise<DimWishlistOnlineActivationResult>;
-  exportWeaponKnowledgeCsvTemplate(): Promise<FileExportResult>;
+  exportWeaponKnowledgeCsvTemplate(language?: "zh" | "en"): Promise<FileExportResult>;
   exportWeaponKnowledgePlayerCsv(): Promise<FileExportResult>;
   selectWeaponKnowledgeCsv(): Promise<WeaponKnowledgeImportSelection | null>;
   confirmWeaponKnowledgeCsvImport(token: string): Promise<WeaponKnowledgeImportResult>;

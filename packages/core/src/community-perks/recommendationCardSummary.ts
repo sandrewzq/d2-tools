@@ -32,7 +32,8 @@ export function createRecommendationCardSummary(
         modes: match.dim_wishlist.modes,
         matched_modes: [...new Set(match.dim_wishlist.rules
           .filter((rule) => rule.state === "match")
-          .map((rule) => rule.mode))]
+          .map((rule) => rule.mode))],
+        ...(match.dim_wishlist.sources ? { sources: match.dim_wishlist.sources } : {})
       }
     } : {})
   };

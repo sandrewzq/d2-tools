@@ -390,6 +390,7 @@
   display: block;
 }
 
+
 .app-shell .loadout-column-head strong {
   color: var(--text-title);
   font-size: var(--font-content);

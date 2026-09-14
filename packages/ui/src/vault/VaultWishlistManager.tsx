@@ -111,7 +111,7 @@ export type VaultWishlistActions = {
   getDimOnlineStatus?(): Promise<VaultDimOnlineStatus>;
   checkDimOnlineUpdate?(): Promise<VaultDimOnlinePreview>;
   confirmDimOnlineUpdate?(token: string): Promise<VaultDimOnlineActivationResult>;
-  exportKnowledgeTemplate?(): Promise<{ canceled: boolean; message: string; file_path?: string }>;
+  exportKnowledgeTemplate?(language?: "zh" | "en"): Promise<{ canceled: boolean; message: string; file_path?: string }>;
   exportKnowledgeCsv?(): Promise<{ canceled: boolean; message: string; file_path?: string }>;
   selectKnowledgeCsv?(): Promise<VaultWeaponKnowledgeImportPreview | null>;
   confirmKnowledgeImport?(token: string): Promise<{
@@ -153,7 +153,8 @@ type ManagementConfirmation = {
 export function VaultWishlistManager(props: {
   wishlist?: DimWishlist | null;
   actions: VaultWishlistActions;
-  managementLocked?: boolean;
+  initialFocus?: "knowledge" | "dim";
+  showManagement?: boolean;
   onApplied?: (message: string) => void;
   onClose: () => void;
 }) {
@@ -221,8 +222,11 @@ export function VaultWishlistManager(props: {
     backgroundElements.forEach(({ element }) => {
       element.inert = true;
     });
-    const preferredFocus = dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]")
-      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-update]")
+    const preferredFocus = (props.initialFocus === "dim"
+      ? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-import], [data-dim-update]")
+      : dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]"))
+      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]")
+      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-import], [data-dim-update]")
       ?? dialogRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])");
     preferredFocus?.focus();
 
@@ -260,24 +264,10 @@ export function VaultWishlistManager(props: {
       });
       if (initialFocusRef.current?.isConnected) initialFocusRef.current.focus();
     };
-  }, [portalHost]);
+  }, [portalHost, props.initialFocus]);
 
   useEffect(() => {
-    if (!props.actions.getDimOnlineStatus) return;
-    let active = true;
-    void props.actions.getDimOnlineStatus().then(
-      (status) => {
-        if (active) setDimOnlineStatus(status);
-      },
-      () => undefined
-    );
-    return () => {
-      active = false;
-    };
-  }, [props.actions]);
-
-  useEffect(() => {
-    if (!supportsRecommendationManagement || !props.actions.getRecommendationManagement) return;
+    if (props.showManagement === false || !supportsRecommendationManagement || !props.actions.getRecommendationManagement) return;
     let active = true;
     setManagementLoadState("loading");
     void props.actions.getRecommendationManagement().then(
@@ -299,10 +289,10 @@ export function VaultWishlistManager(props: {
     return () => {
       active = false;
     };
-  }, [props.actions, supportsRecommendationManagement]);
+  }, [props.actions.getRecommendationManagement, props.showManagement, supportsRecommendationManagement]);
 
   useEffect(() => {
-    if (!selectedSourceKey || !props.actions.listRecommendationRules) {
+    if (props.showManagement === false || !selectedSourceKey || !props.actions.listRecommendationRules) {
       setManagedRules([]);
       setRuleLoadState("idle");
       return;
@@ -325,19 +315,10 @@ export function VaultWishlistManager(props: {
     return () => {
       active = false;
     };
-  }, [props.actions, selectedSourceKey]);
-
-  async function refreshDimOnlineStatus() {
-    if (!props.actions.getDimOnlineStatus) return;
-    try {
-      setDimOnlineStatus(await props.actions.getDimOnlineStatus());
-    } catch {
-      // 本地状态刷新失败不改变已经完成的导入或清理结果。
-    }
-  }
+  }, [props.actions.listRecommendationRules, props.showManagement, selectedSourceKey]);
 
   async function refreshManagementSnapshot() {
-    if (!props.actions.getRecommendationManagement) return;
+    if (props.showManagement === false || !props.actions.getRecommendationManagement) return;
     try {
       setManagementSnapshot(await props.actions.getRecommendationManagement());
       setManagementLoadState("ready");
@@ -406,7 +387,6 @@ export function VaultWishlistManager(props: {
     try {
       const saved = await props.actions.confirmDimImport(dimFilePreview.token);
       resetDimInput();
-      await refreshDimOnlineStatus();
       finishApplied(dimAppliedMessage(managementSnapshot, `DIM Wishlist 已写入 · ${saved.rules.length} 条规则。`));
     } catch (error) {
       setDimFilePreview(null);
@@ -419,21 +399,21 @@ export function VaultWishlistManager(props: {
   async function checkDimOnlineUpdate() {
     if (!props.actions.checkDimOnlineUpdate || isCheckingDimOnline) return;
     setIsCheckingDimOnline(true);
-    setFeedback({ tone: "neutral", message: "正在后台检查 DIM 社区推荐；你可以继续使用弹窗内其他入口或关闭此窗口。" });
+    setFeedback({ tone: "neutral", message: "正在读取在线 DIM Wishlist；只有确认后才会写入本机。" });
     try {
       const preview = await withTimeout(
         props.actions.checkDimOnlineUpdate(),
         dimOnlineCheckUiTimeoutMs,
-        "检查 DIM 社区推荐超时。当前数据未更改，请关闭窗口后重试，或改用本地 Wishlist 文件。"
+        "在线导入 DIM Wishlist 超时。当前数据未更改，请稍后重试，或改用本地 Wishlist 文件。"
       );
       setDimOnlineStatus(preview);
       setDimOnlinePreview(preview.update_available && preview.token ? preview : null);
       setFeedback(preview.update_available
-        ? { tone: "success", message: `发现 DIM 社区推荐更新 · ${preview.weapon_count} 把武器、${preview.rule_count} 条规则，确认后才会替换当前数据。` }
-        : { tone: "success", message: "DIM 社区推荐已经是最新版本。" });
+        ? { tone: "success", message: `已读取在线 DIM Wishlist · ${preview.weapon_count} 把武器、${preview.rule_count} 条规则，确认后才会写入本机。` }
+        : { tone: "success", message: "在线 DIM Wishlist 与当前版本相同，确认后仍可重新写入本机。" });
     } catch (error) {
       setDimOnlinePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, "DIM 社区推荐更新检查失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 在线导入失败。") });
     } finally {
       setIsCheckingDimOnline(false);
     }
@@ -450,7 +430,7 @@ export function VaultWishlistManager(props: {
       finishApplied(dimAppliedMessage(managementSnapshot, `DIM 社区推荐已更新 · ${result.status.weapon_count} 把武器、${result.status.rule_count} 条规则。`));
     } catch (error) {
       setDimOnlinePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, "DIM 社区推荐更新失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 在线导入失败。") });
     } finally {
       setBusyAction("");
     }
@@ -462,7 +442,6 @@ export function VaultWishlistManager(props: {
     try {
       const saved = await props.actions.save(pastePreview);
       resetDimInput();
-      await refreshDimOnlineStatus();
       finishApplied(dimAppliedMessage(managementSnapshot, `DIM Wishlist 已写入 · ${saved.rules.length} 条规则。`));
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "DIM Wishlist 保存失败。") });
@@ -471,11 +450,11 @@ export function VaultWishlistManager(props: {
     }
   }
 
-  async function exportKnowledgeTemplate() {
+  async function exportKnowledgeTemplate(language: "zh" | "en" = "zh") {
     if (!props.actions.exportKnowledgeTemplate) return;
     setBusyAction("knowledge-template");
     try {
-      const result = await props.actions.exportKnowledgeTemplate();
+      const result = await props.actions.exportKnowledgeTemplate(language);
       setFeedback({ tone: result.canceled ? "neutral" : "success", message: result.message });
     } catch (error) {
       setFeedback({ tone: "error", message: errorMessage(error, "标准模板导出失败。") });
@@ -537,7 +516,6 @@ export function VaultWishlistManager(props: {
       await props.actions.clear();
       setIsConfirmingClear(false);
       resetDimInput();
-      await refreshDimOnlineStatus();
       await refreshManagementSnapshot();
       setFeedback({ tone: "success", message: "DIM Wishlist 已移除。" });
     } catch (error) {
@@ -560,7 +538,7 @@ export function VaultWishlistManager(props: {
   }
 
   async function activateManagedSource(source: VaultRecommendationManagedSource) {
-    if (!props.actions.setRecommendationSourceState || props.managementLocked) return;
+    if (!props.actions.setRecommendationSourceState) return;
     setBusyAction(`source-active:${source.source_key}`);
     try {
       const snapshot = await props.actions.setRecommendationSourceState(source.source_key, "active");
@@ -575,7 +553,7 @@ export function VaultWishlistManager(props: {
   }
 
   async function restoreManagedRule(rule: VaultRecommendationManagedRule) {
-    if (!props.actions.setRecommendationRuleState || props.managementLocked) return;
+    if (!props.actions.setRecommendationRuleState) return;
     setBusyAction(`rule-active:${rule.rule_stable_id}`);
     try {
       const snapshot = await props.actions.setRecommendationRuleState({
@@ -596,7 +574,7 @@ export function VaultWishlistManager(props: {
 
   async function confirmManagementAction() {
     const pending = pendingManagementAction;
-    if (!pending || props.managementLocked) return;
+    if (!pending) return;
     setBusyAction(`management-${pending.kind}`);
     try {
       if (pending.kind === "source" && pending.source && pending.sourceState && props.actions.setRecommendationSourceState) {
@@ -664,7 +642,7 @@ export function VaultWishlistManager(props: {
   const isBusy = Boolean(busyAction);
   const canClose = !isBusy;
   const selectedManagedSource = managementSnapshot?.sources.find((source) => source.source_key === selectedSourceKey);
-  const dimManagedSource = managementSnapshot?.sources.find((source) => source.source_key === "dim_wishlist");
+  const dimManagedSource = managementSnapshot?.sources.find((source) => source.kind === "dim");
 
   const dialog = (
     <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => canClose && props.onClose()}>
@@ -672,19 +650,16 @@ export function VaultWishlistManager(props: {
       <header>
         <div>
           <strong id={titleId}>推荐数据</strong>
-          <span>中文推荐 CSV 是主要数据；DIM 社区推荐可以从 GitHub 更新，作为额外参考。</span>
+          <span>导入后来源立即出现在推荐来源页；作者、规则和证据只在详情中查看。</span>
         </div>
         <ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton>
       </header>
 
-      {supportsRecommendationManagement ? (
+      {props.showManagement !== false && supportsRecommendationManagement ? (
         <section className="vault-import-section vault-recommendation-management" aria-label="推荐来源与规则管理">
           <div className="vault-import-section-head">
-            <span><strong>来源与纠错</strong><small>先选择来源；可临时停用、按来源移除，或只移除某一条错误规则。</small></span>
+            <span><strong>来源管理</strong><small>每个导入文件是一个来源；DIM 内部作者 / 清单分组只在详情中显示。</small></span>
           </div>
-          {props.managementLocked ? (
-            <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">同名整理还有待应用状态。请先应用或撤销这些状态，再修改推荐来源和规则。</p>
-          ) : null}
           {managementLoadState === "loading" ? <p className="vault-management-state">正在读取推荐来源…</p> : null}
           {managementLoadState === "error" ? <p className="vault-management-state" role="alert">推荐来源暂时无法读取，导入与更新入口仍可使用。</p> : null}
           {managementSnapshot ? (
@@ -697,10 +672,10 @@ export function VaultWishlistManager(props: {
                       <span><b>{source.rule_count} 条规则</b><small>{source.weapon_count} 把武器 · 当前账号影响 {source.affected_instance_count ?? 0} 件</small></span>
                     </div>
                     <div className="vault-managed-source-actions">
-                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{selectedSourceKey === source.source_key ? "收起规则" : "管理规则"}</ControlButton>
-                      {source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(sourceConfirmation(source, "disabled"))}>停用</ControlButton> : null}
-                      {source.state === "disabled" || (source.state === "removed" && source.configured) ? <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked} onClick={() => void activateManagedSource(source)}>启用</ControlButton> : null}
-                      {source.state !== "removed" && source.configured ? <ControlButton size="compact" variant="danger" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(sourceConfirmation(source, "removed"))}>按来源移除</ControlButton> : null}
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{selectedSourceKey === source.source_key ? "收起详情" : "查看详情"}</ControlButton>
+                      {source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(source, "disabled"))}>停用</ControlButton> : null}
+                      {source.state === "disabled" || (source.state === "removed" && source.configured) ? <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void activateManagedSource(source)}>启用</ControlButton> : null}
+                      {source.state !== "removed" && source.configured ? <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(source, "removed"))}>按来源移除</ControlButton> : null}
                     </div>
                   </article>
                 ))}
@@ -709,7 +684,7 @@ export function VaultWishlistManager(props: {
               {selectedManagedSource ? (
                 <section className="vault-managed-rules" aria-label={`${selectedManagedSource.label}规则`}>
                   <div className="vault-managed-rules-head">
-                    <span><strong>{selectedManagedSource.label}规则</strong><small>{selectedManagedSource.configured ? `版本 ${shortRevision(selectedManagedSource.revision)} · 最多显示 200 条` : selectedManagedSource.state === "removed" ? "来源已移除，重新导入或更新后可显式恢复" : "当前未配置"}</small></span>
+                    <span><strong>{selectedManagedSource.label}详情</strong><small>{selectedManagedSource.configured ? `版本 ${shortRevision(selectedManagedSource.revision)} · 最多显示 200 条规则` : selectedManagedSource.state === "removed" ? "来源已移除，重新导入或更新后可显式恢复" : "当前未配置"}</small></span>
                     <form onSubmit={(event) => { event.preventDefault(); void searchManagedRules(); }}>
                       <input type="search" value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder="搜索武器或 Perk" aria-label={`搜索${selectedManagedSource.label}规则`} />
                       <ControlButton type="submit" size="compact" variant="secondary" disabled={ruleLoadState === "loading"}>搜索</ControlButton>
@@ -728,9 +703,9 @@ export function VaultWishlistManager(props: {
                             {rule.review_required ? <em>来源版本已变化，需要复核后再恢复</em> : null}
                           </div>
                           {rule.state === "removed" ? (
-                            <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                            <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
                           ) : (
-                            <ControlButton size="compact" variant="quiet" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(ruleConfirmation(rule))}>移除规则</ControlButton>
+                            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(ruleConfirmation(rule))}>移除规则</ControlButton>
                           )}
                         </article>
                       ))}
@@ -746,7 +721,7 @@ export function VaultWishlistManager(props: {
                     {managementSnapshot.removed_rules.slice(0, 100).map((rule) => (
                       <article className="vault-managed-rule" data-surface="row" data-rule-state="removed" key={`removed:${rule.source_key}:${rule.rule_stable_id}`}>
                         <div><span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{rule.source_label}</small></span><p>{rule.review_required ? "原规则已变化，需要复核" : formatManagedRequirements(rule)}</p></div>
-                        <ControlButton size="compact" variant="secondary" disabled={isBusy || props.managementLocked || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                        <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
                       </article>
                     ))}
                   </div>
@@ -756,7 +731,7 @@ export function VaultWishlistManager(props: {
               {managementSnapshot.sources.some((source) => source.kind === "curated" && source.configured) ? (
                 <div className="vault-curated-dataset-danger">
                   <span><strong>删除当前中文推荐数据</strong><small>只删除四个人工来源的当前数据集；DIM、玩家标签、备注、锁定和配装不会改变。</small></span>
-                  <ControlButton size="compact" variant="danger" disabled={isBusy || props.managementLocked} onClick={() => setPendingManagementAction(curatedDatasetConfirmation(managementSnapshot))}>删除数据集</ControlButton>
+                  <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(curatedDatasetConfirmation(managementSnapshot))}>删除数据集</ControlButton>
                 </div>
               ) : null}
             </>
@@ -773,7 +748,7 @@ export function VaultWishlistManager(props: {
       {supportsKnowledgeImport ? (
         <section className="vault-import-section" aria-label="武器推荐知识库 CSV">
           <div className="vault-import-section-head">
-            <span><strong>中文武器推荐数据</strong><small>支持普通玩家简表；旧版 31 列 T20 完整包仍可兼容导入。确认前只校验和预览，不会更新当前数据。</small></span>
+            <span><strong>武器推荐数据</strong><small>中文、英文模板使用同一套 11 列字段；旧版 13 列和 31 列文件仍可兼容导入。确认前只校验和预览，不会更新当前数据。</small></span>
             <div className="vault-wishlist-actions">
               <ControlButton data-knowledge-import="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择武器推荐.csv"}</ControlButton>
             </div>
@@ -799,8 +774,13 @@ export function VaultWishlistManager(props: {
             </div>
           ) : null}
           <div className="vault-import-secondary-actions">
-            <p>普通玩家只需要维护推荐内容；系统字段会在导入时自动补齐。</p>
-            {props.actions.exportKnowledgeTemplate ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate()}>{busyAction === "knowledge-template" ? "导出中" : "导出玩家模板"}</ControlButton> : null}
+            <p>中文和英文模板字段完全一致；系统字段会在导入时自动补齐。</p>
+            {props.actions.exportKnowledgeTemplate ? (
+              <>
+                <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{busyAction === "knowledge-template" ? "导出中" : "导出中文模板"}</ControlButton>
+                <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{busyAction === "knowledge-template" ? "导出中" : "导出英文模板"}</ControlButton>
+              </>
+            ) : null}
             {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{busyAction === "knowledge-export" ? "导出中" : "导出当前推荐"}</ControlButton> : null}
           </div>
         </section>
@@ -808,15 +788,15 @@ export function VaultWishlistManager(props: {
 
       <section className="vault-import-section" aria-label="DIM 社区推荐">
         <div className="vault-import-section-head">
-          <span><strong>DIM 社区推荐</strong><small>可直接从上游 GitHub 更新；本地 .txt / .wishlist 文件仍作为离线和自定义入口。</small></span>
+          <span><strong>DIM Wishlist 手动导入</strong><small>只有点击在线导入、选择本地文件或粘贴文本并确认后，数据才会写入本机。</small></span>
           <div className="vault-wishlist-actions">
             <input ref={browserFileRef} hidden type="file" accept=".txt,.wishlist,text/plain" onChange={(event) => void readBrowserFile(event.target.files?.[0])} />
-            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "后台检查中" : "检查社区更新"}</ControlButton> : null}
+            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "读取中" : "在线导入"}</ControlButton> : null}
           </div>
         </div>
 
         {dimManagedSource && dimManagedSource.state !== "active" ? (
-          <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">DIM 来源当前{dimManagedSource.state === "removed" ? "已按来源移除" : "已停用"}。更新或导入只会写入数据，不会静默启用；完成后请在“来源与纠错”中显式恢复。</p>
+          <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">DIM 来源当前{dimManagedSource.state === "removed" ? "已按来源移除" : "已停用"}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。</p>
         ) : null}
 
         {supportsDimOnlineUpdate && dimOnlineStatus ? (
@@ -841,9 +821,9 @@ export function VaultWishlistManager(props: {
         ) : null}
 
         <div className="vault-import-secondary-actions vault-dim-secondary-actions">
-          <p>GitHub 不可用或需要导入自定义 Wishlist 时，再使用本地文件或粘贴文本。</p>
+          <p>在线导入只在点击按钮后执行；也可以直接选择本地 `.txt / .wishlist` 文件或粘贴文本。</p>
           <div className="vault-wishlist-actions">
-            <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择 DIM 文件"}</ControlButton>
+            <ControlButton data-dim-import="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择 DIM 文件"}</ControlButton>
             <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsPasteOpen((current) => !current); setIsConfirmingClear(false); }}>粘贴文本</ControlButton>
             {props.wishlist ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsConfirmingClear(true); setIsPasteOpen(false); }}>移除当前 Wishlist</ControlButton> : null}
           </div>
@@ -887,20 +867,20 @@ export function VaultWishlistManager(props: {
 }
 
 function dimRemovedNotice(snapshot: VaultRecommendationManagementSnapshot | null): string {
-  const state = snapshot?.sources.find((source) => source.source_key === "dim_wishlist")?.state;
+  const state = snapshot?.sources.find((source) => source.kind === "dim")?.state;
   if (state === "removed") return "DIM 来源仍会保持已移除，需要稍后显式恢复。";
   if (state === "disabled") return "DIM 来源仍会保持停用，需要稍后显式启用。";
   return "";
 }
 
 function dimAppliedMessage(snapshot: VaultRecommendationManagementSnapshot | null, message: string): string {
-  const state = snapshot?.sources.find((source) => source.source_key === "dim_wishlist")?.state;
+  const state = snapshot?.sources.find((source) => source.kind === "dim")?.state;
   if (state === "removed") return `${message} 来源仍保持已移除，尚未参与推荐。`;
   if (state === "disabled") return `${message} 来源仍保持停用，尚未参与推荐。`;
   return message;
 }
 
-function managedSourceStateLabel(source: VaultRecommendationManagedSource): string {
+export function managedSourceStateLabel(source: VaultRecommendationManagedSource): string {
   if (source.state === "removed") return source.configured ? "已移除，数据已重新导入，等待恢复" : "已按来源移除";
   if (!source.configured) return "未配置";
   if (source.state === "disabled") return "已停用，本地数据仍保留";
@@ -955,7 +935,7 @@ function curatedDatasetConfirmation(snapshot: VaultRecommendationManagementSnaps
   };
 }
 
-function formatManagedRequirements(rule: VaultRecommendationManagedRule): string {
+export function formatManagedRequirements(rule: VaultRecommendationManagedRule): string {
   if (!rule.requirements.length) return "仅推荐这把武器，没有指定 Perk 组合";
   return rule.requirements.map((requirement) => `${managedRequirementSlotLabel(requirement.slot)}：${requirement.names.join(" / ") || "未解析"}`).join(" · ");
 }
@@ -973,7 +953,7 @@ function managedRequirementSlotLabel(slot: string): string {
   return labels[slot] ?? slot;
 }
 
-function formatModes(modes: Array<"pve" | "pvp" | "general">): string {
+export function formatModes(modes: Array<"pve" | "pvp" | "general">): string {
   const labels = Array.from(new Set(modes)).map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : "通用");
   return labels.length ? labels.join(" / ") : "未标注模式";
 }
@@ -991,7 +971,7 @@ function formatDimInstallLabel(status: VaultDimOnlineStatus, hasWishlist: boolea
   return hasWishlist ? "当前为本地导入版本" : "尚未安装 DIM 社区推荐";
 }
 
-function shortRevision(revision: string): string {
+export function shortRevision(revision: string): string {
   return revision ? revision.slice(0, 8) : "未知";
 }
 

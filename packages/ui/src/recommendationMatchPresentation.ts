@@ -21,7 +21,7 @@ export type RecommendationSlotMatchPresentation = {
 };
 
 export function isDimRecommendationSource(sourceId: string): boolean {
-  return sourceId === "dim_voltron" || sourceId === "dim_wishlist";
+  return sourceId === "dim_voltron" || sourceId === "dim_wishlist" || sourceId.startsWith("dim:");
 }
 
 export function presentRecommendationSlotMatch(

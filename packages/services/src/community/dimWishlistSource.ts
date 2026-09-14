@@ -1,6 +1,7 @@
+import { createHash } from "node:crypto";
 import { summarizeItemPerks, type ItemPlugSummary } from "@d2-tools/core/items/perks";
 import { classifyWeaponRollSocket } from "@d2-tools/core/account/summary";
-import { resolveDimWishlistRuleMetadata, type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
+import { resolveDimWishlistRuleMetadata, type DimWishlist, type DimWishlistSourceBlock } from "@d2-tools/core/analysis/wishlistImport";
 import type {
   CommunityPerkSource,
   DimWishlistDiagnosticSlot,
@@ -13,19 +14,104 @@ import type {
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
+import { loadDimRecommendationSources } from "./recommendationDocumentStore.js";
 import {
   listRecommendationRuleOverrides,
-  listRecommendationSourceOverrides
+  listRecommendationSourceOverrides,
+  type RecommendationRuleOverride,
+  type RecommendationSourceOverride
 } from "./recommendationOverrides.js";
 
 export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
-  const sourceState = listRecommendationSourceOverrides(dataDir)
-    .find((entry) => entry.source_key === "dim_wishlist")?.state ?? "active";
-  const removedRuleIds = new Set(listRecommendationRuleOverrides(dataDir, "dim_wishlist")
+  return createDimWishlistSourceForRules(dataDir, "dim_wishlist", "DIM Wishlist", safelyLoadDimWishlist(dataDir));
+}
+
+export function createDimWishlistSources(dataDir: string): CommunityPerkSource[] {
+  const sourceOverrides = listRecommendationSourceOverrides(dataDir);
+  const ruleOverrides = listRecommendationRuleOverrides(dataDir);
+  const storedSources = loadDimRecommendationSources(dataDir);
+  // 旧版本曾把每个 source block 都持久化成实例；超过这个数量时视为
+  // 膨胀数据，回退到按标题/作者聚合的兼容路径，避免启动时重新遍历成千上万来源。
+  if (storedSources.length > 0 && storedSources.length <= 512) {
+    return storedSources.filter((source) => source.state === "active").map((source) => createDimWishlistSourceForRules(
+      dataDir,
+      source.sourceId,
+      source.label,
+      source.wishlist,
+      { sourceOverrides, ruleOverrides }
+    ));
+  }
+  const wishlist = safelyLoadDimWishlist(dataDir);
+  if (!wishlist) return [];
+  // 旧版 DIM 导入会为每个注释段生成 source-N。一个作者的同一份
+  // 愿望单因此可能有数千个 block；逐 block 建 Source 会让每件武器
+  // 都遍历数千个来源，点击仓库时表现为卡死。内部仍按 block 保留证据，
+  // UI 通过文档级 sourceId 将它们合并成一个可管理来源。
+  const groups = groupWishlistRules(wishlist);
+  const documentKey = createHash("sha256").update(wishlist.title).digest("hex").slice(0, 12);
+  return groups.map(({ key, rules, block }, index) => {
+    const base = block?.title?.trim() || `未标注来源 #${index + 1}`;
+    const author = block?.author?.trim() || wishlist.author?.trim();
+    const label = author ? `${base} · ${author}` : base;
+    const sourceKey = createHash("sha256").update(key).digest("hex").slice(0, 16);
+    return createDimWishlistSourceForRules(dataDir, `dim:${documentKey}:${sourceKey}`, label, {
+      ...wishlist,
+      title: label,
+      rules
+    }, { sourceOverrides, ruleOverrides });
+  });
+}
+
+type DimWishlistRuleGroup = {
+  key: string;
+  rules: DimWishlist["rules"];
+  block?: DimWishlistSourceBlock;
+};
+
+function groupWishlistRules(wishlist: DimWishlist): DimWishlistRuleGroup[] {
+  const blocksById = new Map((wishlist.source_blocks ?? []).map((block) => [block.id, block] as const));
+  const groups = new Map<string, DimWishlistRuleGroup>();
+  for (const rule of wishlist.rules) {
+    const block = rule.source_block_id ? blocksById.get(rule.source_block_id) : undefined;
+    const key = block
+      ? JSON.stringify([
+          block.title?.trim() ?? "",
+          block.author?.trim() ?? ""
+        ])
+      : rule.source_block_id
+        ? `block:${rule.source_block_id}`
+        : "unlabeled";
+    const existing = groups.get(key);
+    if (existing) existing.rules.push(rule);
+    else groups.set(key, { key, rules: [rule], ...(block ? { block } : {}) });
+  }
+  return [...groups.values()];
+}
+
+function createDimWishlistSourceForRules(
+  dataDir: string,
+  sourceId: string,
+  sourceLabel: string,
+  loadedWishlist: DimWishlist | null,
+  overrides?: { sourceOverrides: RecommendationSourceOverride[]; ruleOverrides: RecommendationRuleOverride[] }
+): CommunityPerkSource {
+  const sourceOverrides = overrides?.sourceOverrides ?? listRecommendationSourceOverrides(dataDir);
+  const documentSourceId = sourceId.startsWith("dim:")
+    ? sourceId.split(":").slice(0, 2).join(":")
+    : undefined;
+  const sourceState = sourceOverrides.find((entry) => entry.source_key === sourceId)?.state
+    ?? (documentSourceId ? sourceOverrides.find((entry) => entry.source_key === documentSourceId)?.state : undefined)
+    ?? (sourceId.startsWith("dim:") ? sourceOverrides.find((entry) => entry.source_key === "dim_wishlist")?.state : undefined)
+    ?? "active";
+  const ruleOverrides = overrides?.ruleOverrides ?? listRecommendationRuleOverrides(dataDir);
+  const removedRuleIds = new Set([
+    ...ruleOverrides.filter((entry) => entry.source_key === sourceId),
+    ...(documentSourceId ? ruleOverrides.filter((entry) => entry.source_key === documentSourceId) : []),
+    ...(sourceId.startsWith("dim:") ? ruleOverrides.filter((entry) => entry.source_key === "dim_wishlist") : [])
+  ]
     .filter((entry) => entry.state === "removed" && !entry.review_required)
     .map((entry) => entry.rule_stable_id));
-  const loadedWishlist = sourceState === "active" ? safelyLoadDimWishlist(dataDir) : null;
-  const wishlist = loadedWishlist
+  const wishlist = sourceState === "active" && loadedWishlist
     ? { ...loadedWishlist, rules: loadedWishlist.rules.filter((rule) => !rule.rule_stable_id || !removedRuleIds.has(rule.rule_stable_id)) }
     : null;
   const rulesByItemHash = new Map<number, NonNullable<typeof wishlist>["rules"]>();
@@ -35,7 +121,7 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
     else rulesByItemHash.set(rule.item_hash, [rule]);
   });
   return {
-    name: "DIM Wishlist",
+    name: sourceLabel,
     isAvailable: () => wishlist !== null,
     async getRecommendations(itemHash: number, options: SourceOptions): Promise<WeaponRecommendation | null> {
       if (!wishlist) return null;
@@ -43,13 +129,14 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
       if (!matchingRules.length) return null;
       const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
       const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
-      const combos: PerkCombo[] = matchingRules
-        .filter((rule) => rule.perk_hashes.length > 0)
-        .map((rule) => {
+      const combos: PerkCombo[] = matchingRules.map((rule) => {
           const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
           const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
           return {
             ...(rule.rule_stable_id ? { rule_stable_id: rule.rule_stable_id } : {}),
+            source_id: sourceId,
+            source_label: sourceLabel,
+            kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
             perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
             source: "dim_wishlist" as const,
             mode: rule.mode,
@@ -67,7 +154,7 @@ export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
         matched_modes: Array.from(new Set(combos.map((combo) => combo.mode))),
         individual_perks: uniquePerks(combos),
         sample_size: matchingRules.length,
-        source_label: "DIM Wishlist",
+        source_label: sourceLabel,
         disclaimer: wishlist.title ? `来自 ${wishlist.title}，仅反映愿望单作者的偏好。` : "来自本地导入的 DIM Wishlist，仅反映愿望单作者的偏好。"
       };
     }

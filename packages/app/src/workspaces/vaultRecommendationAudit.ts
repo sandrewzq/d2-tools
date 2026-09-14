@@ -31,7 +31,9 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     ));
     const dim = match?.dim_wishlist;
     return dim?.uncheckable_combo_count
-      ? [...sourceRows, `- ${label} · DIM · 数据不完整，${dim.uncheckable_combo_count} 套推荐未完成核对`]
+      ? [...sourceRows, ...(dim.sources?.filter((source) => source.uncheckable_combo_count > 0)
+        .map((source) => `- ${label} · ${source.source_label} · 数据不完整，${source.uncheckable_combo_count} 套推荐未完成核对`)
+        ?? [`- ${label} · DIM · 数据不完整，${dim.uncheckable_combo_count} 套推荐未完成核对`])]
       : sourceRows;
   });
   const exoticRows = rows.filter(({ item }) => isExotic(item)).map(({ label, match }) => (
@@ -101,7 +103,9 @@ function sourceUncheckableRequirementCount(
 
 function formatCoverage(match: VaultItemInstanceMatchInfo): string {
   const dim = match.dim_wishlist
-    ? `；DIM 符合 ${match.dim_wishlist.matched_combo_count}/${match.dim_wishlist.combo_count} 套推荐`
+    ? match.dim_wishlist.sources?.length
+      ? `；DIM 来源：${match.dim_wishlist.sources.map((source) => `${source.source_label} ${source.matched_combo_count}/${source.combo_count}`).join("，")}`
+      : `；DIM 符合 ${match.dim_wishlist.matched_combo_count}/${match.dim_wishlist.combo_count} 套推荐`
     : "";
   return `${match.coverage === "covered" ? "有来源覆盖" : "无来源覆盖"}；${match.source_matches?.length ?? 0} 个知识库来源${dim}`;
 }

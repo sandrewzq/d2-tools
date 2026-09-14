@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
+import type { DimWishlist, DimWishlistRule } from "@d2-tools/core/analysis/wishlistImport";
 import {
   clearExternalRecommendationSet,
   externalRecommendationMigrationState,
@@ -10,6 +10,7 @@ import {
   type ExternalRecommendationSetRecord
 } from "../community/externalRecommendationStore.js";
 import { listRecommendationSourceOverrides } from "../community/recommendationOverrides.js";
+import { clearDimRecommendationDocuments, loadDimRecommendationSources, saveDimRecommendationDocument } from "../community/recommendationDocumentStore.js";
 
 const wishlistFileName = "dim-wishlist.json";
 const sourceKind = "dim_wishlist" as const;
@@ -21,6 +22,13 @@ export function loadDimWishlist(dataDir: string): DimWishlist | null {
   if (sourceState !== "active") return null;
   const stored = loadExternalRecommendationSet(dataDir, sourceKind);
   if (stored) return externalSetToDimWishlist(stored);
+
+  const documentSources = loadDimRecommendationSources(dataDir);
+  if (documentSources.length) {
+    const first = documentSources[0].wishlist;
+    const allRules = documentSources.flatMap((source) => source.wishlist.rules);
+    return { ...first, rules: allRules };
+  }
 
   if (externalRecommendationMigrationState(dataDir, legacyMigrationMetadataKey)) {
     return null;
@@ -36,6 +44,7 @@ export function loadDimWishlist(dataDir: string): DimWishlist | null {
 }
 
 export function saveDimWishlist(dataDir: string, wishlist: DimWishlist): DimWishlist {
+  saveDimRecommendationDocument(dataDir, wishlist, { origin: "file" });
   return externalSetToDimWishlist(saveDimWishlistSet(dataDir, wishlist, {}));
 }
 
@@ -44,10 +53,18 @@ export function saveDimWishlistFromSource(
   wishlist: DimWishlist,
   source: { source_url: string; revision: string; imported_at?: string; source_fingerprint?: string }
 ): DimWishlist {
+  saveDimRecommendationDocument(dataDir, wishlist, {
+    origin: "url",
+    source_url: source.source_url,
+    revision: source.revision,
+    imported_at: source.imported_at,
+    fingerprint: source.source_fingerprint
+  });
   return externalSetToDimWishlist(saveDimWishlistSet(dataDir, wishlist, source));
 }
 
 export function clearDimWishlist(dataDir: string): void {
+  clearDimRecommendationDocuments(dataDir);
   clearExternalRecommendationSet(dataDir, sourceKind, legacyMigrationMetadataKey);
 }
 
@@ -75,6 +92,7 @@ function saveDimWishlistSet(
     rules: normalized.rules.map((rule) => ({
       item_hash: rule.item_hash,
       perk_hashes: rule.perk_hashes,
+      kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
       mode: rule.mode,
       note: rule.note,
       author: rule.author ?? "",
@@ -120,18 +138,19 @@ function normalizeDimWishlist(wishlist: DimWishlist): DimWishlist {
       ...(typeof block.author === "string" && block.author.trim() ? { author: block.author.trim() } : {})
     }];
   });
-  const rules = wishlist.rules.flatMap((rule) => {
+  const rules: DimWishlistRule[] = wishlist.rules.flatMap((rule): DimWishlistRule[] => {
     const itemHash = Number(rule.item_hash);
     const perkHashes = Array.isArray(rule.perk_hashes)
       ? [...new Set(rule.perk_hashes.map(Number).filter(isUnsignedHash))]
       : [];
-    if (!isUnsignedHash(itemHash) || perkHashes.length === 0) return [];
+    if (!isUnsignedHash(itemHash)) return [];
     return [{
       ...(typeof rule.rule_stable_id === "string" && rule.rule_stable_id.trim()
         ? { rule_stable_id: rule.rule_stable_id.trim() }
         : {}),
       item_hash: itemHash,
       perk_hashes: perkHashes,
+      kind: perkHashes.length > 0 ? "roll" : "weapon_only",
       mode: rule.mode === "pve" || rule.mode === "pvp" ? rule.mode : "general" as const,
       note: typeof rule.note === "string" ? rule.note.trim() : "",
       ...(Array.isArray(rule.tags) ? optionalTags(rule.tags) : {}),
@@ -185,6 +204,7 @@ function externalSetToDimWishlist(set: ExternalRecommendationSetRecord): DimWish
       rule_stable_id: rule.rule_stable_id,
       item_hash: rule.item_hash,
       perk_hashes: rule.perk_hashes,
+      kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
       mode: rule.mode,
       note: rule.note,
       ...(rule.tags.length ? { tags: rule.tags } : {}),

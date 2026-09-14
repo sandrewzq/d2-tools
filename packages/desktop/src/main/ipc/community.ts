@@ -27,6 +27,7 @@ import {
   collectWeaponRecommendationPlugSetHashes,
   collectRelatedWeaponRecommendationItemHashes,
   createWeaponRecommendationCsvTemplate,
+  createWeaponRecommendationEnglishCsvTemplate,
   exportWeaponRecommendationPlayerCsv,
   importWeaponRecommendationCsv,
   invalidateWeaponRecommendationKnowledgeCache,
@@ -40,6 +41,7 @@ import {
   listRecommendationManagedRules,
   readRecommendationManagementSnapshot,
   recommendationSourceItemHashes,
+  recommendationSourceItemHashesBySource,
   updateRecommendationManagedRule,
   updateRecommendationManagedSource,
   type RecommendationManagedRule,
@@ -67,23 +69,31 @@ import { removeDimWishlistEquipmentTargets } from "./targets.js";
 import { matchVaultRecommendationsInWorker } from "../runtime/recommendationRuntime.js";
 
 const pendingKnowledgeImports = new Map<string, { path: string; fingerprint: string }>();
+let recommendationManagementInFlight: Promise<RecommendationManagementSnapshot> | null = null;
 
 export function registerCommunityIpcHandlers(): void {
-  ipcMain.handle("community:knowledge:template:export", async () => {
+  ipcMain.handle("community:knowledge:template:export", async (_event, language: "zh" | "en" = "zh") => {
     const config = loadConfig();
+    const isEnglish = language === "en";
     const result = await dialog.showSaveDialog({
-      title: "导出武器推荐玩家模板",
-      defaultPath: join(config.data.data_dir, "武器推荐玩家模板.csv"),
+      title: isEnglish ? "导出英文武器推荐模板" : "导出中文武器推荐模板",
+      defaultPath: join(config.data.data_dir, isEnglish ? "weapon-recommendation-template-en.csv" : "武器推荐模板.csv"),
       filters: [{ name: "CSV 文件", extensions: ["csv"] }]
     });
     if (result.canceled || !result.filePath) {
-      return { canceled: true, message: "已取消导出玩家模板。" };
+      return { canceled: true, message: "已取消导出推荐模板。" };
     }
-    await writeFile(result.filePath, createWeaponRecommendationCsvTemplate(), "utf8");
+    await writeFile(
+      result.filePath,
+      isEnglish ? createWeaponRecommendationEnglishCsvTemplate() : createWeaponRecommendationCsvTemplate(),
+      "utf8"
+    );
     return {
       canceled: false,
       file_path: result.filePath,
-      message: "普通玩家模板已导出。只需填写武器、来源、用途和推荐 Perk；武器 ID 可留空，官方身份、图标和来源信息由应用读取资料库补齐。"
+      message: isEnglish
+        ? "英文推荐模板已导出。填写 Weapon、Rule Name、Perk、Rating 和 Note 即可，官方身份与资料库字段由应用自动补齐。"
+        : "中文推荐模板已导出。填写武器、规则名称、Perk、评级和备注即可，官方身份与资料库字段由应用自动补齐。"
     };
   });
 
@@ -154,10 +164,17 @@ export function registerCommunityIpcHandlers(): void {
 
   ipcMain.handle("community:management:get", async () => {
     const config = loadConfig();
-    return enrichRecommendationManagement(
+    if (recommendationManagementInFlight) return recommendationManagementInFlight;
+    const request = enrichRecommendationManagement(
       config.data.data_dir,
       readRecommendationManagementSnapshot(config.data.data_dir)
     );
+    recommendationManagementInFlight = request;
+    try {
+      return await request;
+    } finally {
+      if (recommendationManagementInFlight === request) recommendationManagementInFlight = null;
+    }
   });
 
   ipcMain.handle("community:management:rules", async (_event, sourceKey: string, query?: string) => {
@@ -171,7 +188,7 @@ export function registerCommunityIpcHandlers(): void {
     const config = loadConfig();
     const affectedWeaponHashes = recommendationSourceItemHashes(config.data.data_dir, sourceKey);
     const snapshot = updateRecommendationManagedSource(config.data.data_dir, sourceKey, state);
-    if (sourceKey === "dim_wishlist" && state === "removed") {
+    if ((sourceKey === "dim_wishlist" || sourceKey.startsWith("dim:")) && state === "removed") {
       await removeDimWishlistEquipmentTargets(config.data.data_dir).catch(() => undefined);
     }
     invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
@@ -563,13 +580,17 @@ async function enrichRecommendationManagement(
   snapshot: RecommendationManagementSnapshot
 ): Promise<RecommendationManagementSnapshot> {
   const accountCountByHash = await loadCachedAccountCountByHash();
+  const sourceHashes = recommendationSourceItemHashesBySource(
+    dataDir,
+    snapshot.sources.map((source) => source.source_key)
+  );
   return {
     ...snapshot,
     removed_rules: await hydrateRecommendationManagedRules(snapshot.removed_rules, accountCountByHash),
     sources: snapshot.sources.map((source) => {
       let affectedInstanceCount = 0;
       try {
-        for (const itemHash of recommendationSourceItemHashes(dataDir, source.source_key)) {
+        for (const itemHash of sourceHashes.get(source.source_key) ?? []) {
           affectedInstanceCount += accountCountByHash.get(itemHash) ?? 0;
         }
       } catch {

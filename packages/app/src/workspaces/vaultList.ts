@@ -2,6 +2,7 @@ import { evaluateLocalTargets, summarizeLocalTargetMatches, type LocalTargetRule
 import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { AccountItemSummary, AmmoTypeKey, EquipmentGroupKey } from "@d2-tools/core/account/summary";
+import type { RecommendationCardSummary } from "@d2-tools/core/community-perks";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
@@ -20,13 +21,14 @@ export type VaultLocatedItem = AccountItemSummary & {
 export type VaultAmmoFilter = AmmoTypeKey | "all";
 export type VaultCraftingFilter = "all" | "crafted" | "uncrafted";
 export type VaultArmorStatFilter = ArmorStatKey | "total" | "all";
-export type VaultSortKey = "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
+export type VaultSortKey = "recommendation" | "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
 export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist" | "target";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultRarityFilter = "all" | "legendary" | "exotic";
 export type VaultGearTierFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5";
 export type VaultClassFilter = "all" | "titan" | "hunter" | "warlock";
 export type VaultDamageFilter = "all" | "kinetic" | "arc" | "solar" | "void" | "stasis" | "strand";
+export type VaultChampionFilter = "all" | "barrier" | "overload" | "unstoppable";
 export type VaultArmorSetFilter = string | "all";
 export type VaultViewMode = "list" | "duplicates";
 
@@ -50,6 +52,7 @@ export type VaultFilter = {
   gearTier?: VaultGearTierFilter;
   classType?: VaultClassFilter;
   damageType?: VaultDamageFilter;
+  championType?: VaultChampionFilter;
   armorSet?: VaultArmorSetFilter;
   armorStatRules?: VaultArmorStatRule[];
   frames?: string[];
@@ -158,6 +161,7 @@ export const tagLabels: Record<VaultTagFilter, string> = {
 };
 
 export const sortLabels: Record<VaultSortKey, string> = {
+  recommendation: "按推荐权重",
   name: "按名称",
   group: "按分组",
   tier: "按品质",
@@ -215,6 +219,13 @@ export const damageFilterLabels: Record<VaultDamageFilter, string> = {
   void: "虚空",
   stasis: "冰影",
   strand: "缚丝"
+};
+
+export const championFilterLabels: Record<VaultChampionFilter, string> = {
+  all: "全部",
+  barrier: "反屏障",
+  overload: "反过载",
+  unstoppable: "反势不可挡"
 };
 
 export const craftingFilterLabels: Record<VaultCraftingFilter, string> = {
@@ -320,6 +331,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesGearTier(item, filter.gearTier ?? "all")) return false;
     if (!matchesClass(item, filter.classType ?? "all")) return false;
     if (!matchesDamage(item, filter.damageType ?? "all")) return false;
+    if (!matchesChampion(item, filter.championType ?? "all")) return false;
     if (!matchesCrafting(item, filter.crafting ?? "all")) return false;
     if (!matchesArmorSet(item, filter.armorSet ?? "all")) return false;
     if (filter.frames?.length && !filter.frames.includes(item.weapon_frame?.key ?? "")) return false;
@@ -344,6 +356,11 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
       .filter(Boolean)
       .some((value) => value?.toLocaleLowerCase().includes(query));
   });
+}
+
+function matchesChampion(item: AccountItemSummary, filter: VaultChampionFilter): boolean {
+  if (filter === "all") return true;
+  return item.breaker_type?.champion_type === filter;
 }
 
 export function parseVaultQuery(query: string): ParsedVaultQuery {
@@ -487,10 +504,16 @@ export function buildVaultSections(items: AccountItemSummary[]): VaultSection[] 
 export function sortVaultItems(
   items: AccountItemSummary[],
   sortKey: VaultSortKey,
-  tags: VaultTags = { items: {} }
+  tags: VaultTags = { items: {} },
+  recommendationSummaries?: ReadonlyMap<string, RecommendationCardSummary>
 ): AccountItemSummary[] {
   void tags;
   return [...items].sort((left, right) => {
+    if (sortKey === "recommendation") {
+      return compareRecommendationWeight(left, right, recommendationSummaries)
+        || compareVaultItemIdentity(left, right);
+    }
+
     if (sortKey === "power") {
       return (right.power ?? 0) - (left.power ?? 0)
         || compareVaultItemIdentity(left, right);
@@ -513,6 +536,82 @@ export function sortVaultItems(
 
     return compareVaultItemIdentity(left, right);
   });
+}
+
+/**
+ * 推荐权重只消费扫描生成的轻量摘要，保证仓库列表不会为排序重新读取完整规则。
+ * 优先级状态先于来源状态；同级再比较命中率、命中数和部分命中数。
+ */
+function compareRecommendationWeight(
+  left: AccountItemSummary,
+  right: AccountItemSummary,
+  summaries?: ReadonlyMap<string, RecommendationCardSummary>
+): number {
+  const leftSummary = recommendationSummaryForItem(left, summaries);
+  const rightSummary = recommendationSummaryForItem(right, summaries);
+  const stateDifference = recommendationStateRank(leftSummary) - recommendationStateRank(rightSummary);
+  if (stateDifference) return stateDifference;
+
+  const sourceDifference = recommendationSourceRank(leftSummary) - recommendationSourceRank(rightSummary);
+  if (sourceDifference) return sourceDifference;
+
+  const leftRatio = recommendationMatchRatio(leftSummary);
+  const rightRatio = recommendationMatchRatio(rightSummary);
+  const ratioDifference = rightRatio - leftRatio;
+  if (ratioDifference) return ratioDifference;
+
+  const matchedDifference = (rightSummary?.matched ?? 0) - (leftSummary?.matched ?? 0);
+  if (matchedDifference) return matchedDifference;
+
+  const partialDifference = (rightSummary?.partial ?? 0) - (leftSummary?.partial ?? 0);
+  if (partialDifference) return partialDifference;
+
+  return (rightSummary?.available ?? 0) - (leftSummary?.available ?? 0);
+}
+
+function recommendationMatchRatio(summary?: RecommendationCardSummary): number {
+  if (!summary || summary.available <= 0) return 0;
+  return summary.matched / summary.available;
+}
+
+function recommendationSummaryForItem(
+  item: AccountItemSummary,
+  summaries?: ReadonlyMap<string, RecommendationCardSummary>
+): RecommendationCardSummary | undefined {
+  if (!summaries) return undefined;
+  return summaries.get(item.instance_id ?? `hash:${item.hash}`);
+}
+
+function recommendationStateRank(summary?: RecommendationCardSummary): number {
+  if (!summary) return 3;
+  if (summary.recommendation_state === "priority") return 0;
+  if (summary.recommendation_state === "compare") return 1;
+  return 2;
+}
+
+function recommendationSourceRank(summary?: RecommendationCardSummary): number {
+  if (!summary?.sources.length) return 99;
+  return summary.sources.reduce((best, source) => Math.min(
+    best,
+    recommendationSourceStateRank(source.state) * 100 + recommendationSourcePriority(source.source_id)
+  ), 999);
+}
+
+function recommendationSourceStateRank(state: RecommendationCardSummary["sources"][number]["state"]): number {
+  if (state === "full") return 0;
+  if (state === "core") return 1;
+  if (state === "close" || state === "weapon_only") return 2;
+  if (state === "key_missing" || state === "not_matched") return 3;
+  return 4;
+}
+
+function recommendationSourcePriority(sourceId: string): number {
+  if (sourceId === "aegis") return 0;
+  if (sourceId === "lgpig") return 1;
+  if (sourceId === "yxcrallxy") return 2;
+  if (sourceId === "sayalarry") return 3;
+  if (sourceId === "dim_wishlist" || sourceId === "dim_voltron" || sourceId.startsWith("dim:")) return 4;
+  return 9;
 }
 
 /**

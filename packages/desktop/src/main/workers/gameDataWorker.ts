@@ -109,7 +109,9 @@ async function handleRequest(request: GameDataWorkerRequest): Promise<unknown> {
   }
   if (request.operation === "getDefinitions") {
     const input = request.input as DefinitionRequest;
-    const definitions = current.reader.getMany(input.component, input.hashes);
+    const definitions = input.component === "DestinyBreakerTypeDefinition" && input.hashes.length === 0
+      ? current.reader.getAll(input.component)
+      : current.reader.getMany(input.component, input.hashes);
     return projectDefinitions(input.component, definitions, input.projection);
   }
   if (request.operation === "listArmorSets") {
@@ -361,6 +363,11 @@ function projectInventoryItemSummary(definition: DefinitionRecord): DefinitionRe
     traitIds: definition.traitIds,
     itemType: definition.itemType,
     classType: definition.classType,
+    breakerType: definition.breakerType,
+    breakerTypeHash: definition.breakerTypeHash,
+    perks: definition.perks?.map((perk) => compactObject({
+      perkHash: perk.perkHash
+    })),
     inventory: compactObject({
       tierTypeName: definition.inventory?.tierTypeName,
       bucketTypeHash: definition.inventory?.bucketTypeHash,

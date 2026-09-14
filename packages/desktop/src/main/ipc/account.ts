@@ -11,6 +11,7 @@ import {
   encodeDesktopIpcFailure
 } from "../../contracts/errors.js";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { loadManifestMetadataCache } from "@d2-tools/services/manifest/cache";
 import {
   loadCachedAccountSnapshot
 } from "@d2-tools/services/account/snapshotStore";
@@ -45,8 +46,12 @@ export function registerAccountIpcHandlers(): void {
   ipcMain.handle("account:snapshot:cached", async () => {
     const config = loadConfig();
     const accountId = loadOAuthToken(config.data.data_dir)?.membership_id;
+    const manifestRevision = loadManifestMetadataCache(config.data.data_dir)?.metadata.version?.trim();
     return accountId
-      ? loadCachedAccountSnapshot(config.data.data_dir, { accountId })
+      ? loadCachedAccountSnapshot(config.data.data_dir, {
+          accountId,
+          manifestRevision: manifestRevision || undefined
+        })
       : null;
   });
 

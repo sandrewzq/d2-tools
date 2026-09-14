@@ -4,6 +4,46 @@ import type {
   AccountWeaponRollSummary
 } from "../account/summary.js";
 
+export type RecommendationDocument = {
+  documentId: string;
+  origin: "url" | "file" | "paste";
+  sourceUrl?: string;
+  revision?: string;
+  fingerprint: string;
+  importedAt: string;
+};
+
+export type RecommendationSource = {
+  sourceId: string;
+  documentId: string;
+  kind: "dim" | "excel" | "csv" | "builtin";
+  label: string;
+  title: string;
+  author?: string;
+  blockId?: string;
+  origin: "community" | "local-file" | "paste" | "builtin";
+  sourceUrl?: string;
+  revision?: string;
+  fingerprint: string;
+  state: "active" | "disabled" | "removed";
+};
+
+export type RecommendationRequirement = {
+  slot?: RecommendationRequirementSlot;
+  operator: "any" | "all";
+  candidates: PerkRef[];
+};
+
+export type RecommendationRule = {
+  sourceId: string;
+  ruleId: string;
+  itemHashes: number[];
+  mode: "pve" | "pvp" | "general";
+  kind: "roll" | "weapon_only";
+  requirements: RecommendationRequirement[];
+  note?: string;
+};
+
 export type RecommendationRequirementSlot =
   | "barrel"
   | "magazine"
@@ -22,6 +62,9 @@ export type PerkRef = {
 
 export type PerkCombo = {
   rule_stable_id?: string;
+  source_id?: string;
+  source_label?: string;
+  kind?: "roll" | "weapon_only";
   perks: PerkRef[];
   source: "dim_wishlist" | "local_community";
   mode: "pve" | "pvp" | "general";
@@ -239,6 +282,8 @@ export type RecommendationCardSummary = Pick<
 
 export type DimWishlistRuleInstanceMatch = {
   rule_stable_id?: string;
+  source_id?: string;
+  source_label?: string;
   mode: "pve" | "pvp" | "general";
   state: "match" | "partial" | "different" | "uncheckable";
   matched_requirement_count: number;
@@ -256,6 +301,20 @@ export type DimWishlistInstanceMatch = {
   best_requirement_count: number;
   modes: Array<"pve" | "pvp" | "general">;
   rules: DimWishlistRuleInstanceMatch[];
+  sources?: DimWishlistSourceInstanceMatch[];
+};
+
+export type DimWishlistSourceInstanceMatch = {
+  source_id: string;
+  source_label: string;
+  state: "full" | "close" | "not_matched" | "uncheckable" | "weapon_only";
+  matched_combo_count: number;
+  partial_combo_count: number;
+  uncheckable_combo_count: number;
+  combo_count: number;
+  best_matched_requirement_count: number;
+  best_requirement_count: number;
+  modes: Array<"pve" | "pvp" | "general">;
 };
 
 export type VaultRecommendationDependencyIssueCode =

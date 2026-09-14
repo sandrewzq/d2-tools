@@ -69,8 +69,6 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         switchToEnglish: "切换为英文",
         github: "GitHub",
         settings: "设置",
-        openAiAssistant: "打开 AI 助手抽屉",
-        aiAssistant: "AI 助手",
         languageBadge: "中"
       }
     },
@@ -142,8 +140,6 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         switchToEnglish: "Switch to English",
         github: "GitHub",
         settings: "Settings",
-        openAiAssistant: "Open AI assistant drawer",
-        aiAssistant: "AI Assistant",
         languageBadge: "EN"
       }
     }
