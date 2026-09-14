@@ -16,4 +16,12 @@ describe("DIM wishlist import", () => {
       { item_hash: 123, perk_hashes: [33, 44], mode: "pvp", note: "PVP 手感" }
     ]);
   });
+
+  it("keeps empty perk rules as weapon-only matches", () => {
+    const wishlist = parseDimWishlist("dimwishlist:item=123&perks=");
+
+    expect(wishlist.rules).toEqual([
+      { item_hash: 123, perk_hashes: [], kind: "weapon_only", mode: "general", note: "" }
+    ]);
+  });
 });

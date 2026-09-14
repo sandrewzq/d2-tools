@@ -488,7 +488,10 @@ function WebApp() {
                 refreshActivity: () => undefined,
                 refreshPowerRoute: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
-                openItem: (payload) => openWebAccountItem(payload.item, "account")
+                openItem: (payload) => openWebAccountItem(payload.item, "account"),
+                refreshWeeklyRotation: () => undefined,
+                refreshWeeklyFarming: () => undefined,
+                openWeeklyFarmingItem: () => undefined
               }}
             />
           ) : null}

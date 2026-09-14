@@ -22,6 +22,8 @@ export { RefreshControlButton } from "./control/RefreshControlButton.js";
 export type { RefreshControlButtonProps } from "./control/RefreshControlButton.js";
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
+export { WeeklyFarmingPanel } from "./weekly/WeeklyFarmingPanel.js";
+export type { WeeklyFarmingPanelActions } from "./weekly/WeeklyFarmingPanel.js";
 export { AiAssistantPanelView } from "./assistant/AiAssistantPanelView.js";
 export type {
   AiAssistantContextView,

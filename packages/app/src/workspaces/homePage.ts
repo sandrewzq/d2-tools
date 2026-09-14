@@ -161,7 +161,7 @@ export function buildLibraryContextFacts(input: {
   perkSearchTouched: boolean;
 }): string[] {
   if (input.viewMode === "weekly_farming") {
-    return ["资料库搜索：当前在本周刷取模式，展示本周可刷活动的掉落清单。"];
+    return ["账号本周行动：当前在本周刷取模式，展示本周可刷活动的掉落清单。"];
   }
 
   const isPerkMode = input.viewMode === "perks";

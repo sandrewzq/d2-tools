@@ -815,7 +815,6 @@ export function VaultPageContentView(props: {
               armorStatRules={armorStatRules}
               lockFilter={lockFilter}
               slotFilter={slotFilter}
-              locationFilter={locationFilter}
               ammoFilter={ammoFilter}
               itemTypeFilter={itemTypeFilter}
               rarityFilter={rarityFilter}
@@ -830,7 +829,6 @@ export function VaultPageContentView(props: {
               group={group}
               groups={groups}
               slotFilters={slotFilters}
-              locationFilters={locationFilters}
               itemTypeFilters={itemTypeFilters}
               armorSetFilters={armorSetFilters}
               armorSetCatalogStatus={props.armorSetCatalogStatus}
@@ -846,7 +844,6 @@ export function VaultPageContentView(props: {
               onUpdateArmorStatRule={(index, rule) => setArmorStatRules((current) => current.map((item, itemIndex) => itemIndex === index ? rule : item))}
               onLockFilterChange={setLockFilter}
               onSlotFilterChange={setSlotFilter}
-              onLocationFilterChange={setLocationFilter}
               onAmmoFilterChange={setAmmoFilter}
               onItemTypeFilterChange={setItemTypeFilter}
               onRarityFilterChange={setRarityFilter}
@@ -950,20 +947,21 @@ export function VaultPageContentView(props: {
                   <strong>{filteredItems.length} 件</strong>
                   <span>{activeFilterLabels.length} 项条件</span>
                 </div>
-                <label className="vault-results-sort">
-                  <span className="vault-results-sort-label">排序</span>
-                  <select
-                    aria-label="结果排序"
-                    title={sortKey === "recommendation"
-                      ? "推荐权重：优先级 → 比较 → 未收录；同级按来源命中程度排序"
-                      : "结果排序规则"}
-                    value={sortKey}
-                    onChange={(event) => setSortKey(event.target.value as VaultSortKey)}
-                  >
-                    {(Object.keys(sortLabels) as VaultSortKey[]).map((key) => <option key={key} value={key}>{sortLabels[key]}</option>)}
-                  </select>
-                  {sortKey === "recommendation" ? <small className="vault-results-sort-rule">权重：优先级 → 比较 → 未收录</small> : null}
-                </label>
+                {group === "weapons" ? (
+                  <div className="vault-results-location-filter" role="group" aria-label="武器查看位置">
+                    {locationFilters.map((item) => (
+                      <button
+                        type="button"
+                        key={item.key}
+                        aria-pressed={locationFilter === item.key}
+                        onClick={() => setLocationFilter(item.key)}
+                      >
+                        <span>{item.label}</span>
+                        <small aria-hidden="true">{item.count}</small>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="vault-batch-toggle"

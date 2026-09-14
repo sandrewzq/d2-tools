@@ -10,6 +10,9 @@ import type {
 } from "../../api/types";
 import type { DimWishlist, RecommendationCardSummary } from "../../api/types";
 import { selectAccountPageModel, type AccountOpenItemPayload, type AccountOperationFeedbackView } from "@d2-tools/app/account";
+import { buildLibraryWeeklyFarmingView, type LibraryWeeklyFarmingItemView } from "@d2-tools/app/library";
+import type { VaultItemMatchInfo } from "@d2-tools/app/library";
+import type { WeeklyFarmingCatalogResource } from "@d2-tools/core/weekly/farming";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup
@@ -45,6 +48,14 @@ export function AccountPage(props: {
   activeLoadoutTemplate: LoadoutTemplate | null;
   wishlist: DimWishlist | null;
   recommendationCardSummary: ReadonlyMap<string, RecommendationCardSummary>;
+  weeklyFarmingCatalog?: WeeklyFarmingCatalogResource | null;
+  weeklyFarmingCommunityMatch?: ReadonlyMap<number, VaultItemMatchInfo>;
+  weeklyFarmingInstanceRecommendationReady?: boolean;
+  weeklyFarmingError?: string;
+  weeklyFarmingRecommendationError?: string;
+  isLoadingWeeklyFarming?: boolean;
+  isRefreshingWeeklyRotation?: boolean;
+  weeklyRotationError?: string;
   onConfigureBungie: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
@@ -60,6 +71,9 @@ export function AccountPage(props: {
       is_postmaster_item?: boolean;
     }
   ) => void;
+  onRefreshWeeklyRotation: () => void;
+  onRefreshWeeklyFarming: () => void;
+  onOpenWeeklyFarmingItem: (item: LibraryWeeklyFarmingItemView) => void;
 }) {
   const isBungieConfigured = props.startupState.cards.bungieConfig.status === "ready";
   const isAccountLoggedIn = props.startupState.cards.account.status === "ready";
@@ -137,6 +151,29 @@ export function AccountPage(props: {
     props.wishlist,
     props.recommendationCardSummary
   ), [props.accountSummary, props.recommendationCardSummary, props.wishlist]);
+  const weeklyFarming = useMemo(() => buildLibraryWeeklyFarmingView({
+    resource: props.weeklyFarmingCatalog,
+    accountSummary: props.accountSummary,
+    definitionMatches: props.weeklyFarmingCommunityMatch,
+    instanceMatches: props.recommendationCardSummary,
+    instanceRecommendationReady: props.weeklyFarmingInstanceRecommendationReady,
+    isLoading: props.isLoadingWeeklyFarming,
+    isRefreshingRotation: props.isRefreshingWeeklyRotation,
+    error: props.weeklyFarmingError,
+    rotationError: props.weeklyRotationError,
+    recommendationError: props.weeklyFarmingRecommendationError
+  }), [
+    props.weeklyFarmingCatalog,
+    props.accountSummary,
+    props.weeklyFarmingCommunityMatch,
+    props.recommendationCardSummary,
+    props.weeklyFarmingInstanceRecommendationReady,
+    props.isLoadingWeeklyFarming,
+    props.isRefreshingWeeklyRotation,
+    props.weeklyFarmingError,
+    props.weeklyRotationError,
+    props.weeklyFarmingRecommendationError
+  ]);
 
   function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
     return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;
@@ -166,8 +203,12 @@ export function AccountPage(props: {
           const character = findCharacter(characterId);
           if (character) props.onEquipHighestPowerItems(character);
         },
-        openItem
+        openItem,
+        refreshWeeklyRotation: props.onRefreshWeeklyRotation,
+        refreshWeeklyFarming: props.onRefreshWeeklyFarming,
+        openWeeklyFarmingItem: props.onOpenWeeklyFarmingItem
       }}
+      weeklyFarming={weeklyFarming}
     />
   );
 }

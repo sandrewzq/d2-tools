@@ -108,6 +108,7 @@ export function parseDimWishlist(text: string): DimWishlist {
     const itemHash = Number(match[1]);
     const perkHashes = match[2]
       .split(",")
+      .filter(Boolean)
       .map(Number)
       .filter(isUnsignedHash);
     if (isUnsignedHash(itemHash)) {

@@ -10,6 +10,7 @@ import type {
   AccountReadonlyItemView,
   AccountSlotComparisonViewRow
 } from "@d2-tools/app/account";
+import type { LibraryWeeklyFarmingItemView, LibraryWeeklyFarmingView } from "@d2-tools/app/library";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
@@ -24,6 +25,7 @@ import {
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
+import { WeeklyFarmingPanel } from "../weekly/WeeklyFarmingPanel.js";
 
 type AccountItemSource = "equipped" | "inventory" | "postmaster";
 
@@ -36,6 +38,9 @@ export type AccountPageActions = {
   selectCharacter: (characterId: string) => void;
   equipHighestPower?: (characterId: string) => void;
   openItem: (payload: AccountOpenItemPayload) => void;
+  refreshWeeklyRotation: () => void;
+  refreshWeeklyFarming: () => void;
+  openWeeklyFarmingItem: (item: LibraryWeeklyFarmingItemView) => void;
 };
 
 export type AccountPageContentViewProps = {
@@ -43,9 +48,11 @@ export type AccountPageContentViewProps = {
   viewModel: AccountPageViewModel;
   actions: AccountPageActions;
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
+  weeklyFarming?: LibraryWeeklyFarmingView;
 };
 
-type AccountSection = "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
+type AccountMode = "role_state" | "weekly_action" | "account_data";
+type AccountSection = "gear" | "configuration" | "postmaster" | "tasks" | "power_route" | "weekly_farming" | "items" | "activity";
 const accountCategoryOrder: AccountSlotComparisonViewRow["category"][] = ["weapons", "armor"];
 const accountCategoryLabels: Record<AccountSlotComparisonViewRow["category"], string> = {
   weapons: "武器",
@@ -62,6 +69,29 @@ function visibleAccountSlotRows(rows: AccountSlotComparisonViewRow[]): AccountSl
   });
 }
 
+function accountModeForSection(section: AccountSection): AccountMode {
+  if (["tasks", "power_route", "weekly_farming"].includes(section)) return "weekly_action";
+  if (["items", "activity"].includes(section)) return "account_data";
+  return "role_state";
+}
+
+function initialAccountSection(): AccountSection {
+  if (typeof window === "undefined") return "gear";
+  switch (window.location.hash) {
+    case "#account-role-state": return "gear";
+    case "#account-weekly-action": return "tasks";
+    case "#account-account-data": return "items";
+    case "#account-tasks": return "tasks";
+    case "#account-power-route": return "power_route";
+    case "#account-weekly-farming": return "weekly_farming";
+    case "#account-items": return "items";
+    case "#account-activity": return "activity";
+    case "#account-configuration": return "configuration";
+    case "#account-postmaster": return "postmaster";
+    default: return "gear";
+  }
+}
+
 export function AccountPageContentView(props: AccountPageContentViewProps) {
   const interfaceLocale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(interfaceLocale).account;
@@ -70,15 +100,13 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const profile = viewModel.profile;
   const activitySummary = viewModel.activity.summary;
   const activityReview = activitySummary ? activitySummary.review : null;
-  const [section, setSection] = useState<AccountSection>(() => (
-    typeof window !== "undefined" && window.location.hash === "#account-tasks" ? "tasks" : "gear"
-  ));
+  const [section, setSection] = useState<AccountSection>(initialAccountSection);
 
   if (!profile || !selectedCharacter) {
     return <AccountUnavailableState actions={actions} copy={copy} viewModel={viewModel} />;
   }
 
-  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} recommendationSummaryByInstance={props.recommendationSummaryByInstance} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} />;
+  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} recommendationSummaryByInstance={props.recommendationSummaryByInstance} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} weeklyFarming={props.weeklyFarming} />;
 }
 
 function AccountUnavailableState(props: {
@@ -132,8 +160,11 @@ function AccountPageWorkspace(props: {
   selectedCharacter: NonNullable<AccountPageViewModel["selectedCharacter"]>;
   setSection: (section: AccountSection) => void;
   viewModel: AccountPageViewModel;
+  weeklyFarming?: LibraryWeeklyFarmingView;
 }) {
   const profile = props.viewModel.profile!;
+  const [mode, setMode] = useState<AccountMode>(() => accountModeForSection(props.section));
+  const modeRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const characterRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const directoryTabsRef = useRef<HTMLDivElement | null>(null);
@@ -152,14 +183,27 @@ function AccountPageWorkspace(props: {
     row.itemName && row.sourceKind && row.sourceKind !== "equipped"
   ));
   const directoryOrientation = useAccountDirectoryOrientation();
-  const navigation: Array<{ key: AccountSection; label: string; count?: number; groupLabel?: string; scopeLabel: string }> = [
-    { key: "gear", label: accountText(props.copy, "战斗装备"), groupLabel: accountText(props.copy, "当前角色"), scopeLabel: accountText(props.copy, "当前角色") },
-    { key: "configuration", label: accountText(props.copy, "角色物品与配置"), scopeLabel: accountText(props.copy, "当前角色") },
-    { key: "tasks", label: accountText(props.copy, "任务与赏金"), scopeLabel: accountText(props.copy, "全部角色") },
-    { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined, scopeLabel: accountText(props.copy, "当前角色") },
-    { key: "items", label: accountText(props.copy, "材料与货币"), groupLabel: accountText(props.copy, "整个账号"), scopeLabel: accountText(props.copy, "整个账号") },
-    { key: "activity", label: accountText(props.copy, "账号战绩"), scopeLabel: accountText(props.copy, "整个账号") }
+  const modeNavigation: Array<{ key: AccountMode; label: string; detail: string }> = [
+    { key: "role_state", label: accountText(props.copy, "角色状态"), detail: accountText(props.copy, "当前角色") },
+    { key: "weekly_action", label: accountText(props.copy, "本周行动"), detail: accountText(props.copy, "任务、提光与刷取") },
+    { key: "account_data", label: accountText(props.copy, "账号资料"), detail: accountText(props.copy, "整个账号") }
   ];
+  const navigation: Array<{ key: AccountSection; label: string; count?: number; scopeLabel: string }> = mode === "role_state"
+    ? [
+        { key: "gear", label: accountText(props.copy, "战斗装备"), scopeLabel: accountText(props.copy, "当前角色") },
+        { key: "configuration", label: accountText(props.copy, "角色物品与配置"), scopeLabel: accountText(props.copy, "当前角色") },
+        { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined, scopeLabel: accountText(props.copy, "当前角色") }
+      ]
+    : mode === "weekly_action"
+      ? [
+          { key: "tasks", label: accountText(props.copy, "任务与赏金"), scopeLabel: accountText(props.copy, "全部角色") },
+          { key: "power_route", label: accountText(props.copy, "光等提升"), scopeLabel: accountText(props.copy, "当前角色") },
+          { key: "weekly_farming", label: accountText(props.copy, "本周刷取"), scopeLabel: accountText(props.copy, "整个账号") }
+        ]
+      : [
+          { key: "items", label: accountText(props.copy, "材料与货币"), scopeLabel: accountText(props.copy, "整个账号") },
+          { key: "activity", label: accountText(props.copy, "账号战绩"), scopeLabel: accountText(props.copy, "整个账号") }
+        ];
 
   useEffect(() => {
     const tabs = directoryTabsRef.current;
@@ -180,7 +224,7 @@ function AccountPageWorkspace(props: {
       tabs.removeEventListener("scroll", updateScrollState);
       observer.disconnect();
     };
-  }, [directoryOrientation, navigation.length]);
+  }, [directoryOrientation, navigation.length, mode]);
 
   useEffect(() => {
     const selectedIndex = navigation.findIndex((item) => item.key === props.section);
@@ -188,13 +232,70 @@ function AccountPageWorkspace(props: {
     tabRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [props.section]);
 
+  function selectMode(nextMode: AccountMode): void {
+    setIsPowerPanelOpen(false);
+    const firstSection = nextMode === "role_state" ? "gear" : nextMode === "weekly_action" ? "tasks" : "items";
+    setMode(nextMode);
+    props.setSection(firstSection);
+    if (typeof window !== "undefined") window.history.replaceState(null, "", `#account-${nextMode.replace("_", "-")}`);
+  }
+
   function selectSection(nextSection: AccountSection): void {
     setIsPowerPanelOpen(false);
+    setMode(accountModeForSection(nextSection));
     if (typeof window !== "undefined") {
       if (nextSection === "tasks") window.history.replaceState(null, "", "#account-tasks");
-      else if (window.location.hash === "#account-tasks") window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+      else if (nextSection === "power_route") window.history.replaceState(null, "", "#account-power-route");
+      else if (nextSection === "weekly_farming") window.history.replaceState(null, "", "#account-weekly-farming");
+      else if (nextSection === "items") window.history.replaceState(null, "", "#account-items");
+      else if (nextSection === "activity") window.history.replaceState(null, "", "#account-activity");
+      else if (nextSection === "configuration") window.history.replaceState(null, "", "#account-configuration");
+      else if (nextSection === "postmaster") window.history.replaceState(null, "", "#account-postmaster");
+      else if (window.location.hash) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     }
     props.setSection(nextSection);
+  }
+
+  function handleModeKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex: index,
+      itemCount: modeNavigation.length,
+      orientation: directoryOrientation
+    });
+    if (nextIndex === null) {
+      const entersDirectory = directoryOrientation === "horizontal"
+        ? event.key === "ArrowDown"
+        : event.key === "ArrowRight";
+      if (!entersDirectory) return;
+      event.preventDefault();
+      window.requestAnimationFrame(() => tabRefs.current[0]?.focus());
+      return;
+    }
+    event.preventDefault();
+    selectMode(modeNavigation[nextIndex].key);
+    modeRefs.current[nextIndex]?.focus();
+  }
+
+  function handleDirectoryKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
+    const nextIndex = getRovingFocusIndex({
+      key: event.key,
+      currentIndex: index,
+      itemCount: navigation.length,
+      orientation: directoryOrientation
+    });
+    if (nextIndex === null) {
+      const entersPanel = directoryOrientation === "horizontal"
+        ? event.key === "ArrowDown"
+        : event.key === "ArrowRight";
+      if (!entersPanel) return;
+      event.preventDefault();
+      focusAccountPanel(navigation[index].key);
+      return;
+    }
+    event.preventDefault();
+    selectSection(navigation[nextIndex].key);
+    tabRefs.current[nextIndex]?.focus();
   }
 
   useEffect(() => {
@@ -251,27 +352,6 @@ function AccountPageWorkspace(props: {
     };
   }, [isPowerPanelOpen]);
 
-  function handleDirectoryKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
-    const nextIndex = getRovingFocusIndex({
-      key: event.key,
-      currentIndex: index,
-      itemCount: navigation.length,
-      orientation: directoryOrientation
-    });
-    if (nextIndex === null) {
-      const entersPanel = directoryOrientation === "horizontal"
-        ? event.key === "ArrowDown"
-        : event.key === "ArrowRight";
-      if (!entersPanel) return;
-      event.preventDefault();
-      focusAccountPanel(navigation[index].key);
-      return;
-    }
-
-    event.preventDefault();
-    selectSection(navigation[nextIndex].key);
-    tabRefs.current[nextIndex]?.focus();
-  }
 
   function handleCharacterKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
     let nextIndex = index;
@@ -312,6 +392,26 @@ function AccountPageWorkspace(props: {
           <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号目录</h3>
           <span data-ui-part="detail" data-info-priority="trace" data-text-tone="meta">{profile.accountName}</span>
         </div>
+        <div className="account-mode-tabs" role="tablist" aria-orientation={directoryOrientation} aria-label={accountText(props.copy, "账号工作模式")}>
+          {modeNavigation.map((item, index) => (
+            <button
+              type="button"
+              role="tab"
+              id={`account-mode-${item.key}`}
+              aria-selected={mode === item.key}
+              aria-controls="account-mode-panel"
+              aria-label={`${item.label}：${item.detail}`}
+              tabIndex={mode === item.key ? 0 : -1}
+              className={mode === item.key ? "active" : ""}
+              ref={(element) => { modeRefs.current[index] = element; }}
+              onClick={() => selectMode(item.key)}
+              onKeyDown={(event) => handleModeKeyDown(event, index)}
+            >
+              <span>{item.label}</span>
+              <small>{item.detail}</small>
+            </button>
+          ))}
+        </div>
         <div
           ref={directoryTabsRef}
           className="account-directory-tabs"
@@ -323,7 +423,6 @@ function AccountPageWorkspace(props: {
         >
           {navigation.map((item, index) => (
             <Fragment key={item.key}>
-              {item.groupLabel ? <span className="account-directory-group-label" role="presentation">{item.groupLabel}</span> : null}
               <button
                 type="button"
                 role="tab"
@@ -332,7 +431,7 @@ function AccountPageWorkspace(props: {
                 aria-label={`${item.scopeLabel}：${item.label}`}
                 aria-selected={props.section === item.key}
                 tabIndex={props.section === item.key ? 0 : -1}
-                className={`${props.section === item.key ? "active" : ""} ${item.groupLabel && index > 0 ? "group-start" : ""}`.trim()}
+                className={props.section === item.key ? "active" : ""}
                 ref={(element) => { tabRefs.current[index] = element; }}
                 onClick={() => selectSection(item.key)}
                 onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
@@ -344,7 +443,7 @@ function AccountPageWorkspace(props: {
           ))}
         </div>
       </ProductWorkspaceSideRail>
-      <ProductWorkspaceContentStack className="account-content">
+      <ProductWorkspaceContentStack className="account-content" id="account-mode-panel" aria-labelledby={`account-mode-${mode}`}>
         <section className="account-summary" data-surface="section" aria-busy={props.viewModel.connection.isLoadingAccount}>
           <div className="account-band-heading">
             <div>
@@ -365,6 +464,7 @@ function AccountPageWorkspace(props: {
               {connectionLabel}
             </span>
           </div>
+          {mode === "role_state" ? <>
           <div className="account-character-switcher" data-ui-kind="context-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
             {props.viewModel.characterTabs.map((tab, index) => {
               const characterCapacity = props.viewModel.capacity.characters.find((character) => character.characterId === tab.key);
@@ -439,12 +539,23 @@ function AccountPageWorkspace(props: {
                   : props.copy.actions.equipHighestPower}
             </button> : null}
           </div>
-          <AccountPowerRouteOverview
-            copy={props.copy}
-            characterName={props.selectedCharacter.className}
-            onRefresh={props.actions.refreshPowerRoute}
-            route={props.viewModel.powerRoute}
-          />
+          </> : mode === "weekly_action" ? (
+            <div className="account-mode-summary" data-ui-kind="summary-frame">
+              <div>
+                <strong>{accountText(props.copy, "本周行动")}</strong>
+                <span>{accountText(props.copy, "任务、提光与刷取")}</span>
+              </div>
+              <span>{props.selectedCharacter.className} · {accountText(props.copy, "当前角色可切换")}</span>
+            </div>
+          ) : (
+            <div className="account-mode-summary" data-ui-kind="summary-frame">
+              <div>
+                <strong>{accountText(props.copy, "账号资料")}</strong>
+                <span>{accountText(props.copy, "材料、货币与近期活动")}</span>
+              </div>
+              <span>{accountText(props.copy, "整个账号")}</span>
+            </div>
+          )}
           {isPowerPanelOpen ? (
             powerOverlayHost ? createPortal(
               <div className="modal-backdrop account-power-dialog-backdrop" role="presentation" onClick={() => {
@@ -557,6 +668,48 @@ function AccountPageWorkspace(props: {
                   ? "本次读取失败，不能把空列表解释为账号没有任务。"
                   : "三个角色的任务物品和角色目标中没有可显示项目。"}
             />
+          )}
+        </section>
+
+        <section
+          className={`account-section ${props.section === "power_route" ? "active" : ""}`}
+          id="account-panel-power_route"
+          role="tabpanel"
+          aria-labelledby="account-tab-power_route"
+          tabIndex={-1}
+          hidden={props.section !== "power_route"}
+        >
+          <div className="account-column-head">
+            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "光等提升")}</h3>
+            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "当前角色")}</span>
+          </div>
+          <AccountPowerRouteOverview
+            copy={props.copy}
+            characterName={props.selectedCharacter.className}
+            onRefresh={props.actions.refreshPowerRoute}
+            route={props.viewModel.powerRoute}
+          />
+        </section>
+
+        <section
+          className={`account-section ${props.section === "weekly_farming" ? "active" : ""}`}
+          id="account-panel-weekly_farming"
+          role="tabpanel"
+          aria-labelledby="account-tab-weekly_farming"
+          tabIndex={-1}
+          hidden={props.section !== "weekly_farming"}
+        >
+          {props.weeklyFarming ? (
+            <WeeklyFarmingPanel
+              weekly={props.weeklyFarming}
+              actions={{
+                onRefreshWeeklyRotation: props.actions.refreshWeeklyRotation,
+                onRefreshWeeklyFarming: props.actions.refreshWeeklyFarming,
+                onOpenWeeklyFarmingItem: props.actions.openWeeklyFarmingItem
+              }}
+            />
+          ) : (
+            <AccountInlineState title="本周刷取暂不可用" detail="本周轮换数据加载后会在这里显示活动、推荐装备和账号缺口。" />
           )}
         </section>
 

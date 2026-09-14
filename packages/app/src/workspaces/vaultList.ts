@@ -176,7 +176,7 @@ export const sortLabels: Record<VaultSortKey, string> = {
 };
 
 export const lockFilterLabels: Record<VaultLockFilter, string> = {
-  all: "全部锁定状态",
+  all: "全部",
   locked: "已锁定",
   unlocked: "未锁定"
 };
@@ -411,11 +411,13 @@ export function buildVaultSlotFilters(items: AccountItemSummary[]): VaultSlotSum
   const sections = buildVaultSections(items);
   return [
     { key: "all", label: "全部位置", count: items.length },
-    ...sections.map((section) => ({
-      key: section.key,
-      label: section.label,
-      count: section.count
-    }))
+    ...sections
+      .map((section) => ({
+        key: section.key,
+        label: section.label,
+        count: section.count
+      }))
+      .sort((left, right) => right.count - left.count || compareText(left.label, right.label))
   ];
 }
 
@@ -432,11 +434,15 @@ export function buildVaultLocationFilters(
     if (!location) continue;
     counts.set(location, (counts.get(location) ?? 0) + 1);
   }
-  return visibleVaultLocationFilters.map((key) => ({
-    key,
-    label: locationFilterLabels[key],
-    count: counts.get(key) ?? 0
-  }));
+  return visibleVaultLocationFilters
+    .map((key, index) => ({
+      key,
+      label: locationFilterLabels[key],
+      count: counts.get(key) ?? 0,
+      order: index
+    }))
+    .sort((left, right) => right.count - left.count || left.order - right.order)
+    .map((option) => ({ key: option.key, label: option.label, count: option.count }));
 }
 
 export function buildVaultFrameFilters(items: AccountItemSummary[]): VaultFrameOption[] {
@@ -479,7 +485,7 @@ export function buildVaultArmorSetFilters(
     }
   }
 
-  return [...options.values()].sort((left, right) => compareText(left.label, right.label) || left.key.localeCompare(right.key));
+  return [...options.values()].sort((left, right) => right.count - left.count || compareText(left.label, right.label) || left.key.localeCompare(right.key));
 }
 
 export function buildVaultSections(items: AccountItemSummary[]): VaultSection[] {
