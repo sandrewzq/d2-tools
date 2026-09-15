@@ -45,6 +45,30 @@
   transform: skew(-8deg);
 }
 
+/* 武器槽位用自绘字形表达（官方 bucket 定义未提供图标）：方块=动能、三角=能量、圆形=威能。 */
+.game-slot-glyph {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+}
+
+.game-slot-glyph[data-slot-shape="square"] {
+  border-radius: 1px;
+}
+
+.game-slot-glyph[data-slot-shape="triangle"] {
+  clip-path: polygon(50% 2%, 98% 96%, 2% 96%);
+}
+
+.game-slot-glyph[data-slot-shape="circle"] {
+  border-radius: 50%;
+}
+
+.game-combat-icon[data-combat-kind="slot"][data-combat-type="kinetic"] { --game-combat-accent: var(--element-kinetic-border); }
+.game-combat-icon[data-combat-kind="slot"][data-combat-type="energy"] { --game-combat-accent: var(--status-ready); }
+.game-combat-icon[data-combat-kind="slot"][data-combat-type="power"] { --game-combat-accent: var(--violet); }
+
 .game-combat-icon[data-combat-kind="damage"][data-combat-type="kinetic"] { --game-combat-accent: var(--element-kinetic-border); }
 .game-combat-icon[data-combat-kind="damage"][data-combat-type="arc"] { --game-combat-accent: var(--element-arc-border); }
 .game-combat-icon[data-combat-kind="damage"][data-combat-type="solar"] { --game-combat-accent: var(--element-solar-border); }

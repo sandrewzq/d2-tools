@@ -45,9 +45,10 @@ export function saveDimRecommendationDocument(
     const existingSourceIds = new Set((database.prepare(
       "SELECT source_id FROM recommendation_source_instances WHERE document_id = ?"
     ).all(documentId) as Array<{ source_id: string }>).map((row) => row.source_id));
+    const documentTitle = wishlist.title?.trim();
     for (const { key, rules, block } of groups) {
-      const base = block?.title?.trim()
-        || (groups.length === 1 && key === "unlabeled" ? "DIM Wishlist" : "未标注来源 #1");
+      // 标签只在导入期决定一次并持久化；读取路径不再推导，避免内部编号泄漏到界面。
+      const base = sourceBaseName(key, block, documentTitle);
       const label = block?.author?.trim() ? `${base} · ${block.author.trim()}` : base;
       const sourceId = `dim:${documentId.slice("dim-document:".length)}:${sha256(key).slice(0, 16)}`;
       database.prepare(`
@@ -133,9 +134,101 @@ export function loadDimRecommendationSources(dataDir: string): RecommendationSou
         origin: row.origin as RecommendationSourceInstanceRecord["origin"],
         ...(row.source_url ? { sourceUrl: row.source_url } : {}), ...(row.revision ? { revision: row.revision } : {}),
         fingerprint: row.fingerprint, state: row.state as RecommendationSourceInstanceRecord["state"],
-        wishlist: { title: row.title || row.document_title, ...(row.document_description ? { description: row.document_description } : {}), ...(row.document_author ? { author: row.document_author } : {}), rules }
+        wishlist: {
+          title: row.title || row.document_title,
+          ...(row.document_description ? { description: row.document_description } : {}),
+          ...(row.document_author ? { author: row.document_author } : {}),
+          ...reconstructSourceBlocks(rules, row.author),
+          rules
+        }
       };
     });
+  } finally {
+    database.close();
+  }
+}
+
+// 规则里保留了原始 block_id；读取时按文件内顺序还原注释段结构，
+// 让 resolveDimWishlistRuleMetadata 等下游仍能按 block 取到来源信息。
+function reconstructSourceBlocks(
+  rules: DimWishlistRule[],
+  author: string | undefined
+): { source_blocks?: DimWishlistSourceBlock[] } {
+  const seen = new Set<string>();
+  const blocks: DimWishlistSourceBlock[] = [];
+  for (const rule of rules) {
+    const id = rule.source_block_id;
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    blocks.push({ id, ...(author ? { author } : {}) });
+  }
+  return blocks.length ? { source_blocks: blocks } : {};
+}
+
+export type DimRecommendationDocumentInfo = {
+  documentId: string;
+  title: string;
+  author?: string;
+  sourceUrl?: string;
+  revision?: string;
+  fingerprint: string;
+  importedAt: string;
+};
+
+// 在线更新检查只需要文档级元数据，不加载规则。
+export function loadDimRecommendationDocumentInfo(dataDir: string): DimRecommendationDocumentInfo | null {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    const row = database.prepare(`
+      SELECT document_id, title, author, source_url, revision, fingerprint, imported_at
+      FROM recommendation_documents
+      WHERE document_id LIKE 'dim-document:%'
+      ORDER BY imported_at DESC, document_id
+      LIMIT 1
+    `).get() as Record<string, string> | undefined;
+    if (!row) return null;
+    return {
+      documentId: row.document_id,
+      title: row.title,
+      ...(row.author ? { author: row.author } : {}),
+      ...(row.source_url ? { sourceUrl: row.source_url } : {}),
+      ...(row.revision ? { revision: row.revision } : {}),
+      fingerprint: row.fingerprint,
+      importedAt: row.imported_at
+    };
+  } finally {
+    database.close();
+  }
+}
+
+export function hasDimRecommendationDocuments(dataDir: string): boolean {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    const row = database.prepare(
+      "SELECT COUNT(*) AS count FROM recommendation_documents WHERE document_id LIKE 'dim-document:%'"
+    ).get() as { count?: number } | undefined;
+    return Number(row?.count ?? 0) > 0;
+  } finally {
+    database.close();
+  }
+}
+
+// 匹配结果里保存了来源标签，缓存键必须覆盖新模型的全部事实来源，
+// 否则重复导入同一文件时标签不会刷新。
+export function recommendationDocumentRevision(dataDir: string): string {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    const documents = database.prepare(`
+      SELECT document_id, fingerprint, revision, imported_at, title, author
+      FROM recommendation_documents WHERE document_id LIKE 'dim-document:%'
+      ORDER BY document_id
+    `).all() as Array<Record<string, string>>;
+    const instances = database.prepare(`
+      SELECT source_id, label, revision, state
+      FROM recommendation_source_instances WHERE kind = 'dim'
+      ORDER BY source_id
+    `).all() as Array<Record<string, string>>;
+    return JSON.stringify({ documents, instances });
   } finally {
     database.close();
   }
@@ -152,21 +245,35 @@ export function clearDimRecommendationDocuments(dataDir: string): void {
 
 type DimWishlistRuleGroup = { key: string; rules: DimWishlistRule[]; block?: DimWishlistSourceBlock };
 
+// 注释段有标题或作者时，每个身份建立一个来源实例；完全没有身份时全部归入文档级来源，
+// 避免数百个无标题注释段变成数百个「未标注来源 #N」行。
 function groupRules(wishlist: DimWishlist): DimWishlistRuleGroup[] {
   const blocksById = new Map((wishlist.source_blocks ?? []).map((block) => [block.id, block] as const));
   const groups = new Map<string, DimWishlistRuleGroup>();
   for (const rule of wishlist.rules) {
     const block = rule.source_block_id ? blocksById.get(rule.source_block_id) : undefined;
-    const key = block
-      ? JSON.stringify([block.title?.trim() ?? "", block.author?.trim() ?? ""])
-      : rule.source_block_id
-        ? `block:${rule.source_block_id}`
-        : "unlabeled";
+    const key = sourceIdentityKey(block);
     const existing = groups.get(key);
     if (existing) existing.rules.push(rule);
     else groups.set(key, { key, rules: [rule], ...(block ? { block } : {}) });
   }
   return [...groups.values()];
+}
+
+function sourceIdentityKey(block?: DimWishlistSourceBlock): string {
+  const title = block?.title?.trim() ?? "";
+  const author = block?.author?.trim() ?? "";
+  if (!title && !author) return "document";
+  return `identity:${sha256(JSON.stringify([title, author])).slice(0, 16)}`;
+}
+
+function sourceBaseName(
+  key: string,
+  block: DimWishlistSourceBlock | undefined,
+  documentTitle: string | undefined
+): string {
+  if (key === "document") return documentTitle || "DIM Wishlist";
+  return block?.title?.trim() || documentTitle || "DIM Wishlist";
 }
 
 function sha256(value: string): string {

@@ -10,7 +10,6 @@ import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import {
   buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
-  buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
 } from "../shared/components/item-detail/buildWeaponDetailView";
 import { buildArmorDetailView } from "../shared/components/item-detail/buildArmorDetailView";
@@ -82,11 +81,6 @@ export function HomePageItemDetailModal(props: {
         ),
         ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, vendorSelectedItem)
       ],
-      personalTargets: buildWeaponPersonalTargetViews(
-        vendorDefinitionState.recommendations ?? null,
-        vendorSelectedItem,
-        "vendor_offer"
-      )
     });
     if (vendorWeaponModel) {
       return (

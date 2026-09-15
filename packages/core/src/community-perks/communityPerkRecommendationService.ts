@@ -1,5 +1,6 @@
 import type {
   CommunityPerkSource,
+  DimWishlistColumnMatch,
   PerkCombo,
   PerkRef,
   RecommendationRequirementSlot,
@@ -124,6 +125,7 @@ export class CommunityPerkRecommendationService {
       }
 
       const itemsForHash = items.filter((item) => item.hash === hash);
+      const ownedIdentities = itemsForHash.map(ownedPlugIdentity);
       const matchedComboIndexes = new Set<number>();
       const matchedModes = new Set<"pve" | "pvp" | "general">();
       const perkPoolCount = rec.source_records?.length ?? 0;
@@ -131,9 +133,8 @@ export class CommunityPerkRecommendationService {
 
       for (let index = 0; index < rec.combos.length; index++) {
         const combo = rec.combos[index];
-        for (const item of itemsForHash) {
-          const actualHashes = ownedPlugHashes(item);
-          const allIn = comboMatchesItem(combo, actualHashes);
+        for (const owned of ownedIdentities) {
+          const allIn = comboMatchesItem(combo, owned);
           if (allIn) {
             matchedComboIndexes.add(index);
             matchedModes.add(combo.mode);
@@ -199,24 +200,27 @@ export class CommunityPerkRecommendationService {
         };
       }
 
-      const actualHashes = ownedPlugHashes(item);
+      const owned = ownedPlugIdentity(item);
       const weaponLevelRecommendations = recommendation.weapon_level_recommendations ?? [];
       const sourceMatches = matchSourceRecords(
         item,
         recommendation.source_records ?? [],
         options.itemDefinitions
       );
-      const dimWishlistMatch = matchDimWishlistCombos(item, recommendation.combos, actualHashes);
-      if (sourceMatches.length > 0) {
+      const dimMatch = matchDimWishlistCombos(item, recommendation.combos, owned);
+      // 归约成功的 DIM 来源并入同一份来源事实，组合事实只留无法归约的部分。
+      const allSourceMatches = [...sourceMatches, ...dimMatch.sourceMatches];
+      const dimWishlistMatch = dimMatch.dim;
+      if (allSourceMatches.length > 0) {
         return sourceMatchCompatibilityResult(
           item,
           canonicalWeaponName,
           recommendation,
-          sourceMatches,
+          allSourceMatches,
           dimWishlistMatch
         );
       }
-      if (actualHashes.size === 0 && weaponLevelRecommendations.length === 0) {
+      if (owned.hashes.size === 0 && weaponLevelRecommendations.length === 0) {
         return {
           hash: item.hash,
           ...(item.instance_id ? { instance_id: item.instance_id } : {}),
@@ -252,12 +256,11 @@ export class CommunityPerkRecommendationService {
         };
       }
 
-      const fullMatches = recommendation.combos.filter((combo) => comboMatchesItem(combo, actualHashes));
+      const fullMatches = recommendation.combos.filter((combo) => comboMatchesItem(combo, owned));
       const partialMatches = recommendation.combos.filter((combo) => {
         if (combo.kind === "weapon_only") return false;
-        const requirements = comboMatchRequirements(combo);
-        const matchedPerks = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
-        return matchedPerks > 0 && matchedPerks < requirements.length;
+        const { matched: matchedPerks, total } = countMatchedRequirements(combo, owned);
+        return matchedPerks > 0 && matchedPerks < total;
       });
       const matchedModes = Array.from(new Set(
         [
@@ -498,102 +501,173 @@ function purposesOverlap(
   return left.some((purpose) => right.includes(purpose));
 }
 
+type DimWishlistMatchResult = {
+  dim: VaultItemInstanceMatchInfo["dim_wishlist"];
+  sourceMatches: RecommendationSourceMatch[];
+};
+
 function matchDimWishlistCombos(
   item: VaultItemMatchInput,
   combos: readonly PerkCombo[],
-  actualHashes: ReadonlySet<number>
-): VaultItemInstanceMatchInfo["dim_wishlist"] {
-  const dimCombos = combos.filter((combo) => combo.source === "dim_wishlist");
-  if (!dimCombos.length) return undefined;
-  const rules = dimCombos.map((combo) => {
-    if (combo.kind === "weapon_only") {
+  owned: OwnedPlugIdentity
+): DimWishlistMatchResult {
+  const allDimCombos = combos.filter((combo) => combo.source === "dim_wishlist");
+  if (!allDimCombos.length) return { dim: undefined, sourceMatches: [] };
+  // 所有 DIM 来源统一走来源事实（与人工来源同一个类型）：能无损归约的按栏输出，
+  // 不能归约的按最接近的一套规则输出。组合事实不再保留 DIM 内容。
+  const sourceMatches = [...new Set(allDimCombos.map((combo) => combo.source_id ?? "dim_wishlist"))]
+    .flatMap((sourceId) => buildDimSourceMatch(sourceId, allDimCombos, owned));
+  return { dim: undefined, sourceMatches };
+}
+
+
+// 归约成功的来源以来源事实输出：与人工来源同一类型、同一渲染入口。
+function buildDimSourceMatch(
+  sourceId: string,
+  combos: readonly PerkCombo[],
+  owned: OwnedPlugIdentity
+): RecommendationSourceMatch[] {
+  const columns = buildDimColumnMatches(sourceId, combos, owned);
+  if (!columns?.length) return buildDimComboSourceMatch(sourceId, combos, owned);
+  const scoped = combos.filter((combo) => (combo.source_id ?? "dim_wishlist") === sourceId);
+  const matchedPerks = new Map<number, PerkRef>();
+  for (const combo of scoped) for (const perk of combo.perks) matchedPerks.set(perk.hash, perk);
+  const matchedColumns = columns.filter((column) => column.state === "match").length;
+  const uncheckable = columns.some((column) => column.state === "uncheckable");
+  return [{
+    rule_stable_id: `${sourceId}:pool`,
+    source_id: sourceId,
+    source_label: scoped.find((combo) => combo.source_label)?.source_label ?? "DIM社区愿望单",
+    state: uncheckable
+      ? "uncheckable"
+      : matchedColumns === columns.length
+        ? "full"
+        : matchedColumns > 0 ? "close" : "not_matched",
+    matched_requirement_count: matchedColumns,
+    requirement_count: columns.length,
+    checkable_requirement_count: columns.filter((column) => column.state !== "uncheckable").length,
+    uncheckable_requirement_count: columns.filter((column) => column.state === "uncheckable").length,
+    purposes: [...new Set(scoped.map((combo) => combo.mode))],
+    slots: columns.map((column) => {
+      const ownedPlugs = (column.instance_owned ?? []).map((plug) => ({
+        hash: plug.hash,
+        name: plug.name,
+        selected: plug.current
+      }));
       return {
-        ...(combo.rule_stable_id ? { rule_stable_id: combo.rule_stable_id } : {}),
-        ...(combo.source_id ? { source_id: combo.source_id } : {}),
-        ...(combo.source_label ? { source_label: combo.source_label } : {}),
-        mode: combo.mode,
-        state: "match" as const,
-        matched_requirement_count: 0,
-        requirement_count: 0,
-        ...(combo.dim_diagnostic ? { diagnostic_status: combo.dim_diagnostic.status } : {})
+        slot: column.slot,
+        label: column.label,
+        state: column.state,
+        source_candidate_names: column.source_candidate_names,
+        source_candidates: column.source_candidate_hashes.map((hash) => (
+          matchedPerks.get(hash) ?? { hash, name: String(hash) }
+        )),
+        unresolved_source_candidate_names: [],
+        instance_owned: ownedPlugs,
+        current_enabled: ownedPlugs.filter((plug) => plug.selected)
       };
-    }
-    const requirements = comboMatchRequirements(combo);
-    const matched = requirements.filter((hashes) => hashes.some((hash) => actualHashes.has(hash))).length;
-    const incomplete = hasIncompleteRelevantRollData(item);
-    const unresolvedRule = combo.dim_diagnostic?.status === "cross_slot_ambiguous"
-      || combo.dim_diagnostic?.status === "unknown_slot"
-      || combo.dim_diagnostic?.status === "special_socket";
-    return {
-      ...(combo.rule_stable_id ? { rule_stable_id: combo.rule_stable_id } : {}),
-      ...(combo.source_id ? { source_id: combo.source_id } : {}),
-      ...(combo.source_label ? { source_label: combo.source_label } : {}),
-      mode: combo.mode,
-      state: matched === requirements.length
-        ? "match" as const
-        : incomplete || unresolvedRule
-          ? "uncheckable" as const
-          : matched > 0
-            ? "partial" as const
-            : "different" as const,
-      matched_requirement_count: matched,
-      requirement_count: requirements.length,
-      ...(combo.dim_diagnostic ? { diagnostic_status: combo.dim_diagnostic.status } : {})
-    };
-  });
-  const bestRule = selectBestDimRuleProgress(rules);
-  const matchedComboCount = rules.filter((rule) => rule.state === "match").length;
-  const partialComboCount = rules.filter((rule) => rule.state === "partial").length;
-  const uncheckableComboCount = rules.filter((rule) => rule.state === "uncheckable").length;
-  const sourceGroups = new Map<string, typeof rules>();
-  for (const rule of rules) {
-    const sourceId = rule.source_id ?? "dim_wishlist";
-    sourceGroups.set(sourceId, [...(sourceGroups.get(sourceId) ?? []), rule]);
-  }
-  const sources = [...sourceGroups.entries()].map(([sourceId, sourceRules]) => {
-    const best = selectBestDimRuleProgress(sourceRules);
-    const matched = sourceRules.filter((rule) => rule.state === "match").length;
-    const partial = sourceRules.filter((rule) => rule.state === "partial").length;
-    const uncheckable = sourceRules.filter((rule) => rule.state === "uncheckable").length;
-    return {
-      source_id: sourceId,
-      source_label: sourceRules.find((rule) => rule.source_label)?.source_label ?? "DIM社区愿望单",
-      state: matched > 0
-        ? "full" as const
-        : uncheckable > 0
-          ? "uncheckable" as const
-          : partial > 0
-            ? "close" as const
-            : sourceRules.some((rule) => rule.requirement_count === 0)
-              ? "weapon_only" as const
-              : "not_matched" as const,
-      matched_combo_count: matched,
-      partial_combo_count: partial,
-      uncheckable_combo_count: uncheckable,
-      combo_count: sourceRules.length,
-      best_matched_requirement_count: best?.matched_requirement_count ?? 0,
-      best_requirement_count: best?.requirement_count ?? 0,
-      modes: [...new Set(sourceRules.map((rule) => rule.mode))]
-    };
-  });
-  return {
-    state: matchedComboCount > 0
-      ? "full"
-      : uncheckableComboCount > 0
-        ? "uncheckable"
-        : partialComboCount > 0
-          ? "close"
-          : "not_matched",
-    matched_combo_count: matchedComboCount,
-    partial_combo_count: partialComboCount,
-    uncheckable_combo_count: uncheckableComboCount,
-    combo_count: rules.length,
-    best_matched_requirement_count: bestRule?.matched_requirement_count ?? 0,
-    best_requirement_count: bestRule?.requirement_count ?? 0,
-    modes: [...new Set(rules.map((rule) => rule.mode))],
-    rules,
-    ...(sources.length ? { sources } : {})
-  };
+    })
+  }];
+}
+
+// 无法归约的来源：取最接近的一套规则，按「这一行要求的那些 perk」输出同一种来源事实。
+// 每栏候选唯一时 any 与 all 等价，因此仍与人工来源共用同一个匹配与渲染入口。
+function buildDimComboSourceMatch(
+  sourceId: string,
+  combos: readonly PerkCombo[],
+  owned: OwnedPlugIdentity
+): RecommendationSourceMatch[] {
+  const scoped = combos.filter((combo) => (combo.source_id ?? "dim_wishlist") === sourceId);
+  if (!scoped.length) return [];
+  const sourceLabel = scoped.find((combo) => combo.source_label)?.source_label ?? "DIM社区愿望单";
+  const best = scoped
+    .map((combo) => {
+      const progress = evaluateComboRequirements(combo, owned);
+      const matched = progress.filter((requirement) => requirement.matched).length;
+      return { combo, progress, matched };
+    })
+    .sort((left, right) => (
+      right.matched * Math.max(1, left.progress.length) - left.matched * Math.max(1, right.progress.length)
+      || right.matched - left.matched
+    ))[0];
+  if (!best) return [];
+  const isWeaponOnly = best.combo.kind === "weapon_only" || best.progress.length === 0;
+  return [{
+    rule_stable_id: best.combo.rule_stable_id ?? `${sourceId}:combo`,
+    source_id: sourceId,
+    source_label: sourceLabel,
+    state: isWeaponOnly
+      ? "weapon_only"
+      : best.matched === best.progress.length
+        ? "full"
+        : best.matched > 0 ? "close" : "not_matched",
+    matched_requirement_count: best.matched,
+    requirement_count: best.progress.length,
+    checkable_requirement_count: best.progress.length,
+    uncheckable_requirement_count: 0,
+    purposes: [best.combo.mode],
+    slots: best.progress.map((requirement) => ({
+      slot: (requirement.slot ?? "unknown") as RecommendationRequirementSlot,
+      label: recommendationRequirementSlotLabels[requirement.slot ?? "unknown"] ?? "推荐项",
+      state: requirement.matched ? "match" as const : "different" as const,
+      source_candidate_names: requirement.names,
+      source_candidates: requirement.hashes.map((hash, index) => (
+        best.combo.perks.find((perk) => perk.hash === hash)
+        ?? { hash, name: requirement.names[index] ?? String(hash) }
+      )),
+      unresolved_source_candidate_names: [],
+      instance_owned: [],
+      current_enabled: []
+    }))
+  }];
+}
+
+// 归约成候选池后，逐栏结果由拥有情况给出；哈希与原组合保持同一套判定。
+function buildDimColumnMatches(
+  sourceId: string,
+  combos: readonly PerkCombo[],
+  owned: OwnedPlugIdentity
+): DimWishlistColumnMatch[] | undefined {
+  const scoped = combos.filter((combo) => (
+    combo.kind !== "weapon_only"
+    && (combo.source_id ?? "dim_wishlist") === sourceId
+  ));
+  const evaluated = scoped.map((combo) => evaluateComboRequirements(combo, owned));
+  const pool = reduceCombosToColumnPool(evaluated.map((requirements) => requirements.map((requirement) => ({
+    ...(requirement.slot ? { slot: requirement.slot } : {}),
+    hashes: requirement.hashes
+  }))));
+  if (!pool) return undefined;
+  // 归约成的栏位顺序与原组合的第一套保持一致，便于与作者写的顺序对齐。
+  const first = evaluated[0] ?? [];
+  const order = new Map(first.map((requirement, index) => [requirement.slot ?? "unknown", index]));
+  return pool.columns
+    .map((column) => {
+      const candidates = column.candidates.flat().map(Number);
+      const names = new Set<string>();
+      for (const requirement of evaluated.flat()) {
+        if ((requirement.slot ?? "unknown") !== column.slot) continue;
+        if (requirement.hashes.some((hash) => candidates.includes(hash))) {
+          for (const name of requirement.names) names.add(name);
+        }
+      }
+      const matchedPlug = findSatisfyingPlug(owned, candidates, [...names]);
+      const instanceOwned = owned.entries
+        .filter((entry) => entry.slot === column.slot)
+        .map((entry) => ({ hash: entry.hash, name: entry.name, current: entry.current }));
+      return {
+        slot: column.slot as RecommendationRequirementSlot,
+        label: recommendationRequirementSlotLabels[column.slot] ?? "推荐项",
+        state: matchedPlug ? "match" as const : "different" as const,
+        source_candidate_names: [...names],
+        source_candidate_hashes: candidates,
+        ...(matchedPlug?.name ? { matched_name: matchedPlug.name } : {}),
+        ...(matchedPlug ? { matched_hash: matchedPlug.hash } : {}),
+        ...(matchedPlug?.current ? { matched_current: true } : {}),
+        ...(instanceOwned.length ? { instance_owned: instanceOwned } : {})
+      };
+    })
+    .sort((left, right) => (order.get(left.slot) ?? 99) - (order.get(right.slot) ?? 99));
 }
 
 function hasIncompleteRelevantRollData(item: VaultItemMatchInput): boolean {
@@ -659,13 +733,63 @@ function perkIdentityMatches(left: string, right: string): boolean {
   return Boolean(leftIdentity) && leftIdentity === normalizeComparableName(right);
 }
 
+// 推荐要求按「同一插件 hash」或「同一插件名称」判定。
+// 锻造强化特征与基础特性同名但 hash 不同，只比 hash 会把已装备的强化版判成未命中；
+// 这条规则与人工推荐路径的 perkIdentityMatches 保持一致，并且是唯一实现。
+export type OwnedPlugIdentityEntry = {
+  hash: number;
+  name: string;
+  current: boolean;
+  slot?: string;
+};
+
+export type OwnedPlugIdentity = {
+  hashes: Set<number>;
+  names: Set<string>;
+  entries: OwnedPlugIdentityEntry[];
+};
+
 function ownedPlugHashes(item: VaultItemMatchInput): Set<number> {
+  return new Set(ownedPlugIdentity(item).hashes);
+}
+
+export function ownedPlugIdentity(item: VaultItemMatchInput): OwnedPlugIdentity {
+  const identity: OwnedPlugIdentity = { hashes: new Set(), names: new Set(), entries: [] };
+  const collect = (plug: { hash: number; name?: string }, current: boolean, slot?: string) => {
+    const name = plug.name?.trim() ?? "";
+    identity.hashes.add(plug.hash);
+    if (name) identity.names.add(normalizeComparableName(name));
+    identity.entries.push({ hash: plug.hash, name, current, ...(slot ? { slot } : {}) });
+  };
   if (item.weapon_roll) {
-    return new Set(item.weapon_roll.sockets.flatMap((socket) => (
-      socket.owned_plugs.map((plug) => plug.hash)
-    )));
+    for (const socket of item.weapon_roll.sockets) {
+      for (const plug of socket.owned_plugs) collect(plug, socket.current_plug?.hash === plug.hash, socket.slot);
+    }
+    return identity;
   }
-  return new Set(item.socket_plugs?.map((plug) => plug.hash) ?? []);
+  for (const plug of item.socket_plugs ?? []) collect(plug, false);
+  return identity;
+}
+
+export function requirementIsSatisfied(
+  owned: OwnedPlugIdentity,
+  hashes: readonly number[],
+  names: readonly string[]
+): boolean {
+  return hashes.some((hash) => owned.hashes.has(hash))
+    || names.some((name) => owned.names.has(normalizeComparableName(name)));
+}
+
+// 返回满足该要求的已拥有插件，用于界面显示“命中 / 命中·当前”。
+export function findSatisfyingPlug(
+  owned: OwnedPlugIdentity,
+  hashes: readonly number[],
+  names: readonly string[]
+): OwnedPlugIdentityEntry | undefined {
+  return owned.entries.find((entry) => hashes.includes(entry.hash))
+    ?? owned.entries.find((entry) => entry.name && names.some((name) => (
+      normalizeComparableName(name) === normalizeComparableName(entry.name)
+    )));
 }
 
 function isUsefulRecommendation(recommendation: WeaponRecommendation): boolean {
@@ -713,11 +837,134 @@ function comboMatchRequirements(combo: PerkCombo): number[][] {
   ));
 }
 
-function comboMatchesItem(combo: PerkCombo, actualHashes: ReadonlySet<number>): boolean {
-  if (combo.kind === "weapon_only") return true;
+function comboMatchRequirementNames(combo: PerkCombo): string[][] {
+  const perks = combo.source === "dim_wishlist" && combo.dim_diagnostic ? combo.dim_diagnostic.perks : combo.perks;
+  return perks.map((perk) => (perk.name?.trim() ? [perk.name.trim()] : []));
+}
+
+export type ComboRequirementProgress = {
+  hashes: number[];
+  names: string[];
+  slot?: string;
+  matched: boolean;
+  matchedPlug?: OwnedPlugIdentityEntry;
+};
+
+// 唯一的组合逐项判定：所有界面、卡片、详情、审计都必须消费它的结果。
+export function evaluateComboRequirements(
+  combo: PerkCombo,
+  owned: OwnedPlugIdentity
+): ComboRequirementProgress[] {
   const requirements = comboMatchRequirements(combo);
-  return requirements.length > 0
-    && requirements.every((hashes) => hashes.some((hash) => actualHashes.has(hash)));
+  const names = comboMatchRequirementNames(combo);
+  const slots = combo.source === "dim_wishlist" && combo.dim_diagnostic
+    ? combo.dim_diagnostic.perks.map((perk) => perk.slot_candidates?.[0])
+    : combo.perks.map(() => undefined);
+  return requirements.map((hashes, index) => {
+    const candidates = names[index] ?? [];
+    const matchedPlug = findSatisfyingPlug(owned, hashes, candidates);
+    return {
+      hashes,
+      names: candidates,
+      ...(slots[index] ? { slot: slots[index] } : {}),
+      matched: Boolean(matchedPlug),
+      ...(matchedPlug ? { matchedPlug } : {})
+    };
+  });
+}
+
+export const recommendationRequirementSlotLabels: Record<string, string> = {
+  barrel: "枪管/瞄具",
+  magazine: "第二列",
+  masterwork: "大师",
+  perk1: "Perk 1",
+  perk2: "Perk 2",
+  origin: "起源特性",
+  special: "特殊插槽",
+  unknown: "推荐项位置未知"
+};
+
+// 返回满足的要求数与要求总数；hash 相同或名称相同都算满足。
+function countMatchedRequirements(combo: PerkCombo, owned: OwnedPlugIdentity): { matched: number; total: number } {
+  const progress = evaluateComboRequirements(combo, owned);
+  return { matched: progress.filter((requirement) => requirement.matched).length, total: progress.length };
+}
+
+export type DimColumnPool = {
+  columns: Array<{
+    slot: string;
+    candidates: string[][];
+  }>;
+};
+
+/**
+ * 把同一来源同一武器的组合集合归约成「每栏候选池」。
+ *
+ * 作者常把「每栏任选其一」展开成笛卡尔积逐行写出（实测 Aegis 863/863、小棒猪去冗余后 257/257 都是），
+ * 这类行集合与栏位模型完全等价，可以无损归约。归约条件：
+ * 1. 先去掉被包含的冗余超集行：一行要求所列插件全中，满足更长行必然满足被它包含的短行；
+ * 2. 每套组合的插件不重复占同一栏；
+ * 3. 去冗余后的组合数等于各栏候选种数之积，且两两不同。
+ * 任一条不成立就保留原有的「一行一个完整组合」语义（例如在线合集 dim_voltron）。
+ */
+export function reduceCombosToColumnPool(
+  requirementSets: ReadonlyArray<Array<{ slot?: string; hashes: number[] }>>
+): DimColumnPool | undefined {
+  const normalized = requirementSets
+    .filter((set) => set.length > 0)
+    .map((set) => set.map((requirement) => ({
+      slot: requirement.slot ?? "unknown",
+      hashes: [...requirement.hashes].sort((left, right) => left - right)
+    })));
+  if (normalized.length < 2) return undefined;
+
+  const byIdentity = new Map<string, typeof normalized[number]>();
+  for (const set of normalized) {
+    byIdentity.set(set.map((requirement) => `${requirement.slot}:${requirement.hashes.join(",")}`).sort().join("|"), set);
+  }
+  const distinct = [...byIdentity.values()];
+
+  // 冗余超集行：组合 A 的每栏要求都能被组合 B 覆盖时，A 不提供任何新命中。
+  const minimal = distinct.filter((set, index) => !distinct.some((other, otherIndex) => {
+    if (otherIndex === index || other.length > set.length) return false;
+    return other.every((requirement) => set.some((candidate) => (
+      candidate.slot === requirement.slot
+      && requirement.hashes.every((hash) => candidate.hashes.includes(hash))
+    )));
+  }));
+  if (minimal.length < 2) return undefined;
+
+  const columns = new Map<string, number[][]>();
+  for (const set of minimal) {
+    const slots = set.map((requirement) => requirement.slot);
+    if (new Set(slots).size !== slots.length) return undefined;
+    for (const requirement of set) {
+      columns.set(requirement.slot, [...(columns.get(requirement.slot) ?? []), requirement.hashes]);
+    }
+  }
+  const slotOrder = [...columns.keys()];
+  const candidateSets = slotOrder.map((slot) => {
+    const seen = new Map<string, number[]>();
+    for (const hashes of columns.get(slot) ?? []) seen.set(hashes.join(","), hashes);
+    return [...seen.values()];
+  });
+  const product = candidateSets.reduce((total, candidates) => total * candidates.length, 1);
+  if (product !== minimal.length) return undefined;
+  if (candidateSets.some((candidates) => candidates.length < 1)) return undefined;
+
+  // 组合数等于各栏种数之积、且两两不同时，去冗余后的集合必然等于完整的笛卡尔积。
+  return {
+    columns: slotOrder.map((slot, index) => ({
+      slot,
+      candidates: candidateSets[index].map((hashes) => hashes.map(String))
+    }))
+  };
+}
+
+function comboMatchesItem(combo: PerkCombo, owned: OwnedPlugIdentity): boolean {
+  if (combo.kind === "weapon_only") return true;
+  const { matched, total } = countMatchedRequirements(combo, owned);
+  return total > 0 && matched === total;
 }
 
 export type { PerkCombo };

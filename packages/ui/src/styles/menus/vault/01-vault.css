@@ -277,16 +277,6 @@
   grid-template-columns: minmax(170px, 190px) minmax(0, 1fr);
 }
 
-.vault-frame-chip span {
-  color: var(--text-muted);
-}
-
-.vault-frame-chip:hover {
-  border-color: var(--state-selected-border);
-  color: var(--text-title);
-  background: var(--state-selected-bg);
-}
-
 .armor-filter-lane {
   display: grid;
   gap: 8px;

@@ -1,51 +1,34 @@
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { DimWishlist, DimWishlistRule } from "@d2-tools/core/analysis/wishlistImport";
-import {
-  clearExternalRecommendationSet,
-  externalRecommendationMigrationState,
-  loadExternalRecommendationSet,
-  markExternalRecommendationMigrationChecked,
-  saveExternalRecommendationSet,
-  type ExternalRecommendationSetRecord
-} from "../community/externalRecommendationStore.js";
-import { listRecommendationSourceOverrides } from "../community/recommendationOverrides.js";
-import { clearDimRecommendationDocuments, loadDimRecommendationSources, saveDimRecommendationDocument } from "../community/recommendationDocumentStore.js";
+import { type ExternalRecommendationSetRecord } from "../community/externalRecommendationStore.js";
+import { clearDimRecommendationDocuments, loadDimRecommendationDocumentInfo, loadDimRecommendationSources, saveDimRecommendationDocument } from "../community/recommendationDocumentStore.js";
 
-const wishlistFileName = "dim-wishlist.json";
-const sourceKind = "dim_wishlist" as const;
-const legacyMigrationMetadataKey = "legacy_dim_wishlist_migration";
-
+// 新三级模型（文档 / 来源实例 / 规则）是 DIM 的唯一读写路径。
+// 旧版单例表只在首次升级时读一次并迁移，迁移后不再参与读写。
+// 只要新三级模型有数据就可用；旧版单例迁移入口已移除（不再迁移历史单例数据）。
 export function loadDimWishlist(dataDir: string): DimWishlist | null {
-  const sourceState = listRecommendationSourceOverrides(dataDir)
-    .find((entry) => entry.source_key === sourceKind)?.state ?? "active";
-  if (sourceState !== "active") return null;
-  const stored = loadExternalRecommendationSet(dataDir, sourceKind);
-  if (stored) return externalSetToDimWishlist(stored);
+  return loadWishlistFromDocuments(dataDir);
+}
 
-  const documentSources = loadDimRecommendationSources(dataDir);
-  if (documentSources.length) {
-    const first = documentSources[0].wishlist;
-    const allRules = documentSources.flatMap((source) => source.wishlist.rules);
-    return { ...first, rules: allRules };
-  }
-
-  if (externalRecommendationMigrationState(dataDir, legacyMigrationMetadataKey)) {
-    return null;
-  }
-
-  const legacy = loadLegacyDimWishlist(dataDir);
-  if (!legacy) {
-    markExternalRecommendationMigrationChecked(dataDir, legacyMigrationMetadataKey);
-    return null;
-  }
-
-  return externalSetToDimWishlist(saveDimWishlistSet(dataDir, legacy, {}));
+function loadWishlistFromDocuments(dataDir: string): DimWishlist | null {
+  const sources = loadDimRecommendationSources(dataDir);
+  if (!sources.length) return null;
+  const info = loadDimRecommendationDocumentInfo(dataDir);
+  const seenBlocks = new Set<string>();
+  const blocks = sources
+    .flatMap((source) => source.wishlist.source_blocks ?? [])
+    .filter((block) => (seenBlocks.has(block.id) ? false : (seenBlocks.add(block.id), true)));
+  return {
+    title: info?.title || sources[0].wishlist.title,
+    ...(info?.author ? { author: info.author } : {}),
+    ...(blocks.length ? { source_blocks: blocks } : {}),
+    rules: sources.flatMap((source) => source.wishlist.rules)
+  };
 }
 
 export function saveDimWishlist(dataDir: string, wishlist: DimWishlist): DimWishlist {
-  saveDimRecommendationDocument(dataDir, wishlist, { origin: "file" });
-  return externalSetToDimWishlist(saveDimWishlistSet(dataDir, wishlist, {}));
+  const normalized = normalizeDimWishlist(wishlist);
+  saveDimRecommendationDocument(dataDir, normalized, { origin: "file" });
+  return loadWishlistFromDocuments(dataDir) ?? normalized;
 }
 
 export function saveDimWishlistFromSource(
@@ -53,75 +36,19 @@ export function saveDimWishlistFromSource(
   wishlist: DimWishlist,
   source: { source_url: string; revision: string; imported_at?: string; source_fingerprint?: string }
 ): DimWishlist {
-  saveDimRecommendationDocument(dataDir, wishlist, {
+  const normalized = normalizeDimWishlist(wishlist);
+  saveDimRecommendationDocument(dataDir, normalized, {
     origin: "url",
     source_url: source.source_url,
     revision: source.revision,
-    imported_at: source.imported_at,
-    fingerprint: source.source_fingerprint
+    ...(source.imported_at ? { imported_at: source.imported_at } : {}),
+    ...(source.source_fingerprint ? { fingerprint: source.source_fingerprint } : {})
   });
-  return externalSetToDimWishlist(saveDimWishlistSet(dataDir, wishlist, source));
+  return loadWishlistFromDocuments(dataDir) ?? normalized;
 }
 
 export function clearDimWishlist(dataDir: string): void {
   clearDimRecommendationDocuments(dataDir);
-  clearExternalRecommendationSet(dataDir, sourceKind, legacyMigrationMetadataKey);
-}
-
-function saveDimWishlistSet(
-  dataDir: string,
-  wishlist: DimWishlist,
-  source: { source_url?: string; revision?: string; imported_at?: string; source_fingerprint?: string }
-): ExternalRecommendationSetRecord {
-  const normalized = normalizeDimWishlist(wishlist);
-  return saveExternalRecommendationSet(dataDir, {
-    source_kind: sourceKind,
-    title: normalized.title,
-    description: normalized.description ?? "",
-    author: normalized.author ?? "",
-    source_url: source.source_url ?? "",
-    revision: source.revision ?? "",
-    blocks: (normalized.source_blocks ?? []).map((block) => ({
-      block_key: block.id,
-      title: block.title ?? "",
-      description: block.description ?? "",
-      note: block.note ?? "",
-      author: block.author ?? "",
-      tags: block.tags ?? []
-    })),
-    rules: normalized.rules.map((rule) => ({
-      item_hash: rule.item_hash,
-      perk_hashes: rule.perk_hashes,
-      kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
-      mode: rule.mode,
-      note: rule.note,
-      author: rule.author ?? "",
-      source_note: rule.source_note ?? "",
-      source_title: rule.source_title ?? "",
-      source_description: rule.source_description ?? "",
-      source_label: "",
-      ...(rule.source_block_id ? { block_key: rule.source_block_id } : {}),
-      tags: rule.tags ?? []
-    })),
-    migration_metadata_key: legacyMigrationMetadataKey,
-    ...(source.imported_at ? { imported_at: source.imported_at } : {}),
-    ...(source.source_fingerprint ? { source_fingerprint: source.source_fingerprint } : {})
-  });
-}
-
-function loadLegacyDimWishlist(dataDir: string): DimWishlist | null {
-  const file = wishlistPath(dataDir);
-  if (!existsSync(file)) return null;
-
-  const parsed = JSON.parse(readFileSync(file, "utf8")) as Partial<DimWishlist>;
-  if (!Array.isArray(parsed.rules) || parsed.rules.length === 0) return null;
-  return normalizeDimWishlist({
-    title: typeof parsed.title === "string" ? parsed.title : "DIM Wishlist",
-    ...(typeof parsed.description === "string" ? { description: parsed.description } : {}),
-    ...(typeof parsed.author === "string" ? { author: parsed.author } : {}),
-    ...(Array.isArray(parsed.source_blocks) ? { source_blocks: parsed.source_blocks } : {}),
-    rules: parsed.rules
-  });
 }
 
 function normalizeDimWishlist(wishlist: DimWishlist): DimWishlist {
@@ -227,6 +154,3 @@ function isUnsignedHash(value: number): boolean {
   return Number.isInteger(value) && value >= 0 && value <= 0xffff_ffff;
 }
 
-function wishlistPath(dataDir: string): string {
-  return join(dataDir, wishlistFileName);
-}

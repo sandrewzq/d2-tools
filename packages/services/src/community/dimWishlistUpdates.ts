@@ -7,7 +7,10 @@ import {
   type DimWishlistMode
 } from "@d2-tools/core/analysis/wishlistImport";
 import { loadDimWishlist, saveDimWishlistFromSource } from "../analysis/wishlistStore.js";
-import { loadExternalRecommendationSet } from "./externalRecommendationStore.js";
+import {
+  loadDimRecommendationDocumentInfo,
+  type DimRecommendationDocumentInfo
+} from "./recommendationDocumentStore.js";
 import {
   openRecommendationDatabase,
   recommendationMetadataValue,
@@ -72,22 +75,21 @@ type LatestCommit = {
 const pendingOnlineUpdates = new Map<string, PendingOnlineUpdate>();
 
 export function readDimWishlistOnlineStatus(dataDir: string): DimWishlistOnlineStatus {
-  loadDimWishlist(dataDir);
-  const current = loadExternalRecommendationSet(dataDir, "dim_wishlist");
-  return buildOnlineStatus(dataDir, current);
+  return buildOnlineStatus(dataDir, loadDimWishlist(dataDir), loadDimRecommendationDocumentInfo(dataDir));
 }
 
 function buildOnlineStatus(
   dataDir: string,
-  current: ReturnType<typeof loadExternalRecommendationSet>
+  current: DimWishlist | null,
+  info: DimRecommendationDocumentInfo | null
 ): DimWishlistOnlineStatus {
   const database = openRecommendationDatabase(dataDir);
   try {
     return {
-      source_url: current?.source_url || repositoryUrl,
-      current_revision: current?.revision ?? "",
-      current_fingerprint: current?.source_fingerprint ?? "",
-      activated_at: current?.imported_at ?? "",
+      source_url: info?.sourceUrl || repositoryUrl,
+      current_revision: info?.revision ?? "",
+      current_fingerprint: info?.fingerprint ?? "",
+      activated_at: info?.importedAt ?? "",
       checked_at: recommendationMetadataValue(database, metadataKeys.checkedAt),
       latest_revision: recommendationMetadataValue(database, metadataKeys.latestRevision),
       latest_commit_at: recommendationMetadataValue(database, metadataKeys.latestCommitAt),
@@ -104,16 +106,16 @@ export async function previewDimWishlistOnlineUpdate(
   now = new Date()
 ): Promise<DimWishlistOnlinePreview> {
   if (!Number.isFinite(now.getTime())) throw new Error("DIM 社区推荐检查时间无效。");
-  loadDimWishlist(dataDir);
   const checkedAt = now.toISOString();
   const latest = await fetchLatestCommit(dataDir, checkedAt);
-  const current = loadExternalRecommendationSet(dataDir, "dim_wishlist");
+  const current = loadDimWishlist(dataDir);
+  const info = loadDimRecommendationDocumentInfo(dataDir);
 
-  if (current?.revision === latest.revision) {
+  if (current && info?.revision && info.revision === latest.revision) {
     return buildPreview({
-      status: buildOnlineStatus(dataDir, current),
-      wishlist: externalSetAsWishlist(current),
-      fingerprint: current.source_fingerprint,
+      status: buildOnlineStatus(dataDir, current, info),
+      wishlist: current,
+      fingerprint: info.fingerprint,
       updateAvailable: false
     });
   }
@@ -138,7 +140,7 @@ export async function previewDimWishlistOnlineUpdate(
   });
 
   return buildPreview({
-    status: buildOnlineStatus(dataDir, current),
+    status: buildOnlineStatus(dataDir, current, info),
     wishlist,
     fingerprint,
     updateAvailable: true,
@@ -297,36 +299,6 @@ function buildPreview(input: {
       ...(input.wishlist.source_blocks ?? []).flatMap((block) => block.tags ?? []),
       ...input.wishlist.rules.flatMap((rule) => rule.tags ?? [])
     ])]
-  };
-}
-
-function externalSetAsWishlist(set: NonNullable<ReturnType<typeof loadExternalRecommendationSet>>): DimWishlist {
-  return {
-    title: set.title || "DIM Wishlist",
-    ...(set.description ? { description: set.description } : {}),
-    ...(set.author ? { author: set.author } : {}),
-    ...(set.blocks.length ? {
-      source_blocks: set.blocks.map((block) => ({
-        id: block.block_key,
-        ...(block.title ? { title: block.title } : {}),
-        ...(block.description ? { description: block.description } : {}),
-        ...(block.note ? { note: block.note } : {}),
-        ...(block.tags.length ? { tags: block.tags } : {}),
-        ...(block.author ? { author: block.author } : {})
-      }))
-    } : {}),
-    rules: set.rules.map((rule) => ({
-      item_hash: rule.item_hash,
-      perk_hashes: rule.perk_hashes,
-      mode: rule.mode,
-      note: rule.note,
-      ...(rule.tags.length ? { tags: rule.tags } : {}),
-      ...(rule.author ? { author: rule.author } : {}),
-      ...(rule.source_note ? { source_note: rule.source_note } : {}),
-      ...(rule.source_title ? { source_title: rule.source_title } : {}),
-      ...(rule.source_description ? { source_description: rule.source_description } : {}),
-      ...(rule.block_key ? { source_block_id: rule.block_key } : {})
-    }))
   };
 }
 

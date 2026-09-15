@@ -16,4 +16,4 @@ export function createDefaultCommunityPerkService(
   return service;
 }
 
-export { createDimWishlistSource, createDimWishlistSources } from "./dimWishlistSource.js";
+export { createDimWishlistSources } from "./dimWishlistSource.js";

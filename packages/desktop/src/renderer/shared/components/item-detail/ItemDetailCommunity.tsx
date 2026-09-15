@@ -114,7 +114,6 @@ function RecommendationPanel(props: Pick<ItemDetailCommunityProps, "communityRec
           </div>
           <div className="community-source-badges">
             {props.communityRecommendations.source_label ? <span className="community-source-badge">{props.communityRecommendations.source_label}</span> : null}
-            {props.communityRecommendations.combos[0]?.source === "dim_wishlist" ? <span className="community-source-badge">{props.communityRecommendations.combos[0]?.source_label || "DIM Wishlist"}</span> : null}
           </div>
         </div>
         {props.communityRecommendations.source_warnings?.length ? (

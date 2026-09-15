@@ -5,7 +5,7 @@ import type {
 } from "@d2-tools/core/community-perks";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
-import { getVaultCommunityInstanceKey } from "./vaultRecommendationMatch.js";
+import { getVaultCommunityInstanceKey } from "../recommendationMatchView.js";
 
 export function buildVaultCleanupProtectionIndex(input: {
   items: AccountItemSummary[];

@@ -7,12 +7,19 @@ import type {
   VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { openRecommendationDatabase } from "./recommendationDatabase.js";
+import { recommendationDocumentRevision } from "./recommendationDocumentStore.js";
 import { recommendationOverrideRevision } from "./recommendationOverrides.js";
 
 const databaseFileName = "account-cache.sqlite";
 // 旧缓存可能是在中文推荐库不可用、或未解析名称被误判为无法核对时生成；
 // 当前匹配语义已改变，必须整体失效，避免继续显示历史错误结果。
-const matchAlgorithmVersion = 12;
+// 13：来源标签改为导入期固化（新三级模型），旧缓存里的来源名称必须重算。
+// 14：DIM 组合改为「hash 或同名」判定，强化特征能满足同名的普通特性要求。
+// 15：事实层新增 DIM 逐栏结果（requirements），旧缓存缺少逐栏数据必须整体重算。
+// 16：事实层新增归约后的 DIM 栏位候选池（columns），旧缓存没有候选池必须重算。
+// 17：归约后的 DIM 来源改为输出到 source_matches（与人工来源同级），事实形状变化必须重算。
+// 18：全部 DIM 来源都走 source_matches，组合事实不再保留 DIM 内容。
+const matchAlgorithmVersion = 18;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;
@@ -30,19 +37,25 @@ export function buildVaultRecommendationMatchRevision(
   dataDir: string,
   curatedRevision: string
 ): string {
+  // 缓存里保存了来源标签，因此键必须覆盖标签的全部来源：
+  // DIM 用新三级模型的文档与来源实例，人工推荐仍用旧集合指纹。
+  return sha256(JSON.stringify({
+    match_algorithm_version: matchAlgorithmVersion,
+    curated_revision: curatedRevision,
+    dim_documents: recommendationDocumentRevision(dataDir),
+    external_revisions: readExternalRecommendationRevisions(dataDir),
+    override_revision: recommendationOverrideRevision(dataDir)
+  }));
+}
+
+function readExternalRecommendationRevisions(dataDir: string): Array<{ source_kind: string; source_fingerprint: string }> {
   const database = openRecommendationDatabase(dataDir);
   try {
-    const externalRows = database.prepare(`
+    return database.prepare(`
       SELECT source_kind, source_fingerprint
       FROM external_recommendation_sets
       ORDER BY source_kind
     `).all() as Array<{ source_kind: string; source_fingerprint: string }>;
-    return sha256(JSON.stringify({
-      match_algorithm_version: matchAlgorithmVersion,
-      curated_revision: curatedRevision,
-      external_revisions: externalRows,
-      override_revision: recommendationOverrideRevision(dataDir)
-    }));
   } finally {
     database.close();
   }

@@ -26,13 +26,13 @@ import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
-import { isDimRecommendationSource, presentRecommendationSlotMatch } from "../recommendationMatchPresentation.js";
+import { isDimRecommendationSource, presentRecommendationSlotMatch } from "../recommendationMatchView.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import {
   displayVaultRecommendationSourceLabel,
   getVaultCommunityInstanceKey,
   type VaultRecommendationSummaryIndex
-} from "./vaultRecommendationMatch.js";
+} from "../recommendationMatchView.js";
 
 type DuplicateDisposition = "none" | "keep" | "review" | "junk";
 type DuplicateTypeFilter = "all" | "weapons" | "armor";

@@ -22,10 +22,12 @@ import type {
   WeaponStatSummary
 } from "@d2-tools/core/account/summary";
 import type {
+  PerkCombo,
   PerkRef,
   RecommendationSourceRequirement,
   WeaponRecommendation as CommunityWeaponRecommendation
 } from "@d2-tools/core/community-perks";
+import { ownedPlugIdentity, requirementIsSatisfied } from "@d2-tools/core/community-perks";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
@@ -36,7 +38,6 @@ export type BuildDesktopWeaponDetailInput = {
   accountSummary?: AccountSummary | null;
   sameNameItems?: SameNameItemSummary[];
   recommendations?: WeaponDetailViewModel["recommendations"];
-  personalTargets?: WeaponDetailViewModel["personal_targets"];
   context?: Partial<WeaponDetailObjectContext>;
   sources?: WeaponDetailSources;
   selectionNames?: string[];
@@ -170,7 +171,6 @@ export function buildWeaponDetailView(
     sources: withManifestSourceStatus(input.sources, item),
     upgrades,
     recommendations: input.recommendations,
-    personal_targets: input.personalTargets,
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
@@ -310,16 +310,21 @@ export function buildWeaponRecommendationViews(
 ): WeaponDetailViewModel["recommendations"] {
   const classification = classifyWeaponConfiguration(item);
   const isFixedExotic = classification.isExotic && classification.kind === "fixed";
-  const availableHashes = new Set([
-    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
-    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
-  ]);
+  const owned = ownedPlugIdentity({
+    hash: item.hash,
+    socket_plugs: [
+      ...(item.socket_plugs ?? []).map((plug) => ({ hash: plug.hash, name: plug.name })),
+      ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => ({ hash: plug.hash, name: plug.name })))
+    ]
+  });
   const sourceRecords = (recommendation?.source_records ?? [])
-    .filter((record) => !record.source_id.startsWith("dim:") && record.source_id !== "dim_voltron" && record.source_id !== "dim_wishlist")
+    .filter((record) => Boolean(record.rule_stable_id))
     .map((record) => {
       const requirements = record.requirements.filter((requirement) => requirement.candidate_names.length > 0);
-      const matched = requirements.filter((requirement) => (
-        requirement.candidates.some((candidate) => availableHashes.has(candidate.hash))
+      const matched = requirements.filter((requirement) => requirementIsSatisfied(
+        owned,
+        requirement.candidates.map((candidate) => candidate.hash),
+        [...requirement.candidate_names, ...requirement.candidates.map((candidate) => candidate.name)]
       )).length;
       const perkOptions = requirements
         .map((requirement) => ({
@@ -356,7 +361,7 @@ export function buildWeaponRecommendationViews(
   const explicitCombos = (classification.kind === "fixed" && !isFixedExotic ? [] : recommendation?.combos ?? [])
     .filter((combo) => combo.source === "local_community")
     .map((combo, index) => {
-      const matched = combo.perks.filter((perk) => availableHashes.has(perk.hash)).length;
+      const matched = combo.perks.filter((perk) => requirementIsSatisfied(owned, [perk.hash], [perk.name])).length;
       return {
         id: `${combo.source}:${combo.mode}:${index}`,
         mode: combo.mode,
@@ -438,103 +443,17 @@ function normalizeRecommendationCandidateName(value: string | undefined): string
     .replace(/^\s*大师杰作\s*[：:]\s*/u, ""));
 }
 
-export function buildWeaponPersonalTargetViews(
-  recommendation: CommunityWeaponRecommendation | null,
-  item: SelectedItemDetail,
-  contextKind: WeaponDetailObjectContext["kind"] = item.instance_id ? "account_instance" : "definition"
-): WeaponDetailViewModel["personal_targets"] {
-  const classification = classifyWeaponConfiguration(item);
-  const isFixedExotic = classification.isExotic && classification.kind === "fixed";
-  const isDefinition = contextKind === "definition";
-  const availableHashes = new Set([
-    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
-    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
-  ]);
-  const dimCombos = (recommendation?.combos ?? [])
-    .filter((combo) => combo.source === "dim_wishlist")
-    .map((combo, index) => {
-      const diagnosticPerks = combo.dim_diagnostic?.perks;
-      const requirements = combo.kind === "weapon_only"
-        ? []
-        : diagnosticPerks?.map((perk) => (
-          perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
-        )) ?? combo.perks.map((perk) => [perk.hash]);
-      const matched = requirements.filter((hashes) => hashes.some((hash) => availableHashes.has(hash))).length;
-      return { combo, index, diagnosticPerks, requirements, matched };
-    });
-  const matchedComboCount = dimCombos.filter(({ matched, requirements, combo }) => (
-    combo.kind === "weapon_only" || (requirements.length > 0 && matched === requirements.length)
-  )).length;
-  const visibleCombos = (isDefinition
-    ? [...dimCombos]
-    : dimCombos
-      .filter(({ matched, requirements }) => (
-        matchedComboCount === 0 || (requirements.length > 0 && matched === requirements.length)
-      ))
-      .sort((left, right) => compareDimDetailComboProgress(left, right)))
-    .slice(0, 3);
-  return visibleCombos.map(({ combo, index, diagnosticPerks, requirements, matched }, visibleIndex) => {
-    const visibleSummary = matchedComboCount > 0
-      ? `当前 Roll 符合 DIM 的 ${matchedComboCount} 套推荐，下面显示其中 ${visibleCombos.length} 套。`
-      : `当前 Roll 未完全符合 DIM 推荐，下面显示最接近的 ${visibleCombos.length} 套。`;
-    const definitionSummary = dimCombos.length > visibleCombos.length
-      ? `DIM 原始数据共提供 ${dimCombos.length} 条规则，当前展示前 ${visibleCombos.length} 条。`
-      : `DIM 原始数据提供 ${dimCombos.length} 条规则。`;
-    return {
-      id: `dim:${combo.mode}:${index}`,
-      mode: combo.mode,
-      purposes: [combo.mode],
-      presentation: "combo" as const,
-      title: combo.kind === "weapon_only"
-        ? "DIM 仅推荐武器"
-        : isFixedExotic ? "固定配置收藏记录" : `${combo.mode.toUpperCase()} DIM 完整组合`,
-      reason: isDefinition
-        ? visibleIndex === 0
-          ? [definitionSummary, combo.note].filter(Boolean).join(" ")
-          : combo.note || "DIM 原生 Wishlist 明确给出的完整组合。"
-        : isFixedExotic
-          ? "该 DIM 条目只作为固定配置异域的收藏与来源记录，不执行随机 Roll 匹配。"
-          : visibleIndex === 0
-            ? `${visibleSummary} 这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。`
-            : "这是用户导入的 DIM 愿望单目标，不属于应用默认推荐。",
-      source: "dim" as const,
-      source_label: combo.source_label || "DIM社区愿望单",
-      perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
-        column_key: dimDiagnosticSlotLabel(diagnosticPerks?.[perkIndex]?.slot_candidates[0]) ?? `项目 ${perkIndex + 1}`,
-        names: [perk.name],
-        candidates: [{
-          ...recommendationPerkCandidate(perk),
-          hashes: diagnosticPerks?.[perkIndex]?.resolved_hashes
-            ?? [diagnosticPerks?.[perkIndex]?.resolved_hash ?? perk.hash]
-        }]
-      })),
-      masterwork_names: [],
-      mod_names: [],
-      match: isDefinition || isFixedExotic ? "not_applicable" as const : combo.kind === "weapon_only" ? "full" as const : matchRecommendation(item, matched, requirements.length),
-      match_notes: isDefinition
-        ? []
-        : isFixedExotic
-          ? ["固定异域不执行 DIM 随机 Roll 匹配；保留此条愿望单作为收藏与来源记录。"]
-          : [
-              ...recommendationMatchNotes(item, matched, requirements.length),
-              ...(combo.dim_diagnostic ? [combo.dim_diagnostic.message] : [])
-            ]
-    };
-  });
-}
 
-function compareDimDetailComboProgress(
-  left: { matched: number; requirements: number[][]; index: number },
-  right: { matched: number; requirements: number[][]; index: number }
-): number {
-  const leftTotal = left.requirements.length;
-  const rightTotal = right.requirements.length;
-  const ratioDifference = right.matched * leftTotal - left.matched * rightTotal;
-  if (ratioDifference) return ratioDifference;
-  if (left.matched !== right.matched) return right.matched - left.matched;
-  if (leftTotal !== rightTotal) return rightTotal - leftTotal;
-  return left.index - right.index;
-}
+// 归约后的来源只画一块「每栏任选其一」候选池：判定与文案都来自事实层。
+
+// 逐栏结果直接来自事实层；界面只补图标等展示字段，不再自行判定。
+// 事实层缺少逐栏数据（例如旧缓存）时按「无法判断」展示，不退回界面自算。
+
+
+// 排序：完全符合优先，其次按命中比例与命中数，保证最相关的组合排在各来源分组的前面。
+
+// 没有实例事实时的原始展示：只列出来源给出的组合，明确标注不做核对。
+
 
 function dimDiagnosticSlotLabel(slot: string | undefined): string | undefined {
   if (slot === "barrel") return "枪管/瞄具";
@@ -553,17 +472,20 @@ export function buildEquipmentTargetWeaponViews(
   item: SelectedItemDetail
 ): WeaponDetailViewModel["recommendations"] {
   if (item.group_key !== "weapons") return [];
-  const availableHashes = new Set([
-    ...(item.socket_plugs ?? []).map((plug) => plug.hash),
-    ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => plug.hash))
-  ]);
+  const owned = ownedPlugIdentity({
+    hash: item.hash,
+    socket_plugs: [
+      ...(item.socket_plugs ?? []).map((plug) => ({ hash: plug.hash, name: plug.name })),
+      ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => ({ hash: plug.hash, name: plug.name })))
+    ]
+  });
   return store.targets.flatMap((target) => {
     if (!target.enabled
       || target.kind !== "weapon"
       || target.source.kind === "dim_wishlist"
       || target.weapon.status !== "verified") return [];
     if (target.weapon.item_hash !== item.hash) return [];
-    const matched = target.perk_requirements.filter((perk) => availableHashes.has(perk.perk_hash)).length;
+    const matched = target.perk_requirements.filter((perk) => requirementIsSatisfied(owned, [perk.perk_hash], [perk.perk_name])).length;
     return [{
       id: target.id,
       mode: target.mode,

@@ -5,7 +5,7 @@ import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemKey, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { championTypeLabels, VaultAmmoTypeIcon, VaultChampionTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
-import type { VaultRecommendationSourceSummary } from "./vaultRecommendationMatch.js";
+import type { VaultRecommendationSourceSummary } from "../recommendationMatchView.js";
 import {
   useVaultQuickAction,
   type VaultQuickActionStore

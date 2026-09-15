@@ -133,7 +133,8 @@ export function VaultPage(props: {
     listRecommendationRules,
     setRecommendationSourceState: async (sourceKey, state) => {
       const snapshot = await api.setRecommendationSourceState(sourceKey, state);
-      if (sourceKey === "dim_wishlist") {
+      // DIM 来源包含旧聚合键 dim_wishlist 和文档级 dim:<documentKey>，两者都会影响愿望单。
+      if (sourceKey.startsWith("dim:")) {
         props.onWishlistChanged(await api.getDimWishlist());
         if (state === "removed") {
           props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
@@ -319,7 +320,8 @@ function toVaultMatchInput(item: AccountItemSummary) {
     ...(item.socket_plugs ? {
       socket_plugs: item.socket_plugs.map((plug) => ({
         hash: plug.hash,
-        socket_index: plug.socket_index
+        socket_index: plug.socket_index,
+        name: plug.name
       }))
     } : {})
   };

@@ -1,6 +1,5 @@
 import { parseDimWishlist, type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { useEffect, useId, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { ControlButton } from "../control/ControlButton.js";
 
 // 在线检查不阻塞弹窗；这里仅作为异常兜底，避免 IPC 永久处于等待状态。
@@ -150,20 +149,16 @@ type ManagementConfirmation = {
   rule?: VaultRecommendationManagedRule;
 };
 
-export function VaultWishlistManager(props: {
+export function VaultRecommendationDataPanel(props: {
   wishlist?: DimWishlist | null;
   actions: VaultWishlistActions;
-  initialFocus?: "knowledge" | "dim";
   showManagement?: boolean;
   onApplied?: (message: string) => void;
-  onClose: () => void;
 }) {
-  const titleId = useId();
-  const dialogRef = useRef<HTMLElement>(null);
   const browserFileRef = useRef<HTMLInputElement>(null);
-  const initialFocusRef = useRef<HTMLElement | null>(
-    typeof document === "undefined" ? null : (document.activeElement as HTMLElement | null)
-  );
+  const importDialogRef = useRef<HTMLElement>(null);
+  const importTitleId = useId();
+  const [knowledgeImportOpen, setKnowledgeImportOpen] = useState(false);
   const [inputText, setInputText] = useState("");
   const [pastePreview, setPastePreview] = useState<DimWishlist | null>(null);
   const [dimFilePreview, setDimFilePreview] = useState<VaultDimWishlistImportPreview | null>(null);
@@ -182,11 +177,7 @@ export function VaultWishlistManager(props: {
   const [busyAction, setBusyAction] = useState("");
   const [isCheckingDimOnline, setIsCheckingDimOnline] = useState(false);
   const [feedback, setFeedback] = useState<ImportFeedback>(null);
-  const busyActionRef = useRef(busyAction);
-  const onCloseRef = useRef(props.onClose);
   const onAppliedRef = useRef(props.onApplied);
-  busyActionRef.current = busyAction;
-  onCloseRef.current = props.onClose;
   onAppliedRef.current = props.onApplied;
   const supportsKnowledgeImport = Boolean(
     props.actions.selectKnowledgeCsv
@@ -204,49 +195,28 @@ export function VaultWishlistManager(props: {
     && props.actions.setRecommendationRuleState
     && props.actions.clearCuratedRecommendationDataset
   );
-  const portalHost = typeof document === "undefined"
-    ? null
-    : initialFocusRef.current?.closest<HTMLElement>(".app-shell")
-      ?? document.querySelector<HTMLElement>(".app-shell")
-      ?? document.body;
 
   useEffect(() => {
-    const backdrop = dialogRef.current?.parentElement;
-    const backgroundElements = portalHost
-      ? [...portalHost.children].flatMap((element) => (
-          element instanceof HTMLElement && element !== backdrop
-            ? [{ element, wasInert: element.inert }]
-            : []
-        ))
-      : [];
-    backgroundElements.forEach(({ element }) => {
-      element.inert = true;
-    });
-    const preferredFocus = (props.initialFocus === "dim"
-      ? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-import], [data-dim-update]")
-      : dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]"))
-      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-knowledge-import]")
-      ?? dialogRef.current?.querySelector<HTMLButtonElement>("[data-dim-import], [data-dim-update]")
-      ?? dialogRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])");
-    preferredFocus?.focus();
+    if (!knowledgeImportOpen) return;
+    const dialog = importDialogRef.current;
+    dialog?.querySelector<HTMLButtonElement>("[data-knowledge-template-zh]")?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.defaultPrevented || !dialogRef.current) return;
       if (event.key === "Escape") {
         event.preventDefault();
-        if (!busyActionRef.current) onCloseRef.current();
+        if (!busyAction) setKnowledgeImportOpen(false);
         return;
       }
-      if (event.key !== "Tab") return;
-      const focusable = [...dialogRef.current.querySelectorAll<HTMLElement>(
-        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), summary, [href], [tabindex]:not([tabindex="-1"])'
+      if (event.key !== "Tab" || !dialog) return;
+      const focusable = [...dialog.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
       )].filter((element) => !element.hidden && element.getClientRects().length > 0);
       if (!focusable.length) return;
       const first = focusable[0];
       const last = focusable.at(-1)!;
-      if (!dialogRef.current.contains(document.activeElement)) {
+      if (!dialog.contains(document.activeElement)) {
         event.preventDefault();
-        (event.shiftKey ? last : first).focus();
+        first.focus();
       } else if (event.shiftKey && document.activeElement === first) {
         event.preventDefault();
         last.focus();
@@ -257,14 +227,8 @@ export function VaultWishlistManager(props: {
     }
 
     document.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-      backgroundElements.forEach(({ element, wasInert }) => {
-        element.inert = wasInert;
-      });
-      if (initialFocusRef.current?.isConnected) initialFocusRef.current.focus();
-    };
-  }, [portalHost, props.initialFocus]);
+    return () => document.removeEventListener("keydown", handleKeyDown, true);
+  }, [knowledgeImportOpen, busyAction]);
 
   useEffect(() => {
     if (props.showManagement === false || !supportsRecommendationManagement || !props.actions.getRecommendationManagement) return;
@@ -329,7 +293,6 @@ export function VaultWishlistManager(props: {
 
   function finishApplied(message: string) {
     onAppliedRef.current?.(message);
-    onCloseRef.current();
   }
 
   async function selectDimFile() {
@@ -644,16 +607,14 @@ export function VaultWishlistManager(props: {
   const selectedManagedSource = managementSnapshot?.sources.find((source) => source.source_key === selectedSourceKey);
   const dimManagedSource = managementSnapshot?.sources.find((source) => source.kind === "dim");
 
-  const dialog = (
-    <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => canClose && props.onClose()}>
-    <section ref={dialogRef} className="vault-wishlist-manager" data-surface="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} aria-busy={isBusy ? "true" : "false"} onClick={(event) => event.stopPropagation()}>
-      <header>
-        <div>
-          <strong id={titleId}>推荐数据</strong>
-          <span>导入后来源立即出现在推荐来源页；作者、规则和证据只在详情中查看。</span>
-        </div>
-        <ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton>
-      </header>
+  const panel = (
+    <section className="vault-recommendation-data-panel" data-surface="section" aria-label="推荐数据" aria-busy={isBusy ? "true" : "false"}>
+      <div className="vault-recommendation-data-head">
+        <span>
+          <strong>推荐数据</strong>
+          <small>导入后来源立即出现在推荐来源页；作者、规则和证据只在来源详情中查看。</small>
+        </span>
+      </div>
 
       {props.showManagement !== false && supportsRecommendationManagement ? (
         <section className="vault-import-section vault-recommendation-management" aria-label="推荐来源与规则管理">
@@ -745,16 +706,159 @@ export function VaultWishlistManager(props: {
         </section>
       ) : null}
 
-      {supportsKnowledgeImport ? (
-        <section className="vault-import-section" aria-label="武器推荐知识库 CSV">
-          <div className="vault-import-section-head">
-            <span><strong>武器推荐数据</strong><small>中文、英文模板使用同一套 11 列字段；旧版 13 列和 31 列文件仍可兼容导入。确认前只校验和预览，不会更新当前数据。</small></span>
-            <div className="vault-wishlist-actions">
-              <ControlButton data-knowledge-import="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择武器推荐.csv"}</ControlButton>
+      <div className="vault-import-action-group">
+        <h4 className="vault-import-action-group-title">导入</h4>
+        <div className="vault-import-action-list" role="group" aria-label="导入推荐数据">
+          {supportsKnowledgeImport ? (
+            <div className="vault-import-action-row">
+                <span>
+                  <strong>人工推荐 CSV</strong>
+                  <small>11 列字段：武器、来源、用途、Perk、评级、备注；旧版 13 列和 31 列文件仍可导入。没有现成表格时可先下载模板。</small>
+                </span>
+                <div className="vault-import-action-buttons">
+                  <ControlButton data-knowledge-import="" size="compact" variant="primary" aria-label="导入人工推荐 CSV" disabled={isBusy} onClick={() => setKnowledgeImportOpen(true)}>导入 CSV 文件</ControlButton>
+                </div>
+            </div>
+          ) : null}
+
+          <div className="vault-import-action-row">
+            <span>
+              <strong>DIM Wishlist</strong>
+              <small>在线导入、选择本地 .txt / .wishlist 文件，或粘贴文本；确认后才会写入本机，社区愿望单不参与人工推荐的评级筛选。</small>
+            </span>
+            <div className="vault-import-action-buttons">
+              <input ref={browserFileRef} hidden type="file" accept=".txt,.wishlist,text/plain" onChange={(event) => void readBrowserFile(event.target.files?.[0])} />
+              {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "读取中" : "在线导入"}</ControlButton> : null}
+              <ControlButton data-dim-import="" size="compact" variant="secondary" aria-label="导入 DIM Wishlist 文件" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "导入 Wishlist 文件"}</ControlButton>
+              <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setIsPasteOpen((current) => !current); setIsConfirmingClear(false); }}>{isPasteOpen ? "收起粘贴框" : "粘贴 Wishlist"}</ControlButton>
+              {props.wishlist ? <ControlButton size="compact" variant="quiet" aria-label="移除当前 Wishlist" disabled={isBusy} onClick={() => { setIsConfirmingClear(true); setIsPasteOpen(false); }}>移除 Wishlist</ControlButton> : null}
             </div>
           </div>
-          {knowledgePreview ? (
-            <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
+
+          {isPasteOpen ? (
+            <div className="vault-wishlist-paste vault-import-action-preview">
+              <label><span>Wishlist 文本</span><textarea rows={6} value={inputText} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setInputText(event.target.value); setPastePreview(null); setDimFilePreview(null); setFeedback(null); }} /></label>
+              <ControlButton size="compact" variant="secondary" disabled={!inputText.trim() || isBusy} onClick={() => createPastePreview()}>解析预览</ControlButton>
+            </div>
+          ) : null}
+
+          {dimManagedSource && dimManagedSource.state !== "active" ? (
+            <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">DIM 来源当前{dimManagedSource.state === "removed" ? "已按来源移除" : "已停用"}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。</p>
+          ) : null}
+
+          {supportsDimOnlineUpdate && dimOnlineStatus ? (
+            <div className="vault-dim-online-status" data-surface="frame" data-ui-kind="state-frame">
+              <span>
+                <strong>{formatDimInstallLabel(dimOnlineStatus, Boolean(props.wishlist))}</strong>
+                <small>{dimOnlineStatus.activated_at ? `启用于 ${formatDateTime(dimOnlineStatus.activated_at)}` : "尚未从社区上游启用"}</small>
+              </span>
+              <span>
+                <strong>{dimOnlineStatus.weapon_count} 把武器</strong>
+                <small>{dimOnlineStatus.rule_count} 条规则{dimOnlineStatus.checked_at ? ` · 上次检查 ${formatDateTime(dimOnlineStatus.checked_at)}` : ""}</small>
+              </span>
+            </div>
+          ) : null}
+
+          {dimOnlinePreview ? (
+            <div className="vault-wishlist-preview vault-dim-online-preview vault-import-action-preview" data-surface="frame" data-ui-kind="state-frame">
+              <span><strong>发现上游版本 {shortRevision(dimOnlinePreview.latest_revision)}</strong><small>{dimOnlinePreview.latest_commit_at ? `提交于 ${formatDateTime(dimOnlinePreview.latest_commit_at)}` : dimOnlinePreview.file_name}</small></span>
+              <span><strong>{dimOnlinePreview.rule_count} 条规则</strong><small>{dimOnlinePreview.weapon_count} 把武器 · {formatModeCounts(dimOnlinePreview.mode_counts)}</small></span>
+              <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmDimOnlineUpdate()}>{busyAction === "dim-online-confirm" ? "更新中" : props.wishlist ? "确认更新" : "确认启用"}</ControlButton>
+            </div>
+          ) : null}
+
+          {dimFilePreview ? (
+            <div className="vault-wishlist-preview vault-import-action-preview" data-surface="frame" data-ui-kind="state-frame">
+              <span><strong>{dimFilePreview.title}</strong><small>{dimFilePreview.file_name}</small></span>
+              <span><strong>{dimFilePreview.rule_count} 条规则</strong><small>{dimFilePreview.weapon_count} 把武器 · {formatModeCounts(dimFilePreview.mode_counts)}</small></span>
+              <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmDimImport()}>{busyAction === "dim-confirm" ? "导入中" : props.wishlist ? "确认替换" : "确认启用"}</ControlButton>
+            </div>
+          ) : null}
+
+          {pastePreview ? (
+            <div className="vault-wishlist-preview vault-import-action-preview" data-surface="frame" data-ui-kind="state-frame">
+              <span><strong>{pastePreview.title}</strong><small>粘贴内容</small></span>
+              <span><strong>{pastePreview.rules.length} 条规则</strong><small>{formatModes(pastePreview.rules.map((rule) => rule.mode))}</small></span>
+              <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void savePastePreview()}>{busyAction === "dim-confirm" ? "保存中" : props.wishlist ? "确认替换" : "确认启用"}</ControlButton>
+            </div>
+          ) : null}
+
+          {isConfirmingClear ? (
+            <div className="vault-wishlist-confirm vault-import-action-preview" data-ui-kind="callout" data-status="warning">
+              <span>移除后，仓库和装备详情将不再显示这份 Wishlist 的匹配结果。</span>
+              <div><ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setIsConfirmingClear(false)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => void clearWishlist()}>{busyAction === "dim-clear" ? "移除中" : "确认移除"}</ControlButton></div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="vault-import-action-group">
+        <h4 className="vault-import-action-group-title">导出</h4>
+        <div className="vault-import-action-list" role="group" aria-label="导出推荐数据">
+          <div className="vault-import-action-row">
+            <span>
+              <strong>导出当前推荐</strong>
+              <small>把已导入的人工推荐导出成表格，改完评级、备注或 Perk 后可以再导入覆盖；不含 DIM 愿望单。</small>
+            </span>
+            <div className="vault-import-action-buttons">
+              {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="secondary" aria-label="导出当前推荐" disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{busyAction === "knowledge-export" ? "导出中" : "导出为 CSV"}</ControlButton> : null}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {knowledgeImportOpen && supportsKnowledgeImport ? (
+        <div
+          className="modal-backdrop vault-recommendation-data-backdrop"
+          role="presentation"
+          onClick={() => { if (!isBusy) setKnowledgeImportOpen(false); }}
+        >
+          <section
+            ref={importDialogRef}
+            className="vault-wishlist-manager vault-knowledge-import-dialog"
+            data-surface="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={importTitleId}
+            aria-busy={isBusy ? "true" : "false"}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <strong id={importTitleId}>导入人工推荐 CSV</strong>
+                <span>新建推荐先下载模板填写；已有表格可以直接选择文件。确认前只校验和预览，不会更新当前数据。</span>
+              </div>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setKnowledgeImportOpen(false)}>关闭</ControlButton>
+            </header>
+
+            <div className="vault-knowledge-import-steps">
+              <div className="vault-knowledge-import-step">
+                <span>
+                  <strong>1. 下载模板（可选）</strong>
+                  <small>没有现成表格时，先下载空白模板填写；中英文列名一致，Hash 等系统字段在导入时自动补齐。</small>
+                </span>
+                <div className="vault-import-action-buttons">
+                  {props.actions.exportKnowledgeTemplate ? (
+                    <>
+                      <ControlButton data-knowledge-template-zh="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{busyAction === "knowledge-template" ? "导出中" : "下载中文模板"}</ControlButton>
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{busyAction === "knowledge-template" ? "导出中" : "下载英文模板"}</ControlButton>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="vault-knowledge-import-step">
+                <span>
+                  <strong>2. 选择填好的 CSV 文件</strong>
+                  <small>支持 11 列模板，兼容旧版 13 列和 31 列文件。</small>
+                </span>
+                <div className="vault-import-action-buttons">
+                  <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择 CSV 文件"}</ControlButton>
+                </div>
+              </div>
+
+              {knowledgePreview ? (
+            <div className="vault-wishlist-preview vault-knowledge-import-preview" data-surface="frame" data-ui-kind="state-frame">
               <span><strong>{knowledgePreview.file_name}</strong><small>{knowledgePreview.source_labels.join(" / ")}</small></span>
               <span><strong>{knowledgePreview.importable_recommendation_count} 条可导入</strong><small>{knowledgePreview.recommendation_count} 条记录 · {knowledgePreview.source_count} 个来源 · {knowledgePreview.import_mode === "merge" ? "合并现有推荐" : "完整替换人工推荐"}</small></span>
               {knowledgePreview.blocking_issue_count > 0 ? (
@@ -772,98 +876,16 @@ export function VaultWishlistManager(props: {
               ) : null}
               <ControlButton size="compact" variant="primary" disabled={isBusy || !knowledgePreview.token || knowledgePreview.importable_recommendation_count === 0} onClick={() => void confirmKnowledgeImport()}>{busyAction === "knowledge-confirm" ? "导入中" : "确认导入"}</ControlButton>
             </div>
-          ) : null}
-          <div className="vault-import-secondary-actions">
-            <p>中文和英文模板字段完全一致；系统字段会在导入时自动补齐。</p>
-            {props.actions.exportKnowledgeTemplate ? (
-              <>
-                <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{busyAction === "knowledge-template" ? "导出中" : "导出中文模板"}</ControlButton>
-                <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{busyAction === "knowledge-template" ? "导出中" : "导出英文模板"}</ControlButton>
-              </>
-            ) : null}
-            {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{busyAction === "knowledge-export" ? "导出中" : "导出当前推荐"}</ControlButton> : null}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="vault-import-section" aria-label="DIM 社区推荐">
-        <div className="vault-import-section-head">
-          <span><strong>DIM Wishlist 手动导入</strong><small>只有点击在线导入、选择本地文件或粘贴文本并确认后，数据才会写入本机。</small></span>
-          <div className="vault-wishlist-actions">
-            <input ref={browserFileRef} hidden type="file" accept=".txt,.wishlist,text/plain" onChange={(event) => void readBrowserFile(event.target.files?.[0])} />
-            {supportsDimOnlineUpdate ? <ControlButton data-dim-update="" size="compact" variant="primary" disabled={isBusy || isCheckingDimOnline} aria-busy={isCheckingDimOnline} onClick={() => void checkDimOnlineUpdate()}>{isCheckingDimOnline ? "读取中" : "在线导入"}</ControlButton> : null}
-          </div>
-        </div>
-
-        {dimManagedSource && dimManagedSource.state !== "active" ? (
-          <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">DIM 来源当前{dimManagedSource.state === "removed" ? "已按来源移除" : "已停用"}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。</p>
-        ) : null}
-
-        {supportsDimOnlineUpdate && dimOnlineStatus ? (
-          <div className="vault-dim-online-status" data-surface="frame" data-ui-kind="state-frame">
-            <span>
-              <strong>{formatDimInstallLabel(dimOnlineStatus, Boolean(props.wishlist))}</strong>
-              <small>{dimOnlineStatus.activated_at ? `启用于 ${formatDateTime(dimOnlineStatus.activated_at)}` : "尚未从社区上游启用"}</small>
-            </span>
-            <span>
-              <strong>{dimOnlineStatus.weapon_count} 把武器</strong>
-              <small>{dimOnlineStatus.rule_count} 条规则{dimOnlineStatus.checked_at ? ` · 上次检查 ${formatDateTime(dimOnlineStatus.checked_at)}` : ""}</small>
-            </span>
-          </div>
-        ) : null}
-
-        {dimOnlinePreview ? (
-          <div className="vault-wishlist-preview vault-dim-online-preview" data-surface="frame" data-ui-kind="state-frame">
-            <span><strong>发现上游版本 {shortRevision(dimOnlinePreview.latest_revision)}</strong><small>{dimOnlinePreview.latest_commit_at ? `提交于 ${formatDateTime(dimOnlinePreview.latest_commit_at)}` : dimOnlinePreview.file_name}</small></span>
-            <span><strong>{dimOnlinePreview.rule_count} 条规则</strong><small>{dimOnlinePreview.weapon_count} 把武器 · {formatModeCounts(dimOnlinePreview.mode_counts)}</small></span>
-            <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmDimOnlineUpdate()}>{busyAction === "dim-online-confirm" ? "更新中" : props.wishlist ? "确认更新" : "确认启用"}</ControlButton>
-          </div>
-        ) : null}
-
-        <div className="vault-import-secondary-actions vault-dim-secondary-actions">
-          <p>在线导入只在点击按钮后执行；也可以直接选择本地 `.txt / .wishlist` 文件或粘贴文本。</p>
-          <div className="vault-wishlist-actions">
-            <ControlButton data-dim-import="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择 DIM 文件"}</ControlButton>
-            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsPasteOpen((current) => !current); setIsConfirmingClear(false); }}>粘贴文本</ControlButton>
-            {props.wishlist ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => { setIsConfirmingClear(true); setIsPasteOpen(false); }}>移除当前 Wishlist</ControlButton> : null}
-          </div>
-          {isPasteOpen ? (
-            <div className="vault-wishlist-paste">
-              <label><span>Wishlist 文本</span><textarea rows={6} value={inputText} placeholder="粘贴 DIM Wishlist 内容" onChange={(event) => { setInputText(event.target.value); setPastePreview(null); setDimFilePreview(null); setFeedback(null); }} /></label>
-              <ControlButton size="compact" variant="secondary" disabled={!inputText.trim() || isBusy} onClick={() => createPastePreview()}>解析预览</ControlButton>
+              ) : null}
             </div>
-          ) : null}
+          </section>
         </div>
-
-        {dimFilePreview ? (
-          <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
-            <span><strong>{dimFilePreview.title}</strong><small>{dimFilePreview.file_name}</small></span>
-            <span><strong>{dimFilePreview.rule_count} 条规则</strong><small>{dimFilePreview.weapon_count} 把武器 · {formatModeCounts(dimFilePreview.mode_counts)}</small></span>
-            <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void confirmDimImport()}>{busyAction === "dim-confirm" ? "导入中" : props.wishlist ? "确认替换" : "确认启用"}</ControlButton>
-          </div>
-        ) : null}
-
-        {pastePreview ? (
-          <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
-            <span><strong>{pastePreview.title}</strong><small>粘贴内容</small></span>
-            <span><strong>{pastePreview.rules.length} 条规则</strong><small>{formatModes(pastePreview.rules.map((rule) => rule.mode))}</small></span>
-            <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void savePastePreview()}>{busyAction === "dim-confirm" ? "保存中" : props.wishlist ? "确认替换" : "确认启用"}</ControlButton>
-          </div>
-        ) : null}
-
-        {isConfirmingClear ? (
-          <div className="vault-wishlist-confirm" data-ui-kind="callout" data-status="warning">
-            <span>移除后，仓库和装备详情将不再显示这份 Wishlist 的匹配结果。</span>
-            <div><ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setIsConfirmingClear(false)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => void clearWishlist()}>{busyAction === "dim-clear" ? "移除中" : "确认移除"}</ControlButton></div>
-          </div>
-        ) : null}
-      </section>
+      ) : null}
 
       {feedback ? <p className="vault-wishlist-feedback" data-status={feedback.tone} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
     </section>
-    </div>
   );
-  return portalHost ? createPortal(dialog, portalHost) : dialog;
+  return panel;
 }
 
 function dimRemovedNotice(snapshot: VaultRecommendationManagementSnapshot | null): string {

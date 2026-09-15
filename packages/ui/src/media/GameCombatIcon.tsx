@@ -4,13 +4,20 @@ import { GameAssetImage } from "./GameAssetImage.js";
 export type GameDamageTypeKey = "kinetic" | "arc" | "solar" | "void" | "stasis" | "strand";
 export type GameChampionTypeKey = "barrier" | "overload" | "unstoppable";
 export type GameAmmoTypeKey = "primary" | "special" | "heavy";
+export type GameWeaponSlotTypeKey = "kinetic" | "energy" | "power";
 
 export type GameCombatIconProps = {
-  kind: "damage" | "champion" | "ammo";
+  kind: "damage" | "champion" | "ammo" | "slot";
   type: string;
   src?: string | null;
   size?: "default" | "compact";
   loading?: ImgHTMLAttributes<HTMLImageElement>["loading"];
+};
+
+const weaponSlotShapes: Record<GameWeaponSlotTypeKey, "square" | "triangle" | "circle"> = {
+  kinetic: "square",
+  energy: "triangle",
+  power: "circle"
 };
 
 const damageIconPaths: Record<GameDamageTypeKey, string> = {
@@ -40,11 +47,16 @@ export function GameCombatIcon(props: GameCombatIconProps) {
   const ammoSegments = props.kind === "ammo" && isAmmoTypeKey(props.type)
     ? props.type === "heavy" ? 3 : props.type === "special" ? 2 : 1
     : 0;
+  const slotShape = props.kind === "slot" && isWeaponSlotTypeKey(props.type)
+    ? weaponSlotShapes[props.type]
+    : undefined;
   const content = src
     ? <GameAssetImage src={src} alt="" loading={props.loading ?? "eager"} />
     : ammoSegments
       ? <span className="game-ammo-glyph">{Array.from({ length: ammoSegments }, (_, index) => <i key={index} />)}</span>
-      : null;
+      : slotShape
+        ? <span className="game-slot-glyph" data-slot-shape={slotShape} />
+        : null;
   if (!content) return null;
   return (
     <span
@@ -72,4 +84,8 @@ function isDamageTypeKey(value: string): value is GameDamageTypeKey {
 
 function isAmmoTypeKey(value: string): value is GameAmmoTypeKey {
   return value === "primary" || value === "special" || value === "heavy";
+}
+
+function isWeaponSlotTypeKey(value: string): value is GameWeaponSlotTypeKey {
+  return value === "kinetic" || value === "energy" || value === "power";
 }

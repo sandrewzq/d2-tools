@@ -7,7 +7,7 @@ import {
 } from "./recommendationDatabase.js";
 import { reconcileRecommendationRuleOverrides } from "./recommendationOverrides.js";
 
-export type ExternalRecommendationSourceKind = "dim_wishlist" | "local_community";
+export type ExternalRecommendationSourceKind = "local_community";
 
 export type ExternalRecommendationBlockRecord = {
   block_key: string;

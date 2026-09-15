@@ -81,7 +81,7 @@ import {
   type VaultRecommendationFilterFactIndex,
   type VaultRecommendationMetricKey,
   type VaultRecommendationPrimaryFilter
-} from "./vaultRecommendationMatch.js";
+} from "../recommendationMatchView.js";
 import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 import { createVaultItemCollectionStore } from "./vaultItemCollectionStore.js";
 import {
@@ -89,7 +89,7 @@ import {
   type VaultQuickAction
 } from "./vaultQuickActionStore.js";
 import { VaultQueryIndex, type VaultIndexedQuery } from "./vaultQueryIndex.js";
-import { isDimRecommendationSource } from "../recommendationMatchPresentation.js";
+import { isDimRecommendationSource } from "../recommendationMatchView.js";
 
 type VaultWorkspaceTab = "filters" | "recommendations";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
@@ -151,7 +151,7 @@ export function VaultPageContentView(props: {
   const [craftingFilter, setCraftingFilter] = useState<VaultCraftingFilter>("all");
   const [armorSetFilter, setArmorSetFilter] = useState<VaultArmorSetFilter>("all");
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
-  const [frameFilters, setFrameFilters] = useState<VaultFrameFilter>([]);
+  const [frameFilter, setFrameFilter] = useState<VaultFrameFilter>("all");
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
   const [batchMessage, setBatchMessage] = useState("");
   const [isBatchSaving, setIsBatchSaving] = useState(false);
@@ -277,8 +277,8 @@ export function VaultPageContentView(props: {
     championType: championFilter,
     crafting: craftingFilter,
     armorSet: armorSetFilter,
-    frames: frameFilters
-  }), [ammoFilter, armorSetFilter, championFilter, classFilter, craftingFilter, damageFilter, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, rarityFilter, slotFilter]);
+    frame: frameFilter
+  }), [ammoFilter, armorSetFilter, championFilter, classFilter, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, rarityFilter, slotFilter]);
   const queryIndexedItems = useCallback((
     overrides: Partial<VaultIndexedQuery> = {},
     allowedItemKeys?: ReadonlySet<string>
@@ -302,7 +302,7 @@ export function VaultPageContentView(props: {
         crafting: craftingFilter,
         armorSet: armorSetFilter,
         armorStatRules,
-        frames: frameFilters,
+        frame: frameFilter,
         tags: props.tags,
         wishlist: props.wishlist,
         ...overrides
@@ -433,9 +433,9 @@ export function VaultPageContentView(props: {
     if (!source || !sourceState) return [];
     const labels = [`推荐来源：${source.sourceLabel}`];
     if (selection.primaryFilter !== "all") {
-      labels.push(`${sourceState.isDim ? "最佳组合" : "核心 Perk"}：${vaultRecommendationPrimaryFilterLabel(selection.primaryFilter, sourceState.isDim)}`);
+      labels.push(`perk 命中：${vaultRecommendationPrimaryFilterLabel(selection.primaryFilter, false)}`);
     }
-    if (!sourceState.isDim && selection.completeFilter !== "all") {
+    if (selection.completeFilter !== "all") {
       labels.push(`完整命中：${selection.completeFilter}`);
     }
     return labels;
@@ -510,7 +510,7 @@ export function VaultPageContentView(props: {
     return buildVaultLocationFilters(candidates, props.currentCharacterId);
   }, [props.currentCharacterId, queryIndexedItems, recommendationAllowedItemKeys]);
   const availableFrameFilters = useMemo(() => {
-    const candidates = queryIndexedItems({ frames: [] }, recommendationAllowedItemKeys);
+    const candidates = queryIndexedItems({ frame: "all" }, recommendationAllowedItemKeys);
     return buildVaultFrameFilters(candidates);
   }, [queryIndexedItems, recommendationAllowedItemKeys]);
   const armorSetFilters = useMemo(
@@ -562,9 +562,10 @@ export function VaultPageContentView(props: {
     lockFilter,
     tagFilter,
     recommendationSelectionLabels,
-    frameFilterCount: frameFilters.length,
+    frameFilter,
+    frameLabel: availableFrameFilters.find((option) => option.key === frameFilter)?.label,
     armorRuleCount: armorStatRules.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, championFilter, classFilter, craftingFilter, damageFilter, frameFilters.length, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationSelectionLabels, slotFilter, sortKey, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, championFilter, classFilter, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationSelectionLabels, slotFilter, sortKey, tagFilter]);
   const contextFacts = useMemo(() => buildVaultContextFacts({
     group,
     query,
@@ -581,11 +582,12 @@ export function VaultPageContentView(props: {
     craftingFilter,
     armorSetFilter,
     armorSetLabel,
-    frameFilters,
+    frameFilter,
+    frameLabel: availableFrameFilters.find((option) => option.key === frameFilter)?.label,
     armorStatRules,
     filteredCount: filteredVaultItems.length,
     totalCount: props.items.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, championFilter, classFilter, craftingFilter, damageFilter, filteredVaultItems.length, frameFilters, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, championFilter, classFilter, craftingFilter, damageFilter, filteredVaultItems.length, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
 
   useEffect(() => {
     props.onContextFactsChange?.([
@@ -616,7 +618,7 @@ export function VaultPageContentView(props: {
     setCraftingFilter("all");
     setArmorSetFilter("all");
     setArmorStatRules([]);
-    setFrameFilters([]);
+    setFrameFilter("all");
     setBatchMessage("");
   }
 
@@ -632,7 +634,7 @@ export function VaultPageContentView(props: {
       setDamageFilter("all");
       setChampionFilter("all");
       setCraftingFilter("all");
-      setFrameFilters([]);
+      setFrameFilter("all");
     }
     if (nextGroup !== "armor") {
       setClassFilter("all");
@@ -651,10 +653,6 @@ export function VaultPageContentView(props: {
       const nextStat = (Object.keys(armorStatLabels) as Array<Exclude<VaultArmorStatRule["stat"], "">>).find((stat) => !used.has(stat));
       return nextStat ? [...current, { stat: nextStat, min: 10 }] : current;
     });
-  }
-
-  function toggleFrameFilter(key: string) {
-    setFrameFilters((current) => current.includes(key) ? current.filter((value) => value !== key) : [...current, key]);
   }
 
   function switchVaultTab(tab: VaultWorkspaceTab) {
@@ -825,7 +823,7 @@ export function VaultPageContentView(props: {
               championIcons={championIcons}
               craftingFilter={craftingFilter}
               armorSetFilter={armorSetFilter}
-              frameFilters={frameFilters}
+              frameFilter={frameFilter}
               group={group}
               groups={groups}
               slotFilters={slotFilters}
@@ -854,7 +852,7 @@ export function VaultPageContentView(props: {
               onCraftingFilterChange={setCraftingFilter}
               onArmorSetFilterChange={setArmorSetFilter}
               onGroupChange={switchVaultFilterMode}
-              onToggleFrameFilter={toggleFrameFilter}
+              onFrameFilterChange={setFrameFilter}
             />
             <section className="vault-results-column vault-browse-results" data-surface="section" data-contract-id="vault.results" data-vault-scroll-pane="filters">
               <div className="vault-results-command-row">
@@ -886,20 +884,21 @@ export function VaultPageContentView(props: {
                               </button>
                             </div>
                             {active && selection ? (
-                              <div className={`vault-recommendation-source-conditions${sourceState.isDim ? " is-dim" : ""}`} role="group" aria-label={`${option.sourceLabel}${sourceState.isDim ? "最佳组合" : "核心 Perk"}筛选`}>
-                                <div className="vault-recommendation-primary-filter" role="group" aria-label={`${option.sourceLabel}${sourceState.isDim ? "最佳组合" : "核心 Perk"}命中筛选`}>
+                              <div className="vault-recommendation-source-conditions" role="group" aria-label={`${option.sourceLabel}命中筛选`}>
+                                <div className="vault-recommendation-primary-filter" role="group" aria-label={`${option.sourceLabel}perk 命中筛选`}>
                                   <span>
+                                    <span className="vault-recommendation-primary-filter-label" aria-hidden="true">perk 命中</span>
                                     {directOptions.map((filterOption) => (
                                       <button
                                         type="button"
                                         key={filterOption.key}
                                         disabled={filterOption.count === 0}
                                         aria-pressed={selection.primaryFilter === filterOption.key}
-                                        aria-label={`${option.sourceLabel}${sourceState.isDim ? "最佳组合" : "核心 Perk"}${formatVaultRecommendationMetricOptionLabel(filterOption.key, sourceState.isDim)}，${filterOption.count} 件`}
-                                        title={`${sourceState.isDim ? "最佳组合" : "核心 Perk"}：${formatVaultRecommendationMetricOptionLabel(filterOption.key, sourceState.isDim)}，${filterOption.count} 件`}
+                                        aria-label={`${option.sourceLabel}perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key, false)}，${filterOption.count} 件`}
+                                        title={`perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key, false)}，${filterOption.count} 件`}
                                         onClick={() => updateRecommendationSourceSelection(option.sourceId, { primaryFilter: filterOption.key, completeFilter: "all" })}
                                       >
-                                        <span>{formatVaultRecommendationMetricOptionLabel(filterOption.key, sourceState.isDim)}</span>
+                                        <span>{filterOption.key === "all" ? "全部" : filterOption.key}</span>
                                         <small className="vault-recommendation-option-count" aria-hidden="true">{filterOption.count}</small>
                                       </button>
                                     ))}
@@ -920,7 +919,7 @@ export function VaultPageContentView(props: {
                                     </select>
                                   </label>
                                 ) : null}
-                                {!sourceState.isDim && sourceState.completeOptions.length > 1 ? (
+                                {sourceState.completeOptions.length > 1 ? (
                                   <label className="vault-recommendation-complete-filter">
                                     <span className="sr-only">{option.sourceLabel}完整命中筛选</span>
                                     <select
@@ -1136,7 +1135,8 @@ function buildVaultRecommendationFilterState(input: {
       if (!fact) continue;
       primaryCounts.set(fact.primaryKey, (primaryCounts.get(fact.primaryKey) ?? 0) + 1);
       if (isVaultRecommendationMetricKey(fact.primaryKey)) metricKeys.add(fact.primaryKey);
-      if (!isDim && fact.completeKey) completeKeys.add(fact.completeKey);
+      // 所有来源都有完整口径：完整键不再按来源类型过滤。
+      if (fact.completeKey) completeKeys.add(fact.completeKey);
     }
     const primaryOptions: Array<VaultRecommendationFilterOption<VaultRecommendationPrimaryFilter>> = [
       { key: "all", label: "全部", count: candidates.filter((item) => hasSourceRecord(item, sourceId, input.factIndex)).length },
@@ -1175,7 +1175,7 @@ function getSourceFact(item: AccountItemSummary, sourceId: string, input: {
   const fact = getVaultRecommendationFilterFact(input.factIndex, getVaultCommunityInstanceKey(item), sourceId);
   if (fact) return fact;
   if (input.recommendationScanComplete || input.recommendationCardSummary?.has(getVaultCommunityInstanceKey(item))) {
-    return { kind: isDimRecommendationSource(sourceId) ? "dim" : "curated", primaryKey: "uncovered" };
+    return { primaryKey: "uncovered" };
   }
   return undefined;
 }
@@ -1287,7 +1287,8 @@ function buildActiveFilterLabels(input: {
   lockFilter: VaultLockFilter;
   tagFilter: VaultTagFilter;
   recommendationSelectionLabels: readonly string[];
-  frameFilterCount: number;
+  frameFilter: string;
+  frameLabel?: string;
   armorRuleCount: number;
 }): string[] {
   return [
@@ -1309,7 +1310,7 @@ function buildActiveFilterLabels(input: {
     input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
     input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? input.group === "weapons" ? "未整理" : "未标记" : tagLabels[input.tagFilter]}` : "",
     ...input.recommendationSelectionLabels,
-    input.frameFilterCount ? `武器框架：${input.frameFilterCount} 项` : "",
+    input.frameFilter && input.frameFilter !== "all" ? `武器框架：${input.frameLabel ?? input.frameFilter}` : "",
     input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""
   ].filter(Boolean);
 }

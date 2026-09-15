@@ -44,31 +44,20 @@ const playerCsvHeaders = [
   "武器", "武器ID", "英文名称", "推荐来源", "用途", "第一列", "第二列",
   "Perk 1", "Perk 2", "大师", "起源特性", "评级", "备注"
 ] as const;
+// 模板第一列固定为「推荐来源」：来源名允许玩家自定义，导入导出都以这一列为准。
 const unifiedChineseCsvHeaders = [
-  "武器", "规则名称", "用途/分类", "枪管/瞄具", "弹匣", "大师",
+  "推荐来源", "武器", "规则名称", "用途/分类", "枪管/瞄具", "弹匣", "大师",
   "Perk 1", "Perk 2", "起源特性", "评级", "备注"
 ] as const;
 const unifiedEnglishCsvHeaders = [
-  "Weapon", "Rule Name", "Mode / Category", "Barrel / Sight", "Magazine", "Masterwork",
+  "Source", "Weapon", "Rule Name", "Mode / Category", "Barrel / Sight", "Magazine", "Masterwork",
   "Perk 1", "Perk 2", "Origin Trait", "Rating", "Note"
 ] as const;
-const stableSourceKeys: Record<string, string> = {
-  Aegis推荐: "aegis",
-  LGpig推荐: "lgpig",
-  YXCRALLXY推荐表: "yxcrallxy",
-  Sayalarry推荐表: "sayalarry",
-  DIM社区愿望单: "dim_voltron"
-};
-const stableSourceUrls: Record<string, string> = {
-  Aegis推荐: "https://docs.google.com/spreadsheets/d/1JM-0SlxVDAi-C6rGVlLxa-J1WGewEeL8Qvq4htWZHhY/edit?gid=346832350#gid=346832350",
-  LGpig推荐: "https://starside.work/pve-farming/index.html",
-  YXCRALLXY推荐表: "https://docs.qq.com/sheet/DYkR5enNIdUt1VFhK?tab=000001&_t=1788087335795&nlc=1",
-  Sayalarry推荐表: "https://sa7vp10ytxr.feishu.cn/wiki/W3ySwdahTiNRUJklJNBc0CMPnkb",
-  DIM社区愿望单: "https://github.com/48klocs/dim-wish-list-sources"
-};
-const curatedSourceKeys = [...new Set(
-  Object.values(stableSourceKeys).filter((sourceKey) => sourceKey !== "dim_voltron")
-)];
+// 来源 key 由来源名派生，不做字典表：玩家自定义的来源名无法穷举。
+// 现有四个来源的派生结果与历史 key 完全一致（Aegis推荐 → aegis、LGpig推荐 → lgpig …），无需迁移。
+function sourceKeyFromLabel(label: string): string {
+  return normalizeName(label.replace(/(推荐表|推荐|社区愿望单)$/u, ""));
+}
 
 export type WeaponRecommendationKnowledgeStatus = {
   schema_version: number;
@@ -189,7 +178,6 @@ export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
              s.label AS source_label
       FROM weapon_recommendations r
       JOIN recommendation_sources s ON s.id = r.source_id
-      WHERE s.source_key != 'dim_voltron'
       ORDER BY s.source_key, r.weapon_name, r.id
     `).all() as Array<{
       id: number;
@@ -221,6 +209,7 @@ export function exportWeaponRecommendationPlayerCsv(dataDir: string): string {
     for (const row of rows) {
       const rowPerks = perksByRecommendation.get(row.id) ?? {};
       output.push([
+        row.source_label,
         row.weapon_name,
         row.source_label,
         (purposesByRecommendation.get(row.id) ?? []).join(" / "),
@@ -420,7 +409,7 @@ export async function syncWeaponRecommendationKnowledge(
         (SELECT COUNT(*) FROM weapon_recommendations) AS recommendation_count,
         (SELECT COUNT(*) FROM recommendation_sources) AS source_count
     `).get() as { recommendation_count: number; source_count: number };
-    const expectedSourceCount = new Set(validRows.map((row) => stableSourceKeys[row["推荐来源"]?.trim() ?? ""] ?? normalizeName(row["推荐来源"] ?? ""))).size;
+    const expectedSourceCount = new Set(validRows.map((row) => sourceKeyFromLabel(row["推荐来源"] ?? ""))).size;
     if (
       currentFingerprint === sourceFingerprint
       && currentSchemaVersion === String(recommendationDatabaseSchemaVersion)
@@ -498,9 +487,8 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
         ...matching.flatMap((recommendation) => recommendation.item_hashes)
       ], options);
       const weaponLevelRecommendations: NonNullable<WeaponRecommendation["weapon_level_recommendations"]> = [];
-      // DIM Voltron 必须由原生 Wishlist 解析器保留一行一个完整组合。
-      // 四个人工来源 CSV 保存的是逐栏候选池，也不能把不同栏位做笛卡尔积拼成 Roll。
-      const matchableRecommendations = matching.filter((recommendation) => recommendation.source_id !== "dim_voltron");
+      // 人工来源 CSV 保存的是逐栏候选池，不能把不同栏位做笛卡尔积拼成 Roll。
+      const matchableRecommendations = matching;
       const sourceRecords = matchableRecommendations.map((recommendation) => buildSourceRecord(recommendation, perkMap));
       const resolvedSourceLabels = new Set(matchableRecommendations.map((recommendation) => recommendation.source_label));
       for (const recommendation of matchableRecommendations) {
@@ -764,12 +752,11 @@ function replaceKnowledge(
       const sourceLabel = row["推荐来源"]?.trim();
       if (!weaponName || !sourceLabel) continue;
 
-      const sourceKey = stableSourceKeys[sourceLabel] ?? normalizeName(sourceLabel);
-      if (sourceKey === "dim_voltron") continue;
+      const sourceKey = sourceKeyFromLabel(sourceLabel);
       insertSource.run(
         sourceKey,
         sourceLabel,
-        stableSourceUrls[sourceLabel] ?? row["来源URL"]?.trim() ?? ""
+        row["来源URL"]?.trim() ?? ""
       );
       const source = selectSource.get(sourceKey) as { id: number } | undefined;
       if (!source) continue;
@@ -862,7 +849,7 @@ function replaceKnowledge(
     writeMetadata.run("skipped_row_count", String(skippedRowCount));
     writeMetadata.run("curated_dataset_state", "active");
     if (!partialImport) {
-      for (const sourceKey of curatedSourceKeys) {
+      for (const sourceKey of ruleIdsBySource.keys()) {
         reconcileRecommendationRuleOverrides(
           database,
           sourceKey,
@@ -1195,8 +1182,7 @@ function validateWeaponRecommendationRows(
       return;
     }
     seenKeys.add(uniqueKey);
-    const sourceKey = stableSourceKeys[sourceLabel];
-    if (sourceKey === "dim_voltron") return;
+    const sourceKey = sourceKeyFromLabel(sourceLabel);
     if (!sourceKey) {
       issues.push({
         row_number: rowNumber,
@@ -1204,7 +1190,7 @@ function validateWeaponRecommendationRows(
         source_label: sourceLabel,
         field: row.__format === "template" ? "规则名称" : "推荐来源",
         value: sourceLabel,
-        message: "人工推荐只接受 Aegis、LGpig、YXCRALLXY 和 Sayalarry 四个已管理来源；DIM 必须使用独立 Wishlist 数据链。"
+        message: "推荐来源不能为空；来源名可以是任意自定义名称。"
       });
       return;
     }
@@ -1429,7 +1415,7 @@ function unifiedRowToKnowledgeRow(row: Record<string, string>, english: boolean)
     武器ID: "",
     英文名称: english ? value("英文名称", "Weapon") : "",
     版本: "",
-    推荐来源: value("规则名称", "Rule Name"),
+    推荐来源: value("推荐来源", "Source") || value("规则名称", "Rule Name"),
     用途: value("用途/分类", "Mode / Category")
   };
 }
@@ -1497,7 +1483,7 @@ function enrichWeaponRecommendationRow(
     武器ID: row["武器ID"]?.trim() || resolvedHashes.join(" / "),
     页面: row["页面"]?.trim() || sourceLabel,
     分类: row["分类"]?.trim() || primary.itemTypeDisplayName?.trim() || "",
-    来源URL: row["来源URL"]?.trim() || stableSourceUrls[sourceLabel] || "",
+    来源URL: row["来源URL"]?.trim() || "",
     来源位置: row["来源位置"]?.trim() || (isEditableTemplateRow(row) ? "统一推荐模板导入" : ""),
     图标图标URL: row["图标图标URL"]?.trim() || primary.displayProperties?.icon?.trim() || "",
     来源: row["来源"]?.trim() || primary.sourceData?.sourceString?.trim() || ""
@@ -1532,7 +1518,7 @@ function resolveOfficialWeaponDefinitions(
 function curatedKnowledgeRows(rows: Array<Record<string, string>>): Array<Record<string, string>> {
   return rows.filter((row) => {
     const sourceLabel = row["推荐来源"]?.trim() ?? "";
-    return (stableSourceKeys[sourceLabel] ?? normalizeName(sourceLabel)) !== "dim_voltron";
+    return Boolean(sourceKeyFromLabel(sourceLabel));
   });
 }
 

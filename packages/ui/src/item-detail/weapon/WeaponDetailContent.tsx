@@ -21,7 +21,7 @@ import {
   isDimRecommendationSource,
   presentCuratedRecommendationMatch,
   presentRecommendationSlotMatch
-} from "../../recommendationMatchPresentation.js";
+} from "../../recommendationMatchView.js";
 
 export type WeaponDetailSection =
   | "overview"
@@ -29,7 +29,7 @@ export type WeaponDetailSection =
   | "recommendations"
   | "upgrades";
 
-type WeaponTargetSource = "dim" | "community" | "personal";
+type WeaponTargetSource = "community" | "personal";
 
 export type WeaponDetailContentActions = {
   selectVersion?: (hash: number) => void;
@@ -116,7 +116,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     if (!availableSources.length || availableSources.includes(targetSource)) return;
     setTargetSource(availableSources[0]);
   }, [
-    model.personal_targets,
     model.recommendations,
     props.recommendationEvidence?.sourceMatches,
     targetSource
@@ -990,14 +989,13 @@ function RecommendationSection(props: {
   const isDefinition = model.context.kind === "definition";
   const panelId = useId();
   const targetsBySource: Record<WeaponTargetSource, WeaponRecommendation[]> = {
-    dim: model.personal_targets.filter((target) => target.source === "dim"),
     community: model.recommendations.filter((target) => target.source === "builtin" || target.source === "external"),
     personal: model.recommendations.filter((target) => target.source === "user")
   };
   const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
   const sourceMatches = evidence
-    ? evidence.sourceMatches.filter((source) => !isDimRecommendationSource(source.source_id)).sort((left, right) => (
-        recommendationSourceOrder(left.source_id) - recommendationSourceOrder(right.source_id)
+    ? evidence.sourceMatches.slice().sort((left, right) => (
+        recommendationMatchRank(right) - recommendationMatchRank(left)
         || recommendationSourceLabel(left.source_id, left.source_label).localeCompare(
           recommendationSourceLabel(right.source_id, right.source_label),
           "zh-Hans-CN"
@@ -1006,7 +1004,6 @@ function RecommendationSection(props: {
     : [];
   const targets = targetsBySource[props.source];
   const sourceCounts: Record<WeaponTargetSource, number> = {
-    dim: targetsBySource.dim.length,
     community: evidence ? sourceMatches.length : targetsBySource.community.length,
     personal: targetsBySource.personal.length
   };
@@ -1032,14 +1029,13 @@ function RecommendationSection(props: {
         description={isDefinition
           ? "按数据源原始形式展示：完整组合保持组合，分栏候选保持 Perk 池；这里不进行玩家 Roll 命中核对。"
           : isFixedExotic
-            ? "固定异域不进行随机 Roll 核对；攻略推荐、我的推荐和 DIM 只保留拥有状态、催化剂进度与使用建议。"
-            : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；DIM 作为最低权重辅助来源固定放在最后。"}
+            ? "固定异域不进行随机 Roll 核对；攻略推荐与我的推荐只保留拥有状态、催化剂进度与使用建议。"
+            : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。"}
       />
       {sourceOrder.length ? <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择推荐 Roll 来源">
         {([
           ["community", "攻略推荐"],
-          ["personal", "我的推荐"],
-          ["dim", "DIM"]
+          ["personal", "我的推荐"]
         ] as const).filter(([key]) => sourceCounts[key] > 0).map(([key, label]) => (
           <button
             key={key}
@@ -1097,12 +1093,11 @@ function availableWeaponTargetSources(
 ): WeaponTargetSource[] {
   const counts: Record<WeaponTargetSource, number> = {
     community: model.context.kind === "account_instance" && evidence
-      ? evidence.sourceMatches.filter((source) => !isDimRecommendationSource(source.source_id)).length
+      ? evidence.sourceMatches.length
       : model.recommendations.filter((target) => target.source === "builtin" || target.source === "external").length,
-    dim: model.personal_targets.filter((target) => target.source === "dim").length,
     personal: model.recommendations.filter((target) => target.source === "user").length
   };
-  return (["community", "personal", "dim"] as const).filter((source) => counts[source] > 0);
+  return (["community", "personal"] as const).filter((source) => counts[source] > 0);
 }
 
 function preferredWeaponTargetSource(
@@ -1203,6 +1198,82 @@ function RecommendationSourceEvidenceCard(props: {
   );
 }
 
+// 来源卡与 DIM 候选池共用的「来源要求 ｜ 本件拥有」两列对照。
+function RecommendationSlotComparison(props: {
+  label: string;
+  state: RecommendationSourceSlotMatch["state"];
+  stateLabel: string;
+  stateTone: string;
+  sourceCandidates: RecommendationPerkVisual[];
+  sourceCandidateFallback: string;
+  instanceOwned: RecommendationPerkVisual[];
+  instanceOwnedFallback: string;
+  sourceStatusLabels: { hit: string; hitActive: string; candidate: string; uncheckable: string };
+}) {
+  const { label, state, sourceCandidates, instanceOwned } = props;
+  return (
+    <div
+      className="weapon-detail-source-slot"
+      data-core-slot={label === "Perk 1" || label === "Perk 2" ? "true" : undefined}
+      data-match-state={state}
+    >
+      <header>
+        <strong>{label}</strong>
+        <span className="ui-badge" data-ui-kind="status-chip" data-status={props.stateTone}>{props.stateLabel}</span>
+      </header>
+      <div className="weapon-detail-source-slot-comparison">
+        <section>
+          <header><span>来源要求</span>{sourceCandidates.length > 1 ? <small>满足其中一个即可</small> : null}</header>
+          {sourceCandidates.length ? (
+            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${label}来源要求`}>
+              {sourceCandidates.map((candidate) => (
+                <RecommendationPerkIcon
+                  key={candidate.key}
+                  perk={candidate}
+                  hit={candidate.hit === true}
+                  active={candidate.active === true}
+                  muted={state === "match" && candidate.hit !== true}
+                  unknown={candidate.unresolved}
+                  contextLabel="来源推荐"
+                  visibleStatusLabel={candidate.hit
+                    ? candidate.active ? props.sourceStatusLabels.hitActive : props.sourceStatusLabels.hit
+                    : props.sourceStatusLabels.candidate}
+                  statusLabel={candidate.hit
+                    ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
+                    : state === "uncheckable" ? props.sourceStatusLabels.uncheckable : "本件没有这个推荐项"}
+                />
+              ))}
+            </div>
+          ) : <p>{props.sourceCandidateFallback}</p>}
+        </section>
+        <section>
+          <header><span>本件拥有</span><small>蓝点表示当前启用</small></header>
+          {instanceOwned.length ? (
+            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${label}本件拥有`}>
+              {instanceOwned.map((candidate) => (
+                <RecommendationPerkIcon
+                  key={candidate.key}
+                  perk={candidate}
+                  hit={candidate.hit === true}
+                  active={candidate.active === true}
+                  muted={state === "match" && candidate.hit !== true}
+                  contextLabel="本件拥有"
+                  visibleStatusLabel={candidate.hit
+                    ? candidate.active ? "符合 · 当前" : "符合"
+                    : candidate.active ? "当前启用" : "本件拥有"}
+                  statusLabel={candidate.hit
+                    ? candidate.active ? "符合来源要求，当前已启用" : "符合来源要求，当前未启用"
+                    : candidate.active ? "当前已启用，但不在该来源候选中" : "本件拥有，但不在该来源候选中"}
+                />
+              ))}
+            </div>
+          ) : <p>{props.instanceOwnedFallback}</p>}
+        </section>
+      </div>
+    </div>
+  );
+}
+
 function RecommendationSourceSlotRow(props: {
   model: WeaponDetailViewModel;
   slot: RecommendationSourceSlotMatch;
@@ -1215,69 +1286,30 @@ function RecommendationSourceSlotRow(props: {
     hasCurrentEnabled: slot.current_enabled.length > 0
   });
   return (
-    <div
-      className="weapon-detail-source-slot"
-      data-core-slot={slot.slot === "perk1" || slot.slot === "perk2" ? "true" : undefined}
-      data-match-state={slot.state}
-    >
-      <header>
-        <strong>{slot.label}</strong>
-        <span className="ui-badge" data-ui-kind="status-chip" data-status={presentation.tone}>{presentation.label}</span>
-      </header>
-      <div className="weapon-detail-source-slot-comparison">
-        <section>
-          <header><span>来源要求</span>{sourceCandidates.length > 1 ? <small>满足其中一个即可</small> : null}</header>
-          {sourceCandidates.length ? (
-            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${slot.label}来源要求`}>
-              {sourceCandidates.map((candidate) => {
-                const hit = recommendationPerkMatches(model, candidate, slot.instance_owned);
-                const active = recommendationPerkMatches(model, candidate, slot.current_enabled);
-                return (
-                  <RecommendationPerkIcon
-                    key={candidate.key}
-                    perk={candidate}
-                    hit={hit}
-                    active={active}
-                    muted={slot.state === "match" && !hit}
-                    unknown={candidate.unresolved}
-                    contextLabel="来源推荐"
-                    visibleStatusLabel={hit ? active ? "本件命中 · 当前" : "本件命中" : "推荐候选"}
-                    statusLabel={hit
-                      ? active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
-                      : slot.state === "uncheckable" ? "当前无法确认本件是否拥有" : "本件没有这个推荐项"}
-                  />
-                );
-              })}
-            </div>
-          ) : <p>{slot.state === "source_not_specified" ? "未指定" : "要求名称未返回"}</p>}
-        </section>
-        <section>
-          <header><span>本件拥有</span><small>蓝点表示当前启用</small></header>
-          {instanceOwned.length ? (
-            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${slot.label}本件拥有`}>
-              {instanceOwned.map((candidate) => {
-                const hit = recommendationPerkMatches(model, candidate, sourceCandidates);
-                const active = recommendationPerkMatches(model, candidate, slot.current_enabled) || candidate.selected;
-                return (
-                  <RecommendationPerkIcon
-                    key={candidate.key}
-                    perk={candidate}
-                    hit={hit}
-                    active={active}
-                    muted={slot.state === "match" && !hit}
-                    contextLabel="本件拥有"
-                    visibleStatusLabel={hit ? active ? "符合 · 当前" : "符合" : active ? "当前启用" : "本件拥有"}
-                    statusLabel={hit
-                      ? active ? "符合来源要求，当前已启用" : "符合来源要求，当前未启用"
-                      : active ? "当前已启用，但不在该来源候选中" : "本件拥有，但不在该来源候选中"}
-                  />
-                );
-              })}
-            </div>
-          ) : <p>{presentation.instanceOwnedFallback}</p>}
-        </section>
-      </div>
-    </div>
+    <RecommendationSlotComparison
+      label={slot.label}
+      state={slot.state}
+      stateLabel={presentation.label}
+      stateTone={presentation.tone}
+      sourceCandidates={sourceCandidates.map((candidate) => ({
+        ...candidate,
+        hit: recommendationPerkMatches(model, candidate, slot.instance_owned),
+        active: recommendationPerkMatches(model, candidate, slot.current_enabled)
+      }))}
+      sourceCandidateFallback={slot.state === "source_not_specified" ? "未指定" : "要求名称未返回"}
+      instanceOwned={instanceOwned.map((candidate) => ({
+        ...candidate,
+        hit: recommendationPerkMatches(model, candidate, sourceCandidates),
+        active: recommendationPerkMatches(model, candidate, slot.current_enabled) || candidate.selected
+      }))}
+      instanceOwnedFallback={presentation.instanceOwnedFallback}
+      sourceStatusLabels={{
+        hit: "本件命中",
+        hitActive: "本件命中 · 当前",
+        candidate: "推荐候选",
+        uncheckable: "当前无法确认本件是否拥有"
+      }}
+    />
   );
 }
 
@@ -1306,27 +1338,49 @@ function recommendationSourceLabel(sourceId: string, fallback: string): string {
   return fallback || sourceId || "推荐来源";
 }
 
-function recommendationSourceOrder(sourceId: string): number {
-  if (sourceId === "aegis") return 0;
-  if (sourceId === "lgpig") return 1;
-  if (sourceId === "yxcrallxy") return 2;
-  if (sourceId === "sayalarry") return 3;
-  return 99;
+// 所有来源同级：先看符合程度，平级再按来源名，不按来源类型排权重。
+function recommendationMatchRank(source: RecommendationSourceMatch): number {
+  if (source.state === "full") return 5;
+  if (source.state === "core") return 4;
+  if (source.state === "close") return 3;
+  if (source.state === "uncheckable") return 2;
+  if (source.state === "key_missing") return 1;
+  return 0;
 }
 
 function RecommendationCard(props: { model: WeaponDetailViewModel; recommendation: WeaponRecommendation }) {
   const { model, recommendation } = props;
   const isDefinition = model.context.kind === "definition";
   const hasObject = !isDefinition;
+  // 有事实层结果时直接消费，界面不再自行比较插件 Hash 或名称。
+  // 候选池里同一栏可能给出多个候选，只有事实层认定的那一个才算命中，其余是普通候选。
   const perkMatches = recommendation.perk_options.map((option) => {
+    const fromFacts = option.requirement_state !== undefined;
+    const factHit = (name: string, hashes: number[] | undefined): boolean => {
+      if (option.requirement_state !== "match") return false;
+      if (option.matched_hash !== undefined && hashes?.length) return hashes.includes(option.matched_hash);
+      if (option.matched_name) return sameLabel(name, option.matched_name);
+      return true;
+    };
     const candidates = option.candidates?.length
-      ? option.candidates.map((candidate) => recommendationTargetPerk(model, option.column_key, candidate.name, candidate))
-      : option.names.map((name) => recommendationTargetPerk(model, option.column_key, name));
+      ? option.candidates.map((candidate) => {
+        const visual = recommendationTargetPerk(model, option.column_key, candidate.name, candidate);
+        if (!fromFacts) return visual;
+        const hit = factHit(candidate.name, candidate.hashes?.length ? candidate.hashes : candidate.hash !== undefined ? [candidate.hash] : undefined);
+        return { ...visual, hit, active: hit && option.matched_current === true };
+      })
+      : option.names.map((name): RecommendationPerkVisual => {
+        if (!fromFacts) return recommendationTargetPerk(model, option.column_key, name);
+        const hit = factHit(name, undefined);
+        return { key: `${option.column_key}:${name}`, name, hit, active: hit && option.matched_current === true };
+      });
     return {
       ...option,
       candidates,
-      owned: hasObject && candidates.some((candidate) => candidate.hit),
-      active: hasObject && candidates.some((candidate) => candidate.active)
+      owned: hasObject && (fromFacts ? option.requirement_state === "match" : candidates.some((candidate) => candidate.hit)),
+      active: hasObject && (fromFacts
+        ? option.requirement_state === "match" && option.matched_current === true
+        : candidates.some((candidate) => candidate.active))
     };
   });
   const masterworkMatch = hasObject && recommendation.masterwork_names.some((name) => sameLabel(name, model.upgrades.masterwork?.name));
@@ -1353,7 +1407,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
                 ? "完整符合"
                 : recommendation.match === "partial"
                   ? `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length}`
-                  : recommendation.match === "none" ? "不符" : "不作核对"}
+                  : recommendation.match === "none" ? "不符" : recommendation.match === "uncheckable" ? "无法判断" : "不作核对"}
             </span>
           ) : null}
           {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
@@ -1362,14 +1416,44 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
       {recommendation.reason ? <p className="weapon-detail-source-quote is-single-line" data-ui-kind="callout" data-callout-tone="info" title={recommendation.reason}>{recommendation.reason}</p> : null}
       {perkMatches.length ? (
         <div className="weapon-detail-recommendation-combo" data-recommendation-source={recommendation.source}>
-          {perkMatches.map((option) => (
+          {perkMatches.map((option) => recommendation.presentation === "perk_pool" ? (
+            // 候选池：与人工来源证据卡用同一个「来源要求 ｜ 本件拥有」两列对照。
+            <RecommendationSlotComparison
+              key={option.column_key}
+              label={option.column_key}
+              state={isDefinition ? "source_not_specified" : option.requirement_state ?? (option.owned ? "match" : "different")}
+              stateLabel={isDefinition ? "候选池" : option.requirement_state === "uncheckable" ? "无法判断" : option.owned ? "符合" : "不符"}
+              stateTone={option.requirement_state === "uncheckable" ? "pending" : option.owned ? "success" : "error"}
+              sourceCandidates={(option.candidates ?? []).map((candidate) => ({
+                ...candidate,
+                hit: hasObject && candidate.hit,
+                active: hasObject && candidate.active
+              }))}
+              sourceCandidateFallback="要求名称未返回"
+              instanceOwned={(option.instance_owned ?? []).map((plug) => {
+                const visual = recommendationTargetPerk(model, option.column_key, plug.name);
+                const inCandidates = option.names.some((name) => sameLabel(name, plug.name))
+                  || (option.candidates ?? []).some((candidate) => candidate.hash === plug.hash);
+                return { ...visual, hit: hasObject && inCandidates, active: hasObject && plug.current };
+              })}
+              instanceOwnedFallback={isDefinition ? "资料库对象没有账号实例" : "这件武器还没有这一栏的数据"}
+              sourceStatusLabels={{
+                hit: "本件命中",
+                hitActive: "本件命中 · 当前",
+                candidate: "推荐候选",
+                uncheckable: "当前无法确认本件是否拥有"
+              }}
+            />
+          ) : (
             <section key={option.column_key} data-match-state={isDefinition ? undefined : option.owned ? "match" : "different"}>
               <header>
                 <strong>{option.column_key}</strong>
-                <span>{isDefinition ? recommendation.presentation === "perk_pool" ? "候选池" : "组合要求" : option.owned ? "符合" : "不符"}</span>
+                <span>{isDefinition
+                  ? "组合要求"
+                  : option.requirement_state === "uncheckable" ? "无法判断" : option.owned ? "符合" : "不符"}</span>
               </header>
               <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${option.column_key}推荐候选`}>
-                {option.candidates.map((candidate) => (
+                {(option.candidates ?? []).map((candidate) => (
                   <RecommendationPerkIcon
                     key={candidate.key}
                     perk={candidate}
@@ -1377,21 +1461,20 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
                     active={hasObject && candidate.active}
                     muted={hasObject && option.owned && !candidate.hit}
                     unknown={!candidate.icon}
-                    contextLabel={recommendation.source === "dim" ? "DIM 组合要求" : recommendation.presentation === "perk_pool" ? "来源候选池" : "完整组合要求"}
+                    contextLabel="完整组合要求"
                     visibleStatusLabel={isDefinition
-                      ? recommendation.presentation === "perk_pool" ? "候选" : "组合要求"
+                      ? "组合要求"
                       : candidate.hit
                         ? candidate.active ? "命中 · 当前" : "命中"
                         : "推荐候选"}
                     statusLabel={isDefinition
-                      ? recommendation.presentation === "perk_pool" ? "数据源在该栏给出的候选项" : "数据源明确给出的完整组合项"
+                      ? "数据源明确给出的完整组合项"
                       : candidate.hit
                         ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
                         : "本件没有这个推荐项"}
                   />
                 ))}
               </div>
-              {recommendation.presentation === "perk_pool" && option.names.length > 1 ? <small>满足其中一个即可</small> : null}
             </section>
           ))}
         </div>
@@ -1405,7 +1488,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
           </>
         ) : (
           <>
-            <span>{recommendation.source === "dim" ? "最佳组合" : "Perk"}：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 这件武器拥有 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
+            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 命中 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
             <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
             <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
           </>

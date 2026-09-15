@@ -28,7 +28,7 @@ export type VaultIndexedQuery = {
   damageType: VaultDamageFilter;
   championType: VaultChampionFilter;
   armorSet: VaultArmorSetFilter;
-  frames: string[];
+  frame: string;
 };
 
 export type VaultIndexedFacet = keyof VaultIndexedQuery;
@@ -108,9 +108,7 @@ export class VaultQueryIndex {
     addFacet("damageType", filter.damageType);
     addFacet("championType", filter.championType);
     addFacet("armorSet", filter.armorSet);
-    if (!omit?.has("frames") && filter.frames.length) {
-      sets.push(unionFacetSets(this.facetSets.get("frames"), filter.frames));
-    }
+    addFacet("frame", filter.frame);
 
     const smallest = sets.length
       ? sets.reduce((current, candidate) => candidate.size < current.size ? candidate : current)
@@ -193,7 +191,7 @@ function buildItemFacets(
     ["damageType", damageForItem(item)],
     ["championType", championForItem(item)],
     ["armorSet", String(item.armor_set?.hash ?? "")],
-    ["frames", item.weapon_frame?.key ?? ""]
+    ["frame", item.weapon_frame?.key ?? ""]
   ];
 }
 
@@ -233,17 +231,6 @@ function damageForItem(item: AccountItemSummary): string {
 
 function championForItem(item: AccountItemSummary): string {
   return item.breaker_type?.champion_type ?? "";
-}
-
-function unionFacetSets(
-  values: ReadonlyMap<string, Set<string>> | undefined,
-  selectedValues: readonly string[]
-): Set<string> {
-  const union = new Set<string>();
-  for (const value of selectedValues) {
-    for (const key of values?.get(value) ?? []) union.add(key);
-  }
-  return union;
 }
 
 function sameKeyOrder(left: readonly string[], right: readonly string[]): boolean {

@@ -9,7 +9,7 @@ import {
   canonicalVaultRecommendationSourceId,
   selectVaultRecommendationSourceSummaries,
   type VaultRecommendationSummaryIndex
-} from "./vaultRecommendationMatch.js";
+} from "../recommendationMatchView.js";
 import { VaultVirtualWeaponGrid } from "./VaultVirtualWeaponGrid.js";
 import type { VaultQuickActionStore } from "./vaultQuickActionStore.js";
 import {

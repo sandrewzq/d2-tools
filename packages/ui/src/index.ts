@@ -160,7 +160,7 @@ export {
   buildVaultRecommendationSourceSummaries,
   buildVaultRecommendationSummaryIndex,
   getVaultCommunityInstanceKey
-} from "./vault/vaultRecommendationMatch.js";
+} from "./recommendationMatchView.js";
 export type {
   VaultRecommendationCompleteFilter,
   VaultRecommendationFilterFact,
@@ -169,8 +169,8 @@ export type {
   VaultRecommendationPrimaryFilter,
   VaultRecommendationSourceSummary,
   VaultRecommendationSummaryIndex
-} from "./vault/vaultRecommendationMatch.js";
-export { VaultWishlistManager } from "./vault/VaultWishlistManager.js";
+} from "./recommendationMatchView.js";
+export { VaultRecommendationDataPanel } from "./vault/VaultWishlistManager.js";
 export type { VaultWishlistActions } from "./vault/VaultWishlistManager.js";
 export { useVaultBatchActions } from "./vault/useVaultBatchActions.js";
 export type { VaultCleanupActions } from "./vault/useVaultBatchActions.js";

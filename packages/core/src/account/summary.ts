@@ -2087,10 +2087,14 @@ function isIgnoredWeaponRollPlug(plug: AccountWeaponRollPlugSummary): boolean {
     "shader", "ornament", "memento", "tracker", "catalyst", "weapon.mod", "modguns",
     "mods.weapon", "cosmetic", "skin", "killcounter", "intrinsic", "weapon_tiering",
     "kill_vfx", "perk_upgrades",
-    "perk.upgrades", "perkupgrades"
+    "perk.upgrades", "perkupgrades",
+    // 旧版武器的“构筑特性”已被官方标记为弃用，不参与 Roll 核对；
+    // 清单若真的要求这类 Perk，会因定位不到栏位而显示“无法判断”，不会被悄悄丢掉。
+    "build_perk"
   ]) || includesAnyText(itemType, [
     "着色器", "shader", "武器模组", "weapon mod", "催化剂", "catalyst", "记录器", "tracker",
-    "装饰", "ornament", "皮肤", "skin", "固有", "intrinsic", "能量核心", "战斗特效"
+    "装饰", "ornament", "皮肤", "skin", "固有", "intrinsic", "能量核心", "战斗特效",
+    "弃用的特性", "deprecated"
   ]);
 }
 

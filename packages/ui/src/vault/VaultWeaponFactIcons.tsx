@@ -41,3 +41,25 @@ export function VaultDamageTypeIcon(props: {
     />
   ) : null;
 }
+
+export type VaultWeaponSlotType = "kinetic" | "energy" | "power";
+
+export function VaultSlotTypeIcon(props: {
+  type: VaultWeaponSlotType;
+  size?: "default" | "compact";
+}) {
+  return <GameCombatIcon kind="slot" type={props.type} size={props.size} />;
+}
+
+/** 按槽位文案解析动能 / 能量 / 威能，用于槽位筛选的图标与配色。 */
+export function weaponSlotTypeFromLabel(label: string): VaultWeaponSlotType | undefined {
+  if (label.includes("动能")) return "kinetic";
+  if (label.includes("能量")) return "energy";
+  if (label.includes("威能")) return "power";
+  return undefined;
+}
+
+/** 锻造标识字形：沿用仓库卡片“锻造”文字的菱形语言，不仿造游戏图标。 */
+export function VaultCraftingGlyph(props: { kind: "crafted" | "uncrafted" }) {
+  return <span className="vault-crafting-glyph" data-crafting-kind={props.kind} aria-hidden="true" />;
+}

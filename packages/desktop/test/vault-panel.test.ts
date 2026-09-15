@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   applyVisibleVaultSelection, buildDuplicateGroupBatchTagPlan, buildVaultBulkMoveResultMessage, buildVaultCleanupLocatorText, buildVaultCleanupText, buildVaultDuplicateSummary, buildVaultGroups, buildVaultSelectionSummary, countWishlistMatches, buildVaultSections, filterVaultItems, getVaultItemKey, selectDuplicateGroupItems, selectMarkedCleanupItems, selectVaultBatchItems, sortVaultItems
 } from "../../app/src/vault";
@@ -188,11 +188,13 @@ describe("vault panel helpers", () => {
     })).toBe("已转移到泰坦：共 2 件，页面已更新。");
   });
 
-  it("filters vault items by selected weapon frames", () => {
-    expect(filterVaultItems(items, { group: "all", query: "", frames: ["lightweight-frame"] }).map((item) => item.name))
+  it("filters vault items by selected weapon frame", () => {
+    expect(filterVaultItems(items, { group: "all", query: "", frame: "lightweight-frame" }).map((item) => item.name))
       .toEqual(["Riskrunner"]);
-    expect(filterVaultItems(items, { group: "all", query: "", frames: ["adaptive-frame", "high-impact-frame"] }).map((item) => item.name))
-      .toEqual(["Beloved", "Thunderlord"]);
+    expect(filterVaultItems(items, { group: "all", query: "", frame: "adaptive-frame" }).map((item) => item.name))
+      .toEqual(["Beloved"]);
+    expect(filterVaultItems(items, { group: "all", query: "", frame: "high-impact-frame" }).map((item) => item.name))
+      .toEqual(["Thunderlord"]);
   });
 
   it("filters vault items by imported DIM wishlist hits", () => {

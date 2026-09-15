@@ -31,7 +31,6 @@ import { resolveItemTransferCharacterId } from "../../utils/itemActions";
 import {
   buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
-  buildWeaponPersonalTargetViews,
   buildWeaponRecommendationViews
 } from "./item-detail/buildWeaponDetailView";
 import { buildArmorDetailView } from "./item-detail/buildArmorDetailView";
@@ -199,10 +198,6 @@ function ItemDetailReadyContent(
     ...buildWeaponRecommendationViews(props.communityRecommendations, selectedItem),
     ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, selectedItem)
   ] : [], [isWeapon, props.communityRecommendations, props.equipmentTargetStore, selectedItem]);
-  const weaponPersonalTargets = useMemo(
-    () => isWeapon ? buildWeaponPersonalTargetViews(props.communityRecommendations, selectedItem) : [],
-    [isWeapon, props.communityRecommendations, selectedItem]
-  );
   const weaponSources = useMemo(
     () => buildWeaponSources(selectedItem, props.itemAvailability),
     [props.itemAvailability, selectedItem]
@@ -218,8 +213,7 @@ function ItemDetailReadyContent(
   const weaponModel = useMemo(() => weaponBaseModel ? {
     ...weaponBaseModel,
     recommendations: weaponRecommendations,
-    personal_targets: weaponPersonalTargets
-  } : null, [weaponBaseModel, weaponPersonalTargets, weaponRecommendations]);
+  } : null, [weaponBaseModel, weaponRecommendations]);
   const armorSources = useMemo(
     () => buildArmorSources(selectedItem, props.itemAvailability),
     [props.itemAvailability, selectedItem]
@@ -236,7 +230,6 @@ function ItemDetailReadyContent(
     props.communityRecommendations?.source_records ?? []
   ).filter((source) => (
     !source.source_id.startsWith("dim:")
-    && source.source_id !== "dim_voltron"
     && source.source_id !== "dim_wishlist"
   )) : [], [isWeapon, props.communityInstanceMatch?.source_matches, props.communityRecommendations?.source_records]);
   const persistedNote = props.vaultTags.items[selectedItem.item_key]?.note ?? "";

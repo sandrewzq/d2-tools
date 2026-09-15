@@ -1,5 +1,7 @@
-import { createHash } from "node:crypto";
-import { summarizeItemPerks, type ItemPlugSummary } from "@d2-tools/core/items/perks";
+import {
+  summarizeItemPerks,
+  type ItemPlugSummary
+} from "@d2-tools/core/items/perks";
 import { classifyWeaponRollSocket } from "@d2-tools/core/account/summary";
 import { resolveDimWishlistRuleMetadata, type DimWishlist, type DimWishlistSourceBlock } from "@d2-tools/core/analysis/wishlistImport";
 import type {
@@ -14,7 +16,10 @@ import type {
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
-import { loadDimRecommendationSources } from "./recommendationDocumentStore.js";
+import {
+  loadDimRecommendationSources,
+  type RecommendationSourceInstanceRecord
+} from "./recommendationDocumentStore.js";
 import {
   listRecommendationRuleOverrides,
   listRecommendationSourceOverrides,
@@ -22,71 +27,43 @@ import {
   type RecommendationSourceOverride
 } from "./recommendationOverrides.js";
 
-export function createDimWishlistSource(dataDir: string): CommunityPerkSource {
-  return createDimWishlistSourceForRules(dataDir, "dim_wishlist", "DIM Wishlist", safelyLoadDimWishlist(dataDir));
-}
+const maxDimSourceInstances = 512;
 
 export function createDimWishlistSources(dataDir: string): CommunityPerkSource[] {
   const sourceOverrides = listRecommendationSourceOverrides(dataDir);
   const ruleOverrides = listRecommendationRuleOverrides(dataDir);
+  // 来源实例是 DIM 的唯一来源真相；标签在导入期固化，读取时不再推导。
   const storedSources = loadDimRecommendationSources(dataDir);
-  // 旧版本曾把每个 source block 都持久化成实例；超过这个数量时视为
-  // 膨胀数据，回退到按标题/作者聚合的兼容路径，避免启动时重新遍历成千上万来源。
-  if (storedSources.length > 0 && storedSources.length <= 512) {
-    return storedSources.filter((source) => source.state === "active").map((source) => createDimWishlistSourceForRules(
+  if (!storedSources.length) return [];
+  return summarizeDimSources(storedSources)
+    .filter((source) => source.state === "active")
+    .map((source) => createDimWishlistSourceForRules(
       dataDir,
       source.sourceId,
       source.label,
       source.wishlist,
       { sourceOverrides, ruleOverrides }
     ));
-  }
-  const wishlist = safelyLoadDimWishlist(dataDir);
-  if (!wishlist) return [];
-  // 旧版 DIM 导入会为每个注释段生成 source-N。一个作者的同一份
-  // 愿望单因此可能有数千个 block；逐 block 建 Source 会让每件武器
-  // 都遍历数千个来源，点击仓库时表现为卡死。内部仍按 block 保留证据，
-  // UI 通过文档级 sourceId 将它们合并成一个可管理来源。
-  const groups = groupWishlistRules(wishlist);
-  const documentKey = createHash("sha256").update(wishlist.title).digest("hex").slice(0, 12);
-  return groups.map(({ key, rules, block }, index) => {
-    const base = block?.title?.trim()
-      || (groups.length === 1 && key === "unlabeled" ? "DIM Wishlist" : `未标注来源 #${index + 1}`);
-    const author = block?.author?.trim() || wishlist.author?.trim();
-    const label = author ? `${base} · ${author}` : base;
-    const sourceKey = createHash("sha256").update(key).digest("hex").slice(0, 16);
-    return createDimWishlistSourceForRules(dataDir, `dim:${documentKey}:${sourceKey}`, label, {
-      ...wishlist,
-      title: label,
-      rules
-    }, { sourceOverrides, ruleOverrides });
-  });
 }
 
-type DimWishlistRuleGroup = {
-  key: string;
-  rules: DimWishlist["rules"];
-  block?: DimWishlistSourceBlock;
-};
-
-function groupWishlistRules(wishlist: DimWishlist): DimWishlistRuleGroup[] {
-  const blocksById = new Map((wishlist.source_blocks ?? []).map((block) => [block.id, block] as const));
-  const groups = new Map<string, DimWishlistRuleGroup>();
-  for (const rule of wishlist.rules) {
-    const block = rule.source_block_id ? blocksById.get(rule.source_block_id) : undefined;
-    const key = block
-      ? JSON.stringify([
-          block.title?.trim() ?? "",
-          block.author?.trim() ?? ""
-        ])
-      : rule.source_block_id
-        ? `block:${rule.source_block_id}`
-        : "unlabeled";
-    const existing = groups.get(key);
-    if (existing) existing.rules.push(rule);
-    else groups.set(key, { key, rules: [rule], ...(block ? { block } : {}) });
+// 旧版本曾按 block 生成数千个实例。异常膨胀时收敛到文档级来源，
+// 保证仓库来源行数量可控，而不是回退到旧的单例读取路径。
+function summarizeDimSources(
+  storedSources: RecommendationSourceInstanceRecord[]
+): RecommendationSourceInstanceRecord[] {
+  if (storedSources.length <= maxDimSourceInstances) return storedSources;
+  const byDocument = new Map<string, RecommendationSourceInstanceRecord>();
+  for (const source of storedSources) {
+    const existing = byDocument.get(source.documentId);
+    if (existing) existing.wishlist.rules.push(...source.wishlist.rules);
+    else byDocument.set(source.documentId, {
+      ...source,
+      sourceId: `dim:${source.documentId.slice("dim-document:".length)}`,
+      label: source.wishlist.title,
+      wishlist: { ...source.wishlist, rules: [...source.wishlist.rules] }
+    });
   }
-  return [...groups.values()];
+  return [...byDocument.values()];
 }
 
 function createDimWishlistSourceForRules(
@@ -102,13 +79,11 @@ function createDimWishlistSourceForRules(
     : undefined;
   const sourceState = sourceOverrides.find((entry) => entry.source_key === sourceId)?.state
     ?? (documentSourceId ? sourceOverrides.find((entry) => entry.source_key === documentSourceId)?.state : undefined)
-    ?? (sourceId.startsWith("dim:") ? sourceOverrides.find((entry) => entry.source_key === "dim_wishlist")?.state : undefined)
     ?? "active";
   const ruleOverrides = overrides?.ruleOverrides ?? listRecommendationRuleOverrides(dataDir);
   const removedRuleIds = new Set([
     ...ruleOverrides.filter((entry) => entry.source_key === sourceId),
     ...(documentSourceId ? ruleOverrides.filter((entry) => entry.source_key === documentSourceId) : []),
-    ...(sourceId.startsWith("dim:") ? ruleOverrides.filter((entry) => entry.source_key === "dim_wishlist") : [])
   ]
     .filter((entry) => entry.state === "removed" && !entry.review_required)
     .map((entry) => entry.rule_stable_id));

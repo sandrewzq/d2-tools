@@ -109,6 +109,7 @@ describe("weapon detail view", () => {
     expect(model?.configuration.selection_columns.find((column) => column.socket_index === 11))
       .toMatchObject({ label: "核心升级", candidates: [{ hash: core.hash, selected: true }] });
   });
+
 });
 
 function weapon(input: {

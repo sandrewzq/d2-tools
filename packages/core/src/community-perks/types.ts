@@ -226,7 +226,7 @@ export type VaultItemMatchInput = {
   hash: number;
   instance_id?: string;
   item_name?: string;
-  socket_plugs?: Array<{ hash: number; socket_index?: number }>;
+  socket_plugs?: Array<{ hash: number; socket_index?: number; name?: string }>;
   weapon_roll?: AccountWeaponRollSummary;
 };
 
@@ -280,6 +280,17 @@ export type RecommendationCardSummary = Pick<
   dim?: RecommendationCardDimSummary;
 };
 
+export type DimWishlistRequirementInstanceMatch = {
+  slot: RecommendationRequirementSlot;
+  label: string;
+  state: "match" | "different" | "uncheckable";
+  source_candidate_names: string[];
+  source_candidate_hashes: number[];
+  matched_name?: string;
+  matched_hash?: number;
+  matched_current?: boolean;
+};
+
 export type DimWishlistRuleInstanceMatch = {
   rule_stable_id?: string;
   source_id?: string;
@@ -289,6 +300,8 @@ export type DimWishlistRuleInstanceMatch = {
   matched_requirement_count: number;
   requirement_count: number;
   diagnostic_status?: DimWishlistRuleDiagnostic["status"];
+  // 逐栏结果由事实层一次算好，界面不再自行比较插件 Hash 或名称。
+  requirements?: DimWishlistRequirementInstanceMatch[];
 };
 
 export type DimWishlistInstanceMatch = {
@@ -304,6 +317,19 @@ export type DimWishlistInstanceMatch = {
   sources?: DimWishlistSourceInstanceMatch[];
 };
 
+export type DimWishlistColumnMatch = {
+  slot: RecommendationRequirementSlot;
+  label: string;
+  state: "match" | "different" | "uncheckable";
+  source_candidate_names: string[];
+  source_candidate_hashes: number[];
+  matched_name?: string;
+  matched_hash?: number;
+  matched_current?: boolean;
+  // 本件在该栏实际拥有的插件（与人工来源证据卡右列同源），当前启用的带 current 标记。
+  instance_owned?: Array<{ hash: number; name: string; current: boolean }>;
+};
+
 export type DimWishlistSourceInstanceMatch = {
   source_id: string;
   source_label: string;
@@ -315,6 +341,9 @@ export type DimWishlistSourceInstanceMatch = {
   best_matched_requirement_count: number;
   best_requirement_count: number;
   modes: Array<"pve" | "pvp" | "general">;
+  // 组合集合恰好是各栏候选的笛卡尔积时归约成「每栏任选其一」；
+  // 归约后 x/y 是命中栏数 / 要求栏数，界面渲染成候选池。
+  columns?: DimWishlistColumnMatch[];
 };
 
 export type VaultRecommendationDependencyIssueCode =

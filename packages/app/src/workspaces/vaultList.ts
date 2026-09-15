@@ -55,7 +55,7 @@ export type VaultFilter = {
   championType?: VaultChampionFilter;
   armorSet?: VaultArmorSetFilter;
   armorStatRules?: VaultArmorStatRule[];
-  frames?: string[];
+  frame?: string;
   tags?: VaultTags;
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
@@ -93,7 +93,7 @@ export type VaultSection = {
   items: AccountItemSummary[];
 };
 
-export type VaultFrameFilter = string[];
+export type VaultFrameFilter = string;
 
 export type VaultFrameOption = {
   key: string;
@@ -268,7 +268,7 @@ export function createVaultListWorkspace(input: {
   const availableFrameFilters = buildVaultFrameFilters(filterVaultItems(input.items, {
     ...baseFilter,
     query: "",
-    frames: undefined
+    frame: undefined
   }));
   const slotFilters = buildVaultSlotFilters(filterVaultItems(input.items, {
     ...baseFilter,
@@ -298,7 +298,8 @@ export function createVaultListWorkspace(input: {
       damageFilter: filter.damageType ?? "all",
       armorSetFilter: filter.armorSet ?? "all",
       armorSetLabel: armorSetFilters.find((option) => option.key === filter.armorSet)?.label,
-      frameFilters: filter.frames ?? [],
+      frameFilter: filter.frame ?? "all",
+      frameLabel: availableFrameFilters.find((option) => option.key === filter.frame)?.label,
       armorStatRules: filter.armorStatRules ?? [],
       filteredCount: filteredItems.length,
       totalCount: input.items.length
@@ -334,7 +335,7 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     if (!matchesChampion(item, filter.championType ?? "all")) return false;
     if (!matchesCrafting(item, filter.crafting ?? "all")) return false;
     if (!matchesArmorSet(item, filter.armorSet ?? "all")) return false;
-    if (filter.frames?.length && !filter.frames.includes(item.weapon_frame?.key ?? "")) return false;
+    if (!matchesFrame(item, filter.frame ?? "all")) return false;
     if (parsedQuery.locked !== undefined && item.locked !== parsedQuery.locked) return false;
     if (parsedQuery.type && parsedQuery.type !== "all" && item.group_key !== parsedQuery.type) return false;
     if (!query) return true;
@@ -597,10 +598,11 @@ function recommendationStateRank(summary?: RecommendationCardSummary): number {
 
 function recommendationSourceRank(summary?: RecommendationCardSummary): number {
   if (!summary?.sources.length) return 99;
+  // 只看命中程度；不再把来源类型折算成权重。
   return summary.sources.reduce((best, source) => Math.min(
     best,
-    recommendationSourceStateRank(source.state) * 100 + recommendationSourcePriority(source.source_id)
-  ), 999);
+    recommendationSourceStateRank(source.state)
+  ), 99);
 }
 
 function recommendationSourceStateRank(state: RecommendationCardSummary["sources"][number]["state"]): number {
@@ -611,14 +613,6 @@ function recommendationSourceStateRank(state: RecommendationCardSummary["sources
   return 4;
 }
 
-function recommendationSourcePriority(sourceId: string): number {
-  if (sourceId === "aegis") return 0;
-  if (sourceId === "lgpig") return 1;
-  if (sourceId === "yxcrallxy") return 2;
-  if (sourceId === "sayalarry") return 3;
-  if (sourceId === "dim_wishlist" || sourceId === "dim_voltron" || sourceId.startsWith("dim:")) return 4;
-  return 9;
-}
 
 /**
  * 名称相同（同一把武器的多个实例）时按实例 ID 固定次序，
@@ -653,7 +647,8 @@ export function buildVaultContextFacts(input: {
   damageFilter?: VaultDamageFilter;
   armorSetFilter?: VaultArmorSetFilter;
   armorSetLabel?: string;
-  frameFilters: VaultFrameFilter;
+  frameFilter: VaultFrameFilter;
+  frameLabel?: string;
   armorStatRules: VaultArmorStatRule[];
   filteredCount: number;
   totalCount: number;
@@ -677,7 +672,7 @@ export function buildVaultContextFacts(input: {
     input.classFilter && input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
     input.damageFilter && input.damageFilter !== "all" ? `伤害属性：${damageFilterLabels[input.damageFilter]}` : "",
     input.armorSetFilter && input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
-    input.frameFilters.length ? `框架：${input.frameFilters.length} 个` : "",
+    input.frameFilter && input.frameFilter !== "all" ? `武器框架：${input.frameLabel ?? input.frameFilter}` : "",
     input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
   ].filter(Boolean);
 
@@ -905,6 +900,10 @@ function matchesCrafting(item: AccountItemSummary, crafting: VaultCraftingFilter
 
 function matchesArmorSet(item: AccountItemSummary, armorSet: VaultArmorSetFilter): boolean {
   return armorSet === "all" || String(item.armor_set?.hash ?? "") === armorSet;
+}
+
+function matchesFrame(item: AccountItemSummary, frame: string): boolean {
+  return !frame || frame === "all" || item.weapon_frame?.key === frame;
 }
 
 function damageTypeForItem(item: AccountItemSummary): Exclude<VaultDamageFilter, "all"> | undefined {

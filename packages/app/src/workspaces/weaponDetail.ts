@@ -250,7 +250,7 @@ export type WeaponDetailInstanceMetadata = {
 
 export type WeaponRecommendationMode = "pve" | "pvp" | "general";
 
-export type WeaponRecommendationMatch = "full" | "partial" | "none" | "not_applicable";
+export type WeaponRecommendationMatch = "full" | "partial" | "none" | "uncheckable" | "not_applicable";
 
 export type WeaponRecommendationSource = "user" | "builtin" | "external" | "dim";
 
@@ -279,6 +279,13 @@ export type WeaponRecommendation = {
     column_key: string;
     names: string[];
     candidates?: WeaponRecommendationPerkCandidate[];
+    // 事实层结果：命中与否由匹配结果给出，界面不再自行比较插件 Hash 或名称。
+    requirement_state?: "match" | "different" | "uncheckable";
+    matched_name?: string;
+    matched_hash?: number;
+    matched_current?: boolean;
+    // 本件在该栏拥有的插件，用于渲染「本件拥有」一列。
+    instance_owned?: Array<{ hash: number; name: string; current: boolean }>;
   }>;
   masterwork_names: string[];
   mod_names: string[];
@@ -320,7 +327,6 @@ export type WeaponDetailViewModel = {
   sources: WeaponDetailSources;
   upgrades: WeaponDetailUpgrades;
   recommendations: WeaponRecommendation[];
-  personal_targets: WeaponRecommendation[];
   same_hash_instances: WeaponDetailInstance[];
   loading: boolean;
   loading_state: {
@@ -402,7 +408,6 @@ export type BuildWeaponDetailViewModelInput = {
   sources?: WeaponDetailSources;
   upgrades?: WeaponDetailUpgrades;
   recommendations?: WeaponRecommendation[];
-  personal_targets?: WeaponRecommendation[];
   same_hash_instances?: WeaponDetailInstanceLike[];
   instance_metadata?: Record<string, WeaponDetailInstanceMetadata>;
   versions_loading?: boolean;
@@ -509,7 +514,6 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
     sources: input.sources ?? sourceSummaryToSources(item.source),
     upgrades: input.upgrades ?? { enhanced: false },
     recommendations: input.recommendations ?? [],
-    personal_targets: input.personal_targets ?? [],
     same_hash_instances: (input.same_hash_instances ?? [])
       .filter((instance): instance is WeaponDetailInstanceLike & { instance_id: string } => (
         instance.hash === item.hash && Boolean(instance.instance_id)

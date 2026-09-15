@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import {
   openRecommendationDatabase,
@@ -18,7 +17,6 @@ const managedSources = [
   { source_key: "lgpig", label: "LGpig推荐", kind: "curated" },
   { source_key: "yxcrallxy", label: "YXCRALLXY推荐表", kind: "curated" },
   { source_key: "sayalarry", label: "Sayalarry推荐表", kind: "curated" },
-  { source_key: "dim_wishlist", label: "DIM社区愿望单", kind: "dim" }
 ] as const;
 
 export type RecommendationManagedSource = {
@@ -72,10 +70,10 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       GROUP BY s.source_key, s.label
     `).all() as Array<{ source_key: string; label: string; rule_count: number; weapon_count: number }>;
     const dimSet = database.prepare(`
-      SELECT title, revision, source_fingerprint, imported_at
-      FROM external_recommendation_sets
-      WHERE source_kind = 'dim_wishlist'
-    `).get() as { title: string; revision: string; source_fingerprint: string; imported_at: string } | undefined;
+      SELECT MAX(d.imported_at) AS imported_at, MAX(d.fingerprint) AS revision
+      FROM recommendation_documents d
+      WHERE d.document_id LIKE 'dim-document:%'
+    `).get() as { imported_at: string; revision: string } | undefined;
     const sources: RecommendationManagedSource[] = curatedRows.map((row) => ({
       source_key: row.source_key,
       label: row.label,
@@ -101,42 +99,23 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       ORDER BY imported_at, s.document_id
     `).all() as Array<{ document_id: string; document_title: string; document_author: string; revision: string; fingerprint: string; imported_at: string; rule_count: number; weapon_count: number }>;
     // 一个 DIM 导入文档是一个与人工 CSV 平级的可管理来源；作者 / block 只在详情中展示。
-    if (storedInstances.length > 0 && storedInstances.length <= 512) {
-      sources.push(...storedInstances.map((row) => {
-        const sourceKey = `dim:${row.document_id.slice("dim-document:".length)}`;
-        return {
-          source_key: sourceKey,
-          label: row.document_title || "DIM Wishlist",
-          kind: "dim" as const,
-          state: recommendationSourceState(database, sourceKey),
-          configured: true,
-          rule_count: Number(row.rule_count ?? 0),
-          weapon_count: Number(row.weapon_count ?? 0),
-          revision: row.revision || row.fingerprint,
-          imported_at: row.imported_at
-        };
-      }));
-    } else if (dimSet) {
-      const dimCounts = database.prepare(`
-        SELECT COUNT(*) AS rule_count, COUNT(DISTINCT item_hash) AS weapon_count
-        FROM external_recommendation_rules
-        WHERE source_kind = 'dim_wishlist'
-      `).get() as { rule_count: number; weapon_count: number };
-      sources.push({
-        source_key: "dim_wishlist",
-        label: dimSet.title || "DIM Wishlist",
-        kind: "dim",
-        state: recommendationSourceState(database, "dim_wishlist"),
+    sources.push(...storedInstances.map((row) => {
+      const sourceKey = `dim:${row.document_id.slice("dim-document:".length)}`;
+      return {
+        source_key: sourceKey,
+        label: row.document_title || "DIM Wishlist",
+        kind: "dim" as const,
+        state: recommendationSourceState(database, sourceKey),
         configured: true,
-        rule_count: Number(dimCounts.rule_count ?? 0),
-        weapon_count: Number(dimCounts.weapon_count ?? 0),
-        revision: dimSet.revision || dimSet.source_fingerprint || "",
-        imported_at: dimSet.imported_at ?? ""
-      });
-    }
+        rule_count: Number(row.rule_count ?? 0),
+        weapon_count: Number(row.weapon_count ?? 0),
+        revision: row.revision || row.fingerprint,
+        imported_at: row.imported_at
+      };
+    }));
     return {
       curated_revision: curatedRevision,
-      dim_revision: dimSet?.revision || dimSet?.source_fingerprint || "",
+      dim_revision: dimSet?.revision ?? "",
       sources,
       removed_rules: listRecommendationRulesFromDatabase(database, undefined, "removed")
     };
@@ -244,7 +223,7 @@ export function recommendationSourceItemHashesBySource(
   const database = openRecommendationDatabase(dataDir);
   try {
     const curatedKeys = requestedKeys.filter((sourceKey) => (
-      sourceKey !== "dim_wishlist" && !sourceKey.startsWith("dim:")
+      !sourceKey.startsWith("dim:")
     ));
     if (curatedKeys.length) {
       const placeholders = curatedKeys.map(() => "?").join(", ");
@@ -259,16 +238,6 @@ export function recommendationSourceItemHashesBySource(
     }
 
     const dimKeys = requestedKeys.filter((sourceKey) => sourceKey.startsWith("dim:"));
-    const storedDimKeys = new Set<string>();
-    if (hashesBySource.has("dim_wishlist")) {
-      const storedRows = database.prepare(`
-        SELECT DISTINCT r.item_hash
-        FROM recommendation_source_rules r
-        JOIN recommendation_source_instances s ON s.source_id = r.source_id
-        WHERE s.kind = 'dim'
-      `).all() as Array<{ item_hash: number }>;
-      for (const row of storedRows) hashesBySource.get("dim_wishlist")?.add(Number(row.item_hash));
-    }
     if (dimKeys.length) {
       const placeholders = dimKeys.map(() => "?").join(", ");
       const storedSources = database.prepare(`
@@ -286,13 +255,8 @@ export function recommendationSourceItemHashesBySource(
         `).all(`${documentKey}:%`) as Array<{ source_id: string }>;
         storedSources.push(...rows);
       }
-      for (const requestedKey of dimKeys) {
-        if (storedSources.some((row) => row.source_id === requestedKey || row.source_id.startsWith(`${requestedKey}:`))) {
-          storedDimKeys.add(requestedKey);
-        }
-      }
-      if (storedDimKeys.size) {
-        const storedSourceIds = [...new Set(storedSources.map((row) => row.source_id))];
+      const storedSourceIds = [...new Set(storedSources.map((row) => row.source_id))];
+      if (storedSourceIds.length) {
         const storedPlaceholders = storedSourceIds.map(() => "?").join(", ");
         const storedRows = database.prepare(`
           SELECT DISTINCT source_id, item_hash
@@ -307,27 +271,6 @@ export function recommendationSourceItemHashesBySource(
       }
     }
 
-    const legacyDimKeys = dimKeys.filter((sourceKey) => !storedDimKeys.has(sourceKey));
-    if (hashesBySource.has("dim_wishlist") || legacyDimKeys.length) {
-      const legacyRows = database.prepare(`
-        SELECT DISTINCT r.item_hash, COALESCE(b.title, '') AS block_title,
-                        COALESCE(b.author, '') AS block_author
-        FROM external_recommendation_rules r
-        LEFT JOIN external_recommendation_blocks b ON b.id = r.block_id
-        WHERE r.source_kind = 'dim_wishlist'
-      `).all() as Array<{ item_hash: number; block_title: string; block_author: string }>;
-      const legacyKeyByIdentity = new Map(legacyDimKeys.map((sourceKey) => [
-        sourceKey.slice(sourceKey.lastIndexOf(":") + 1),
-        sourceKey
-      ]));
-      for (const row of legacyRows) {
-        const itemHash = Number(row.item_hash);
-        hashesBySource.get("dim_wishlist")?.add(itemHash);
-        const sourceKey = legacyKeyByIdentity.get(dimSourceIdentity(row.block_title, row.block_author));
-        if (sourceKey) hashesBySource.get(sourceKey)?.add(itemHash);
-      }
-    }
-
     return new Map([...hashesBySource].map(([sourceKey, hashes]) => [sourceKey, [...hashes]]));
   } finally {
     database.close();
@@ -338,14 +281,7 @@ function removeSourceDataset(dataDir: string, sourceKey: string): void {
   const database = openRecommendationDatabase(dataDir);
   database.exec("BEGIN IMMEDIATE;");
   try {
-    if (sourceKey === "dim_wishlist") {
-      database.prepare("DELETE FROM external_recommendation_rule_perks WHERE rule_id IN (SELECT id FROM external_recommendation_rules WHERE source_kind = 'dim_wishlist')").run();
-      database.prepare("DELETE FROM external_recommendation_rules WHERE source_kind = 'dim_wishlist'").run();
-      database.prepare("DELETE FROM external_recommendation_block_tags WHERE block_id IN (SELECT id FROM external_recommendation_blocks WHERE source_kind = 'dim_wishlist')").run();
-      database.prepare("DELETE FROM external_recommendation_blocks WHERE source_kind = 'dim_wishlist'").run();
-      database.prepare("DELETE FROM external_recommendation_sets WHERE source_kind = 'dim_wishlist'").run();
-      writeRecommendationMetadata(database, "legacy_dim_wishlist_migration", `cleared:${new Date().toISOString()}`);
-    } else if (sourceKey.startsWith("dim:")) {
+    if (sourceKey.startsWith("dim:")) {
       const documentId = "dim-document:" + sourceKey.slice("dim:".length);
       database.prepare("DELETE FROM recommendation_rule_overrides WHERE source_key = ? OR source_key LIKE ?").run(sourceKey, sourceKey + ":%");
       database.prepare("DELETE FROM recommendation_source_rules WHERE source_id IN (SELECT source_id FROM recommendation_source_instances WHERE document_id = ?)").run(documentId);
@@ -383,7 +319,7 @@ function listRecommendationRulesFromDatabase(
   }
   const overridesByKey = new Map(overrides.map((entry) => [overrideKey(entry.source_key, entry.rule_stable_id), entry]));
   const curated = curatedRules(database, sourceKey).map((rule) => withOverride(rule, overridesByKey));
-  const dim = (!sourceKey || sourceKey === "dim_wishlist" || sourceKey.startsWith("dim:"))
+  const dim = (!sourceKey || sourceKey.startsWith("dim:"))
     ? dimRules(database, sourceKey).map((rule) => withOverride(rule, overridesByKey))
     : [];
   return [...curated, ...dim].sort(compareRules);
@@ -413,7 +349,7 @@ function currentRuleForOverride(
   database: DatabaseSync,
   override: ReturnType<typeof listRecommendationRuleOverridesFromRows>[number]
 ): RecommendationManagedRule | null {
-  if (override.source_key === "dim_wishlist" || override.source_key.startsWith("dim:")) {
+  if (override.source_key.startsWith("dim:")) {
     return dimRuleForOverride(database, override);
   }
   const row = database.prepare(`
@@ -468,89 +404,41 @@ function dimRuleForOverride(
   database: DatabaseSync,
   override: ReturnType<typeof listRecommendationRuleOverridesFromRows>[number]
 ): RecommendationManagedRule | null {
-  if (override.source_key.startsWith("dim:")) {
-    const stored = database.prepare(`
-      SELECT r.item_hash, r.mode, r.kind, r.perk_hashes, r.note,
-             s.label, s.revision
-      FROM recommendation_source_rules r
-      JOIN recommendation_source_instances s ON s.source_id = r.source_id
-      WHERE r.source_id = ? AND r.rule_id = ?
-    `).get(override.source_key, override.rule_stable_id) as {
-      item_hash: number;
-      mode: "pve" | "pvp" | "general";
-      kind: "roll" | "weapon_only";
-      perk_hashes: string;
-      note: string;
-      label: string;
-      revision: string;
-    } | undefined;
-    if (stored) {
-      return {
-        source_key: override.source_key,
-        source_label: stored.label,
-        rule_stable_id: override.rule_stable_id,
-        weapon_hashes: [Number(stored.item_hash)],
-        weapon_name: `武器 ${stored.item_hash}`,
-        purposes: [stored.mode],
-        requirements: stored.kind === "weapon_only"
-          ? []
-          : [{ slot: "DIM 完整组合", names: parseJsonStrings(stored.perk_hashes) }],
-        note: stored.note,
-        state: override.state,
-        review_required: override.review_required,
-        source_revision: override.source_revision || stored.revision,
-        reason: override.reason
-      };
-    }
-  }
-
-  const legacy = database.prepare(`
-    SELECT r.id, r.item_hash, r.mode, r.note, r.source_title,
-           COALESCE(b.title, '') AS block_title,
-           COALESCE(b.author, '') AS block_author
-    FROM external_recommendation_rules r
-    LEFT JOIN external_recommendation_blocks b ON b.id = r.block_id
-    WHERE r.source_kind = 'dim_wishlist' AND r.rule_stable_id = ?
-  `).get(override.rule_stable_id) as {
-    id: number;
+  // 旧版 dim_wishlist 覆盖键按规则 ID 匹配任意 DIM 来源实例，其余按来源实例精确匹配。
+  const scopedToInstance = override.source_key.startsWith("dim:") && !isDimDocumentSourceKey(override.source_key);
+  const stored = database.prepare(`
+    SELECT r.item_hash, r.mode, r.kind, r.perk_hashes, r.note, r.source_id,
+           s.label, s.revision
+    FROM recommendation_source_rules r
+    JOIN recommendation_source_instances s ON s.source_id = r.source_id
+    WHERE r.rule_id = ? AND s.kind = 'dim'
+      ${scopedToInstance ? "AND r.source_id = ?" : ""}
+    ORDER BY r.rowid
+  `).get(...(scopedToInstance ? [override.rule_stable_id, override.source_key] : [override.rule_stable_id])) as {
     item_hash: number;
     mode: "pve" | "pvp" | "general";
+    kind: "roll" | "weapon_only";
+    perk_hashes: string;
     note: string;
-    source_title: string;
-    block_title: string;
-    block_author: string;
+    source_id: string;
+    label: string;
+    revision: string;
   } | undefined;
-  if (!legacy) return null;
-  if (override.source_key.startsWith("dim:")
-    && dimSourceIdentity(legacy.block_title, legacy.block_author) !== override.source_key.slice(override.source_key.lastIndexOf(":") + 1)) {
-    return null;
-  }
-  const perkHashes = (database.prepare(`
-    SELECT perk_hash
-    FROM external_recommendation_rule_perks
-    WHERE rule_id = ?
-    ORDER BY ordinal
-  `).all(legacy.id) as Array<{ perk_hash: number }>).map((entry) => String(entry.perk_hash));
-  const set = database.prepare(`
-    SELECT revision, source_fingerprint
-    FROM external_recommendation_sets
-    WHERE source_kind = 'dim_wishlist'
-  `).get() as { revision: string; source_fingerprint: string } | undefined;
-  const sourceLabel = legacy.block_title.trim()
-    ? `${legacy.block_title.trim()}${legacy.block_author.trim() ? ` · ${legacy.block_author.trim()}` : ""}`
-    : legacy.source_title || "DIM社区愿望单";
+  if (!stored) return null;
   return {
-    source_key: override.source_key,
-    source_label: sourceLabel,
+    source_key: stored.source_id,
+    source_label: stored.label,
     rule_stable_id: override.rule_stable_id,
-    weapon_hashes: [Number(legacy.item_hash)],
-    weapon_name: `武器 ${legacy.item_hash}`,
-    purposes: [legacy.mode],
-    requirements: perkHashes.length ? [{ slot: "DIM 完整组合", names: perkHashes }] : [],
-    note: legacy.note || legacy.source_title,
+    weapon_hashes: [Number(stored.item_hash)],
+    weapon_name: `武器 ${stored.item_hash}`,
+    purposes: [stored.mode],
+    requirements: stored.kind === "weapon_only"
+      ? []
+      : [{ slot: "DIM 完整组合", names: parseJsonStrings(stored.perk_hashes) }],
+    note: stored.note,
     state: override.state,
     review_required: override.review_required,
-    source_revision: override.source_revision || set?.revision || set?.source_fingerprint || "",
+    source_revision: override.source_revision || stored.revision,
     reason: override.reason
   };
 }
@@ -627,78 +515,43 @@ function curatedRules(database: DatabaseSync, sourceKey?: string): Recommendatio
 }
 
 function dimRules(database: DatabaseSync, sourceKey?: string): RecommendationManagedRule[] {
-  if (sourceKey?.startsWith("dim:")) {
-    const documentSource = isDimDocumentSourceKey(sourceKey);
-    const rows = database.prepare(`
-      SELECT r.rule_id, r.item_hash, r.mode, r.kind, r.perk_hashes, r.note,
-             s.source_id,
-             s.label, s.revision, d.imported_at
-      FROM recommendation_source_rules r
-      JOIN recommendation_source_instances s ON s.source_id = r.source_id
-      JOIN recommendation_documents d ON d.document_id = s.document_id
-      WHERE ${documentSource ? "r.source_id LIKE ?" : "r.source_id = ?"} ORDER BY r.rowid
-    `).all(documentSource ? `${sourceKey}:%` : sourceKey) as Array<{ source_id: string; rule_id: string; item_hash: number; mode: "pve" | "pvp" | "general"; kind: "roll" | "weapon_only"; perk_hashes: string; note: string; label: string; revision: string; imported_at: string }>;
-    return rows.map((row) => ({
-      source_key: row.source_id,
-      source_label: row.label,
-      rule_stable_id: row.rule_id,
-      weapon_hashes: [Number(row.item_hash)],
-      weapon_name: `武器 ${row.item_hash}`,
-      purposes: [row.mode],
-      requirements: row.kind === "weapon_only" ? [] : [{ slot: "DIM 完整组合", names: parseJsonStrings(row.perk_hashes) }],
-      note: row.note,
-      state: "active",
-      review_required: false,
-      source_revision: row.revision,
-      reason: ""
-    }));
-  }
-  const set = database.prepare(`
-    SELECT revision, source_fingerprint
-    FROM external_recommendation_sets
-    WHERE source_kind = 'dim_wishlist'
-  `).get() as { revision: string; source_fingerprint: string } | undefined;
+  // DIM 规则只来自新模型：dim:<documentKey> 取整个文档，dim:<documentKey>:<identity> 取单个来源实例。
+  const scoped = Boolean(sourceKey?.startsWith("dim:"));
+  const documentSource = scoped && isDimDocumentSourceKey(sourceKey as string);
   const rows = database.prepare(`
-    SELECT r.id, r.rule_stable_id, r.item_hash, r.mode, r.note, r.source_title,
-           COALESCE(b.block_key, 'unlabeled') AS block_key,
-           COALESCE(b.title, '') AS block_title, COALESCE(b.author, '') AS block_author
-    FROM external_recommendation_rules r
-    LEFT JOIN external_recommendation_blocks b ON b.id = r.block_id
-    WHERE r.source_kind = 'dim_wishlist'
-    ORDER BY r.item_hash, r.ordinal
-  `).all() as Array<{ id: number; rule_stable_id: string; item_hash: number; mode: "pve" | "pvp" | "general"; note: string; source_title: string; block_key?: string; block_title: string; block_author: string }>;
-  const filteredRows = sourceKey && sourceKey.startsWith("dim:")
-    ? rows.filter((row) => dimSourceIdentity(row.block_title, row.block_author) === sourceKey.slice(sourceKey.lastIndexOf(":") + 1))
-    : rows;
-  const ids = new Set(filteredRows.map((row) => row.id));
-  const perks = groupRows(database.prepare(`
-    SELECT rule_id AS id, perk_hash AS value
-    FROM external_recommendation_rule_perks
-    ORDER BY rule_id, ordinal
-  `).all() as Array<{ id: number; value: number }>, ids, Number);
-  return filteredRows.map((row) => ({
-    source_key: sourceKey && sourceKey.startsWith("dim:") ? sourceKey : "dim_wishlist",
-    source_label: row.block_title.trim()
-      ? `${row.block_title.trim()}${row.block_author.trim() ? ` · ${row.block_author.trim()}` : ""}`
-      : row.source_title || "DIM社区愿望单",
-    rule_stable_id: row.rule_stable_id,
+    SELECT r.rule_id, r.item_hash, r.mode, r.kind, r.perk_hashes, r.note,
+           s.source_id,
+           s.label, s.revision
+    FROM recommendation_source_rules r
+    JOIN recommendation_source_instances s ON s.source_id = r.source_id
+    WHERE s.kind = 'dim'
+      ${scoped ? (documentSource ? "AND r.source_id LIKE ?" : "AND r.source_id = ?") : ""}
+    ORDER BY r.rowid
+  `).all(...(scoped ? [documentSource ? `${sourceKey}:%` : (sourceKey as string)] : [])) as Array<{
+    source_id: string;
+    rule_id: string;
+    item_hash: number;
+    mode: "pve" | "pvp" | "general";
+    kind: "roll" | "weapon_only";
+    perk_hashes: string;
+    note: string;
+    label: string;
+    revision: string;
+  }>;
+  return rows.map((row) => ({
+    source_key: row.source_id,
+    source_label: row.label,
+    rule_stable_id: row.rule_id,
     weapon_hashes: [Number(row.item_hash)],
     weapon_name: `武器 ${row.item_hash}`,
     purposes: [row.mode],
-    requirements: [{ slot: "DIM 完整组合", names: (perks.get(row.id) ?? []).map(String) }],
-    note: row.note || row.source_title,
+    requirements: row.kind === "weapon_only" ? [] : [{ slot: "DIM 完整组合", names: parseJsonStrings(row.perk_hashes) }],
+    note: row.note,
     state: "active",
     review_required: false,
-    source_revision: set?.revision || set?.source_fingerprint || "",
+    source_revision: row.revision,
     reason: ""
   }));
-}
-
-function dimSourceIdentity(title: string, author: string): string {
-  return createHash("sha256")
-    .update(JSON.stringify([title.trim(), author.trim()]))
-    .digest("hex")
-    .slice(0, 16);
 }
 
 function isDimDocumentSourceKey(sourceKey: string): boolean {

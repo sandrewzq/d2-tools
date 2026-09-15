@@ -114,7 +114,8 @@ export async function loadAccountDerivedWorkspace(
           weapon_roll: item.weapon_roll,
           socket_plugs: item.socket_plugs?.map((plug) => ({
             hash: plug.hash,
-            socket_index: plug.socket_index
+            socket_index: plug.socket_index,
+            name: plug.name
           }))
         })),
         { include_evidence: false }

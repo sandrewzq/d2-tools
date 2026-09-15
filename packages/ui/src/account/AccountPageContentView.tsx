@@ -18,7 +18,7 @@ import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { RefreshControlButton } from "../control/RefreshControlButton.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
-import type { VaultRecommendationSummaryIndex } from "../vault/vaultRecommendationMatch.js";
+import type { VaultRecommendationSummaryIndex } from "../recommendationMatchView.js";
 import {
   ProductWorkspaceContentStack,
   ProductWorkspaceEmptyState,

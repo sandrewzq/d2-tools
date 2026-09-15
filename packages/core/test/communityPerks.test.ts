@@ -5,10 +5,10 @@ import { describe, expect, it } from "vitest";
 import { saveDimWishlist } from "../../services/src/analysis/wishlistStore.js";
 import { saveLocalCommunityRecommendations } from "../../services/src/community/localCommunityRecommendations.js";
 import { parseLocalCommunityRecommendations } from "../src/community-perks/localCommunityImport.js";
-import { CommunityPerkRecommendationService } from "../src/community-perks/index.js";
+import { CommunityPerkRecommendationService, reduceCombosToColumnPool } from "../src/community-perks/index.js";
 import {
   createDefaultCommunityPerkService,
-  createDimWishlistSource
+  createDimWishlistSources
 } from "../../services/src/community/perkRecommendation.js";
 import type { CommunityPerkSource, WeaponRecommendation } from "../src/community-perks/index.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
@@ -16,6 +16,8 @@ import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 const itemDefinitions: DefinitionComponentData = {
   "11": {
     hash: 11,
+    itemTypeDisplayName: "特性",
+    plug: { plugCategoryIdentifier: "frames" },
     displayProperties: {
       name: "电流激荡",
       description: "中文 perk"
@@ -23,6 +25,8 @@ const itemDefinitions: DefinitionComponentData = {
   },
   "22": {
     hash: 22,
+    itemTypeDisplayName: "特性",
+    plug: { plugCategoryIdentifier: "frames" },
     displayProperties: {
       name: "快速连发",
       description: "中文 perk"
@@ -85,7 +89,7 @@ describe("community perk recommendations", () => {
     expect(result?.combos[0].note).toBe("PVE clear");
     expect(result?.matched_modes).toContain("pve");
     expect(result?.matched_modes).toContain("pvp");
-    expect(result?.source_label).toBe("DIM Wishlist");
+    expect(result?.source_label).toBe("Test Picks");
     expect(result?.sample_size).toBe(2);
     expect(result?.individual_perks?.map((perk) => perk.hash)).toEqual([11, 22, 33]);
   });
@@ -184,7 +188,7 @@ describe("community perk recommendations", () => {
     expect(matches.get(123)?.available).toBe(2);
     expect(matches.get(123)?.modes).toEqual(expect.arrayContaining(["pve", "pvp"]));
     expect(matches.get(123)?.source_label).toContain("自定义推荐规则");
-    expect(matches.get(123)?.source_label).toContain("DIM Wishlist");
+    expect(matches.get(123)?.source_label).toContain("DIM Picks");
   });
 
   it.each([
@@ -274,7 +278,72 @@ describe("community perk recommendations", () => {
       expect.objectContaining({ hash: 11, name: "电流激荡", englishName: "Voltshot" }),
       expect.objectContaining({ hash: 22, name: "快速连发", englishName: "Rapid Hit" })
     ]);
-    expect(matches.get(123)?.source_label).toBe("DIM Wishlist");
+    expect(matches.get(123)?.source_label).toBe("Test Picks");
+  });
+
+  it("counts a same-named enhanced trait toward a base trait requirement", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    // 愿望单要求基础特性 33，武器上装的是同名的强化特征 44。
+    saveDimWishlist(dir, {
+      title: "Enhanced Picks",
+      rules: [{ item_hash: 123, perk_hashes: [33], mode: "pve", note: "" }]
+    });
+    const definitions: DefinitionComponentData = {
+      "33": { hash: 33, itemTypeDisplayName: "特性", plug: { plugCategoryIdentifier: "frames" }, displayProperties: { name: "连锁反应", description: "基础特性" } },
+      "44": { hash: 44, itemTypeDisplayName: "强化特征", plug: { plugCategoryIdentifier: "frames" }, displayProperties: { name: "连锁反应", description: "强化特性" } },
+      "55": { hash: 55, itemTypeDisplayName: "特性", plug: { plugCategoryIdentifier: "frames" }, displayProperties: { name: "金中藏弹", description: "其它特性" } },
+      "123": {
+        hash: 123,
+        displayProperties: { name: "测试武器", description: "test weapon" },
+        sockets: { socketEntries: [{ reusablePlugItems: [{ plugItemHash: 33 }, { plugItemHash: 44 }] }] }
+      }
+    };
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+
+    // DIM 来源现在与人工来源同级，结论从来源事实读取。
+    const enhanced = await service.matchVaultItemInstances(
+      [{ hash: 123, instance_id: "enhanced-1", socket_plugs: [{ hash: 44, name: "连锁反应" }] }],
+      { itemDefinitions: definitions }
+    );
+    const enhancedSource = enhanced[0]?.source_matches?.find((source) => source.source_id.startsWith("dim:"));
+    expect(enhancedSource?.state).toBe("full");
+    expect(enhancedSource?.slots.map((slot) => slot.state)).toEqual(["match"]);
+
+    const unrelated = await service.matchVaultItemInstances(
+      [{ hash: 123, instance_id: "other-1", socket_plugs: [{ hash: 55, name: "金中藏弹" }] }],
+      { itemDefinitions: definitions }
+    );
+    const unrelatedSource = unrelated[0]?.source_matches?.find((source) => source.source_id.startsWith("dim:"));
+    expect(unrelatedSource?.slots.map((slot) => slot.state)).toEqual(["different"]);
+  });
+
+  it("reduces DIM combo sets to per-column candidate pools only when lossless", () => {
+    // 完整笛卡尔积：2 栏 × 2 栏 → 归约成「每栏任选其一」。
+    expect(reduceCombosToColumnPool([
+      [{ slot: "barrel", hashes: [1] }, { slot: "perk1", hashes: [10] }],
+      [{ slot: "barrel", hashes: [1] }, { slot: "perk1", hashes: [11] }],
+      [{ slot: "barrel", hashes: [2] }, { slot: "perk1", hashes: [10] }],
+      [{ slot: "barrel", hashes: [2] }, { slot: "perk1", hashes: [11] }]
+    ])?.columns.map((column) => ({ slot: column.slot, candidates: column.candidates }))).toEqual([
+      { slot: "barrel", candidates: [["1"], ["2"]] },
+      { slot: "perk1", candidates: [["10"], ["11"]] }
+    ]);
+
+    // 小棒猪式的「前缀展开」：长行是短行的超集，去掉冗余后正好是 1 栏 × 2 栏。
+    expect(reduceCombosToColumnPool([
+      [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [20] }, { slot: "perk2", hashes: [21] }],
+      [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [20] }],
+      [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [21] }]
+    ])?.columns.map((column) => column.candidates.length)).toEqual([1, 2]);
+
+    // 不是笛卡尔积：各栏种数之积 4 ≠ 3 套组合，必须保留组合语义。
+    expect(reduceCombosToColumnPool([
+      [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [20] }],
+      [{ slot: "perk1", hashes: [11] }, { slot: "perk2", hashes: [20] }],
+      [{ slot: "perk1", hashes: [11] }, { slot: "perk2", hashes: [21] }]
+    ])).toBeUndefined();
+    // 单套组合没有可归约的空间。
+    expect(reduceCombosToColumnPool([[{ slot: "perk1", hashes: [10] }]])).toBeUndefined();
   });
 
   it("validates offline weapon sample fixtures through local community matching", async () => {
@@ -310,7 +379,7 @@ describe("community perk recommendations", () => {
       rules: [{ item_hash: 1, perk_hashes: [1], mode: "general", note: "" }]
     });
 
-    const source = createDimWishlistSource(dir);
+    const source = createDimWishlistSources(dir)[0];
     expect(source.isAvailable({ data: { data_dir: dir } })).toBe(true);
   });
 
