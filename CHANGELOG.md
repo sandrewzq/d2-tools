@@ -2,6 +2,20 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## Unreleased
+
+### 中文
+
+#### 修复
+
+- 修复工作区导出映射仍指向已移除模块、导致安装包构建失败的问题。
+
+### English
+
+#### Fixed
+
+- Fixed workspace export maps still pointing at removed modules, which broke the installer build.
+
 ## 0.0.26 - 2026-09-15
 
 ### 中文

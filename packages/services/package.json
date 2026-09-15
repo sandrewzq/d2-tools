@@ -131,10 +131,6 @@
       "types": "./dist/community/perkRecommendation.d.ts",
       "import": "./dist/community/perkRecommendation.js"
     },
-    "./community/localCommunityRecommendations": {
-      "types": "./dist/community/localCommunityRecommendations.d.ts",
-      "import": "./dist/community/localCommunityRecommendations.js"
-    },
     "./community/dimWishlistUpdates": {
       "types": "./dist/community/dimWishlistUpdates.d.ts",
       "import": "./dist/community/dimWishlistUpdates.js"
