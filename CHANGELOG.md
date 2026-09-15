@@ -2,20 +2,6 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
-## Unreleased
-
-### 中文
-
-#### 修复
-
-- 修复工作区导出映射仍指向已移除模块、导致安装包构建失败的问题。
-
-### English
-
-#### Fixed
-
-- Fixed workspace export maps still pointing at removed modules, which broke the installer build.
-
 ## 0.0.26 - 2026-09-15
 
 ### 中文
@@ -30,6 +16,7 @@
 #### 修复
 
 - 修复推荐来源显示成内部编号（例如「未标注来源 #2」）的问题。
+- 修复工作区导出映射仍指向已移除模块、导致安装包构建失败的问题。
 - 修复仓库装着同名强化特征时不计为命中的问题。
 - 修复武器详情与仓库卡片的命中数量不一致、且详情只列出部分来源的问题。
 - 移除「本地规则表」这条无法从界面写入、却仍参与匹配的遗留通道。
@@ -47,6 +34,7 @@
 #### Fixed
 
 - Fixed recommendation sources showing internal identifiers such as "未标注来源 #2".
+- Fixed workspace export maps still pointing at removed modules, which broke the installer build.
 - Fixed enhanced traits not counting as a match when the same-named base trait was required.
 - Fixed the weapon detail disagreeing with vault cards on match counts and listing only some sources.
 - Removed a leftover local rules table channel that could not be written from the UI yet still affected matching.
