@@ -481,6 +481,290 @@ const matches = Boolean(rollSocket) && instanceOwned.some(...);
 | matches vault items against community combos | 158 | 期望 2 | 断言 `source_matches` |
 | aggregates every enabled local source when matching vault items | 187 | 期望 2 得到 1 | 同上 |
 
+### ⑤ 第三步记录：已落地的部分与剩余卡点（2026-09-15）
+
+**已落地并通过验证**（核心改动，保留）：
+
+`communityPerkRecommendationService.ts` 的逐栏判定支持「无 `weapon_roll`」物品：
+
+```ts
+const fallbackOwned = (item.socket_plugs ?? []).map((plug) => ({ hash: plug.hash, name: plug.name ?? "", current: false }))
+  as unknown as RecommendationSourceSlotMatch["instance_owned"];
+const usedFallbackOwnership = !item.weapon_roll && fallbackOwned.length > 0;
+const instanceOwned = rollSocket ? rollSocket.owned_plugs.map(hydrate) : usedFallbackOwnership ? fallbackOwned : [];
+const matches = instanceOwned.some(...);            // 去掉 Boolean(rollSocket) &&
+const cannotCheck = !matches && (!hasComparableRequirement
+  || (rollSocket ? rollSocket.complete === false : hasIncompleteRelevantRollData(item) && !usedFallbackOwnership));
+```
+
+要点：兜底对象必须满足 `AccountWeaponRollPlugSummary`，多写 `current` 字段会触发 TS2322；这里用 `as unknown as` 转换绕过形状差异。验证：114 文件 / 436 项全绿。
+
+**剩余卡点**：把 DIM 来源改成产出 `source_records`（`combos: []`）后，`counts a same-named enhanced trait toward a base trait requirement` 仍失败：
+
+```
+expected 'uncheckable' to be 'full'
+```
+
+现状分析（下一步应先打印确认，不要凭猜改）：
+
+- 愿望单要求 hash 33（基础特性，名字「连锁反应」），物品只有 `socket_plugs: [{hash: 44, name: "连锁反应"}]`（强化特征，同名）。
+- 第一步的兜底已让该物品具备拥有信息，因此 `matches` 本应为 true；但结果仍是 `uncheckable`，说明 **DIM 产出的那条 record 的 `slot` 可能不在六个已知栏位内**（`requirements.get(slot)` 取不到 → 落到 `weapon_only`/`uncheckable`），或者 `candidates` 的解析没有带出同名信息。
+- 建议下一步先在 `matchSourceRecords()` 里临时打印 `record.requirements.map(r => r.slot)` 与 `requirement.candidates`，确认后再决定：是让 DIM 侧的 `slot` 归一到六栏，还是在 `matchSourceRecords` 里把六栏之外的 requirement 也纳入判定。
+
+**其余 3 条失败**仍是断言待更新（测试查 `combos`，DIM 改后为空），行号与改法见上一节。
+
+### ⑤ 第四次记录：已定位的两个真实原因（2026-09-15，已回退到全绿）
+
+**本轮已落地并保留的改动**（114 文件 / 436 项全绿）：
+
+`communityPerkRecommendationService.ts` 逐栏判定支持「无 `weapon_roll`」物品（`socket_plugs` 兜底），`matches` 去掉 `Boolean(rollSocket) &&`，`cannotCheck` 仅在"两者皆无"或 `rollSocket.complete === false` 时为真。
+
+**本轮两次实测定位（下次直接照做）**：
+
+1. **旧 DIM 组合路径会产出"空壳来源事实"**：`matchDimWishlistCombos()` 在 DIM 不再产出 combos 后仍返回一个 source match，其 6 个栏位全是 `source_not_specified`（状态 `weapon_only`），且**与新的来源事实共用同一个 `source_id`**。测试取 `source_matches.find(s => s.source_id.startsWith("dim:"))` 拿到的是这个空壳，于是断言 `full` 失败为 `uncheckable`。
+   → **正确顺序**：把 DIM 改成产 `source_records` 的**同一批**里，必须同时把 `const allSourceMatches = [...sourceMatches, ...dimMatch.sourceMatches]` 改成只用 `sourceMatches`（即删除旧路径接线），否则两条事实互相污染。验证：改成只用 `sourceMatches` 后，`counts a same-named enhanced trait…` 立即通过。
+
+2. **证据状态映射需要跟着换口径**：`recommendationState` / `match_status` 原本直接读 `dimWishlistMatch?.state`（`full` → `priority`，`uncheckable` → `indeterminate`）。DIM 并入来源事实后，状态的取值域变成来源事实那套（`full` / `core` / `close` / `weapon_only` / `uncheckable` …），必须重新定义映射，否则这两条用例会失败：
+
+   ```
+   × resolves DIM PVE and curated 'pve' evidence as 'compare'   expected 'partial_match' → got 'no_match'
+   × resolves DIM PVE and curated 'pvp' evidence as 'priority'  expected 'priority'      → got 'compare'
+   ```
+
+   → 下次先确认来源事实对这两个场景给出的 `state` 是什么（打印 `source_matches.map(s => [s.source_id, s.state])`），再决定映射规则（例如：任一来源 `full` → `priority`；`core`/`close` → `partial_match`；全 `uncheckable` → `indeterminate`）。
+
+3. **断言的机械更新**（行号）：
+
+   | 测试 | 行 | 现断言 | 应改为 |
+   |---|---|---|---|
+   | returns recommendations from a local DIM wishlist | 85 | `result.combos` 长度 2 | `result.source_records`（归约后按栏） |
+   | matches vault items against community combos | 158 | 期望 2 | 断言 `source_matches` |
+   | aggregates every enabled local source when matching vault items | 187 | 期望 2 得到 1 | 同上 |
+
+**结论**：⑤ 的改动面已经全部明确，且**第 1 条是硬约束**（产出来源事实与删除旧路径接线必须同批）。回退前实测：删掉旧接线后强化特征用例转绿，只剩上述断言与状态映射两项。
+
+### ⑤ 第五次记录：证据用例暴露的第三个问题（2026-09-15，已回退）
+
+本批执行内容：DIM 来源改产 `source_records` + core 摘掉 `dimMatch` 接线（`allSourceMatches = sourceMatches`）+ `recommendationState`/`match_status` 改读来源事实 + 移除三处 `dim_wishlist` 事实管道。类型检查 0 错误。
+
+**结果**：`communityPerks.test.ts` 从 4 条失败变成 6 条，其中证据类三条的关键现象是——
+
+```
+[DBG] [["aegis","key_missing",[...,"different",...]]]      // 只有人工来源，DIM 完全没有出现
+× resolves DIM PVE and curated 'pve' evidence as 'compare'  expected 'partial_match' → got 'no_match'
+× resolves DIM PVE and curated 'pvp' evidence as 'priority'  expected 'priority' → got 'compare'
+× resolves DIM PVE and curated 'general' evidence as 'compare' expected 'partial_match' → got 'no_match'
+```
+
+**含义**：把 DIM 改成产 `source_records` 后，**这组场景里 DIM 来源一条来源事实都没产出**（`allSourceMatches` 只有 aegis），而旧 combos 路径原本是能出结论的。注意这与强化特征用例不同——那里打印显示 DIM record 确实被处理过（`["perk1"] names ["连锁反应"]`）。因此差异不在 `matchSourceRecords`，而在 **DIM 侧 `source_records` 是否真的生成**。
+
+**下一步第一件事（一次即可定位）**：在 DIM 来源 `getRecommendations()` 返回前打印
+`console.error("[DBG-DIM]", itemHash, pool ? "pool" : "per-rule", sourceRecords.length, JSON.stringify(sourceRecords.map(r => r.requirements.map(q => q.slot))))`，
+再跑 `-t "evidence as"`。三种可能：
+
+1. `sourceRecords.length === 0` → 说明 `matchingRules` 为空或 `evaluated` 为空（该场景下愿望单规则没匹配到物品），需查上游筛选；
+2. 有 record 但 `requirements` 为空 → 说明 `diagnostic.perks` 为空（perk 在该武器定义里解析不出），要求整条落空；
+3. 有 record 且 requirements 正常 → 说明是 service 侧对 `source_records` 的消费/合并被 `combos.length === 0` 之类条件跳过，需查 service 里 `source_records` 的传递路径。
+
+**结论**：⑤ 仍缺这一块定位；批次内容本身已写好（本次已验证类型可通过），定位后用同样的改法重放即可。回退后 114 文件 / 436 项全绿，仅保留「无 weapon_roll 物品的拥有判定」这一已验证改进。
+**实验补充（同一轮，一次对比即可复现）**：
+
+| 配置 | 结果 |
+|---|---|
+| DIM 产 `source_records` + **旧接线**（仍合并 `dimMatch.sourceMatches`） | 5 条失败，DIM 来源事实**完全进不了结果**（强化特征用例报 `expected undefined to be 'full'`） |
+| DIM 产 `source_records` + **新接线**（只用 `sourceMatches`） | **强化特征用例通过**（DIM 事实能正常匹配），但 3 条证据用例失败 |
+
+结论：**新接线是正确的**，卡点转移到 `sourceMatchCompatibilityResult()` 的状态判定——它仍按旧 dim 事实语义写：`positive = full|core`、`hasUncheckable` 与 `hasCrossSourcePurposeConflict` 里都还留着 `dimWishlistMatch` 分支和「curated vs dim」的分别比对。
+
+**下一步只需改这一处**：把该函数的状态规则完全建立在来源事实上——`positive` 涵盖 DIM 来源的命中状态、`hasUncheckable` 只读来源事实、跨来源目的冲突改成「任意两个来源事实之间」比对（不再区分 curated / DIM），然后重放上面「新接线」的配置。
+
+
+### ⑤ 第六次记录：口径 C 已选定，剩余只差状态语义对齐（2026-09-15，已回退）
+
+**用户已定口径 C**：定位不到栏位的要求计入分母并标「无法判断」，但**不阻断**其他栏位的命中结论。
+
+本轮据此实现（类型检查通过、可重放）：
+
+1. DIM 来源改产 `source_records`：能无损归约的按栏、否则逐条；**一条规则若所有 Perk 都归不到六栏，则退化为「仅推荐武器」**（requirements 为空），不伪造异常栏位。
+2. core：无 `weapon_roll` 时用 `socket_plugs` 兜底判定拥有；命中判定去掉 `Boolean(rollSocket) &&`。
+3. core：六栏之外的要求 push 进 `slots` 并标 `uncheckable`（计入分母）；状态仅在 `checkable === 0` 时才为 `uncheckable`（口径 C 的"不阻断"）。
+4. core：`allSourceMatches = sourceMatches`（摘掉旧 dim 接线）；`sourceMatchCompatibilityResult` 去掉 `dimWishlistMatch` 参数与全部 DIM 分支。
+
+**实测结果**：`communityPerks.test.ts` 剩 5 条失败，其中证据类两条给出关键语义差异：
+
+```
+× resolves DIM PVE and curated 'pve' evidence as 'compare'   expected 'partial_match' → got 'no_match'
+× resolves DIM PVE and curated 'pvp' evidence as 'priority'  expected 'priority'      → got 'compare'
+```
+
+**根因（下一步只需改这一处语义）**：统一模型下 DIM 的「仅推荐武器」来源事实状态是 `weapon_only`，而 `sourceMatchCompatibilityResult` 里 `positive` 只认 `full | core`，且跨来源目的冲突（`hasCrossSourcePurposeConflict`）在上一轮被删掉了。要满足用例期望，需要：
+
+- `positive` 纳入 **`weapon_only`**（来源"推荐了这把武器"本身就是正向信号，无论有没有具体要求）
+- 恢复**跨来源目的冲突**，但改成"任意两个来源事实之间"：一个正向来源（含 weapon_only）与一个负向来源（`key_missing` / `not_matched`）目的重叠 → `compare`
+  （这正是 `resolves DIM PVE … as 'compare'` 期望的来源事实版本）
+
+**其余 3 条仍是断言更新**：`returns recommendations…`（改断言 `source_records`）、`matches vault items…`（期望 2）、`aggregates…`（期望 2）。
+
+**结论**：⑤ 的代码路径已全部打通（本条记录里的 1-4 就是完整补丁），只差上述一处状态语义 + 3 条断言。回退后 114 文件 / 436 项全绿。
+
+### ⑤ 第七次记录：语义已补，卡点收敛到一个具体问题（2026-09-15，已回退）
+
+本轮在第六次记录的四步补丁之上，补上了状态语义：
+
+- `positive` 纳入 `weapon_only`（来源推荐了这把武器即正向信号），`comparisonSources` 相应排除；
+- 恢复跨来源目的冲突，且改成「任意两个来源事实之间」：正向来源（含 `weapon_only`）与负向来源（`key_missing` / `not_matched`）目的重叠 → `compare`。
+
+类型检查 0 错误（DIM 侧 `PerkRef` 重复导入需删掉新增那一行）。用例仍 5 条失败，证据类两条依旧：
+
+```
+× DIM PVE + curated 'pve'   expected 'partial_match' → got 'no_match'
+× DIM PVE + curated 'pvp'   expected 'priority'      → got 'compare'
+```
+
+**卡点已收敛为一个可验证的问题**：那两条用例里 **DIM 来源根本没有出现在 `allSourceMatches`**（上一轮 DBG 打印只剩 `[["aegis", ...]]`），而**原始 combos 版本下这两条用例是能通过的**——说明旧路径确实为这些物品产出了 DIM 结论，而新的 record 路径没有。
+
+**下一步排查（一次即可定位）**：在 DIM 来源 `getRecommendations()` 里对那两条用例打印：
+
+```
+console.error("[DBG-DIM]", itemHash, "rules", matchingRules.length, "records", sourceRecords.length);
+```
+
+- 若 `rules = 0` → 该愿望单不覆盖这两个物品（那么旧路径的 DIM 结论来自别处，需查 `matchDimWishlistCombos` 之外还有谁产出 `dim_wishlist` 事实）；
+- 若 `rules > 0` 而 `records = 0` → 说明 `evaluated` 为空或提前 `return null`；
+- 若 `records > 0` 但结果里没有 DIM 来源 → 说明 service 侧对该 recommendation 的 `source_records` 过滤/传递有问题（例如按 `combos.length` 提前跳过）。
+
+另注意：**服务层可能存在 `if (!recommendation.combos.length) …` 之类的提前分支**，DIM 的 `combos` 现在恒为空，这是最可疑的跳过点，排查时优先看。
+
+### ⑤ 第八次记录：卡点已完全定位（2026-09-15，已回退）
+
+**本轮结论（决定性）**：那 5 条失败**不是匹配逻辑的问题，而是"旧契约"还留在三处**：
+
+1. **测试里的 mock 来源直接返回 `combos`**（`communityPerks.test.ts:198+` 的 `resolves DIM PVE and curated …`）：
+   ```ts
+   const dim = source("DIM", async () => recommendation({
+     matched_modes: ["pve"], source_label: "DIM Wishlist",
+     combos: [{ rule_stable_id: "dim-pve", perks: [{ hash: 22, name: "DIM Perk" }], source: "dim_wishlist", mode: "pve" }]
+   }));
+   ```
+   真实 DIM 来源改成产 `source_records` 后，这个 mock 不再被 core 读取 → DIM 贡献为零 → `no_match` / `compare`。**打印验证：`[DBG-DIM]` 一次都没出现，说明真实解析器根本没被调用。**
+
+2. **`matchVaultItems()`（旧汇总入口）仍按 `combos` 计数**：`matched` 来自 combos 的命中数、`available = 武器级条目数 + combos.length`。DIM 的 `combos` 恒为空后，这两项都归零（用例 `matches vault items against community combos` 期望 `matched 2 / available 2`）。
+   → 需要改成同时计入来源事实：`available` 应包含 `source_records` 里 requirements 的条数，`matched` 应包含来源事实的 `full`/`core` 命中。
+
+3. **3 条断言仍在检查 `combos`**：`returns recommendations from a local DIM wishlist:85`（改断言 `source_records`）、`matches vault items…:158`、`aggregates…:187`。
+
+**DIM 侧本轮新增的正确处理（已在第七次记录基础上补全，验证编译通过）**：
+
+- 归不到六栏的规则（只写武器、或写了定位不到的 Perk）**不进 requirements**，而是写入 `weapon_level_recommendations`（`{ source: "dim_wishlist", mode, source_label, note? }`）——这才对应"仅推荐武器"，此前只有 CSV 源会写这个字段，所以清空 combos 后 DIM 的这一层覆盖丢失；
+- 可归栏的规则按栏归约写 `source_records`；`combos: []`。
+
+**下一步（按顺序，一次可完成）**：① 改 `matchVaultItems()` 的 matched/available 计数口径（含来源事实）；② 把测试 mock 改成返回 `source_records` + `weapon_level_recommendations`；③ 更新 3 条断言；④ 删除调试打印；⑤ bump `matchAlgorithmVersion` + 重建 + 全量验证。
+
+### ⑤ 第九次记录：证据用例已在新契约下通过，剩余是夹具数据问题（2026-09-15，已回退）
+
+本轮按第八次记录的清单实际执行了一遍，结果如下（全部可复现）：
+
+**已完成且验证有效的部分**
+
+1. DIM 来源改产 `source_records`（可归栏的按栏归约）+ `weapon_level_recommendations`（归不到六栏的规则，即"仅推荐武器"）+ `combos: []`；**编译通过**。注意类型标注要写全（`DimRequirement`、`slotLabel(slot: string)`、`candidateRefs(hashes: number[]): PerkRef[]`、`toRequirement(...): RecommendationSourceRequirement`），否则 services 报 11 个 implicit any。
+2. core 接线与状态：`allSourceMatches = sourceMatches`、`positive` 纳入 `weapon_only`、跨来源目的冲突（任意两个来源事实）、六栏之外的要求计入分母（口径 C）、拥有判定 socket_plugs 兜底、`matchVaultItems` 的 `available` 计入来源事实条数。**类型检查 0 错误。**
+3. **测试 mock 改成新契约后，三条证据用例（`resolves DIM PVE and curated …`）全部通过** ✅ —— 这验证了统一模型本身是对的，之前失败纯粹是 mock 还在发 `combos`（旧契约）。
+
+**剩余 4 条失败，根因是测试夹具数据不全（不是产品逻辑）**
+
+| 用例 | 现象 | 原因 |
+|---|---|---|
+| `returns recommendations from a local DIM wishlist` | `source_records` 得到 2 条而非 1 条 | 夹具武器 123 的插槽只有 11/22，愿望单引用 33 → 33 定位不到 → 第 2 条规则只剩 perk1，无法与第 1 条组成笛卡尔积 |
+| `matches vault items against community combos` | `matched_requirement_count` 得到 1 而非 2 | 同上：两条 record 共用同一 `source_id`，`find()` 取到的是 perk1 那条 |
+| `aggregates every enabled local source` | `source_matches` 为空 | 物品引用 33/44，夹具未定义 |
+| `counts a same-named enhanced trait…` | 六栏全 `source_not_specified` | 该用例本地夹具的武器插槽/定义覆盖不足，perk 归不到栏位 → record 无 requirements |
+
+**下一步（收尾步骤）**：把测试夹具补全（给 33/44 增加定义、并让武器 123 的插槽覆盖愿望单引用的全部 hash），再按上面的断言口径微调三条断言；然后 bump `matchAlgorithmVersion` + 重建 + 全量验证。产品代码无需再改。
+
+### ⑤ 第十次记录：只剩 2 条，原因已完全查清（2026-09-15，已回退）
+
+本轮把 src 补丁 + 夹具补全 + 断言更新全部放上后，`communityPerks.test.ts` 达到 **13 / 15 通过**，只剩 2 条：
+
+**① `counts a same-named enhanced trait toward a base trait requirement`**
+
+- 打印确认：DIM 记录正确（`[DBG-REC] Enhanced Picks records 1 … [["perk1"]]`），`state` 断言（`"full"`）**已经通过**。
+- 失败只在最后一行：`expect(slots.map(s => s.state)).toEqual(["match"])`——但来源事实的 `slots` 现在**固定是六栏**（未要求的栏位为 `source_not_specified`），所以实际是 6 项。
+- **修法**：该断言改为过滤后比较，例如
+  `expect(enhancedSource?.slots.filter((s) => s.state !== "source_not_specified").map((s) => s.state)).toEqual(["match"])`。
+
+**② `aggregates every enabled local source when matching vault items`**
+
+- 现象：来源标签只有 `DIM Picks | DIM Picks`，缺 `自定义推荐规则`。
+- 真因：**`localCommunityRecommendations.ts` 只产出 `combos`（第 31 行），不产出 `source_records`**；核心不再读 DIM combos 之后，本地社区来源（自定义推荐规则）在实例匹配里就没有任何来源事实。
+- **这才是 ⑤ 的最后一个真实缺口**：本地社区来源也要迁到统一模型——产出 `source_records`（它按名字描述候选，可从 `matchingRules` 直接映射），并把 `combos` 一并清空；随后其 `combos` 的生产代码也可删除。
+- 若暂不迁移，则该用例只能弱化期望，但这会让"自定义推荐规则"来源在仓库里彻底不显示，属于功能回退，**不建议**。
+
+**结论**：产品代码改动已全部验证到"只剩这两点"，其中 ① 是一行断言口径，② 是本地社区来源的迁移（同类改动我在 DIM 侧已经做过一遍，可直接套用）。
+
+### ⑤ 第十一次记录：主体完成（2026-09-15）
+
+**已落地并全量验证通过**（4 个包类型检查 0 错误、114 文件 / 436 项测试全绿、全部构建完成、`matchAlgorithmVersion` 18 → 19）：
+
+1. **DIM 来源**改产 `source_records`（能无损归约的按栏输出）+ `weapon_level_recommendations`（归不到六栏的规则＝仅推荐武器）+ `combos: []`。
+2. **本地社区来源（自定义推荐规则）**同样迁移：按其规则产出 `source_records` + `weapon_level_recommendations` + `combos: []`；新增 `buildSlotByHash()`（用 `summarizeItemPerks` + `classifyWeaponRollSocket` 把 perk 映射到栏位），无定义可查时按顺序退回 Perk 1 / Perk 2。
+3. **核心只读来源事实**：`allSourceMatches = sourceMatches`；`positive` 含 `weapon_only`；跨来源目的冲突（任意两个来源事实之间）；六栏之外的要求计入分母（口径 C）；无 `weapon_roll` 时用 `socket_plugs` 兜底判定拥有；旧汇总入口 `matchVaultItems` 的命中数计入来源事实。
+4. **测试**全面迁到新契约：mock 来源改发 `source_records`；槽位断言过滤 `source_not_specified`；夹具补齐 33/44 定义与武器 123 的双特性插槽；断言从 `combos` 改为 `source_records` / `source_matches`。
+
+**现在全仓已无任何来源产出 `combos`**（DIM、本地社区、知识库 CSV 都是 `combos: []`）。
+
+**剩余（收尾，产品行为不再变化）**：
+
+| 项 | 内容 |
+|---|---|
+| 删除组合类型标记 | `PerkCombo.source` 与 `weapon_level_recommendations[].source`（types.ts 69、104）；随之删掉 `communityPerkRecommendationService.ts` 里已无调用方的 `matchDimWishlistCombos` / `buildDimSourceMatch` / `buildDimComboSourceMatch` / `buildDimColumnMatches`（约 120 行），以及 846 / 865 行的 `combo.source === "dim_wishlist"` 分支 |
+| 迁移 AI 面板消费方 | `core/ai/chat.ts:349-357` 的 `formatBuiltinWeaponKnowledge()` 仍从 `recommendation.combos.filter(source === "local_community")` 取推荐内容；combos 恒空后 AI 会失去这段上下文，**需改为从 `source_records` 取（来源名 / 用途 / 候选 Perk 名 / 备注）** |
+| 清理详情里的旧组合块 | `desktop/.../buildWeaponDetailView.ts:361-363` 的 `explicitCombos` 仍过滤 `combo.source === "local_community"`；该块已被来源事实卡片取代，可直接删除 |
+
+### ⑤ 第十二次记录：组合类型标记已彻底删除（2026-09-15，完成）
+
+**本轮完成并验证**（四个包类型检查 0 错误、114 文件 / 436 项测试全绿、core/services/app/ui 全部重建、`matchAlgorithmVersion` = 19）：
+
+| 改动 | 内容 |
+|---|---|
+| 删除类型标记 | `PerkCombo.source`、`weapon_level_recommendations[].source` 从 `types.ts` 移除 |
+| 删除 DIM 组合路径 | `matchDimWishlistCombos` / `buildDimSourceMatch` / `buildDimComboSourceMatch` / `buildDimColumnMatches` 四个函数（已无调用方）与无用的 `DimWishlistMatchResult` 类型 |
+| 简化组合判定 | `comboMatchRequirements` / `comboMatchRequirementNames` / `evaluateComboRequirements` 去掉 `combo.source === "dim_wishlist"` 分支，只看 `combo.perks` |
+| AI 面板迁移 | `core/ai/chat.ts` 的 `formatBuiltinWeaponKnowledge()` 改从 `source_records` 取（来源名 / 用途 / 候选 Perk 名 / 备注），不再从 combos 取 |
+| 详情清理 | `buildWeaponDetailView.ts` 的旧组合块去掉来源类型过滤，条目 id 改为 `combo:<mode>:<index>`（不再依赖来源标记） |
+| 生产方清理 | DIM / 本地社区 / 知识库 CSV 三处 `weapon_level_recommendations` 条目不再写 `source` 字段 |
+
+**核查结果**：全仓 `combo.source` / `PerkCombo.source` / `source: "dim_wishlist"` / `source: "local_community"` **均为 0 处**；三个来源产出均为 `combos: []`（组合已无生产方）。
+
+**说明**：`core/evidence/itemDecision.ts`、`core/targets/equipmentTargets.ts`、`desktop/main/ipc/targets.ts` 中的 `"dim_wishlist"` 是**装备目标的来源种类**（映射 `dim_import` / `local_data`），属另一个领域，**不在本次收敛范围，勿误删**。
+
+### T56 剩余待办（本任务之外）
+
+1. **导入期校验（按行忽略）**：解析层报告被忽略的行数 / 涉及武器数 / 每类问题示例，并在预览与导入回执中展示（口径已定：笔误行按行忽略，不整文件拒绝）。
+2. **`VaultItemInstanceMatchInfo.dim_wishlist` 死字段清理**：该字段已恒为空，可连同 app / ui / desktop 的消费方一起删除（历史上统计为 64 处引用 / 14 个文件，属纯清理）。
+
+### 本地导入通道删除：完成（2026-09-15）
+
+**最终状态**：6 项类型检查（core / services / app / ui / desktop-main / desktop-renderer）**0 错误**；**113 文件 / 430 项测试全绿**；四个包重建完成；`matchAlgorithmVersion` **20**。
+
+**已删除**：
+
+- **文件**：`core/community-perks/localCommunityRecommendations.ts`、`core/community-perks/localCommunityImport.ts`、`services/community/localCommunityRecommendations.ts`、`services/community/externalRecommendationStore.ts`（并清理 `core/community-perks/index.ts` 导出）
+- **服务装配**：`perkRecommendation.ts` 不再装配该来源
+- **UI / app**：证据面板三个 props、`vaultLocalData.ts` 字段与加载、`VaultPage.tsx` 的三个状态与 `loadLocalCommunityTable()` 及副作用
+- **desktop**：`community:local:get/save/clear` 三个 IPC handler、preload 三条 API、`api/communityApi.ts` 三条声明
+- **services 契约与实现**：`contracts.ts` / `desktopBridge.ts` / `guideContextService.ts` / `memoryAdapter.ts` 的 `localData` 契约与实现
+- **DTO**：`renderer/api/vaultApi.ts` 的 `LocalCommunityMode` / `LocalCommunityRecommendationRule` / `LocalCommunityRecommendationTable`
+- **测试**：`localCommunityRecommendations.test.ts` 整份、`communityPerks.test.ts` 相关用例与导入、`account-workspace.test.ts` 的相关 mock
+
+**仅剩 1 处字符串**：`recommendationDatabase.ts` 建表语句里 `CHECK (source_kind IN ('dim_wishlist','local_community'))` 的历史取值（纯 schema 兼容，不影响行为，可留可清）。
+
+**结果**：推荐来源只剩两类 —— **人工推荐 CSV** 与 **DIM Wishlist**，与实际界面的两个导入入口完全一致。
+
+**本轮踩坑记录（以后删类似跨包管道时复用）**：
+1. 删方法/声明时**不要用"删掉含关键字的行"**：多行声明会留残骸、方法体会被并进相邻方法（本轮 `memoryAdapter.ts`、`guideContextService.ts` 都因此改坏并回退过一次）。必须整块锚点替换或按花括号配对删除。
+2. **renderer API 声明与 services 的 `DesktopBridgeApi` 必须同批删除**，否则 `renderer/api/services.ts` 报 `AppApi is not assignable to DesktopBridgeApi`；且下游包对 `dist` 做类型检查，**改完 core/services 必须重建**才能看到真实影响。
+3. 删除后跑一次全量 `grep` 复核残留（本轮最后又有 15 处：测试 mock、DTO、schema 字符串）。
+
 ### 本轮踩过的坑（新会话直接复用，不要重犯）
 
 1. **改了事实结构必须 bump 匹配算法版本**，否则读到旧缓存（本轮出现过「详情栏位整片空白」）。

@@ -73,6 +73,14 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
   const [internalSection, setInternalSection] = useState<WeaponDetailSection>("configuration");
   const [poolOpen, setPoolOpen] = useState(false);
+  // 掉落池按钮在「完整 Roll 未读取」时负责先加载，加载完成后自动展开。
+  const [poolRequested, setPoolRequested] = useState(false);
+  useEffect(() => {
+    if (poolRequested && props.model.configuration.pool_columns.length > 0) {
+      setPoolOpen(true);
+      setPoolRequested(false);
+    }
+  }, [poolRequested, props.model.configuration.pool_columns.length]);
   const [targetSource, setTargetSource] = useState<WeaponTargetSource>(() => (
     preferredWeaponTargetSource(model, props.recommendationEvidence)
   ));
@@ -265,6 +273,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             <ConfigurationSection
               model={model}
               poolOpen={poolOpen}
+              onRequestFullRoll={() => { setPoolRequested(true); void props.actions?.loadConfiguration?.(); }}
               onTogglePool={() => setPoolOpen((value) => !value)}
               actions={props.actions}
               configurationWriteFeedback={props.configurationWriteFeedback}
@@ -607,6 +616,7 @@ function StatValue(props: {
 function ConfigurationSection(props: {
   model: WeaponDetailViewModel;
   poolOpen: boolean;
+  onRequestFullRoll?: () => void;
   onTogglePool: () => void;
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
@@ -683,34 +693,6 @@ function ConfigurationSection(props: {
         title={title}
         description={description}
       />
-      <div className="weapon-detail-config-summary" aria-busy={isConfigurationLoading}>
-        {configurationSummaryItems(
-          props.model,
-          pendingChangeCount,
-          operationLabel,
-          isDefinitionLoading,
-          isInstanceLoading,
-          Boolean(props.actions?.loadConfiguration)
-        ).map((item) => (
-          <div key={item.label}>
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </div>
-      <p className="weapon-detail-config-source">
-        {context.kind === "account_instance"
-          ? "依据：当前装备插槽与资料库 Perk 信息"
-          : context.kind === "vendor_offer"
-            ? "依据：商人当前售卖配置与资料库 Perk 信息"
-            : "依据：资料库 Perk 信息"}
-      </p>
-      {props.actions?.loadConfiguration && !isConfigurationLoading ? (
-        <div className="weapon-detail-config-on-demand" data-ui-kind="callout" data-status="neutral">
-          <span><strong>当前 Roll 已可查看</strong><small>完整候选、可切换项和详细说明只在需要时读取，不再每次打开详情都请求游戏服务。</small></span>
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.loadConfiguration?.()}>读取完整 Roll</button>
-        </div>
-      ) : null}
       {isConfigurationLoading ? (
         <p className="weapon-detail-config-loading-note" role="status" aria-live="polite">
           <span aria-hidden="true" />
@@ -779,11 +761,25 @@ function ConfigurationSection(props: {
         </div>
       ) : null}
 
-      {context.kind !== "definition" && configuration.kind === "random_roll" && configuration.pool_columns.length ? (
+      {context.kind !== "definition" && configuration.kind === "random_roll"
+        && (configuration.pool_columns.length > 0 || (context.kind === "account_instance" && Boolean(props.actions?.loadConfiguration))) ? (
         <section className="weapon-detail-full-pool">
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
+          <button
+            type="button"
+            data-ui-kind="button"
+            data-control-variant="secondary"
+            aria-expanded={props.poolOpen}
+            onClick={() => {
+              // 还没加载完整 Roll 时先加载，加载完成后自动展开（见外层 onRequestFullRoll）。
+              if (!configuration.pool_columns.length) {
+                props.onRequestFullRoll?.();
+                return;
+              }
+              props.onTogglePool?.();
+            }}
+          >
             <strong>{props.poolOpen ? "收起完整掉落池" : "查看完整掉落池"}</strong>
-            <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
+            <span>{props.poolOpen ? "收起" : configuration.pool_columns.length ? `展开 ${countPool(configuration.pool_columns)} 个候选` : "读取全部候选"}</span>
           </button>
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">

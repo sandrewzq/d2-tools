@@ -5,7 +5,6 @@ import { join } from "node:path";
 import { dialog, ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
-  type LocalCommunityRecommendationTable,
   type SavePersonalWeaponKnowledgeInput,
   type SourceOptions,
   type VaultCommunityMatchOptions,
@@ -13,11 +12,6 @@ import {
   type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadConfig } from "@d2-tools/services/config/store";
-import {
-  clearLocalCommunityRecommendations,
-  loadLocalCommunityRecommendations,
-  saveLocalCommunityRecommendations
-} from "@d2-tools/services/community/localCommunityRecommendations";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
   collectWeaponRecommendationCandidateItemHashes,
@@ -233,22 +227,6 @@ export function registerCommunityIpcHandlers(): void {
       ...snapshot,
       affected_weapon_hashes: affectedWeaponHashes
     });
-  });
-
-  ipcMain.handle("community:local:get", () => {
-    const config = loadConfig();
-    return loadLocalCommunityRecommendations(config.data.data_dir);
-  });
-
-  ipcMain.handle("community:local:save", (_event, table: LocalCommunityRecommendationTable) => {
-    const config = loadConfig();
-    return saveLocalCommunityRecommendations(config.data.data_dir, table);
-  });
-
-  ipcMain.handle("community:local:clear", () => {
-    const config = loadConfig();
-    clearLocalCommunityRecommendations(config.data.data_dir);
-    return null;
   });
 
   ipcMain.handle("community:personal:get", (_event, weaponName?: string) => {

@@ -49,20 +49,11 @@ describe("account workspace", () => {
             title: "Test Wishlist",
             rules: []
           };
-        },
-        async getLocalCommunityRecommendations() {
-          return null;
-        },
-        async saveDimWishlist() {
+        },        async saveDimWishlist() {
           throw new Error("not used");
         },
         async clearDimWishlist() {
           throw new Error("not used");
-        },
-        async saveLocalCommunityRecommendations() {
-          throw new Error("not used");
-        },
-        async clearLocalCommunityRecommendations() {
           throw new Error("not used");
         },
         async saveVaultTag() {
@@ -133,20 +124,11 @@ describe("account workspace", () => {
         },
         async getDimWishlist() {
           throw new Error("wishlist unavailable");
-        },
-        async getLocalCommunityRecommendations() {
-          return null;
-        },
-        async saveDimWishlist() {
+        },        async saveDimWishlist() {
           throw new Error("not used");
         },
         async clearDimWishlist() {
           throw new Error("not used");
-        },
-        async saveLocalCommunityRecommendations() {
-          throw new Error("not used");
-        },
-        async clearLocalCommunityRecommendations() {
           throw new Error("not used");
         },
         async saveVaultTag() {
@@ -269,20 +251,11 @@ describe("account workspace", () => {
             title: "Test Wishlist",
             rules: []
           };
-        },
-        async getLocalCommunityRecommendations() {
-          return null;
-        },
-        async saveDimWishlist() {
+        },        async saveDimWishlist() {
           throw new Error("not used");
         },
         async clearDimWishlist() {
           throw new Error("not used");
-        },
-        async saveLocalCommunityRecommendations() {
-          throw new Error("not used");
-        },
-        async clearLocalCommunityRecommendations() {
           throw new Error("not used");
         },
         async saveVaultTag() {

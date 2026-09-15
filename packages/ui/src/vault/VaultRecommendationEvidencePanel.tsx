@@ -1,15 +1,11 @@
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
-import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import { useState } from "react";
 import { VaultRecommendationDataPanel, type VaultRecommendationManagedSource, type VaultWishlistActions } from "./VaultWishlistManager.js";
 import { VaultRecommendationSourceManager } from "./VaultRecommendationSourceManager.js";
 
 export type VaultRecommendationSourceState = {
   recommendationScan: VaultRecommendationScanState;
-  customRules: LocalCommunityRecommendationTable | null;
-  customRulesLoadState: "loading" | "ready" | "error";
-  customRulesLoadError?: string;
 };
 
 export function VaultRecommendationEvidencePanel(props: {

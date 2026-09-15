@@ -1,7 +1,6 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
-import type { LocalCommunityRecommendationTable } from "@d2-tools/core/community-perks";
 import type { LocalDataService, ProfileService } from "./contracts.js";
 
 export type GuideContext = {
@@ -9,7 +8,6 @@ export type GuideContext = {
   items: AccountItemSummary[];
   localTargetRules: LocalTargetRules;
   wishlist: DimWishlist | null;
-  communityRecommendations: LocalCommunityRecommendationTable | null;
 };
 
 export type GuideContextService = {
@@ -18,15 +16,14 @@ export type GuideContextService = {
 
 export function createGuideContextService(services: {
   profile: Pick<ProfileService, "getAccountSummary">;
-  localData: Pick<LocalDataService, "getLocalTargetRules" | "getDimWishlist" | "getLocalCommunityRecommendations">;
+  localData: Pick<LocalDataService, "getLocalTargetRules" | "getDimWishlist">;
 }): GuideContextService {
   return {
     async getContext() {
-      const [account, localTargetRules, wishlist, communityRecommendations] = await Promise.all([
+      const [account, localTargetRules, wishlist] = await Promise.all([
         services.profile.getAccountSummary(),
         services.localData.getLocalTargetRules(),
-        services.localData.getDimWishlist(),
-        services.localData.getLocalCommunityRecommendations()
+        services.localData.getDimWishlist()
       ]);
 
       return {
@@ -34,7 +31,6 @@ export function createGuideContextService(services: {
         items: collectGuideAccountItems(account),
         localTargetRules,
         wishlist,
-        communityRecommendations
       };
     }
   };

@@ -28,6 +28,7 @@ import type {
   WeaponRecommendation as CommunityWeaponRecommendation
 } from "@d2-tools/core/community-perks";
 import { ownedPlugIdentity, requirementIsSatisfied } from "@d2-tools/core/community-perks";
+import type { AccountWeaponRollSlot } from "@d2-tools/core/account/summary";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
@@ -82,11 +83,15 @@ type WeaponConfigurationClassification = {
 export function buildWeaponDetailView(
   input: BuildDesktopWeaponDetailInput
 ): WeaponDetailViewModel | null {
-  const item = input.selectedItem;
-  if (item.group_key !== "weapons") return null;
+  const selectedItem = input.selectedItem;
+  if (selectedItem.group_key !== "weapons") return null;
+  const item: SelectedItemDetail = selectedItem;
 
   const classification = classifyWeaponConfiguration(item);
   const intrinsic = classification.allColumns.find((column) => column.role === "intrinsic")?.candidates[0];
+  const definitionSelectionColumns = buildSelectionColumns(item, classification.poolColumns, input.selectionNames, input.pendingPerks);
+  const canUseRollColumns = Boolean(selectedItem.instance_id && (selectedItem.weapon_roll?.sockets.length ?? 0) > 0);
+  const rollConfigurationKind = canUseRollColumns ? "random_roll" as const : classification.kind;
   const { isExotic, poolColumns } = classification;
   const currentStats = input.currentStats ?? (item.instance_id ? item.weapon_stats : undefined);
   const definitionStats = definitionStatsToSummary(item.definition_stats);
@@ -163,11 +168,15 @@ export function buildWeaponDetailView(
     pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks),
     configuration: {
       intrinsic,
-      kind: classification.kind,
+      // 定义（perks）没加载时，账号实例不能按 fixed 处理，否则界面不会采用可切换栏位，
+      // 网格会退化成空的掉落池。判断依据必须是「定义是否加载」，而不是「栏位是否非空」。
+      kind: (item.perks?.length ?? 0) > 0 ? classification.kind : rollConfigurationKind,
       pool_kind: classification.poolKind
     },
     pool_columns: poolColumns,
-    selection_columns: buildSelectionColumns(item, poolColumns, input.selectionNames, input.pendingPerks),
+    selection_columns: definitionSelectionColumns.length
+      ? definitionSelectionColumns
+      : buildRollSelectionColumns(selectedItem),
     sources: withManifestSourceStatus(input.sources, item),
     upgrades,
     recommendations: input.recommendations,
@@ -304,6 +313,35 @@ function hasWeaponUpgradeData(upgrades: WeaponDetailViewModel["upgrades"]): bool
   );
 }
 
+// 定义还没加载时，用账号快照的 weapon_roll 生成「当前 Roll + 可切换」栏位：
+// 每栏当前插件为已选，该栏已拥有的插件为可切换候选（不需要联网，也不需要账号实例详情）。
+function buildRollSelectionColumns(item: SelectedItemDetail): WeaponPerkSelectionColumn[] {
+  const toColumnRole = (slot: AccountWeaponRollSlot): WeaponPerkColumnRole => {
+    if (slot === "perk1" || slot === "perk2") return "trait";
+    if (slot === "barrel") return "barrel";
+    if (slot === "magazine") return "magazine";
+    if (slot === "origin") return "origin";
+    return "other";
+  };
+  return (item.weapon_roll?.sockets ?? [])
+    .filter((socket) => socket.slot !== "other" && socket.owned_plugs.length > 0)
+    .map((socket) => ({
+      key: `roll:${socket.socket_index}`,
+      socket_index: socket.socket_index,
+      label: socket.label,
+      role: toColumnRole(socket.slot),
+      candidates: socket.owned_plugs.map((plug) => ({
+        hash: plug.hash,
+        name: plug.name,
+        description: "",
+        selected: socket.current_plug?.hash === plug.hash,
+        can_apply: socket.current_plug?.hash !== plug.hash,
+        pending: false,
+        unresolved_in_definition_pool: false
+      }))
+    }));
+}
+
 export function buildWeaponRecommendationViews(
   recommendation: CommunityWeaponRecommendation | null,
   item: SelectedItemDetail
@@ -358,12 +396,12 @@ export function buildWeaponRecommendationViews(
           : []
       };
     });
+  // 组合已不再由任何来源产出（统一为「来源事实」），这里只保留历史结构，输入恒为空数组。
   const explicitCombos = (classification.kind === "fixed" && !isFixedExotic ? [] : recommendation?.combos ?? [])
-    .filter((combo) => combo.source === "local_community")
     .map((combo, index) => {
       const matched = combo.perks.filter((perk) => requirementIsSatisfied(owned, [perk.hash], [perk.name])).length;
       return {
-        id: `${combo.source}:${combo.mode}:${index}`,
+        id: `combo:${combo.mode}:${index}`,
         mode: combo.mode,
         purposes: [combo.mode],
         presentation: "combo" as const,

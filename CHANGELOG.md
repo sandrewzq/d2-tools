@@ -2,6 +2,42 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.26 - 2026-09-15
+
+### 中文
+
+#### 改进
+
+- 推荐来源统一为一套口径：DIM 愿望单与人工推荐表入库后使用同样的匹配与展示方式，来源不再单独分组、不再按类型排序，按符合程度排序后再按来源名排列。
+- 来源名称支持任意自定义：推荐表里「推荐来源」写什么，来源列表与卡片上就显示什么。
+- 人工推荐 CSV 模板第一列改为「推荐来源」，导入与导出字段对齐；旧版 13 列与 31 列文件仍可导入。
+- 武器详情「本件 Roll」打开即显示每栏的当前已选与可切换项；完整掉落池改为按需读取，读取的是本地资料库。
+
+#### 修复
+
+- 修复推荐来源显示成内部编号（例如「未标注来源 #2」）的问题。
+- 修复仓库装着同名强化特征时不计为命中的问题。
+- 修复武器详情与仓库卡片的命中数量不一致、且详情只列出部分来源的问题。
+- 移除「本地规则表」这条无法从界面写入、却仍参与匹配的遗留通道。
+- 修复推荐来源筛选区在窄屏下的换行与遮挡。
+
+### English
+
+#### Improved
+
+- Unified recommendation sources: DIM wishlists and curated recommendation tables now share one matching and display model — no separate groups and no type-based ordering; sources are ordered by how well they match, then by name.
+- Source names are free-form: whatever is written in the recommendation table's source column is what appears in lists and cards.
+- The curated CSV template now starts with a Source column so imports and exports line up; older 13-column and 31-column files still import.
+- The weapon detail "current roll" now shows each column's equipped and switchable perks as soon as it opens; the full drop pool is read on demand from the local library.
+
+#### Fixed
+
+- Fixed recommendation sources showing internal identifiers such as "未标注来源 #2".
+- Fixed enhanced traits not counting as a match when the same-named base trait was required.
+- Fixed the weapon detail disagreeing with vault cards on match counts and listing only some sources.
+- Removed a leftover local rules table channel that could not be written from the UI yet still affected matching.
+- Fixed recommendation source filters wrapping and overlapping on narrow windows.
+
 ## 0.0.25 - 2026-09-11
 
 ### 中文

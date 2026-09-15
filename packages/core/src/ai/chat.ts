@@ -347,14 +347,12 @@ function formatBuiltinWeaponKnowledge(recommendation: WeaponRecommendation | nul
   if (!recommendation) return "";
   return `\n应用推荐（仅在用户知识未覆盖时使用）：\n${JSON.stringify({
     source_label: recommendation.source_label,
-    combos: recommendation.combos
-      .filter((combo) => combo.source === "local_community")
-      .map((combo) => ({
-        mode: combo.mode,
-        perks: combo.perks.map((perk) => perk.name),
-        note: combo.note,
-        source: combo.source
-      })),
+    sources: (recommendation.source_records ?? []).map((record) => ({
+      source: record.source_label,
+      modes: record.purposes,
+      perks: record.requirements.flatMap((requirement) => requirement.candidate_names),
+      note: record.note
+    })),
     disclaimer: recommendation.disclaimer
   }, null, 2)}`;
 }

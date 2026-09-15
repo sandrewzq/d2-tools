@@ -41,21 +41,6 @@ export type DimWishlist = {
   rules: DimWishlistRule[];
 };
 
-export type LocalCommunityMode = "pve" | "pvp" | "general";
-
-export type LocalCommunityRecommendationRule = {
-  item_hash: number;
-  perk_hashes: number[];
-  mode: LocalCommunityMode;
-  note: string;
-  source_label?: string;
-};
-
-export type LocalCommunityRecommendationTable = {
-  title: string;
-  rules: LocalCommunityRecommendationRule[];
-};
-
 export type VaultTagValue = "none" | "keep" | "review" | "junk" | "farm" | "loadout";
 
 export type VaultTags = {

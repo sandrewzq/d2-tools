@@ -515,8 +515,6 @@ function WebApp() {
                   covered_weapon_count: 0,
                   retained_result_count: 0
                 },
-                customRules: null,
-                customRulesLoadState: "ready"
               }}
               wishlistActions={webWishlistActions}
               onContextFactsChange={() => undefined}

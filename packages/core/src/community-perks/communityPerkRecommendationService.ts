@@ -143,8 +143,11 @@ export class CommunityPerkRecommendationService {
         }
       }
 
+      const matchedSourceFacts = itemsForHash.flatMap((item) => (
+        matchSourceRecords(item, rec.source_records ?? [], options.itemDefinitions)
+      )).filter((source) => source.matched_requirement_count > 0).length;
       result.set(hash, {
-        matched: matchedComboIndexes.size,
+        matched: matchedComboIndexes.size + matchedSourceFacts,
         available: perkPoolCount + comboCount,
         perk_pool_count: perkPoolCount,
         combo_count: comboCount,
@@ -207,17 +210,14 @@ export class CommunityPerkRecommendationService {
         recommendation.source_records ?? [],
         options.itemDefinitions
       );
-      const dimMatch = matchDimWishlistCombos(item, recommendation.combos, owned);
-      // 归约成功的 DIM 来源并入同一份来源事实，组合事实只留无法归约的部分。
-      const allSourceMatches = [...sourceMatches, ...dimMatch.sourceMatches];
-      const dimWishlistMatch = dimMatch.dim;
+      // 所有来源（含 DIM）同构：结论只来自来源事实。
+      const allSourceMatches = sourceMatches;
       if (allSourceMatches.length > 0) {
         return sourceMatchCompatibilityResult(
           item,
           canonicalWeaponName,
           recommendation,
-          allSourceMatches,
-          dimWishlistMatch
+          allSourceMatches
         );
       }
       if (owned.hashes.size === 0 && weaponLevelRecommendations.length === 0) {
@@ -233,8 +233,7 @@ export class CommunityPerkRecommendationService {
           available: recommendation.combos.length,
           modes: recommendation.matched_modes,
           sample_perks: previewPerks(recommendation),
-          source_label: recommendation.source_label,
-          ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
+          source_label: recommendation.source_label
         };
       }
 
@@ -251,8 +250,7 @@ export class CommunityPerkRecommendationService {
           available: weaponLevelRecommendations.length + recommendation.combos.length,
           modes: recommendation.matched_modes,
           sample_perks: previewPerks(recommendation),
-          source_label: recommendation.source_label,
-          ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
+          source_label: recommendation.source_label
         };
       }
 
@@ -270,7 +268,7 @@ export class CommunityPerkRecommendationService {
       ));
       const matched = weaponLevelRecommendations.length + fullMatches.length;
       const available = weaponLevelRecommendations.length + recommendation.combos.length;
-      const recommendationState = dimWishlistMatch?.state === "full" || matched > 0
+      const recommendationState = allSourceMatches.some((source) => source.state === "full") || matched > 0
         ? "priority" as const
         : "compare" as const;
       return {
@@ -278,7 +276,7 @@ export class CommunityPerkRecommendationService {
         ...(item.instance_id ? { instance_id: item.instance_id } : {}),
         canonical_weapon_name: canonicalWeaponName,
         coverage: "covered",
-        match_status: dimWishlistMatch?.state === "uncheckable"
+        match_status: allSourceMatches.some((source) => source.state === "uncheckable")
           ? "indeterminate"
           : matched > 0
             ? "full_match"
@@ -291,8 +289,7 @@ export class CommunityPerkRecommendationService {
         available,
         modes: matchedModes.length ? matchedModes : recommendation.matched_modes,
         sample_perks: previewPerks(recommendation),
-        source_label: recommendation.source_label,
-        ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
+        source_label: recommendation.source_label
       };
     }));
   }
@@ -317,9 +314,13 @@ function matchSourceRecords(
     const slots = recommendationSlots.map(({ slot, label }) => {
       const requirement = requirements.get(slot);
       const rollSocket = item.weapon_roll?.sockets.find((socket) => socket.slot === slot);
-      const instanceOwned = (rollSocket?.owned_plugs ?? []).map((plug) => (
-        hydrateWeaponRollPlug(plug, itemDefinitions)
-      ));
+      const fallbackOwned = (item.socket_plugs ?? []).map((plug) => ({
+        hash: plug.hash, name: plug.name ?? "", current: false
+      })) as unknown as RecommendationSourceSlotMatch["instance_owned"];
+      const usedFallbackOwnership = !item.weapon_roll && fallbackOwned.length > 0;
+      const instanceOwned: RecommendationSourceSlotMatch["instance_owned"] = rollSocket
+        ? rollSocket.owned_plugs.map((plug) => hydrateWeaponRollPlug(plug, itemDefinitions))
+        : usedFallbackOwnership ? fallbackOwned : [];
       const currentEnabled = rollSocket?.current_plug
         ? [hydrateWeaponRollPlug(rollSocket.current_plug, itemDefinitions)]
         : [];
@@ -336,7 +337,7 @@ function matchSourceRecords(
         };
       }
 
-      const matches = Boolean(rollSocket) && instanceOwned.some((plug) => (
+      const matches = instanceOwned.some((plug) => (
         requirement.candidates.some((candidate) => (
           plug.hash === candidate.hash || perkIdentityMatches(plug.name, candidate.name)
         ))
@@ -350,8 +351,9 @@ function matchSourceRecords(
         || requirement.candidate_names.some((name) => Boolean(name.trim()));
       const cannotCheck = !matches && (
         !hasComparableRequirement
-        || !item.weapon_roll
-        || (rollSocket ? rollSocket.complete === false : hasIncompleteRelevantRollData(item))
+        || (rollSocket
+          ? rollSocket.complete === false
+          : hasIncompleteRelevantRollData(item) && !usedFallbackOwnership)
       );
       return {
         slot,
@@ -364,6 +366,19 @@ function matchSourceRecords(
         current_enabled: currentEnabled
       };
     });
+    const locatedSlots = new Set(recommendationSlots.map((entry) => entry.slot as string));
+    for (const requirement of record.requirements.filter((item) => !locatedSlots.has(item.slot))) {
+      slots.push({
+        slot: requirement.slot,
+        label: requirement.label || "其它要求",
+        state: "uncheckable" as const,
+        source_candidate_names: requirement.candidate_names,
+        source_candidates: requirement.candidates,
+        unresolved_source_candidate_names: requirement.unresolved_candidate_names,
+        instance_owned: [],
+        current_enabled: []
+      });
+    }
     const specified = slots.filter((slot) => slot.state !== "source_not_specified");
     const matched = specified.filter((slot) => slot.state === "match").length;
     const uncheckable = specified.filter((slot) => slot.state === "uncheckable").length;
@@ -371,7 +386,7 @@ function matchSourceRecords(
     const coreRequirements = specified.filter((slot) => slot.slot === "perk1" || slot.slot === "perk2");
     const state = specified.length === 0
       ? "weapon_only" as const
-      : uncheckable > 0
+      : checkable === 0
         ? "uncheckable" as const
         : matched === specified.length
           ? "full" as const
@@ -423,13 +438,15 @@ function sourceMatchCompatibilityResult(
   item: VaultItemMatchInput,
   canonicalWeaponName: string,
   recommendation: WeaponRecommendation,
-  sourceMatches: RecommendationSourceMatch[],
-  dimWishlistMatch: VaultItemInstanceMatchInfo["dim_wishlist"]
+  sourceMatches: RecommendationSourceMatch[]
 ): VaultItemInstanceMatchInfo {
-  const positive = sourceMatches.filter((source) => source.state === "full" || source.state === "core");
-  const comparisonSources = sourceMatches.filter((source) => source.state !== "full" && source.state !== "core");
-  const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable")
-    || dimWishlistMatch?.state === "uncheckable";
+  const positive = sourceMatches.filter((source) => (
+    source.state === "full" || source.state === "core" || source.state === "weapon_only"
+  ));
+  const comparisonSources = sourceMatches.filter((source) => (
+    source.state !== "full" && source.state !== "core" && source.state !== "weapon_only"
+  ));
+  const hasUncheckable = sourceMatches.some((source) => source.state === "uncheckable");
   const hasCuratedPurposeConflict = sourceMatches.some((left) => (
     (left.state === "full" || left.state === "core")
     && sourceMatches.some((right) => (
@@ -443,27 +460,16 @@ function sourceMatchCompatibilityResult(
   const negativeCuratedPurposes = sourceMatches
     .filter((source) => source.state === "key_missing" || source.state === "not_matched")
     .flatMap((source) => source.purposes);
-  const positiveDimPurposes = dimWishlistMatch?.state === "full"
-    ? dimWishlistMatch.rules
-        .filter((rule) => rule.state === "match")
-        .map((rule) => rule.mode)
-    : [];
-  const negativeDimPurposes = dimWishlistMatch?.state === "not_matched"
-    ? dimWishlistMatch.modes
-    : [];
-  const hasCrossSourcePurposeConflict = (
-    positiveCuratedPurposes.length > 0
-    && negativeDimPurposes.length > 0
-    && purposesOverlap(positiveCuratedPurposes, negativeDimPurposes)
-  ) || (
-    positiveDimPurposes.length > 0
-    && negativeCuratedPurposes.length > 0
-    && purposesOverlap(positiveDimPurposes, negativeCuratedPurposes)
-  );
+  const hasCrossSourcePurposeConflict = positive.some((left) => (
+    sourceMatches.some((right) => (
+      (right.state === "key_missing" || right.state === "not_matched")
+      && purposesOverlap(left.purposes, right.purposes)
+    ))
+  ));
   const hasPurposeConflict = hasCuratedPurposeConflict || hasCrossSourcePurposeConflict;
   const recommendationState = hasUncheckable || hasPurposeConflict
     ? "compare" as const
-    : positive.length > 0 || dimWishlistMatch?.state === "full"
+    : positive.length > 0
       ? "priority" as const
       : "compare" as const;
   return {
@@ -475,21 +481,19 @@ function sourceMatchCompatibilityResult(
       ? "indeterminate"
       : recommendationState === "priority"
         ? "full_match"
-        : hasPurposeConflict && (positive.length > 0 || dimWishlistMatch?.state === "full")
+        : hasPurposeConflict && positive.length > 0
           ? "partial_match"
         : comparisonSources.some((source) => source.matched_requirement_count > 0)
           ? "partial_match"
           : "no_match",
     recommendation_state: recommendationState,
-    matched: positive.length + (dimWishlistMatch?.matched_combo_count ?? 0),
-    partial: comparisonSources.filter((source) => source.matched_requirement_count > 0).length
-      + (dimWishlistMatch?.partial_combo_count ?? 0),
-    available: sourceMatches.length + (dimWishlistMatch?.combo_count ?? 0),
+    matched: positive.length,
+    partial: comparisonSources.filter((source) => source.matched_requirement_count > 0).length,
+    available: sourceMatches.length,
     modes: recommendation.matched_modes,
     sample_perks: previewPerks(recommendation),
     source_label: recommendation.source_label,
-    source_matches: sourceMatches,
-    ...(dimWishlistMatch ? { dim_wishlist: dimWishlistMatch } : {})
+    source_matches: sourceMatches
   };
 }
 
@@ -501,174 +505,12 @@ function purposesOverlap(
   return left.some((purpose) => right.includes(purpose));
 }
 
-type DimWishlistMatchResult = {
-  dim: VaultItemInstanceMatchInfo["dim_wishlist"];
-  sourceMatches: RecommendationSourceMatch[];
-};
-
-function matchDimWishlistCombos(
-  item: VaultItemMatchInput,
-  combos: readonly PerkCombo[],
-  owned: OwnedPlugIdentity
-): DimWishlistMatchResult {
-  const allDimCombos = combos.filter((combo) => combo.source === "dim_wishlist");
-  if (!allDimCombos.length) return { dim: undefined, sourceMatches: [] };
-  // 所有 DIM 来源统一走来源事实（与人工来源同一个类型）：能无损归约的按栏输出，
-  // 不能归约的按最接近的一套规则输出。组合事实不再保留 DIM 内容。
-  const sourceMatches = [...new Set(allDimCombos.map((combo) => combo.source_id ?? "dim_wishlist"))]
-    .flatMap((sourceId) => buildDimSourceMatch(sourceId, allDimCombos, owned));
-  return { dim: undefined, sourceMatches };
-}
-
-
 // 归约成功的来源以来源事实输出：与人工来源同一类型、同一渲染入口。
-function buildDimSourceMatch(
-  sourceId: string,
-  combos: readonly PerkCombo[],
-  owned: OwnedPlugIdentity
-): RecommendationSourceMatch[] {
-  const columns = buildDimColumnMatches(sourceId, combos, owned);
-  if (!columns?.length) return buildDimComboSourceMatch(sourceId, combos, owned);
-  const scoped = combos.filter((combo) => (combo.source_id ?? "dim_wishlist") === sourceId);
-  const matchedPerks = new Map<number, PerkRef>();
-  for (const combo of scoped) for (const perk of combo.perks) matchedPerks.set(perk.hash, perk);
-  const matchedColumns = columns.filter((column) => column.state === "match").length;
-  const uncheckable = columns.some((column) => column.state === "uncheckable");
-  return [{
-    rule_stable_id: `${sourceId}:pool`,
-    source_id: sourceId,
-    source_label: scoped.find((combo) => combo.source_label)?.source_label ?? "DIM社区愿望单",
-    state: uncheckable
-      ? "uncheckable"
-      : matchedColumns === columns.length
-        ? "full"
-        : matchedColumns > 0 ? "close" : "not_matched",
-    matched_requirement_count: matchedColumns,
-    requirement_count: columns.length,
-    checkable_requirement_count: columns.filter((column) => column.state !== "uncheckable").length,
-    uncheckable_requirement_count: columns.filter((column) => column.state === "uncheckable").length,
-    purposes: [...new Set(scoped.map((combo) => combo.mode))],
-    slots: columns.map((column) => {
-      const ownedPlugs = (column.instance_owned ?? []).map((plug) => ({
-        hash: plug.hash,
-        name: plug.name,
-        selected: plug.current
-      }));
-      return {
-        slot: column.slot,
-        label: column.label,
-        state: column.state,
-        source_candidate_names: column.source_candidate_names,
-        source_candidates: column.source_candidate_hashes.map((hash) => (
-          matchedPerks.get(hash) ?? { hash, name: String(hash) }
-        )),
-        unresolved_source_candidate_names: [],
-        instance_owned: ownedPlugs,
-        current_enabled: ownedPlugs.filter((plug) => plug.selected)
-      };
-    })
-  }];
-}
 
 // 无法归约的来源：取最接近的一套规则，按「这一行要求的那些 perk」输出同一种来源事实。
 // 每栏候选唯一时 any 与 all 等价，因此仍与人工来源共用同一个匹配与渲染入口。
-function buildDimComboSourceMatch(
-  sourceId: string,
-  combos: readonly PerkCombo[],
-  owned: OwnedPlugIdentity
-): RecommendationSourceMatch[] {
-  const scoped = combos.filter((combo) => (combo.source_id ?? "dim_wishlist") === sourceId);
-  if (!scoped.length) return [];
-  const sourceLabel = scoped.find((combo) => combo.source_label)?.source_label ?? "DIM社区愿望单";
-  const best = scoped
-    .map((combo) => {
-      const progress = evaluateComboRequirements(combo, owned);
-      const matched = progress.filter((requirement) => requirement.matched).length;
-      return { combo, progress, matched };
-    })
-    .sort((left, right) => (
-      right.matched * Math.max(1, left.progress.length) - left.matched * Math.max(1, right.progress.length)
-      || right.matched - left.matched
-    ))[0];
-  if (!best) return [];
-  const isWeaponOnly = best.combo.kind === "weapon_only" || best.progress.length === 0;
-  return [{
-    rule_stable_id: best.combo.rule_stable_id ?? `${sourceId}:combo`,
-    source_id: sourceId,
-    source_label: sourceLabel,
-    state: isWeaponOnly
-      ? "weapon_only"
-      : best.matched === best.progress.length
-        ? "full"
-        : best.matched > 0 ? "close" : "not_matched",
-    matched_requirement_count: best.matched,
-    requirement_count: best.progress.length,
-    checkable_requirement_count: best.progress.length,
-    uncheckable_requirement_count: 0,
-    purposes: [best.combo.mode],
-    slots: best.progress.map((requirement) => ({
-      slot: (requirement.slot ?? "unknown") as RecommendationRequirementSlot,
-      label: recommendationRequirementSlotLabels[requirement.slot ?? "unknown"] ?? "推荐项",
-      state: requirement.matched ? "match" as const : "different" as const,
-      source_candidate_names: requirement.names,
-      source_candidates: requirement.hashes.map((hash, index) => (
-        best.combo.perks.find((perk) => perk.hash === hash)
-        ?? { hash, name: requirement.names[index] ?? String(hash) }
-      )),
-      unresolved_source_candidate_names: [],
-      instance_owned: [],
-      current_enabled: []
-    }))
-  }];
-}
 
 // 归约成候选池后，逐栏结果由拥有情况给出；哈希与原组合保持同一套判定。
-function buildDimColumnMatches(
-  sourceId: string,
-  combos: readonly PerkCombo[],
-  owned: OwnedPlugIdentity
-): DimWishlistColumnMatch[] | undefined {
-  const scoped = combos.filter((combo) => (
-    combo.kind !== "weapon_only"
-    && (combo.source_id ?? "dim_wishlist") === sourceId
-  ));
-  const evaluated = scoped.map((combo) => evaluateComboRequirements(combo, owned));
-  const pool = reduceCombosToColumnPool(evaluated.map((requirements) => requirements.map((requirement) => ({
-    ...(requirement.slot ? { slot: requirement.slot } : {}),
-    hashes: requirement.hashes
-  }))));
-  if (!pool) return undefined;
-  // 归约成的栏位顺序与原组合的第一套保持一致，便于与作者写的顺序对齐。
-  const first = evaluated[0] ?? [];
-  const order = new Map(first.map((requirement, index) => [requirement.slot ?? "unknown", index]));
-  return pool.columns
-    .map((column) => {
-      const candidates = column.candidates.flat().map(Number);
-      const names = new Set<string>();
-      for (const requirement of evaluated.flat()) {
-        if ((requirement.slot ?? "unknown") !== column.slot) continue;
-        if (requirement.hashes.some((hash) => candidates.includes(hash))) {
-          for (const name of requirement.names) names.add(name);
-        }
-      }
-      const matchedPlug = findSatisfyingPlug(owned, candidates, [...names]);
-      const instanceOwned = owned.entries
-        .filter((entry) => entry.slot === column.slot)
-        .map((entry) => ({ hash: entry.hash, name: entry.name, current: entry.current }));
-      return {
-        slot: column.slot as RecommendationRequirementSlot,
-        label: recommendationRequirementSlotLabels[column.slot] ?? "推荐项",
-        state: matchedPlug ? "match" as const : "different" as const,
-        source_candidate_names: [...names],
-        source_candidate_hashes: candidates,
-        ...(matchedPlug?.name ? { matched_name: matchedPlug.name } : {}),
-        ...(matchedPlug ? { matched_hash: matchedPlug.hash } : {}),
-        ...(matchedPlug?.current ? { matched_current: true } : {}),
-        ...(instanceOwned.length ? { instance_owned: instanceOwned } : {})
-      };
-    })
-    .sort((left, right) => (order.get(left.slot) ?? 99) - (order.get(right.slot) ?? 99));
-}
 
 function hasIncompleteRelevantRollData(item: VaultItemMatchInput): boolean {
   if (!item.weapon_roll) return true;
@@ -829,17 +671,11 @@ function previewPerks(recommendation: WeaponRecommendation): PerkRef[] | undefin
 }
 
 function comboMatchRequirements(combo: PerkCombo): number[][] {
-  if (combo.source !== "dim_wishlist" || !combo.dim_diagnostic) {
-    return combo.perks.map((perk) => [perk.hash]);
-  }
-  return combo.dim_diagnostic.perks.map((perk) => (
-    perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash]
-  ));
+  return combo.perks.map((perk) => [perk.hash]);
 }
 
 function comboMatchRequirementNames(combo: PerkCombo): string[][] {
-  const perks = combo.source === "dim_wishlist" && combo.dim_diagnostic ? combo.dim_diagnostic.perks : combo.perks;
-  return perks.map((perk) => (perk.name?.trim() ? [perk.name.trim()] : []));
+  return combo.perks.map((perk) => (perk.name?.trim() ? [perk.name.trim()] : []));
 }
 
 export type ComboRequirementProgress = {
@@ -857,9 +693,7 @@ export function evaluateComboRequirements(
 ): ComboRequirementProgress[] {
   const requirements = comboMatchRequirements(combo);
   const names = comboMatchRequirementNames(combo);
-  const slots = combo.source === "dim_wishlist" && combo.dim_diagnostic
-    ? combo.dim_diagnostic.perks.map((perk) => perk.slot_candidates?.[0])
-    : combo.perks.map(() => undefined);
+  const slots = combo.perks.map(() => undefined);
   return requirements.map((hashes, index) => {
     const candidates = names[index] ?? [];
     const matchedPlug = findSatisfyingPlug(owned, hashes, candidates);

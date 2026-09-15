@@ -19,7 +19,9 @@ const databaseFileName = "account-cache.sqlite";
 // 16：事实层新增归约后的 DIM 栏位候选池（columns），旧缓存没有候选池必须重算。
 // 17：归约后的 DIM 来源改为输出到 source_matches（与人工来源同级），事实形状变化必须重算。
 // 18：全部 DIM 来源都走 source_matches，组合事实不再保留 DIM 内容。
-const matchAlgorithmVersion = 18;
+// 19：DIM 与本地社区来源改为产出来源事实（source_records），不再产出 combos。
+// 20：删除本地导入通道（本地规则表），来源只剩人工推荐 CSV 与 DIM Wishlist。
+const matchAlgorithmVersion = 20;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;

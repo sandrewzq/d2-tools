@@ -34,7 +34,6 @@ import type {
   DimWishlistOnlineStatus
 } from "@d2-tools/services/community/dimWishlistUpdates";
 import type {
-  LocalCommunityRecommendationTable,
   VaultCommunityMatchOptions,
   VaultCommunityMatchResult,
   VaultItemInstanceMatchInfo,
@@ -328,11 +327,6 @@ contextBridge.exposeInMainWorld("d2", {
   saveEquipmentTargetStore: (store: EquipmentTargetStore) =>
     ipcRenderer.invoke("equipment-targets:save", store) as Promise<EquipmentTargetStore>,
   clearEquipmentTargetStore: () => ipcRenderer.invoke("equipment-targets:clear") as Promise<EquipmentTargetStore>,
-  getLocalCommunityRecommendations: () =>
-    ipcRenderer.invoke("community:local:get") as Promise<LocalCommunityRecommendationTable | null>,
-  saveLocalCommunityRecommendations: (table: LocalCommunityRecommendationTable) =>
-    ipcRenderer.invoke("community:local:save", table) as Promise<LocalCommunityRecommendationTable>,
-  clearLocalCommunityRecommendations: () => ipcRenderer.invoke("community:local:clear") as Promise<null>,
   getPersonalWeaponKnowledge: (weaponName?: string) =>
     ipcRenderer.invoke("community:personal:get", weaponName) as Promise<PersonalWeaponKnowledgeTable>,
   savePersonalWeaponKnowledge: (input: SavePersonalWeaponKnowledgeInput) =>

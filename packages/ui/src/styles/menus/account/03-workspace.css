@@ -2129,7 +2129,7 @@
   :where(.app-shell) .account-mode-tabs > button.active {
     color: var(--selected-fg);
     background: var(--selected-bg);
-    box-shadow: inset 0 -3px 0 var(--nav-current-indicator);
+    box-shadow: inset 3px 0 0 var(--nav-current-indicator);
   }
 
   :where(.app-shell) .account-directory .account-column-head {

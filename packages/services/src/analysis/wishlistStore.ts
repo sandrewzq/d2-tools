@@ -1,5 +1,4 @@
 import type { DimWishlist, DimWishlistRule } from "@d2-tools/core/analysis/wishlistImport";
-import { type ExternalRecommendationSetRecord } from "../community/externalRecommendationStore.js";
 import { clearDimRecommendationDocuments, loadDimRecommendationDocumentInfo, loadDimRecommendationSources, saveDimRecommendationDocument } from "../community/recommendationDocumentStore.js";
 
 // 新三级模型（文档 / 来源实例 / 规则）是 DIM 的唯一读写路径。
@@ -110,39 +109,6 @@ function normalizeDimWishlist(wishlist: DimWishlist): DimWishlist {
   };
 }
 
-function externalSetToDimWishlist(set: ExternalRecommendationSetRecord): DimWishlist {
-  return {
-    title: set.title || "DIM Wishlist",
-    ...(set.description ? { description: set.description } : {}),
-    ...(set.author ? { author: set.author } : {}),
-    ...(set.blocks.length
-      ? {
-          source_blocks: set.blocks.map((block) => ({
-            id: block.block_key,
-            ...(block.title ? { title: block.title } : {}),
-            ...(block.description ? { description: block.description } : {}),
-            ...(block.note ? { note: block.note } : {}),
-            ...(block.tags.length ? { tags: block.tags } : {}),
-            ...(block.author ? { author: block.author } : {})
-          }))
-        }
-      : {}),
-    rules: set.rules.map((rule) => ({
-      rule_stable_id: rule.rule_stable_id,
-      item_hash: rule.item_hash,
-      perk_hashes: rule.perk_hashes,
-      kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
-      mode: rule.mode,
-      note: rule.note,
-      ...(rule.tags.length ? { tags: rule.tags } : {}),
-      ...(rule.author ? { author: rule.author } : {}),
-      ...(rule.source_note ? { source_note: rule.source_note } : {}),
-      ...(rule.source_title ? { source_title: rule.source_title } : {}),
-      ...(rule.source_description ? { source_description: rule.source_description } : {}),
-      ...(rule.block_key ? { source_block_id: rule.block_key } : {})
-    }))
-  };
-}
 
 function optionalTags(values: string[]): { tags?: string[] } {
   const tags = [...new Set(values.filter((tag): tag is string => typeof tag === "string")

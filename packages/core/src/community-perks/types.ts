@@ -66,7 +66,6 @@ export type PerkCombo = {
   source_label?: string;
   kind?: "roll" | "weapon_only";
   perks: PerkRef[];
-  source: "dim_wishlist" | "local_community";
   mode: "pve" | "pvp" | "general";
   note?: string;
   dim_diagnostic?: DimWishlistRuleDiagnostic;
@@ -101,7 +100,6 @@ export type WeaponRecommendation = {
   matched_modes: Array<"pve" | "pvp" | "general">;
   individual_perks?: PerkRef[];
   weapon_level_recommendations?: Array<{
-    source: "dim_wishlist" | "local_community";
     mode: "pve" | "pvp" | "general";
     source_label: string;
     note?: string;

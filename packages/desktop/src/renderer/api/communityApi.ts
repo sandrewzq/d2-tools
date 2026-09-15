@@ -15,7 +15,7 @@ import type {
   WeaponRecommendationKnowledgeStatus,
   WeaponRecommendation
 } from "./sharedTypes";
-import type { DimWishlist, LocalCommunityRecommendationTable } from "./vaultApi";
+import type { DimWishlist } from "./vaultApi";
 import type {
   PersonalWeaponKnowledgeTable,
   SavePersonalWeaponKnowledgeInput
@@ -40,9 +40,6 @@ export type CommunityApi = {
   setRecommendationSourceState(sourceKey: string, state: "active" | "disabled" | "removed"): Promise<RecommendationManagementSnapshot>;
   setRecommendationRuleState(input: { source_key: string; rule_stable_id: string; state: "active" | "removed"; reason?: string; source_revision?: string }): Promise<RecommendationManagementSnapshot>;
   clearCuratedRecommendationDataset(): Promise<RecommendationManagementSnapshot>;
-  getLocalCommunityRecommendations(): Promise<LocalCommunityRecommendationTable | null>;
-  saveLocalCommunityRecommendations(table: LocalCommunityRecommendationTable): Promise<LocalCommunityRecommendationTable>;
-  clearLocalCommunityRecommendations(): Promise<null>;
   getPersonalWeaponKnowledge(weaponName?: string): Promise<PersonalWeaponKnowledgeTable>;
   savePersonalWeaponKnowledge(input: SavePersonalWeaponKnowledgeInput): Promise<PersonalWeaponKnowledgeTable>;
   setPersonalWeaponKnowledgeEnabled(id: string, enabled: boolean): Promise<PersonalWeaponKnowledgeTable>;

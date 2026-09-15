@@ -225,13 +225,11 @@ function ItemDetailReadyContent(
     equipmentTargetStore: props.equipmentTargetStore,
     sources: armorSources
   }), [armorSources, props.equipmentTargetStore, props.localTargetRules, props.sameNameItems, selectedItem]);
+  // 所有来源同级：不再排除 DIM 来源，详情与仓库卡片使用同一份来源事实。
   const recommendationSourceMatches = useMemo(() => isWeapon ? mergeRecommendationSourceDetails(
     props.communityInstanceMatch?.source_matches ?? [],
     props.communityRecommendations?.source_records ?? []
-  ).filter((source) => (
-    !source.source_id.startsWith("dim:")
-    && source.source_id !== "dim_wishlist"
-  )) : [], [isWeapon, props.communityInstanceMatch?.source_matches, props.communityRecommendations?.source_records]);
+  ) : [], [isWeapon, props.communityInstanceMatch?.source_matches, props.communityRecommendations?.source_records]);
   const persistedNote = props.vaultTags.items[selectedItem.item_key]?.note ?? "";
   const noteDirty = Boolean(selectedItem.instance_id) && props.itemNoteDraft !== persistedNote;
   const hasPendingPerks = Object.keys(pendingPerks).length > 0;

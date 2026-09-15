@@ -10,7 +10,6 @@ import type {
   DimWishlist,
   EquipmentTargetStore,
   LocalTargetRules,
-  LocalCommunityRecommendationTable,
   RecommendationCardSummary,
   SaveVaultTagInput,
   VaultTags,
@@ -59,9 +58,6 @@ export function VaultPage(props: {
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
 }) {
-  const [localCommunityTable, setLocalCommunityTable] = useState<LocalCommunityRecommendationTable | null>(null);
-  const [localCommunityLoadState, setLocalCommunityLoadState] = useState<"loading" | "ready" | "error">("loading");
-  const [localCommunityLoadError, setLocalCommunityLoadError] = useState("");
   const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogItem[]>([]);
   const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
   const detailScopeKey = props.detailCacheScopeKey ?? (props.account
@@ -154,24 +150,6 @@ export function VaultPage(props: {
       return snapshot;
     }
   }), [getRecommendationManagement, listRecommendationRules, props.onCommunityRecommendationsChanged, props.onEquipmentTargetStoreChanged, props.onWishlistChanged, props.wishlist]);
-  const loadLocalCommunityTable = useCallback(async () => {
-    setLocalCommunityLoadState("loading");
-    setLocalCommunityLoadError("");
-    try {
-      const table = await services.localData.getLocalCommunityRecommendations();
-      setLocalCommunityTable(table);
-      setLocalCommunityLoadState("ready");
-      return table;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "遗留自定义规则读取失败";
-      setLocalCommunityLoadState("error");
-      setLocalCommunityLoadError(message);
-      throw error;
-    }
-  }, []);
-  useEffect(() => {
-    void loadLocalCommunityTable().catch(() => undefined);
-  }, [loadLocalCommunityTable]);
   useEffect(() => {
     let active = true;
     setArmorSetCatalogStatus("loading");
@@ -275,9 +253,6 @@ export function VaultPage(props: {
       recommendationCardSummary={props.recommendationCardSummary}
       recommendationSourceState={{
         recommendationScan: props.recommendationScan,
-        customRules: localCommunityTable,
-        customRulesLoadState: localCommunityLoadState,
-        customRulesLoadError: localCommunityLoadError
       }}
       wishlistActions={wishlistActions}
       onLoadRecommendationEvidence={loadRecommendationEvidence}

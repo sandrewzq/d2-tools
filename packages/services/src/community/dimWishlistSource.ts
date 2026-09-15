@@ -17,6 +17,12 @@ import type {
 } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "../analysis/wishlistStore.js";
 import {
+  reduceCombosToColumnPool,
+  recommendationRequirementSlotLabels,
+  type RecommendationSourceRecord,
+  type RecommendationSourceRequirement
+} from "@d2-tools/core/community-perks";
+import {
   loadDimRecommendationSources,
   type RecommendationSourceInstanceRecord
 } from "./recommendationDocumentStore.js";
@@ -105,33 +111,68 @@ function createDimWishlistSourceForRules(
       if (!matchingRules.length) return null;
       const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
       const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
-      const combos: PerkCombo[] = matchingRules.map((rule) => {
-          const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
-          const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
-          return {
-            ...(rule.rule_stable_id ? { rule_stable_id: rule.rule_stable_id } : {}),
-            source_id: sourceId,
-            source_label: sourceLabel,
-            kind: rule.kind ?? (rule.perk_hashes.length > 0 ? "roll" : "weapon_only"),
-            perks: rule.perk_hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
-            source: "dim_wishlist" as const,
-            mode: rule.mode,
-            note: metadata.note || metadata.source_title || undefined,
-            dim_diagnostic: diagnostic
-          };
-        });
-      if (!combos.length) return null;
-      const modeOrder = { pve: 0, pvp: 1, general: 2 } as const;
-      combos.sort((a, b) => modeOrder[a.mode] - modeOrder[b.mode]);
+      const evaluated = matchingRules.map((rule) => {
+        const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
+        const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
+        const requirements = diagnostic.perks.map((perk) => ({
+          slot: perk.slot_candidates[0] ?? "special",
+          hashes: perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash],
+          name: perk.name
+        }));
+        return { rule, metadata, requirements };
+      });
+      if (!evaluated.length) return null;
+      type DimRequirement = { slot: string; hashes: number[]; name: string };
+      const locatableSlots = new Set(["barrel", "magazine", "masterwork", "perk1", "perk2", "origin"]);
+      const locatable = (requirements: DimRequirement[]) => (
+        requirements.filter((requirement) => locatableSlots.has(requirement.slot))
+      );
+      const weaponLevelRecommendations = evaluated
+        .filter(({ requirements }) => locatable(requirements).length === 0)
+        .map(({ rule, metadata }) => ({
+          mode: rule.mode,
+          source_label: sourceLabel,
+          ...(metadata.note || metadata.source_title ? { note: metadata.note || metadata.source_title } : {})
+        }));
+      const pool = reduceCombosToColumnPool(evaluated.map(({ requirements }) => (
+        locatable(requirements).map((requirement) => ({ slot: requirement.slot, hashes: requirement.hashes }))
+      )));
+      const slotLabel = (slot: string) => recommendationRequirementSlotLabels[slot] ?? "推荐项";
+      const candidateRefs = (hashes: number[]): PerkRef[] => (
+        hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) })
+      );
+      const toRequirement = (slot: string, names: string[], refs: PerkRef[]): RecommendationSourceRequirement => ({
+        slot: slot as RecommendationSourceRequirement["slot"],
+        label: slotLabel(slot),
+        candidate_names: names,
+        candidates: refs,
+        unresolved_candidate_names: []
+      });
+      const sourceRecords: RecommendationSourceRecord[] = pool
+        ? [{ rule_stable_id: sourceId + ":pool", source_id: sourceId, source_label: sourceLabel,
+             purposes: [...new Set(evaluated.map(({ rule }) => rule.mode))],
+             requirements: pool.columns.map((column) => {
+               const refs = candidateRefs([...new Set(column.candidates.flat().map(Number))]);
+               return toRequirement(column.slot, refs.map((ref) => ref.name), refs);
+             }) }]
+        : evaluated
+            .filter(({ requirements }) => locatable(requirements).length > 0)
+            .map(({ rule, metadata, requirements }) => ({
+              rule_stable_id: rule.rule_stable_id ?? (sourceId + ":" + rule.item_hash + ":" + rule.perk_hashes.join(",")),
+              source_id: sourceId, source_label: sourceLabel, purposes: [rule.mode],
+              ...(metadata.note || metadata.source_title ? { note: metadata.note || metadata.source_title } : {}),
+              requirements: locatable(requirements)
+                .map((requirement) => toRequirement(requirement.slot, [requirement.name], candidateRefs(requirement.hashes))) }));
       return {
-        item_hash: itemHash,
-        item_name: options.item_name ?? String(itemHash),
-        combos,
-        matched_modes: Array.from(new Set(combos.map((combo) => combo.mode))),
-        individual_perks: uniquePerks(combos),
-        sample_size: matchingRules.length,
-        source_label: sourceLabel,
-        disclaimer: wishlist.title ? `来自 ${wishlist.title}，仅反映愿望单作者的偏好。` : "来自本地导入的 DIM Wishlist，仅反映愿望单作者的偏好。"
+        item_hash: itemHash, item_name: options.item_name ?? String(itemHash),
+        combos: [],
+        source_records: sourceRecords,
+        ...(weaponLevelRecommendations.length ? { weapon_level_recommendations: weaponLevelRecommendations } : {}),
+        matched_modes: Array.from(new Set(evaluated.map(({ rule }) => rule.mode))),
+        individual_perks: [...new Set(matchingRules.flatMap((rule) => rule.perk_hashes))]
+          .map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
+        sample_size: matchingRules.length, source_label: sourceLabel,
+        disclaimer: wishlist.title ? ("来自 " + wishlist.title + "，仅反映愿望单作者的偏好。") : "来自本地导入的 DIM Wishlist，仅反映愿望单作者的偏好。"
       };
     }
   };

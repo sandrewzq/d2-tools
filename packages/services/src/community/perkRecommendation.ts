@@ -1,6 +1,5 @@
 import { CommunityPerkRecommendationService } from "@d2-tools/core/community-perks";
 import { createDimWishlistSources } from "./dimWishlistSource.js";
-import { createLocalCommunitySource } from "./localCommunityRecommendations.js";
 import { createWeaponRecommendationKnowledgeSource } from "./weaponRecommendationKnowledge.js";
 
 export function createDefaultCommunityPerkService(
@@ -10,7 +9,6 @@ export function createDefaultCommunityPerkService(
   const dataDir = config?.data?.data_dir;
   if (dataDir) {
     service.addSource(createWeaponRecommendationKnowledgeSource(dataDir));
-    service.addSource(createLocalCommunitySource(dataDir));
     for (const source of createDimWishlistSources(dataDir)) service.addSource(source);
   }
   return service;

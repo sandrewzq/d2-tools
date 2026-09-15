@@ -497,7 +497,6 @@ export function createWeaponRecommendationKnowledgeSource(dataDir: string): Comm
         if (perk1Names.length > 0 || perk2Names.length > 0) continue;
         for (const mode of recommendation.purpose) {
           weaponLevelRecommendations.push({
-            source: "local_community",
             mode,
             source_label: recommendation.source_label,
             note: recommendationNote(recommendation)

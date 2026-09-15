@@ -4,7 +4,6 @@ import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type {
-  LocalCommunityRecommendationTable,
   VaultCommunityMatchOptions,
   VaultCommunityMatchResult,
   VaultItemMatchInput
@@ -35,11 +34,6 @@ export type LocalDataService = {
   getDimWishlist(): Promise<DimWishlist | null>;
   saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
   clearDimWishlist(): Promise<null>;
-  getLocalCommunityRecommendations(): Promise<LocalCommunityRecommendationTable | null>;
-  saveLocalCommunityRecommendations(
-    table: LocalCommunityRecommendationTable
-  ): Promise<LocalCommunityRecommendationTable>;
-  clearLocalCommunityRecommendations(): Promise<null>;
   getPersonalWeaponKnowledge?: (weaponName?: string) => Promise<PersonalWeaponKnowledgeTable>;
   savePersonalWeaponKnowledge?: (input: SavePersonalWeaponKnowledgeInput) => Promise<PersonalWeaponKnowledgeTable>;
   setPersonalWeaponKnowledgeEnabled?: (id: string, enabled: boolean) => Promise<PersonalWeaponKnowledgeTable>;

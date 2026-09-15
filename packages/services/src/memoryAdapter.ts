@@ -4,7 +4,6 @@ import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import { createEmptyEquipmentTargetStore, type EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type {
-  LocalCommunityRecommendationTable,
   VaultItemInstanceMatchInfo
 } from "@d2-tools/core/community-perks";
 import type { PersonalWeaponKnowledgeTable } from "@d2-tools/core/community-perks/personalWeaponKnowledge";
@@ -20,7 +19,6 @@ export type MemoryServicesSeed = {
   wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules;
   equipmentTargetStore?: EquipmentTargetStore;
-  communityRecommendations?: LocalCommunityRecommendationTable | null;
   personalWeaponKnowledge?: PersonalWeaponKnowledgeTable;
   communityMatches?: VaultItemInstanceMatchInfo[];
   aiReply?: AiChatReplyResult | ((input: AiChatRequest) => AiChatReplyResult | Promise<AiChatReplyResult>);
@@ -35,7 +33,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     weapons: []
   };
   let equipmentTargetStore = seed.equipmentTargetStore ?? createEmptyEquipmentTargetStore();
-  let communityRecommendations = seed.communityRecommendations ?? null;
   let personalWeaponKnowledge = seed.personalWeaponKnowledge ?? { version: 1 as const, entries: [] };
   const activitySummary = seed.activitySummary ?? {
     recent: { total: 0, pve: { total: 0, completed: 0 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
@@ -82,17 +79,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     },
     async clearDimWishlist() {
       wishlist = null;
-      return null;
-    },
-    async getLocalCommunityRecommendations() {
-      return communityRecommendations;
-    },
-    async saveLocalCommunityRecommendations(table) {
-      communityRecommendations = table;
-      return communityRecommendations;
-    },
-    async clearLocalCommunityRecommendations() {
-      communityRecommendations = null;
       return null;
     },
     async getPersonalWeaponKnowledge(weaponName) {
