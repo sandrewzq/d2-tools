@@ -15,10 +15,6 @@
       "types": "./dist/analysis/duplicates.d.ts",
       "import": "./dist/analysis/duplicates.js"
     },
-    "./analysis/wishlist": {
-      "types": "./dist/analysis/wishlist.d.ts",
-      "import": "./dist/analysis/wishlist.js"
-    },
     "./analysis/targets": {
       "types": "./dist/analysis/targets.d.ts",
       "import": "./dist/analysis/targets.js"
@@ -158,10 +154,6 @@
     "./activities/review": {
       "types": "./dist/activities/review.d.ts",
       "import": "./dist/activities/review.js"
-    },
-    "./evidence/itemDecision": {
-      "types": "./dist/evidence/itemDecision.d.ts",
-      "import": "./dist/evidence/itemDecision.js"
     },
     "./evidence/reference": {
       "types": "./dist/evidence/reference.d.ts",

@@ -26,7 +26,6 @@ export type DesktopBridgeApi = {
     options?: VaultCommunityMatchOptions
   ): Promise<VaultCommunityMatchResult>;
   getDimWishlist(): Promise<DimWishlist | null>;
-  saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
   clearDimWishlist(): Promise<null>;
   getPersonalWeaponKnowledge(weaponName?: string): Promise<PersonalWeaponKnowledgeTable>;
   savePersonalWeaponKnowledge(input: SavePersonalWeaponKnowledgeInput): Promise<PersonalWeaponKnowledgeTable>;
@@ -53,7 +52,6 @@ export function createDesktopBridgeServices(api: DesktopBridgeApi): D2Services {
     };
   const localData: D2Services["localData"] = {
       getDimWishlist: () => api.getDimWishlist(),
-      saveDimWishlist: (wishlist) => api.saveDimWishlist(wishlist),
       clearDimWishlist: () => api.clearDimWishlist(),
       getPersonalWeaponKnowledge: (weaponName) => api.getPersonalWeaponKnowledge(weaponName),
       savePersonalWeaponKnowledge: (input) => api.savePersonalWeaponKnowledge(input),

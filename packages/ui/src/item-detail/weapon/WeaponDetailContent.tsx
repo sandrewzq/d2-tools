@@ -18,7 +18,6 @@ import type {
 import type { RecommendationSourceMatch, RecommendationSourceSlotMatch } from "@d2-tools/core/community-perks";
 import type { ItemReleaseKind } from "@d2-tools/core/items/release";
 import {
-  isDimRecommendationSource,
   presentCuratedRecommendationMatch,
   presentRecommendationSlotMatch
 } from "../../recommendationMatchView.js";
@@ -28,8 +27,6 @@ export type WeaponDetailSection =
   | "configuration"
   | "recommendations"
   | "upgrades";
-
-type WeaponTargetSource = "community" | "personal";
 
 export type WeaponDetailContentActions = {
   selectVersion?: (hash: number) => void;
@@ -81,9 +78,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
       setPoolRequested(false);
     }
   }, [poolRequested, props.model.configuration.pool_columns.length]);
-  const [targetSource, setTargetSource] = useState<WeaponTargetSource>(() => (
-    preferredWeaponTargetSource(model, props.recommendationEvidence)
-  ));
   const [instanceRailOpen, setInstanceRailOpen] = useState(false);
   const [mountedSections, setMountedSections] = useState<Set<WeaponDetailSection>>(() => new Set(["configuration"]));
   const section = props.activeSection ?? internalSection;
@@ -106,7 +100,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
   useEffect(() => {
     setPoolOpen(false);
     setInternalSection("configuration");
-    setTargetSource(preferredWeaponTargetSource(model, props.recommendationEvidence));
     setInstanceRailOpen(false);
     setMountedSections(new Set(["configuration"]));
     observedSectionRef.current = "configuration";
@@ -118,16 +111,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
       if (mountedSection !== "configuration") activateSectionRef.current?.(mountedSection);
     }
   }, [mountedSections]);
-
-  useEffect(() => {
-    const availableSources = availableWeaponTargetSources(model, props.recommendationEvidence);
-    if (!availableSources.length || availableSources.includes(targetSource)) return;
-    setTargetSource(availableSources[0]);
-  }, [
-    model.recommendations,
-    props.recommendationEvidence?.sourceMatches,
-    targetSource
-  ]);
 
   useEffect(() => {
     if (!instanceRailOpen) return;
@@ -284,8 +267,6 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               <RecommendationSection
                 model={model}
                 evidence={props.recommendationEvidence}
-                source={targetSource}
-                onSourceChange={setTargetSource}
               />
             ) : <DeferredWeaponSection label="推荐 Roll" />}
           </section>
@@ -974,20 +955,22 @@ function PerkColumn(props: {
   );
 }
 
+/**
+ * 推荐 Roll 区只有一条路径：**渲染推荐来源**。
+ *
+ * 这里原来有 `攻略推荐 / 我的推荐` 两个页签，把推荐事实按来源身份劈成两栏。但「所有来源同级、
+ * 不按来源类型排权重」是已定口径——来源的身份是用户给它起的名字，不是它的格式或出身，页签本身
+ * 就是那个被拆掉的分叉。现在：账号实例渲染事实层的来源事实（每条来源一张卡片），定义与商人没有
+ * 实例事实可核对，渲染来源规则本身。两种都不按来源类型分叉。
+ */
 function RecommendationSection(props: {
   model: WeaponDetailViewModel;
   evidence?: WeaponDetailContentProps["recommendationEvidence"];
-  source: WeaponTargetSource;
-  onSourceChange: (source: WeaponTargetSource) => void;
 }) {
   const { model } = props;
   const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
   const isDefinition = model.context.kind === "definition";
   const panelId = useId();
-  const targetsBySource: Record<WeaponTargetSource, WeaponRecommendation[]> = {
-    community: model.recommendations.filter((target) => target.source === "builtin" || target.source === "external"),
-    personal: model.recommendations.filter((target) => target.source === "user")
-  };
   const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
   const sourceMatches = evidence
     ? evidence.sourceMatches.slice().sort((left, right) => (
@@ -998,25 +981,7 @@ function RecommendationSection(props: {
         )
       ))
     : [];
-  const targets = targetsBySource[props.source];
-  const sourceCounts: Record<WeaponTargetSource, number> = {
-    community: evidence ? sourceMatches.length : targetsBySource.community.length,
-    personal: targetsBySource.personal.length
-  };
-  const sourceOrder = availableWeaponTargetSources(model, evidence);
-  const handleSourceKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    const currentIndex = sourceOrder.indexOf(props.source);
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? sourceOrder.length - 1
-        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + sourceOrder.length) % sourceOrder.length;
-    const nextSource = sourceOrder[nextIndex];
-    event.preventDefault();
-    props.onSourceChange(nextSource);
-    requestAnimationFrame(() => document.getElementById(`${panelId}-${nextSource}`)?.focus());
-  };
+  const targets = model.recommendations;
   return (
     <>
       <SectionHeading
@@ -1025,82 +990,35 @@ function RecommendationSection(props: {
         description={isDefinition
           ? "按数据源原始形式展示：完整组合保持组合，分栏候选保持 Perk 池；这里不进行玩家 Roll 命中核对。"
           : isFixedExotic
-            ? "固定异域不进行随机 Roll 核对；攻略推荐与我的推荐只保留拥有状态、催化剂进度与使用建议。"
+            ? "固定异域不进行随机 Roll 核对；推荐来源只保留拥有状态、催化剂进度与使用建议。"
             : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。"}
       />
-      {sourceOrder.length ? <div className="weapon-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择推荐 Roll 来源">
-        {([
-          ["community", "攻略推荐"],
-          ["personal", "我的推荐"]
-        ] as const).filter(([key]) => sourceCounts[key] > 0).map(([key, label]) => (
-          <button
-            key={key}
-            id={`${panelId}-${key}`}
-            type="button"
-            role="tab"
-            aria-controls={`${panelId}-panel`}
-            aria-selected={props.source === key}
-            tabIndex={props.source === key ? 0 : -1}
-            onClick={() => props.onSourceChange(key)}
-            onKeyDown={handleSourceKeyDown}
+      {evidence ? (
+        sourceMatches.length ? (
+          <div
+            id={`${panelId}-panel`}
+            className="weapon-detail-recommendations"
+            aria-busy={evidence.status === "loading"}
           >
-            {label}<span>{sourceCounts[key]}</span>
-          </button>
-        ))}
-      </div> : null}
-      {!sourceOrder.length ? <EmptyState text={isDefinition
-        ? "这把武器暂时没有来源推荐资料。"
-        : evidence?.status === "loading" ? "正在读取这把武器的推荐 Roll。" : "这把武器暂时没有可核对的推荐 Roll。"} /> : props.source === "community" && evidence ? (
-        <div
-          id={`${panelId}-panel`}
-          className="weapon-detail-recommendations"
-          role="tabpanel"
-          aria-labelledby={`${panelId}-${props.source}`}
-          aria-busy={evidence.status === "loading"}
-        >
-          {evidence.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
-          {sourceMatches.length
-            ? sourceMatches.map((sourceMatch) => (
-                <RecommendationSourceEvidenceCard
-                  key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
-                  model={model}
-                  sourceMatch={sourceMatch}
-                />
-              ))
-            : <EmptyState text={recommendationEvidenceEmptyText(evidence.status)} />}
-        </div>
+            {evidence.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
+            {sourceMatches.map((sourceMatch) => (
+              <RecommendationSourceEvidenceCard
+                key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
+                model={model}
+                sourceMatch={sourceMatch}
+              />
+            ))}
+          </div>
+        ) : <EmptyState text={isDefinition
+          ? "这把武器暂时没有来源推荐资料。"
+          : evidence.status === "loading" ? "正在读取这把武器的推荐 Roll。" : "这把武器暂时没有可核对的推荐 Roll。"} />
       ) : targets.length ? (
-        <div
-          id={`${panelId}-panel`}
-          className="weapon-detail-recommendations"
-          role="tabpanel"
-          aria-labelledby={`${panelId}-${props.source}`}
-        >
+        <div id={`${panelId}-panel`} className="weapon-detail-recommendations">
           {targets.map((target) => <RecommendationCard key={target.id} model={model} recommendation={target} />)}
         </div>
-      ) : <div id={`${panelId}-panel`} role="tabpanel" aria-labelledby={`${panelId}-${props.source}`}><EmptyState text={isDefinition ? "当前来源没有可显示的推荐资料。" : "当前来源没有可显示的推荐 Roll。"} /></div>}
+      ) : <EmptyState text={isDefinition ? "这把武器暂时没有来源推荐资料。" : "这把武器暂时没有可核对的推荐 Roll。"} />}
     </>
   );
-}
-
-function availableWeaponTargetSources(
-  model: WeaponDetailViewModel,
-  evidence: WeaponDetailContentProps["recommendationEvidence"] | undefined
-): WeaponTargetSource[] {
-  const counts: Record<WeaponTargetSource, number> = {
-    community: model.context.kind === "account_instance" && evidence
-      ? evidence.sourceMatches.length
-      : model.recommendations.filter((target) => target.source === "builtin" || target.source === "external").length,
-    personal: model.recommendations.filter((target) => target.source === "user").length
-  };
-  return (["community", "personal"] as const).filter((source) => counts[source] > 0);
-}
-
-function preferredWeaponTargetSource(
-  model: WeaponDetailViewModel,
-  evidence: WeaponDetailContentProps["recommendationEvidence"] | undefined
-): WeaponTargetSource {
-  return availableWeaponTargetSources(model, evidence)[0] ?? "community";
 }
 
 function RecommendationSourceEvidenceCard(props: {
@@ -1309,14 +1227,6 @@ function RecommendationSourceSlotRow(props: {
   );
 }
 
-function recommendationEvidenceEmptyText(status: NonNullable<WeaponDetailContentProps["recommendationEvidence"]>["status"]): string {
-  if (status === "idle") return "尚未开始账号武器推荐核对；进入仓库后会生成当前实例的逐项结果。";
-  if (status === "loading") return "正在读取这件武器的推荐来源与逐项结果。";
-  if (status === "partial") return "本次账号武器核对未完整完成，当前实例没有可显示的逐项结果。";
-  if (status === "error") return "账号武器推荐来源核对失败，当前实例没有可显示的逐项结果。";
-  return "当前实例没有可显示的推荐来源逐项结果。";
-}
-
 function recommendationSourceMatchState(source: RecommendationSourceMatch): RecommendationSourceMatch["state"] {
   return source.state;
 }
@@ -1330,7 +1240,6 @@ function recommendationSourceLabel(sourceId: string, fallback: string): string {
   if (sourceId === "lgpig") return "LGpig推荐";
   if (sourceId === "yxcrallxy") return "YXCRALLXY推荐表";
   if (sourceId === "sayalarry") return "Sayalarry推荐表";
-  if (isDimRecommendationSource(sourceId)) return fallback || "DIM社区愿望单";
   return fallback || sourceId || "推荐来源";
 }
 
@@ -1411,7 +1320,7 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
       </header>
       {recommendation.reason ? <p className="weapon-detail-source-quote is-single-line" data-ui-kind="callout" data-callout-tone="info" title={recommendation.reason}>{recommendation.reason}</p> : null}
       {perkMatches.length ? (
-        <div className="weapon-detail-recommendation-combo" data-recommendation-source={recommendation.source}>
+        <div className="weapon-detail-recommendation-combo">
           {perkMatches.map((option) => recommendation.presentation === "perk_pool" ? (
             // 候选池：与人工来源证据卡用同一个「来源要求 ｜ 本件拥有」两列对照。
             <RecommendationSlotComparison
@@ -1735,10 +1644,6 @@ function recommendationSourceCandidates(
       icon: visual?.icon,
       unresolved: !visual
     });
-  }
-  for (const name of slot.unresolved_source_candidate_names) {
-    if ([...candidates.values()].some((candidate) => sameLabel(candidate.name, name))) continue;
-    addCandidate({ name, unresolved: true });
   }
   return [...candidates.values()];
 }

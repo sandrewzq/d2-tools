@@ -3,6 +3,7 @@ import path from "node:path";
 
 export const architectureTests = [
   "packages/app/test/multi-platform-boundaries.test.ts",
+  "packages/app/test/recommendation-source-boundaries.test.ts",
   "packages/desktop/test/architecture-maintenance.test.ts",
   "packages/desktop/test/cross-platform-ui-packages.test.ts",
   "packages/desktop/test/package-format.test.ts",

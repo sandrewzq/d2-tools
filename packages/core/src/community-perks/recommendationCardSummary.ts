@@ -19,23 +19,7 @@ export function createRecommendationCardSummary(
     partial: match.partial,
     available: match.available,
     modes: match.modes,
-    sources: (match.source_matches ?? []).map(createRecommendationCardSourceSummary),
-    ...(match.dim_wishlist ? {
-      dim: {
-        state: match.dim_wishlist.state,
-        matched_combo_count: match.dim_wishlist.matched_combo_count,
-        partial_combo_count: match.dim_wishlist.partial_combo_count,
-        uncheckable_combo_count: match.dim_wishlist.uncheckable_combo_count,
-        combo_count: match.dim_wishlist.combo_count,
-        best_matched_requirement_count: match.dim_wishlist.best_matched_requirement_count,
-        best_requirement_count: match.dim_wishlist.best_requirement_count,
-        modes: match.dim_wishlist.modes,
-        matched_modes: [...new Set(match.dim_wishlist.rules
-          .filter((rule) => rule.state === "match")
-          .map((rule) => rule.mode))],
-        ...(match.dim_wishlist.sources ? { sources: match.dim_wishlist.sources } : {})
-      }
-    } : {})
+    sources: (match.source_matches ?? []).map(createRecommendationCardSourceSummary)
   };
 }
 
@@ -46,6 +30,7 @@ function createRecommendationCardSourceSummary(
   const perkSlots = specifiedSlots.filter((slot) => slot.slot === "perk1" || slot.slot === "perk2");
   return {
     source_id: source.source_id,
+    source_group_id: source.source_group_id,
     source_label: source.source_label,
     state: source.state,
     purposes: source.purposes,

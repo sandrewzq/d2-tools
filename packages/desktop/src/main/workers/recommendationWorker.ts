@@ -4,15 +4,11 @@ import {
   createRecommendationCardSummary,
   type VaultCommunityMatchResult,
   type VaultItemInstanceMatchInfo,
-  type VaultItemMatchInput,
-  type WeaponIdentityRelation
+  type VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
 import { loadDimWishlist } from "@d2-tools/services/analysis/wishlistStore";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
-import {
-  collectRelatedWeaponRecommendationItemHashes,
-  collectWeaponRecommendationCandidateItemHashes
-} from "@d2-tools/services/community/weaponRecommendationKnowledge";
+import { relatedRecommendationItemHashes } from "@d2-tools/services/community/recommendationDocumentStore";
 import {
   buildVaultRecommendationMatchRevision,
   createVaultWeaponRollFingerprint,
@@ -27,7 +23,6 @@ import {
   createSqliteDefinitionReader,
   type DefinitionReader
 } from "@d2-tools/services/gameData/sqlite";
-import { createSqliteGameDataCatalog } from "@d2-tools/services/gameData/sqlite";
 import { loadActiveSqliteManifest, type SqliteManifestActivation } from "@d2-tools/services/manifest/lifecycle";
 import type { RecommendationWorkerMatchInput } from "../runtime/recommendationRuntime.js";
 
@@ -40,7 +35,6 @@ type RecommendationWorkerRequest = {
 type OpenRuntime = {
   key: string;
   activation: SqliteManifestActivation;
-  catalog: ReturnType<typeof createSqliteGameDataCatalog>;
   reader: DefinitionReader;
 };
 
@@ -80,29 +74,9 @@ async function matchVaultItems(input: RecommendationWorkerMatchInput): Promise<V
   if (cachePartition.missing.length) {
     const missingItems = cachePartition.missing.map((entry) => entry.item);
     const itemHashes = missingItems.map((item) => item.hash);
-    const rootItems = getDefinitions(current, "DestinyInventoryItemDefinition", itemHashes);
-    const targetWeaponIdentityRelations = await loadWeaponIdentityRelations(current, itemHashes);
-    const queries = missingItems.map((item) => ({
-      item_hash: item.hash,
-      localized_names: [
-        item.item_name?.trim() ?? "",
-        rootItems[String(item.hash)]?.displayProperties?.name?.trim() ?? ""
-      ].filter(Boolean)
-    }));
-    const candidateItemHashes = collectWeaponRecommendationCandidateItemHashes(
-      input.data_dir,
-      queries,
-      targetWeaponIdentityRelations
-    );
-    const weaponIdentityRelations = mergeWeaponIdentityRelations(
-      targetWeaponIdentityRelations,
-      await loadWeaponIdentityRelations(current, candidateItemHashes)
-    );
-    const relatedItemHashes = collectRelatedWeaponRecommendationItemHashes(
-      input.data_dir,
-      queries,
-      weaponIdentityRelations
-    );
+    // 定义预取的范围：这些武器命中了的规则还声明了哪些武器。身份是导入期算好的，
+    // 这里只问一次存储，不重新推导（T56 分层图：⑤ 层不做身份判定）。
+    const relatedItemHashes = relatedRecommendationItemHashes(input.data_dir, itemHashes);
     const definitions = loadCommunityDefinitions(
       current,
       uniqueHashes([...itemHashes, ...relatedItemHashes]),
@@ -112,8 +86,7 @@ async function matchVaultItems(input: RecommendationWorkerMatchInput): Promise<V
     const freshMatches = await service.matchVaultItemInstances(missingItems, {
       manifest_version: input.manifest_version,
       itemDefinitions: definitions.items,
-      plugSetDefinitions: definitions.plugSets,
-      weaponIdentityRelations
+      plugSetDefinitions: definitions.plugSets
     });
     cachePartition.missing.forEach((entry, index) => {
       const match = freshMatches[index];
@@ -145,10 +118,7 @@ async function matchVaultItems(input: RecommendationWorkerMatchInput): Promise<V
     )),
     issues: [],
     manifest_version: input.manifest_version,
-    recommendation_revision: cacheContext.recommendation_revision,
-    ...(input.recommendation_schema_version !== undefined
-      ? { recommendation_schema_version: input.recommendation_schema_version }
-      : {})
+    recommendation_revision: cacheContext.recommendation_revision
   };
 }
 
@@ -172,38 +142,20 @@ function ensureRuntime(input: RecommendationWorkerMatchInput): OpenRuntime {
     batchSize: 256,
     cacheSize: 1_024
   });
-  const reader = activation.supplementDataDir && activation.supplementComponents.length
-    ? createCompositeDefinitionReader(
-        sqliteReader,
-        createJsonDefinitionReader({
-          getDataDir: () => activation.supplementDataDir!,
-          language: input.manifest_language
-        })
-      )
-    : sqliteReader;
   try {
-    const catalog = createSqliteGameDataCatalog({
-      databasePath: activation.databasePath,
-      searchIndexPath: activation.searchIndexPath,
-      cacheSize: 4_000,
-      secondarySearchIndexPaths: activation.englishSearchIndexPath
-        ? [activation.englishSearchIndexPath]
-        : [],
-      manifestVersion: activation.manifestVersion,
-      language: input.manifest_language,
-      ...(activation.supplementDataDir && activation.supplementComponents.length
-        ? {
-            jsonSupplement: {
-              getDataDir: () => activation.supplementDataDir!,
-              language: input.manifest_language
-            }
-          }
-        : {})
-    });
-    runtime = { key, activation, catalog, reader };
+    const reader = activation.supplementDataDir && activation.supplementComponents.length
+      ? createCompositeDefinitionReader(
+          sqliteReader,
+          createJsonDefinitionReader({
+            getDataDir: () => activation.supplementDataDir!,
+            language: input.manifest_language
+          })
+        )
+      : sqliteReader;
+    runtime = { key, activation, reader };
     return runtime;
   } catch (error) {
-    reader.close();
+    sqliteReader.close();
     throw error;
   }
 }
@@ -211,16 +163,15 @@ function ensureRuntime(input: RecommendationWorkerMatchInput): OpenRuntime {
 function closeRuntime(): void {
   const current = runtime;
   runtime = null;
-  current?.catalog.close?.();
   current?.reader.close();
 }
 
 function buildCacheContext(input: RecommendationWorkerMatchInput): VaultRecommendationMatchCacheContext {
-  let recommendationRevision = input.curated_revision;
+  let recommendationRevision = input.recommendation_revision;
   try {
-    recommendationRevision = buildVaultRecommendationMatchRevision(input.data_dir, input.curated_revision);
+    recommendationRevision = buildVaultRecommendationMatchRevision(input.data_dir);
   } catch {
-    // 推荐库不可读时仍使用当前已知 revision，缓存只作为优化。
+    // 推荐库不可读时仍使用调用方给的 revision，缓存只作为优化。
   }
   return {
     account_key: input.account_key,
@@ -291,26 +242,6 @@ function getDefinitions(
   hashes: Iterable<number>
 ): DefinitionComponentData {
   return current.reader.getMany(component, uniqueHashes([...hashes]));
-}
-
-async function loadWeaponIdentityRelations(
-  current: OpenRuntime,
-  itemHashes: number[]
-): Promise<WeaponIdentityRelation[]> {
-  if (!itemHashes.length) return [];
-  try {
-    return await current.catalog.getWeaponIdentityRelations({ item_hashes: uniqueHashes(itemHashes) });
-  } catch {
-    return [];
-  }
-}
-
-function mergeWeaponIdentityRelations(
-  ...groups: ReadonlyArray<readonly WeaponIdentityRelation[]>
-): WeaponIdentityRelation[] {
-  const relations = new Map<number, WeaponIdentityRelation>();
-  for (const relation of groups.flat()) relations.set(relation.item_hash, relation);
-  return [...relations.values()];
 }
 
 function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {

@@ -1,34 +1,31 @@
 import {
-  summarizeItemPerks,
-  type ItemPlugSummary
-} from "@d2-tools/core/items/perks";
-import { classifyWeaponRollSocket } from "@d2-tools/core/account/summary";
-import { resolveDimWishlistRuleMetadata, type DimWishlist, type DimWishlistSourceBlock } from "@d2-tools/core/analysis/wishlistImport";
-import type {
-  CommunityPerkSource,
-  DimWishlistDiagnosticSlot,
-  DimWishlistPerkDiagnostic,
-  DimWishlistRuleDiagnostic,
-  PerkCombo,
-  PerkRef,
-  RecommendationRequirementSlot,
-  SourceOptions,
-  WeaponRecommendation
-} from "@d2-tools/core/community-perks";
-import { loadDimWishlist } from "../analysis/wishlistStore.js";
-import {
+  isRecommendationRequirementSlot,
+  isWeaponLevelRule,
   reduceCombosToColumnPool,
   recommendationRequirementSlotLabels,
+  unspecifiedRequirementSlotLabel,
+  type CommunityPerkSource,
+  type PerkRef,
   type RecommendationSourceRecord,
-  type RecommendationSourceRequirement
+  type RecommendationSourceRequirement,
+  type SourceOptions,
+  type WeaponRecommendation
 } from "@d2-tools/core/community-perks";
+import { resolveDimWishlistRuleMetadata, type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
+import { dimWishlistForSource } from "../analysis/wishlistStore.js";
 import {
-  loadDimRecommendationSources,
-  type RecommendationSourceInstanceRecord
+  diagnoseDimWishlistRules,
+  dimColumnRequirementSets
+} from "./dimWishlistDiagnostics.js";
+import {
+  loadRecommendationSources,
+  type StoredRecommendationInstance
 } from "./recommendationDocumentStore.js";
 import {
   listRecommendationRuleOverrides,
   listRecommendationSourceOverrides,
+  recommendationRemovedRuleIdsFor,
+  recommendationSourceStateFor,
   type RecommendationRuleOverride,
   type RecommendationSourceOverride
 } from "./recommendationOverrides.js";
@@ -39,15 +36,16 @@ export function createDimWishlistSources(dataDir: string): CommunityPerkSource[]
   const sourceOverrides = listRecommendationSourceOverrides(dataDir);
   const ruleOverrides = listRecommendationRuleOverrides(dataDir);
   // 来源实例是 DIM 的唯一来源真相；标签在导入期固化，读取时不再推导。
-  const storedSources = loadDimRecommendationSources(dataDir);
+  const storedSources = loadRecommendationSources(dataDir, "dim");
   if (!storedSources.length) return [];
   return summarizeDimSources(storedSources)
     .filter((source) => source.state === "active")
     .map((source) => createDimWishlistSourceForRules(
       dataDir,
       source.sourceId,
+      source.documentId,
       source.label,
-      source.wishlist,
+      dimWishlistForSource(source),
       { sourceOverrides, ruleOverrides }
     ));
 }
@@ -55,18 +53,18 @@ export function createDimWishlistSources(dataDir: string): CommunityPerkSource[]
 // 旧版本曾按 block 生成数千个实例。异常膨胀时收敛到文档级来源，
 // 保证仓库来源行数量可控，而不是回退到旧的单例读取路径。
 function summarizeDimSources(
-  storedSources: RecommendationSourceInstanceRecord[]
-): RecommendationSourceInstanceRecord[] {
+  storedSources: StoredRecommendationInstance[]
+): StoredRecommendationInstance[] {
   if (storedSources.length <= maxDimSourceInstances) return storedSources;
-  const byDocument = new Map<string, RecommendationSourceInstanceRecord>();
+  const byDocument = new Map<string, StoredRecommendationInstance>();
   for (const source of storedSources) {
     const existing = byDocument.get(source.documentId);
-    if (existing) existing.wishlist.rules.push(...source.wishlist.rules);
+    if (existing) existing.rules.push(...source.rules);
     else byDocument.set(source.documentId, {
       ...source,
-      sourceId: `dim:${source.documentId.slice("dim-document:".length)}`,
-      label: source.wishlist.title,
-      wishlist: { ...source.wishlist, rules: [...source.wishlist.rules] }
+      sourceId: source.documentId,
+      label: source.title || source.documentTitle,
+      rules: [...source.rules]
     });
   }
   return [...byDocument.values()];
@@ -75,24 +73,22 @@ function summarizeDimSources(
 function createDimWishlistSourceForRules(
   dataDir: string,
   sourceId: string,
+  documentId: string,
   sourceLabel: string,
-  loadedWishlist: DimWishlist | null,
+  loadedWishlist: DimWishlist,
   overrides?: { sourceOverrides: RecommendationSourceOverride[]; ruleOverrides: RecommendationRuleOverride[] }
 ): CommunityPerkSource {
   const sourceOverrides = overrides?.sourceOverrides ?? listRecommendationSourceOverrides(dataDir);
-  const documentSourceId = sourceId.startsWith("dim:")
-    ? sourceId.split(":").slice(0, 2).join(":")
-    : undefined;
-  const sourceState = sourceOverrides.find((entry) => entry.source_key === sourceId)?.state
-    ?? (documentSourceId ? sourceOverrides.find((entry) => entry.source_key === documentSourceId)?.state : undefined)
-    ?? "active";
+  // 分组键取**实例自己的**键（用户 2026-09-16 拍板：来源列表按来源名分多行，不按导入文件合并）。
+  // 两种格式的模型一致：一个具名来源 = 一行。
+  //
+  // 状态与规则移除**不在本文件里判**：走 `recommendationSourceStateFor` / `recommendationRemovedRuleIdsFor`
+  // 的共享身份继承（实例键优先、文档键兜底）。这段规则过去在两个适配器里各写一份，CSV 那份漏了兜底，
+  // 「停用整份导入」在 CSV 上静默失效——所以分组键与继承键必须分开表达，且继承只留一处实现。
+  const sourceGroupId = sourceId;
+  const sourceState = recommendationSourceStateFor({ sourceId, documentId }, sourceOverrides);
   const ruleOverrides = overrides?.ruleOverrides ?? listRecommendationRuleOverrides(dataDir);
-  const removedRuleIds = new Set([
-    ...ruleOverrides.filter((entry) => entry.source_key === sourceId),
-    ...(documentSourceId ? ruleOverrides.filter((entry) => entry.source_key === documentSourceId) : []),
-  ]
-    .filter((entry) => entry.state === "removed" && !entry.review_required)
-    .map((entry) => entry.rule_stable_id));
+  const removedRuleIds = recommendationRemovedRuleIdsFor({ sourceId, documentId }, ruleOverrides);
   const wishlist = sourceState === "active" && loadedWishlist
     ? { ...loadedWishlist, rules: loadedWishlist.rules.filter((rule) => !rule.rule_stable_id || !removedRuleIds.has(rule.rule_stable_id)) }
     : null;
@@ -109,35 +105,28 @@ function createDimWishlistSourceForRules(
       if (!wishlist) return null;
       const matchingRules = rulesByItemHash.get(itemHash) ?? [];
       if (!matchingRules.length) return null;
-      const perkHashToRef = buildPerkRefMap(itemHash, options, matchingRules);
-      const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
-      const evaluated = matchingRules.map((rule) => {
-        const metadata = resolveDimWishlistRuleMetadata(wishlist, rule);
-        const diagnostic = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
-        const requirements = diagnostic.perks.map((perk) => ({
-          slot: perk.slot_candidates[0] ?? "special",
-          hashes: perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash],
-          name: perk.name
-        }));
-        return { rule, metadata, requirements };
-      });
-      if (!evaluated.length) return null;
+      // 归栏判定与导入期校验读**同一份**实现（`dimWishlistDiagnostics`），这里不再自己算一遍。
+      const { evaluated, perkHashToRef } = diagnoseDimWishlistRules(itemHash, matchingRules, options);
+      const diagnosed = evaluated.map((entry) => ({
+        ...entry,
+        metadata: resolveDimWishlistRuleMetadata(wishlist, entry.rule)
+      }));
+      if (!diagnosed.length) return null;
       type DimRequirement = { slot: string; hashes: number[]; name: string };
-      const locatableSlots = new Set(["barrel", "magazine", "masterwork", "perk1", "perk2", "origin"]);
+      // 「能进记录的栏位」与「是不是武器级推荐」都读 core 的同一份判据（`isWeaponLevelRule`
+      // 就是「一条 locatable 都没有」），这里不再自己列一份栏位表——两份表就是两条口径。
       const locatable = (requirements: DimRequirement[]) => (
-        requirements.filter((requirement) => locatableSlots.has(requirement.slot))
+        requirements.filter((requirement) => isRecommendationRequirementSlot(requirement.slot))
       );
-      const weaponLevelRecommendations = evaluated
-        .filter(({ requirements }) => locatable(requirements).length === 0)
+      const weaponLevelRecommendations = diagnosed
+        .filter(({ requirements }) => isWeaponLevelRule(requirements))
         .map(({ rule, metadata }) => ({
           mode: rule.mode,
           source_label: sourceLabel,
           ...(metadata.note || metadata.source_title ? { note: metadata.note || metadata.source_title } : {})
         }));
-      const pool = reduceCombosToColumnPool(evaluated.map(({ requirements }) => (
-        locatable(requirements).map((requirement) => ({ slot: requirement.slot, hashes: requirement.hashes }))
-      )));
-      const slotLabel = (slot: string) => recommendationRequirementSlotLabels[slot] ?? "推荐项";
+      const pool = reduceCombosToColumnPool(dimColumnRequirementSets(diagnosed));
+      const slotLabel = (slot: string) => recommendationRequirementSlotLabels[slot] ?? unspecifiedRequirementSlotLabel;
       const candidateRefs = (hashes: number[]): PerkRef[] => (
         hashes.map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) })
       );
@@ -145,21 +134,20 @@ function createDimWishlistSourceForRules(
         slot: slot as RecommendationSourceRequirement["slot"],
         label: slotLabel(slot),
         candidate_names: names,
-        candidates: refs,
-        unresolved_candidate_names: []
+        candidates: refs
       });
       const sourceRecords: RecommendationSourceRecord[] = pool
-        ? [{ rule_stable_id: sourceId + ":pool", source_id: sourceId, source_label: sourceLabel,
-             purposes: [...new Set(evaluated.map(({ rule }) => rule.mode))],
+        ? [{ rule_stable_id: sourceId + ":pool", source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel,
+             purposes: [...new Set(diagnosed.map(({ rule }) => rule.mode))],
              requirements: pool.columns.map((column) => {
                const refs = candidateRefs([...new Set(column.candidates.flat().map(Number))]);
                return toRequirement(column.slot, refs.map((ref) => ref.name), refs);
              }) }]
-        : evaluated
+        : diagnosed
             .filter(({ requirements }) => locatable(requirements).length > 0)
             .map(({ rule, metadata, requirements }) => ({
               rule_stable_id: rule.rule_stable_id ?? (sourceId + ":" + rule.item_hash + ":" + rule.perk_hashes.join(",")),
-              source_id: sourceId, source_label: sourceLabel, purposes: [rule.mode],
+              source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel, purposes: [rule.mode],
               ...(metadata.note || metadata.source_title ? { note: metadata.note || metadata.source_title } : {}),
               requirements: locatable(requirements)
                 .map((requirement) => toRequirement(requirement.slot, [requirement.name], candidateRefs(requirement.hashes))) }));
@@ -168,7 +156,7 @@ function createDimWishlistSourceForRules(
         combos: [],
         source_records: sourceRecords,
         ...(weaponLevelRecommendations.length ? { weapon_level_recommendations: weaponLevelRecommendations } : {}),
-        matched_modes: Array.from(new Set(evaluated.map(({ rule }) => rule.mode))),
+        matched_modes: Array.from(new Set(diagnosed.map(({ rule }) => rule.mode))),
         individual_perks: [...new Set(matchingRules.flatMap((rule) => rule.perk_hashes))]
           .map((hash) => perkHashToRef.get(hash) ?? { hash, name: String(hash) }),
         sample_size: matchingRules.length, source_label: sourceLabel,
@@ -176,155 +164,4 @@ function createDimWishlistSourceForRules(
       };
     }
   };
-}
-
-function safelyLoadDimWishlist(dataDir: string): DimWishlist | null {
-  try {
-    return loadDimWishlist(dataDir);
-  } catch {
-    return null;
-  }
-}
-
-type SlotCatalogEntry = {
-  hash: number;
-  name: string;
-  slot: DimWishlistDiagnosticSlot;
-};
-
-function buildWeaponSlotCatalog(itemHash: number, options: SourceOptions): SlotCatalogEntry[] {
-  const weaponDefinition = options.itemDefinitions?.[String(itemHash)];
-  if (!weaponDefinition || !options.itemDefinitions) return [];
-  const groups = summarizeItemPerks(weaponDefinition, options.itemDefinitions, {
-    plugSetDefinitions: options.plugSetDefinitions,
-    maxPlugsPerSocket: null
-  }).sort((left, right) => left.socket_index - right.socket_index);
-  let traitIndex = 0;
-  return groups.flatMap((group) => {
-    const role = classifyWeaponRollSocket(group.plugs.map((plug) => ({
-      hash: plug.hash,
-      name: plug.name,
-      ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
-      ...(plug.item_type ? { item_type: plug.item_type } : {}),
-      selected: false
-    })));
-    const slot: DimWishlistDiagnosticSlot = role === "trait"
-      ? (++traitIndex === 1 ? "perk1" : traitIndex === 2 ? "perk2" : "special")
-      : role === "other"
-        ? "special"
-        : role ?? "special";
-    return group.plugs.map((plug) => ({ hash: plug.hash, name: plug.name, slot }));
-  });
-}
-
-function diagnoseDimWishlistRule(
-  perkHashes: number[],
-  perkRefs: Map<number, PerkRef>,
-  catalog: SlotCatalogEntry[]
-): DimWishlistRuleDiagnostic {
-  const perks = perkHashes.map((hash): DimWishlistPerkDiagnostic => {
-    const sourceName = perkRefs.get(hash)?.name ?? String(hash);
-    const exactHashMatches = catalog.filter((entry) => entry.hash === hash);
-    const nameMatches = exactHashMatches.length
-      ? exactHashMatches
-      : catalog.filter((entry) => normalizeComparableName(entry.name) === normalizeComparableName(sourceName));
-    const slots = [...new Set(nameMatches.map((entry) => entry.slot))];
-    const resolvedHashes = [...new Set(nameMatches.map((entry) => entry.hash))];
-    if (!slots.length) {
-      return {
-        original_hash: hash,
-        name: sourceName,
-        slot_candidates: ["unknown"],
-        status: "unknown_slot"
-      };
-    }
-    if (slots.length > 1) {
-      return {
-        original_hash: hash,
-        name: sourceName,
-        slot_candidates: slots,
-        status: "cross_slot_ambiguous"
-      };
-    }
-    if (slots[0] === "special") {
-      return {
-        original_hash: hash,
-        resolved_hash: resolvedHashes[0],
-        resolved_hashes: resolvedHashes,
-        name: sourceName,
-        slot_candidates: slots,
-        status: "special_socket"
-      };
-    }
-    return {
-      original_hash: hash,
-      resolved_hash: resolvedHashes[0],
-      resolved_hashes: resolvedHashes,
-      name: sourceName,
-      slot_candidates: slots,
-      status: "exact"
-    };
-  });
-  if (perks.some((perk) => perk.status === "cross_slot_ambiguous")) {
-    return { status: "cross_slot_ambiguous", message: "规则中的 Perk 无法唯一归属到一个武器栏位，保留 DIM 原始组合核对。", perks };
-  }
-  if (perks.some((perk) => perk.status === "unknown_slot")) {
-    return { status: "unknown_slot", message: "规则中有 Perk 无法在当前资料库中定位栏位，保留 DIM 原始组合核对。", perks };
-  }
-  if (perks.some((perk) => perk.status === "special_socket")) {
-    return { status: "special_socket", message: "规则涉及特殊或异域插槽，不能按普通六栏逐项核对。", perks };
-  }
-  const slotCounts = new Map<RecommendationRequirementSlot, number>();
-  for (const perk of perks) {
-    const slot = perk.slot_candidates[0] as RecommendationRequirementSlot;
-    slotCounts.set(slot, (slotCounts.get(slot) ?? 0) + 1);
-  }
-  if ([...slotCounts.values()].some((count) => count > 1)) {
-    return { status: "same_slot_multiple_required", message: "规则要求同一栏同时包含多个 Perk，不能弱化为该栏任选一个。", perks };
-  }
-  return { status: "exact", message: "规则中的每个 Perk 都已唯一映射到当前武器官方栏位。", perks };
-}
-
-function normalizeComparableName(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase().replace(/[\p{P}\p{Z}\s]+/gu, "");
-}
-
-function uniquePerks(combos: PerkCombo[]): PerkRef[] {
-  const perks = new Map<number, PerkRef>();
-  for (const combo of combos) for (const perk of combo.perks) if (!perks.has(perk.hash)) perks.set(perk.hash, perk);
-  return [...perks.values()];
-}
-
-function buildPerkRefMap(itemHash: number, options: SourceOptions, rules: Array<{ perk_hashes: number[] }>): Map<number, PerkRef> {
-  const map = new Map<number, PerkRef>();
-  const allHashes = new Set(rules.flatMap((rule) => rule.perk_hashes));
-  if (options.itemDefinitions && allHashes.size > 0) {
-    const weaponDef = options.itemDefinitions[String(itemHash)];
-    if (weaponDef) {
-      const perkGroups = summarizeItemPerks(weaponDef, options.itemDefinitions, { plugSetDefinitions: options.plugSetDefinitions, maxPlugsPerSocket: 24 });
-      for (const plug of perkGroups.flatMap((group) => group.plugs) as ItemPlugSummary[]) {
-        if (allHashes.has(plug.hash)) map.set(plug.hash, { hash: plug.hash, name: plug.name, description: plug.description, icon: plug.icon });
-      }
-    }
-    for (const hash of allHashes) {
-      if (map.has(hash)) continue;
-      const definition = options.itemDefinitions[String(hash)];
-      const name = definition?.displayProperties?.name?.trim();
-      if (!name) continue;
-      map.set(hash, {
-        hash,
-        name,
-        ...(definition.displayProperties?.description ? { description: definition.displayProperties.description } : {}),
-        ...(definition.displayProperties?.icon ? { icon: definition.displayProperties.icon } : {})
-      });
-    }
-  }
-  if (options.englishItemDefinitions && allHashes.size > 0) {
-    for (const hash of allHashes) {
-      const englishName = options.englishItemDefinitions[String(hash)]?.displayProperties?.name?.trim();
-      if (englishName) map.set(hash, { ...(map.get(hash) ?? { hash, name: String(hash) }), englishName });
-    }
-  }
-  for (const hash of allHashes) if (!map.has(hash)) map.set(hash, { hash, name: String(hash) });
-  return map;
 }

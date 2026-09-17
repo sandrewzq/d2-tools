@@ -193,6 +193,10 @@ export function createReaderGameDataCatalog(
       });
     },
 
+    async getItemHashesByExactName(input) {
+      return options.searchIndex.getItemHashesByExactName(input.names);
+    },
+
     async getWeaponIdentityRelations(input) {
       return options.searchIndex.getWeaponIdentityRelations(input.item_hashes);
     },

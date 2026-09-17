@@ -134,6 +134,24 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
       });
     },
 
+    async getItemHashesByExactName(input) {
+      const definitions = load("DestinyInventoryItemDefinition");
+      if (!definitions) throw new Error("请先初始化资料库");
+      const requested = new Set(
+        input.names.map((name) => name.trim()).filter(Boolean).map((name) => name.toLocaleLowerCase())
+      );
+      if (!requested.size) return [];
+      const hashes = new Set<number>();
+      for (const definition of Object.values(definitions)) {
+        const name = definition.displayProperties?.name;
+        if (typeof name !== "string") continue;
+        if (!requested.has(name.trim().toLocaleLowerCase())) continue;
+        const hash = Number(definition.hash);
+        if (Number.isFinite(hash)) hashes.add(hash >>> 0);
+      }
+      return [...hashes].sort((left, right) => left - right);
+    },
+
     async getWeaponIdentityRelations(input) {
       const definitions = load("DestinyInventoryItemDefinition");
       if (!definitions) throw new Error("请先初始化资料库");

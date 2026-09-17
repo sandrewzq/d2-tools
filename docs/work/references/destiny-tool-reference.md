@@ -84,7 +84,7 @@ DIM 的官方组织仓库总览：<https://github.com/orgs/DestinyItemManager/re
 
 - 用途：为 DIM 提供社区维护和生成的武器愿望单来源文件，帮助标记推荐 Roll。
 - GitHub：<https://github.com/48klocs/dim-wish-list-sources>
-- 在线访问：默认 `voltron.txt` 愿望单：<https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt>
+- 在线访问：仓库内若有多份愿望单文本，`voltron.txt` 只是其中一份；d2-tools 不固定引用任何一份，链接由玩家给出。
 - 参考重点：社区愿望单的数据组织、默认列表与偏好列表的区分；这是数据来源仓库，不是独立的玩家网页工具。
 - 相关生成工具：<https://48klocs.github.io/wish-list-magic-wand/fingerwave.html>
 

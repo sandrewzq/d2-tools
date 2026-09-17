@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createVaultListWorkspace } from "../src/workspaces/vaultList";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 
@@ -60,15 +59,6 @@ describe("vault list workspace", () => {
         "ship-1": { tag: "junk" }
       }
     };
-    const wishlist: DimWishlist = {
-      title: "测试愿望单",
-      rules: [{
-        item_hash: 100,
-        perk_hashes: [2001],
-        mode: "pve",
-        note: "快速命中"
-      }]
-    };
     const targetRules: LocalTargetRules = {
       action_policy: "notify_only",
       armor: [{
@@ -93,7 +83,6 @@ describe("vault list workspace", () => {
       },
       sortKey: "name",
       tags,
-      wishlist,
       localTargetRules: targetRules
     });
 
@@ -101,7 +90,6 @@ describe("vault list workspace", () => {
     expect(workspace.sections[0]?.label).toBe("能量武器");
     expect(workspace.groups.find((group) => group.key === "weapons")?.count).toBe(1);
     expect(workspace.slotFilters.some((slot) => slot.label === "能量武器")).toBe(true);
-    expect(workspace.wishlistMatchCount).toBe(1);
     expect(workspace.localTargetMatchCount).toBe(1);
     expect(workspace.contextFacts).toEqual(["仓库筛选：全部 / 查询标签：保留 / 搜索：hand，命中 1 / 3 件。"]);
   });
@@ -144,7 +132,6 @@ describe("vault list workspace", () => {
       },
       sortKey: "name",
       tags: { items: {} },
-      wishlist: null,
       localTargetRules: null
     });
 
@@ -183,7 +170,6 @@ describe("vault list workspace", () => {
           "locked-armor": { tag: "keep" }
         }
       },
-      wishlist: null,
       localTargetRules: null
     });
 

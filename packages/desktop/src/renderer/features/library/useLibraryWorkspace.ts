@@ -106,7 +106,6 @@ export function useLibraryWorkspace(input: {
           available: match.available,
           modes: match.modes,
           source_label: match.sources[0]?.source_label
-            ?? (match.dim ? "DIM Wishlist" : undefined)
         }])));
       } catch (error) {
         if (generation !== weeklyFarmingRequestGeneration.current) return;

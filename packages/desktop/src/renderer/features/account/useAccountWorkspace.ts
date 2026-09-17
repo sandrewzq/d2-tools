@@ -14,6 +14,7 @@ import {
   useAccountWorkspaceSummaryStore
 } from "../../shared/stores/accountEntityStore";
 import { formatBungieLoginError } from "./loginErrors";
+import { formatAccountLoadFailure } from "./accountLoadError";
 import { startRendererPerformanceSpan } from "../../shared/performance/rendererPerformanceDiagnostics";
 
 type DiagnosticsBridge = {
@@ -248,7 +249,9 @@ export function useAccountWorkspace(input: {
           });
           if (requestSequence !== accountRequestSequenceRef.current) return null;
           if (workspace.status !== "success") {
-            throw new Error(workspace.error?.message ?? "账号数据读取失败");
+            // 抛错误对象本身而不是新造一个：`code` / `causeCategory` 是判断
+            // 「到底是不是登录失效」的唯一依据，只传 message 会把它们丢掉（Bug #88）。
+            throw workspace.error ?? new Error("账号数据读取失败");
           }
           summary = workspace.data.account;
           setVaultTags(workspace.data.tags);
@@ -320,8 +323,7 @@ export function useAccountWorkspace(input: {
         return summary;
       } catch (error) {
         if (requestSequence !== accountRequestSequenceRef.current) return null;
-        const message = error instanceof Error ? error.message : "账号数据读取失败";
-        const resolvedMessage = getAccountLoadErrorMessage(input.state, message);
+        const resolvedMessage = formatAccountLoadFailure(input.state, error);
         if (getAccountSummarySnapshot()) {
           if (reason === "auto") {
             setAccountSyncMessage("自动同步暂时失败，继续显示上次装备数据");
@@ -479,7 +481,6 @@ export function useAccountWorkspace(input: {
           issues: derived.data.vaultRecommendationIssues,
           manifest_version: derived.data.vaultRecommendationManifestVersion,
           recommendation_revision: derived.data.vaultRecommendationRevision,
-          recommendation_schema_version: derived.data.vaultRecommendationSchemaVersion,
           message: retainedResultCount
             ? `${blockingIssue.message} 继续显示上次 ${retainedResultCount} 件结果。`
             : blockingIssue.message
@@ -512,7 +513,6 @@ export function useAccountWorkspace(input: {
         issues: derived.data.vaultRecommendationIssues,
         manifest_version: derived.data.vaultRecommendationManifestVersion,
         recommendation_revision: derived.data.vaultRecommendationRevision,
-        recommendation_schema_version: derived.data.vaultRecommendationSchemaVersion,
         ...(warningMessage ? { message: warningMessage } : {})
       });
     } else {
@@ -677,7 +677,8 @@ function formatAccountWarningSource(source: string): string {
   if (source === "vault-tags") return "本地标签";
   if (source === "target-rules") return "目标规则";
   if (source === "equipment-targets") return "装备目标";
-  if (source === "wishlist") return "DIM wishlist";
+  // 面向用户的来源名：本地这份数据就是「推荐来源」，不出现格式名（T56 口径）。
+  if (source === "wishlist") return "推荐来源";
   return "本地数据";
 }
 
@@ -720,16 +721,4 @@ function hasSameProfileVersion(
     && next.profile_minted_at
     && previous.profile_minted_at === next.profile_minted_at
   );
-}
-
-function getAccountLoadErrorMessage(state: StartupState, message: string): string {
-  if (state.cards.bungieConfig.status !== "ready") {
-    return `未连接 Bungie：请先在设置里填写 Bungie API Key、Client ID 和 Client Secret。${message}`;
-  }
-
-  if (state.cards.account.status !== "ready") {
-    return `账号还没有登录：请先完成 Bungie 登录。${message}`;
-  }
-
-  return `登录可能已失效，请重新登录 Bungie。${message}`;
 }

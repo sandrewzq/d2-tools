@@ -731,30 +731,11 @@
   color: var(--text-body);
 }
 
-.item-detail-tool-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 12px 16px 0;
-}
-
-.item-detail-tool-tabs span {
-  padding: 8px 12px;
-  border: 1px solid var(--border-subtle);
-  border-bottom-color: transparent;
-  border-radius: 6px 6px 0 0;
-  background: var(--surface-toolbar);
-  color: var(--text-title);
-  font-size: var(--font-row-title);
-  font-weight: 700;
-}
-
 .item-detail-tool-grid {
   display: grid;
   grid-template-columns: minmax(360px, 0.95fr) minmax(420px, 1.05fr);
   grid-template-areas:
     "overview compare"
-    "overview community"
     "overview actions";
   gap: 12px;
   padding: 14px 16px 16px;
@@ -782,10 +763,6 @@
 
 .item-detail-tool-compare {
   grid-area: compare;
-}
-
-.item-detail-tool-community {
-  grid-area: community;
 }
 
 .item-detail-tool-actions {
@@ -1214,7 +1191,6 @@
     grid-template-areas:
       "overview"
       "compare"
-      "community"
       "actions";
   }
 

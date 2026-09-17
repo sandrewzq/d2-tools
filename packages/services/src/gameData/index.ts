@@ -2,6 +2,7 @@ export type {
   GameDataCatalog,
   GameDataRuntimeCapabilities,
   ItemDetailQuery,
+  ItemNameQuery,
   ItemSearchQuery,
   PerkSearchQuery,
   WeaponIdentityQuery

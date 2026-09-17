@@ -1,6 +1,4 @@
 import { evaluateLocalTargets, type LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type {
   AccountItemPlugSummary,
   AccountItemSummary,
@@ -338,33 +336,27 @@ export function selectBestSameNameItem(items: SameNameItemSummary[]): SameNameIt
   )[0] ?? null;
 }
 
-export function buildWishlistInsightText(input: {
+export function buildTargetInsightText(input: {
   selectedItem: SelectedItemDetail;
   vaultTags: VaultTags;
-  importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
 }): string | null {
   const accountItem = selectedItemToAccountItem(input.selectedItem);
   if (!accountItem) return null;
 
-  const wishlist = evaluateWishlistRoll({
-    ...accountItem,
-    socket_plugs: accountItem.socket_plugs ?? []
-  }, input.importedWishlist ?? undefined);
   const localTarget = evaluateLocalTargets(accountItem, input.localTargetRules);
-  if (!wishlist.matched && !localTarget.matched) return null;
+  if (!localTarget.matched) return null;
 
   const localTag = input.vaultTags.items[input.selectedItem.item_key]?.tag ?? "none";
   return [
     `${input.selectedItem.name} / 目标命中`,
-    wishlist.matched ? `DIM 标签：${wishlist.labels.join(" / ")}` : "",
     localTarget.matched ? `本地目标：${localTarget.labels.join(" / ")}` : "",
     `本地标记：${formatVaultTagLabel(localTag)}`,
     "",
     "命中原因",
-    ...[...wishlist.reasons, ...localTarget.reasons].map((reason, index) => `${index + 1}. ${reason}`),
+    ...localTarget.reasons.map((reason, index) => `${index + 1}. ${reason}`),
     "",
-    `说明：${localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}`
+    `说明：${localTarget.disclaimer}`
   ].filter(Boolean).join("\n");
 }
 

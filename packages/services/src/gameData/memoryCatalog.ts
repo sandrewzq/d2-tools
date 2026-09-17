@@ -48,6 +48,19 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
         ?? null;
     },
 
+    async getItemHashesByExactName(input) {
+      const requested = new Set(
+        input.names.map((name) => name.trim()).filter(Boolean).map((name) => name.toLocaleLowerCase())
+      );
+      if (!requested.size) return [];
+      const hashes = new Set<number>();
+      for (const item of items) {
+        if (!requested.has(item.name.trim().toLocaleLowerCase())) continue;
+        hashes.add(item.hash);
+      }
+      return [...hashes].sort((left, right) => left - right);
+    },
+
     async getWeaponIdentityRelations(input) {
       return relatedWeaponIdentityRelations(seed.weaponIdentityRelations ?? [], input.item_hashes);
     }

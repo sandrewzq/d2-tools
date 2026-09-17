@@ -1,15 +1,6 @@
 import type { VaultTagValue } from "../../../api/types";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
-export function formatCommunityMode(mode: "pve" | "pvp" | "general"): string {
-  switch (mode) {
-    case "pve": return "PvE";
-    case "pvp": return "PvP";
-    case "general": return "通用";
-    default: return mode;
-  }
-}
-
 export function getItemSourceStatusTone(item: Pick<SelectedItemDetail, "is_detail_loading" | "source">): "ready" | "pending" | "warning" | "neutral" {
   if (item.is_detail_loading) {
     return "pending";
@@ -56,10 +47,6 @@ export function formatArmorEnergySummary(energy: SelectedItemDetail["armor_energ
   }
 
   return `已用 ${energy.used} / ${energy.capacity}，剩余 ${energy.unused}`;
-}
-
-export function formatWishlistModeLabels(labels: string[]): string[] {
-  return labels.filter((label) => label !== "DIM Wishlist");
 }
 
 export function formatVaultTagLabel(tag: VaultTagValue): string {

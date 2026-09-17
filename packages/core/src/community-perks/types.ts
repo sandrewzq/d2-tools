@@ -4,30 +4,6 @@ import type {
   AccountWeaponRollSummary
 } from "../account/summary.js";
 
-export type RecommendationDocument = {
-  documentId: string;
-  origin: "url" | "file" | "paste";
-  sourceUrl?: string;
-  revision?: string;
-  fingerprint: string;
-  importedAt: string;
-};
-
-export type RecommendationSource = {
-  sourceId: string;
-  documentId: string;
-  kind: "dim" | "excel" | "csv" | "builtin";
-  label: string;
-  title: string;
-  author?: string;
-  blockId?: string;
-  origin: "community" | "local-file" | "paste" | "builtin";
-  sourceUrl?: string;
-  revision?: string;
-  fingerprint: string;
-  state: "active" | "disabled" | "removed";
-};
-
 export type RecommendationRequirement = {
   slot?: RecommendationRequirementSlot;
   operator: "any" | "all";
@@ -68,7 +44,6 @@ export type PerkCombo = {
   perks: PerkRef[];
   mode: "pve" | "pvp" | "general";
   note?: string;
-  dim_diagnostic?: DimWishlistRuleDiagnostic;
 };
 
 export type DimWishlistDiagnosticSlot = RecommendationRequirementSlot | "special" | "unknown";
@@ -80,17 +55,6 @@ export type DimWishlistPerkDiagnostic = {
   name: string;
   slot_candidates: DimWishlistDiagnosticSlot[];
   status: "exact" | "cross_slot_ambiguous" | "unknown_slot" | "special_socket";
-};
-
-export type DimWishlistRuleDiagnostic = {
-  status:
-    | "exact"
-    | "same_slot_multiple_required"
-    | "cross_slot_ambiguous"
-    | "unknown_slot"
-    | "special_socket";
-  message: string;
-  perks: DimWishlistPerkDiagnostic[];
 };
 
 export type WeaponRecommendation = {
@@ -114,14 +78,24 @@ export type WeaponRecommendation = {
 export type RecommendationSourceRequirement = {
   slot: RecommendationRequirementSlot;
   label: string;
+  /**
+   * 来源提出的全部候选名。**这就是「来源要求了什么」的唯一通道**：
+   * 解析不出官方 Hash 的名字也留在这里，消费方按武器定义自行判断能否核对
+   * （见 `WeaponDetailContent` 的候选渲染）。曾有一个平行的
+   * `unresolved_candidate_names` 字段，它在两个产出方都只是这里的子集，已删除。
+   */
   candidate_names: string[];
   candidates: PerkRef[];
-  unresolved_candidate_names: string[];
 };
 
 export type RecommendationSourceRecord = {
   rule_stable_id: string;
   source_id: string;
+  /**
+   * 同一份来源（同一文档 / 同一次导入）的全部实例共用的分组键；不分组时等于 source_id。
+   * 消费层靠它合并同一份来源的多个实例，因此不需要解析 source_id 的命名约定。
+   */
+  source_group_id: string;
   source_label: string;
   source_url?: string;
   purposes: Array<"pve" | "pvp" | "general">;
@@ -140,7 +114,6 @@ export type RecommendationSourceSlotMatch = {
   state: "match" | "different" | "source_not_specified" | "uncheckable";
   source_candidate_names: string[];
   source_candidates: PerkRef[];
-  unresolved_source_candidate_names: string[];
   instance_owned: AccountWeaponRollPlugSummary[];
   current_enabled: AccountWeaponRollPlugSummary[];
 };
@@ -148,6 +121,8 @@ export type RecommendationSourceSlotMatch = {
 export type RecommendationSourceMatch = {
   rule_stable_id: string;
   source_id: string;
+  /** 同来源记录，见 `RecommendationSourceRecord.source_group_id`。 */
+  source_group_id: string;
   source_label: string;
   source_url?: string;
   state:
@@ -172,13 +147,19 @@ export type RecommendationSourceMatch = {
   slots: RecommendationSourceSlotMatch[];
 };
 
+/**
+ * 读取来源事实所需的全部输入。
+ *
+ * 这里**没有**武器身份关系：身份在导入期已经算成 hash 写进来源事实，读取期只做成员判断
+ * （T56 分层图 ②→⑤）。读取期重新按名称 / 发布组 / 变体推导「这条规则适用于谁」是越权，
+ * 正是要拆掉的分叉。
+ */
 export type SourceOptions = {
   manifest_version?: string;
   itemDefinitions?: DefinitionComponentData;
   plugSetDefinitions?: DefinitionComponentData;
   englishItemDefinitions?: DefinitionComponentData;
   englishPlugSetDefinitions?: DefinitionComponentData;
-  weaponIdentityRelations?: WeaponIdentityRelation[];
   item_name?: string;
 };
 
@@ -237,11 +218,12 @@ export type VaultItemInstanceMatchInfo = VaultItemMatchInfo & {
   recommendation_state: "priority" | "compare" | "uncovered";
   partial: number;
   source_matches?: RecommendationSourceMatch[];
-  dim_wishlist?: DimWishlistInstanceMatch;
 };
 
 export type RecommendationCardSourceSummary = {
   source_id: string;
+  /** 同来源记录，见 `RecommendationSourceRecord.source_group_id`。 */
+  source_group_id: string;
   source_label: string;
   state: RecommendationSourceMatch["state"];
   purposes: Array<"pve" | "pvp" | "general">;
@@ -251,10 +233,6 @@ export type RecommendationCardSourceSummary = {
   matched_perk_count: number;
   perk_requirement_count: number;
   uncheckable_perk_count: number;
-};
-
-export type RecommendationCardDimSummary = Omit<DimWishlistInstanceMatch, "rules"> & {
-  matched_modes?: Array<"pve" | "pvp" | "general">;
 };
 
 /**
@@ -275,79 +253,11 @@ export type RecommendationCardSummary = Pick<
   | "modes"
 > & {
   sources: RecommendationCardSourceSummary[];
-  dim?: RecommendationCardDimSummary;
-};
-
-export type DimWishlistRequirementInstanceMatch = {
-  slot: RecommendationRequirementSlot;
-  label: string;
-  state: "match" | "different" | "uncheckable";
-  source_candidate_names: string[];
-  source_candidate_hashes: number[];
-  matched_name?: string;
-  matched_hash?: number;
-  matched_current?: boolean;
-};
-
-export type DimWishlistRuleInstanceMatch = {
-  rule_stable_id?: string;
-  source_id?: string;
-  source_label?: string;
-  mode: "pve" | "pvp" | "general";
-  state: "match" | "partial" | "different" | "uncheckable";
-  matched_requirement_count: number;
-  requirement_count: number;
-  diagnostic_status?: DimWishlistRuleDiagnostic["status"];
-  // 逐栏结果由事实层一次算好，界面不再自行比较插件 Hash 或名称。
-  requirements?: DimWishlistRequirementInstanceMatch[];
-};
-
-export type DimWishlistInstanceMatch = {
-  state: "full" | "close" | "not_matched" | "uncheckable";
-  matched_combo_count: number;
-  partial_combo_count: number;
-  uncheckable_combo_count: number;
-  combo_count: number;
-  best_matched_requirement_count: number;
-  best_requirement_count: number;
-  modes: Array<"pve" | "pvp" | "general">;
-  rules: DimWishlistRuleInstanceMatch[];
-  sources?: DimWishlistSourceInstanceMatch[];
-};
-
-export type DimWishlistColumnMatch = {
-  slot: RecommendationRequirementSlot;
-  label: string;
-  state: "match" | "different" | "uncheckable";
-  source_candidate_names: string[];
-  source_candidate_hashes: number[];
-  matched_name?: string;
-  matched_hash?: number;
-  matched_current?: boolean;
-  // 本件在该栏实际拥有的插件（与人工来源证据卡右列同源），当前启用的带 current 标记。
-  instance_owned?: Array<{ hash: number; name: string; current: boolean }>;
-};
-
-export type DimWishlistSourceInstanceMatch = {
-  source_id: string;
-  source_label: string;
-  state: "full" | "close" | "not_matched" | "uncheckable" | "weapon_only";
-  matched_combo_count: number;
-  partial_combo_count: number;
-  uncheckable_combo_count: number;
-  combo_count: number;
-  best_matched_requirement_count: number;
-  best_requirement_count: number;
-  modes: Array<"pve" | "pvp" | "general">;
-  // 组合集合恰好是各栏候选的笛卡尔积时归约成「每栏任选其一」；
-  // 归约后 x/y 是命中栏数 / 要求栏数，界面渲染成候选池。
-  columns?: DimWishlistColumnMatch[];
 };
 
 export type VaultRecommendationDependencyIssueCode =
   | "manifest_unavailable"
   | "manifest_outdated"
-  | "recommendation_legacy_unverified"
   | "recommendation_unavailable";
 
 export type VaultRecommendationDependencyIssue = {
@@ -363,7 +273,6 @@ export type VaultCommunityMatchResult = {
   issues: VaultRecommendationDependencyIssue[];
   manifest_version?: string;
   recommendation_revision?: string;
-  recommendation_schema_version?: number;
 };
 
 export type VaultCommunityMatchOptions = {

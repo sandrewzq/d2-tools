@@ -2,10 +2,12 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ControlButton } from "../control/ControlButton.js";
 import {
+  DimImportPreviewCard,
   formatManagedRequirements,
   formatModes,
   managedSourceStateLabel,
   shortRevision,
+  type VaultDimWishlistImportPreview,
   type VaultRecommendationManagedRule,
   type VaultRecommendationManagedSource,
   type VaultRecommendationManagementSnapshot,
@@ -26,6 +28,8 @@ export function VaultRecommendationSourceManager(props: {
   onCopyAuditReport?: () => void | Promise<void>;
   onApplied?: (message: string) => void;
   onSourcesChange?: (sources: readonly VaultRecommendationManagedSource[]) => void;
+  /** 同页上方的导入面板每改动一次存储就自增；本面板据此重读，数字不变就不重读。 */
+  sourcesRevision?: number;
 }) {
   const [snapshot, setSnapshot] = useState<VaultRecommendationManagementSnapshot | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
@@ -36,6 +40,9 @@ export function VaultRecommendationSourceManager(props: {
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [busy, setBusy] = useState("");
   const [detailOpen, setDetailOpen] = useState(false);
+  const [syncSource, setSyncSource] = useState<VaultRecommendationManagedSource | null>(null);
+  const [syncPreview, setSyncPreview] = useState<VaultDimWishlistImportPreview | null>(null);
+  const [syncName, setSyncName] = useState("");
 
   async function refresh() {
     if (!props.actions.getRecommendationManagement) return;
@@ -52,7 +59,7 @@ export function VaultRecommendationSourceManager(props: {
 
   useEffect(() => {
     void refresh();
-  }, [props.actions.getRecommendationManagement]);
+  }, [props.actions.getRecommendationManagement, props.sourcesRevision]);
 
   async function openDetails(source: VaultRecommendationManagedSource) {
     setSelectedSourceKey(source.source_key);
@@ -120,6 +127,48 @@ export function VaultRecommendationSourceManager(props: {
     }
   }
 
+  /**
+   * 重新拉一次这份来源的链接。**有没有变化由服务层比对内容指纹决定**：
+   * 没变就到此为止（不弹「要不要覆盖」——那会让人以为内容真的变了），
+   * 变了才打开预览，命名与确认复用与首次导入同一张卡。
+   */
+  async function syncSourceFromLink(source: VaultRecommendationManagedSource) {
+    if (!source.source_url || !props.actions.readWishlistLink) return;
+    setBusy(`sync:${source.source_key}`);
+    try {
+      const result = await props.actions.readWishlistLink(source.source_url);
+      if (result.unchanged || !result.preview) {
+        props.onApplied?.(`${source.label}已是最新，没有需要写入的内容。`);
+        return;
+      }
+      setSyncSource(source);
+      setSyncPreview(result.preview);
+      // 同步的名字就是这份来源名，于是只剩「覆盖」可点——同步不改名字。
+      setSyncName(source.label);
+    } catch (error) {
+      props.onApplied?.(error instanceof Error ? error.message : "链接读取失败，当前来源没有改动。");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function confirmSyncFromLink(mode: "create" | "overwrite") {
+    if (!syncPreview || !syncSource || !props.actions.confirmDimImport) return;
+    setBusy("sync-confirm");
+    try {
+      const saved = await props.actions.confirmDimImport(syncPreview.token, { name: syncName.trim(), mode });
+      setSyncSource(null);
+      setSyncPreview(null);
+      await refresh();
+      props.onApplied?.(`${syncSource.label}已同步 · ${saved.rules.length} 条规则。`);
+    } catch (error) {
+      setSyncPreview(null);
+      props.onApplied?.(error instanceof Error ? error.message : "同步失败，当前来源没有改动。");
+    } finally {
+      setBusy("");
+    }
+  }
+
   const selectedSource = snapshot?.sources.find((source) => source.source_key === selectedSourceKey) ?? null;
   const activeSources = snapshot?.sources.filter((source) => source.state !== "removed") ?? [];
 
@@ -127,7 +176,7 @@ export function VaultRecommendationSourceManager(props: {
     return (
       <article className="vault-managed-source" data-surface="row" data-source-state={source.state} key={source.source_key}>
         <div className="vault-managed-source-select"><span><strong>{source.label}</strong><small>{managedSourceStateLabel(source)}</small></span><span><b>{source.rule_count} 条规则</b><small>{source.weapon_count} 把武器 · 当前账号影响 {source.affected_instance_count ?? 0} 件</small></span></div>
-        <div className="vault-managed-source-actions"><ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void openDetails(source)}>查看详情</ControlButton>{source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `停用${source.label}`, description: "停用后该来源不会参与仓库推荐，数据仍保留。", source, sourceState: "disabled" })}>停用</ControlButton> : null}{source.state === "disabled" ? <ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `启用${source.label}`, description: "启用后该来源会重新参与仓库推荐。", source, sourceState: "active" })}>启用</ControlButton> : null}{source.configured ? <ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `删除${source.label}`, description: "删除后来源数据、规则和本地覆盖状态都会永久清除，需要重新导入才能恢复。", source, sourceState: "removed" })}>删除</ControlButton> : null}</div>
+        <div className="vault-managed-source-actions"><ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void openDetails(source)}>查看详情</ControlButton>{source.source_url ? <ControlButton data-source-sync="" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void syncSourceFromLink(source)}>{busy === `sync:${source.source_key}` ? "同步中" : "同步"}</ControlButton> : null}{source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `停用${source.label}`, description: "停用后该来源不会参与仓库推荐，数据仍保留。", source, sourceState: "disabled" })}>停用</ControlButton> : null}{source.state === "disabled" ? <ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `启用${source.label}`, description: "启用后该来源会重新参与仓库推荐。", source, sourceState: "active" })}>启用</ControlButton> : null}{source.configured ? <ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `删除${source.label}`, description: "删除后来源数据、规则和本地覆盖状态都会永久清除，需要重新导入才能恢复。", source, sourceState: "removed" })}>删除</ControlButton> : null}</div>
       </article>
     );
   }
@@ -141,7 +190,7 @@ export function VaultRecommendationSourceManager(props: {
           <header className="vault-source-management-head">
             <div>
               <h3>已导入来源</h3>
-              <p>这里管理哪些来源参与推荐。规则、DIM 作者和清单分组请点击来源后的“查看详情”。</p>
+              <p>这里管理哪些来源参与推荐。规则、来源作者和清单分组请点击来源后的“查看详情”。</p>
             </div>
           </header>
           <div className="vault-source-management-summary" data-ui-kind="callout" data-status="neutral"><span>当前来源 {activeSources.length} 个</span><span>已启用 {activeSources.filter((source) => source.state === "active").length} 个</span></div>
@@ -152,8 +201,20 @@ export function VaultRecommendationSourceManager(props: {
           ) : <div className="vault-management-empty" data-surface="empty"><strong>还没有可管理的推荐来源</strong><span>使用上方导入入口添加人工 CSV 或 DIM Wishlist。</span></div>}
         </>
       ) : null}
+      {syncSource && syncPreview ? (
+        <SyncFromLinkDialog
+          source={syncSource}
+          preview={syncPreview}
+          name={syncName}
+          existingNames={new Set((snapshot?.sources ?? []).map((source) => source.label))}
+          busy={busy === "sync-confirm"}
+          onNameChange={setSyncName}
+          onConfirm={(mode) => void confirmSyncFromLink(mode)}
+          onClose={() => { setSyncSource(null); setSyncPreview(null); }}
+        />
+      ) : null}
       {pendingAction && !detailOpen ? <div className="vault-wishlist-confirm vault-management-confirm" data-ui-kind="callout" data-status="warning"><span><strong>{pendingAction.title}</strong><small>{pendingAction.description}</small></span><div><ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction(null)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => void applyPendingAction()}>{busy ? "处理中" : "确认"}</ControlButton></div></div> : null}
-      {detailOpen && selectedSource ? <SourceDetailDialog source={selectedSource} rules={rules} ruleQuery={ruleQuery} ruleState={ruleState} busy={busy} pendingAction={pendingAction?.kind === "rule" ? pendingAction : null} removedRules={snapshot?.removed_rules.filter((rule) => rule.source_key === selectedSource.source_key || (selectedSource.kind === "dim" && rule.source_key.startsWith(`${selectedSource.source_key}:`))) ?? []} onClose={() => setDetailOpen(false)} onQueryChange={setRuleQuery} onSearch={() => void loadRules(selectedSource.source_key, ruleQuery)} onRemoveRule={(rule) => setPendingAction({ kind: "rule", title: `移除${rule.weapon_name}规则`, description: "只移除当前来源的这一条规则，来源本身不会改变。", rule })} onRestoreRule={(rule) => void restoreRule(rule)} onCancelPending={() => setPendingAction(null)} onConfirmPending={() => void applyPendingAction()} onCopyAuditReport={props.onCopyAuditReport ? async () => {
+      {detailOpen && selectedSource ? <SourceDetailDialog source={selectedSource} rules={rules} ruleQuery={ruleQuery} ruleState={ruleState} busy={busy} pendingAction={pendingAction?.kind === "rule" ? pendingAction : null} removedRules={snapshot?.removed_rules.filter((rule) => rule.source_key === selectedSource.source_key || rule.source_key.startsWith(`${selectedSource.source_key}:`)) ?? []} onClose={() => setDetailOpen(false)} onQueryChange={setRuleQuery} onSearch={() => void loadRules(selectedSource.source_key, ruleQuery)} onRemoveRule={(rule) => setPendingAction({ kind: "rule", title: `移除${rule.weapon_name}规则`, description: "只移除当前来源的这一条规则，来源本身不会改变。", rule })} onRestoreRule={(rule) => void restoreRule(rule)} onCancelPending={() => setPendingAction(null)} onConfirmPending={() => void applyPendingAction()} onCopyAuditReport={props.onCopyAuditReport ? async () => {
             try {
               await props.onCopyAuditReport?.();
               props.onApplied?.("只读验收报告已复制。");
@@ -162,6 +223,71 @@ export function VaultRecommendationSourceManager(props: {
             }
           } : undefined} /> : null}
     </section>
+  );
+}
+
+/**
+ * 同步预览弹框：与首次导入用同一张预览卡（`DimImportPreviewCard`），
+ * 只是名字预填这份来源名，于是「新建」不可点、只剩「覆盖」——同步不改名字。
+ */
+function SyncFromLinkDialog(props: {
+  source: VaultRecommendationManagedSource;
+  preview: VaultDimWishlistImportPreview;
+  name: string;
+  existingNames: Set<string>;
+  busy: boolean;
+  onNameChange(value: string): void;
+  onConfirm(mode: "create" | "overwrite"): void;
+  onClose(): void;
+}) {
+  const titleId = useId();
+  const dialogRef = useRef<HTMLElement>(null);
+  const busyRef = useRef(props.busy);
+  const onCloseRef = useRef(props.onClose);
+  busyRef.current = props.busy;
+  onCloseRef.current = props.onClose;
+  useEffect(() => {
+    dialogRef.current?.querySelector<HTMLInputElement>("input")?.focus();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busyRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => document.removeEventListener("keydown", onKeyDown, true);
+  }, []);
+  return (
+    <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => { if (!props.busy) props.onClose(); }}>
+      <section
+        ref={dialogRef}
+        className="vault-wishlist-manager vault-source-sync-dialog"
+        data-surface="dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <header>
+          <div>
+            <strong id={titleId}>同步 {props.source.label}</strong>
+            <span>链接里的内容与当前这份来源不同。确认后整份替换（全删全增），来源名与链接不变。</span>
+          </div>
+          <ControlButton size="compact" variant="quiet" disabled={props.busy} onClick={props.onClose}>关闭</ControlButton>
+        </header>
+        <DimImportPreviewCard
+          preview={props.preview}
+          importName={props.name}
+          existingNames={props.existingNames}
+          // 忙时两个按钮都换成「处理中」；不忙时不改文案——按钮说什么就做什么，
+          // 这里只是名字撞上这份来源自己，于是「新建」不可点、只剩「覆盖」。
+          busyLabel={props.busy ? "处理中" : ""}
+          isBusy={props.busy || props.preview.importable_rule_count === 0}
+          onNameChange={props.onNameChange}
+          onConfirm={props.onConfirm}
+        />
+      </section>
+    </div>
   );
 }
 

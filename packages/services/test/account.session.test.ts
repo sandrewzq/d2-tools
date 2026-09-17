@@ -205,6 +205,107 @@ describe("account session", () => {
   });
 });
 
+/**
+ * 会话身份（Bug #88）。
+ *
+ * 判据是「账号有没有变」，不是「token 字符串有没有变」：access token 每小时到点轮换，
+ * 把它当成换账号，正在飞行中的请求会被丢弃、全部缓存被清空，界面上就报成「登录可能已失效」。
+ *
+ * 夹具让**会员信息请求**先挂起，这样「换 token 时确实有请求在飞」是可控的；
+ * `secondRead` 保证并发那次调用已经读到新 token，再放行其余步骤，避免用微任务时序赌。
+ */
+type IdentityTokenValue = string | { access_token: string; account_id?: string };
+
+function createIdentityFixture(initialToken: IdentityTokenValue) {
+  const state = { value: initialToken, reads: 0 };
+  let markSecondRead!: () => void;
+  const secondRead = new Promise<void>((resolve) => {
+    markSecondRead = resolve;
+  });
+  let resolveMembership!: (value: UserMembershipData) => void;
+  let markMembershipRequested!: () => void;
+  const membershipRequested = new Promise<void>((resolve) => {
+    markMembershipRequested = resolve;
+  });
+  const membership = new Promise<UserMembershipData>((resolve) => {
+    resolveMembership = resolve;
+  });
+  let resolveProfile!: (value: DestinyProfileResponse) => void;
+  const profile = new Promise<DestinyProfileResponse>((resolve) => {
+    resolveProfile = resolve;
+  });
+  const session = createAccountSession({
+    apiKey: "api",
+    initialSnapshot: snapshotWithItem(false),
+    getAccessToken: () => {
+      state.reads += 1;
+      if (state.reads === 2) markSecondRead();
+      return state.value;
+    },
+    definitions: itemDefinitions(),
+    fetchJson: async <T>(path: string) => {
+      if (path === "/User/GetMembershipsForCurrentUser/") {
+        markMembershipRequested();
+        return membership as T;
+      }
+      // 任务资源那条链也读 Profile，但不是这里要考的对象。
+      if (path.includes("components=100,200,202,900")) return {} as T;
+      return profile as T;
+    }
+  });
+  return {
+    session,
+    state,
+    secondRead,
+    membershipRequested,
+    resolveMembership: () => resolveMembership(memberships),
+    resolveProfile: () => resolveProfile(profileWithItem("item-2", false))
+  };
+}
+
+/** 让账号快照请求处于飞行中，此时换掉 token 并让旁路消费者读一次。 */
+async function switchTokenMidFlight(
+  fixture: ReturnType<typeof createIdentityFixture>,
+  nextToken: IdentityTokenValue
+) {
+  const refresh = fixture.session.getSnapshot({ freshness: "refresh" });
+  await fixture.membershipRequested;
+  fixture.state.value = nextToken;
+  const concurrent = fixture.session.getPursuitSummary({ freshness: "refresh" }).catch(() => undefined);
+  await fixture.secondRead;
+  fixture.resolveMembership();
+  fixture.resolveProfile();
+  return { refresh, concurrent };
+}
+
+describe("account session identity", () => {
+  it("同一账号换 access token：不打断在途请求、不清缓存", async () => {
+    const fixture = createIdentityFixture({ access_token: "token-1", account_id: "destiny-1" });
+
+    const { refresh } = await switchTokenMidFlight(fixture, { access_token: "token-2", account_id: "destiny-1" });
+
+    // 旧实现把 token 变了当成换账号，这里会抛「session changed」。
+    const result = await refresh;
+    expect(result.vault.items[0]?.instance_id).toBe("item-2");
+  });
+
+  it("真的换了账号：在途结果必须丢弃", async () => {
+    const fixture = createIdentityFixture({ access_token: "token-1", account_id: "destiny-1" });
+
+    const { refresh } = await switchTokenMidFlight(fixture, { access_token: "token-2", account_id: "destiny-2" });
+
+    await expect(refresh).rejects.toThrow("Bungie account session changed while the request was running");
+  });
+
+  it("provider 不给账号身份时退回按 token 字符串判（旧调用方行为不变）", async () => {
+    const fixture = createIdentityFixture("token-1");
+
+    const { refresh } = await switchTokenMidFlight(fixture, "token-2");
+
+    await expect(refresh).rejects.toThrow("Bungie account session changed while the request was running");
+  });
+});
+
 function itemDefinitions() {
   return {
     itemDefinitions: {
@@ -263,6 +364,8 @@ function snapshotWithItem(locked: boolean): AccountSnapshot {
         hash: 1001,
         instance_id: "item-1",
         name: "Test Item",
+        group_key: "weapons",
+        socket_plugs: [],
         locked
       }],
       sample_items: []

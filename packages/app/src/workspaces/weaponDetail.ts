@@ -252,7 +252,13 @@ export type WeaponRecommendationMode = "pve" | "pvp" | "general";
 
 export type WeaponRecommendationMatch = "full" | "partial" | "none" | "uncheckable" | "not_applicable";
 
-export type WeaponRecommendationSource = "user" | "builtin" | "external" | "dim";
+// 推荐项**不再带来源身份字段**。
+//
+// 这里原来有 `WeaponRecommendationSource = "user" | "builtin" | "external" | "dim"`，详情推荐区
+// 据此把同一份推荐事实劈成「攻略推荐 / 我的推荐」两个页签。T56 之后不存在「来源类型」这个维度：
+// 来源的身份就是用户给它起的名字（`source_label`），格式差异止步于解析层，装备目标也不再挤进
+// 推荐区。四个成员里 `"external"` 从来没有生产点，`"dim"` 的生产点随第三身份一并删除，
+// `"user"` 随「我的推荐」页签删除——字段本身已经没有判别价值，删掉比留一个恒真值干净。
 
 export type WeaponRecommendationPerkCandidate = {
   hash?: number;
@@ -271,7 +277,6 @@ export type WeaponRecommendation = {
   presentation: "combo" | "perk_pool";
   title: string;
   reason: string;
-  source: WeaponRecommendationSource;
   source_label: string;
   updated_at?: string;
   external_url?: string;

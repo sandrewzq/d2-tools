@@ -10,8 +10,8 @@ export type RecommendationWorkerMatchInput = {
   account_key: string;
   manifest_version: string;
   manifest_language: string;
-  curated_revision: string;
-  recommendation_schema_version?: number;
+  /** 推荐事实的修订。由存储层算，覆盖两种格式的文档、实例与覆盖状态。 */
+  recommendation_revision: string;
   items: VaultItemMatchInput[];
   include_evidence: boolean;
 };

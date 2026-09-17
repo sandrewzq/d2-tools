@@ -1,6 +1,5 @@
 import type {
   CommunityPerkSource,
-  DimWishlistColumnMatch,
   PerkCombo,
   PerkRef,
   RecommendationRequirementSlot,
@@ -295,15 +294,6 @@ export class CommunityPerkRecommendationService {
   }
 }
 
-const recommendationSlots: Array<{ slot: RecommendationRequirementSlot; label: string }> = [
-  { slot: "barrel", label: "枪管/瞄具" },
-  { slot: "magazine", label: "第二列" },
-  { slot: "masterwork", label: "大师" },
-  { slot: "perk1", label: "Perk 1" },
-  { slot: "perk2", label: "Perk 2" },
-  { slot: "origin", label: "起源特性" }
-];
-
 function matchSourceRecords(
   item: VaultItemMatchInput,
   records: readonly RecommendationSourceRecord[],
@@ -311,7 +301,8 @@ function matchSourceRecords(
 ): RecommendationSourceMatch[] {
   return records.map((record) => {
     const requirements = new Map(record.requirements.map((requirement) => [requirement.slot, requirement]));
-    const slots = recommendationSlots.map(({ slot, label }) => {
+    const slots = recommendationRequirementSlots.map((slot) => {
+      const label = recommendationRequirementSlotLabels[slot] ?? unspecifiedRequirementSlotLabel;
       const requirement = requirements.get(slot);
       const rollSocket = item.weapon_roll?.sockets.find((socket) => socket.slot === slot);
       const fallbackOwned = (item.socket_plugs ?? []).map((plug) => ({
@@ -331,7 +322,6 @@ function matchSourceRecords(
           state: "source_not_specified" as const,
           source_candidate_names: [],
           source_candidates: [],
-          unresolved_source_candidate_names: [],
           instance_owned: instanceOwned,
           current_enabled: currentEnabled
         };
@@ -361,12 +351,11 @@ function matchSourceRecords(
         state: matches ? "match" as const : cannotCheck ? "uncheckable" as const : "different" as const,
         source_candidate_names: requirement.candidate_names,
         source_candidates: requirement.candidates,
-        unresolved_source_candidate_names: requirement.unresolved_candidate_names,
         instance_owned: instanceOwned,
         current_enabled: currentEnabled
       };
     });
-    const locatedSlots = new Set(recommendationSlots.map((entry) => entry.slot as string));
+    const locatedSlots = new Set<string>(recommendationRequirementSlots);
     for (const requirement of record.requirements.filter((item) => !locatedSlots.has(item.slot))) {
       slots.push({
         slot: requirement.slot,
@@ -374,7 +363,6 @@ function matchSourceRecords(
         state: "uncheckable" as const,
         source_candidate_names: requirement.candidate_names,
         source_candidates: requirement.candidates,
-        unresolved_source_candidate_names: requirement.unresolved_candidate_names,
         instance_owned: [],
         current_enabled: []
       });
@@ -400,6 +388,7 @@ function matchSourceRecords(
     return {
       rule_stable_id: record.rule_stable_id,
       source_id: record.source_id,
+      source_group_id: record.source_group_id,
       source_label: record.source_label,
       ...(record.source_url ? { source_url: record.source_url } : {}),
       state,
@@ -531,27 +520,6 @@ function stripMasterworkDisplayPrefix(value: string): string {
     .replace(/^\s*\d+\s*阶\s*[：:]\s*/u, "")
     .replace(/^\s*大师杰作\s*[：:]\s*/u, "")
     .trim();
-}
-
-function selectBestDimRuleProgress<T extends {
-  matched_requirement_count: number;
-  requirement_count: number;
-}>(rules: readonly T[]): T | undefined {
-  return rules.reduce<T | undefined>((best, rule) => {
-    if (!best) return rule;
-    const ruleComplete = rule.requirement_count > 0
-      && rule.matched_requirement_count === rule.requirement_count;
-    const bestComplete = best.requirement_count > 0
-      && best.matched_requirement_count === best.requirement_count;
-    if (ruleComplete !== bestComplete) return ruleComplete ? rule : best;
-    const ratioDifference = rule.matched_requirement_count * best.requirement_count
-      - best.matched_requirement_count * rule.requirement_count;
-    if (ratioDifference !== 0) return ratioDifference > 0 ? rule : best;
-    if (rule.requirement_count !== best.requirement_count) {
-      return rule.requirement_count > best.requirement_count ? rule : best;
-    }
-    return rule.matched_requirement_count > best.matched_requirement_count ? rule : best;
-  }, undefined);
 }
 
 function uniqueSourceRecords(records: RecommendationSourceRecord[]): RecommendationSourceRecord[] {
@@ -706,6 +674,43 @@ export function evaluateComboRequirements(
     };
   });
 }
+
+/**
+ * 栏位的**唯一**顺序与名称来源。投影、匹配、标签全部读这里：
+ * 曾经在 core 与本仓服务层各有一份私有表，名字改一处漏一处。
+ */
+export const recommendationRequirementSlots: RecommendationRequirementSlot[] = [
+  "barrel",
+  "magazine",
+  "masterwork",
+  "perk1",
+  "perk2",
+  "origin"
+];
+
+/** 某个字符串是不是标准六栏之一——「这条要求能不能进记录」的唯一入口。 */
+export function isRecommendationRequirementSlot(slot: string): slot is RecommendationRequirementSlot {
+  return (recommendationRequirementSlots as readonly string[]).includes(slot);
+}
+
+/**
+ * 「这条规则是不是武器级推荐」的**唯一判据**：它没有任何落在标准六栏里的要求。
+ *
+ * 有一条能核对的栏位要求就是一条 Roll 推荐——**只有枪管也算**，不是只有特性栏才算。
+ * 反过来，要求一条都定位不到栏位的规则才是武器级推荐：它推荐的是武器本身，
+ * 没有任何可核对的东西（那种规则在记录投影里也必然是空的，两边口径一致）。
+ *
+ * 这个判断过去散在三个地方，而且**各说各话**：导入期看 `requirements.length`、
+ * CSV 读取期看「有没有点 Perk 1 / Perk 2」、DIM 读取期看「有没有六栏要求」。
+ * 于是同一份事实换一种格式写出来，武器级条数就变了——而它直接进
+ * `matched` / `available`，用户看到的符合度会跟着格式变。判据只能有一份，住在这里。
+ */
+export function isWeaponLevelRule(requirements: ReadonlyArray<{ slot: string }>): boolean {
+  return !requirements.some((requirement) => isRecommendationRequirementSlot(requirement.slot));
+}
+
+/** 来源只说「有个要求」而没说是哪一栏时的兜底标签。 */
+export const unspecifiedRequirementSlotLabel = "推荐项";
 
 export const recommendationRequirementSlotLabels: Record<string, string> = {
   barrel: "枪管/瞄具",

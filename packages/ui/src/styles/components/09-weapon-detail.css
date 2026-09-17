@@ -466,7 +466,6 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-recommendation-combo > section[data-match-state="match"] > header span { color: var(--status-ready); }
 .weapon-detail-recommendation-combo > section[data-match-state="different"] > header span { color: var(--status-error); }
 .weapon-detail-recommendation-combo > section > small { color: var(--text-muted); font-size: var(--font-caption); }
-.weapon-detail-recommendation-combo[data-recommendation-source="dim"] { position: relative; padding-top: 3px; border-top: 3px solid color-mix(in srgb, var(--accent-primary) 62%, var(--border-control)); }
 .weapon-detail-recommendation-perks { display: flex; min-height: 50px; flex-wrap: wrap; align-items: flex-start; gap: 7px; overflow: visible; }
 .weapon-detail-recommendation-perk { display: block; position: relative; z-index: 0; min-width: 132px; max-width: 220px; flex: 1 1 148px; }
 .weapon-detail-recommendation-perk:focus-within,

@@ -7,7 +7,7 @@ export type {
   SelectedItemSourceKind
 } from "./workspaces/itemDetail.js";
 export {
-  buildWishlistInsightText,
+  buildTargetInsightText,
   collectSelectedSameNameItems,
   createSelectedItemPreview,
   formatVaultTagLabel as formatItemDetailVaultTagLabel,

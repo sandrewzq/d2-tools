@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
-  applyVisibleVaultSelection, buildDuplicateGroupBatchTagPlan, buildVaultBulkMoveResultMessage, buildVaultCleanupLocatorText, buildVaultCleanupText, buildVaultDuplicateSummary, buildVaultGroups, buildVaultSelectionSummary, countWishlistMatches, buildVaultSections, filterVaultItems, getVaultItemKey, selectDuplicateGroupItems, selectMarkedCleanupItems, selectVaultBatchItems, sortVaultItems
+  applyVisibleVaultSelection, buildDuplicateGroupBatchTagPlan, buildVaultBulkMoveResultMessage, buildVaultCleanupLocatorText, buildVaultCleanupText, buildVaultDuplicateSummary, buildVaultGroups, buildVaultSelectionSummary, buildVaultSections, filterVaultItems, getVaultItemKey, selectDuplicateGroupItems, selectMarkedCleanupItems, selectVaultBatchItems, sortVaultItems
 } from "../../app/src/vault";
-import type { AccountItemSummary, BatchItemActionResult, DimWishlist, LocalTargetRules, VaultTags } from "../src/renderer/api/types";
+import type { AccountItemSummary, BatchItemActionResult, LocalTargetRules, VaultTags } from "../src/renderer/api/types";
 
 const items: AccountItemSummary[] = [
   {
@@ -195,40 +195,6 @@ describe("vault panel helpers", () => {
       .toEqual(["Beloved"]);
     expect(filterVaultItems(items, { group: "all", query: "", frame: "high-impact-frame" }).map((item) => item.name))
       .toEqual(["Thunderlord"]);
-  });
-
-  it("filters vault items by imported DIM wishlist hits", () => {
-    const wishlist: DimWishlist = {
-      title: "DIM Wishlist",
-      rules: [
-        {
-          item_hash: 1,
-          perk_hashes: [11, 22],
-          mode: "pve"
-        }
-      ]
-    };
-
-    expect(filterVaultItems(items, { group: "all", query: "", tag: "wishlist", wishlist }).map((item) => item.name))
-      .toEqual(["Riskrunner"]);
-    expect(filterVaultItems(items, { group: "all", query: "tag:wishlist", wishlist }).map((item) => item.name))
-      .toEqual(["Riskrunner"]);
-  });
-
-  it("counts imported DIM wishlist hits for vault summary", () => {
-    const wishlist: DimWishlist = {
-      title: "DIM Wishlist",
-      rules: [
-        {
-          item_hash: 1,
-          perk_hashes: [11, 22],
-          mode: "pve"
-        }
-      ]
-    };
-
-    expect(countWishlistMatches(items, wishlist)).toBe(1);
-    expect(countWishlistMatches(items, null)).toBe(0);
   });
 
   it("searches vault item notes", () => {

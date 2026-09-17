@@ -131,13 +131,21 @@
       "types": "./dist/community/perkRecommendation.d.ts",
       "import": "./dist/community/perkRecommendation.js"
     },
-    "./community/dimWishlistUpdates": {
-      "types": "./dist/community/dimWishlistUpdates.d.ts",
-      "import": "./dist/community/dimWishlistUpdates.js"
+    "./community/dimWishlistLinkSource": {
+      "types": "./dist/community/dimWishlistLinkSource.d.ts",
+      "import": "./dist/community/dimWishlistLinkSource.js"
+    },
+    "./community/dimWishlistValidation": {
+      "types": "./dist/community/dimWishlistValidation.d.ts",
+      "import": "./dist/community/dimWishlistValidation.js"
     },
     "./community/weaponRecommendationKnowledge": {
       "types": "./dist/community/weaponRecommendationKnowledge.d.ts",
       "import": "./dist/community/weaponRecommendationKnowledge.js"
+    },
+    "./community/recommendationTableFile": {
+      "types": "./dist/community/recommendationTableFile.d.ts",
+      "import": "./dist/community/recommendationTableFile.js"
     },
     "./community/vaultRecommendationMatchCache": {
       "types": "./dist/community/vaultRecommendationMatchCache.d.ts",
@@ -150,6 +158,10 @@
     "./community/recommendationManagement": {
       "types": "./dist/community/recommendationManagement.d.ts",
       "import": "./dist/community/recommendationManagement.js"
+    },
+    "./community/recommendationDocumentStore": {
+      "types": "./dist/community/recommendationDocumentStore.d.ts",
+      "import": "./dist/community/recommendationDocumentStore.js"
     },
     "./community/personalWeaponKnowledge": {
       "types": "./dist/community/personalWeaponKnowledge.d.ts",
@@ -222,7 +234,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json",
     "test": "vitest --root ../.. --run"
   },
   "dependencies": {

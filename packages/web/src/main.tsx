@@ -164,10 +164,6 @@ function WebApp() {
   );
   const [webRecommendationWishlist, setWebRecommendationWishlist] = useState<DimWishlist | null>(vaultModel.wishlist ?? null);
   const webWishlistActions = useMemo<VaultWishlistActions>(() => ({
-    save: async (wishlist) => {
-      setWebRecommendationWishlist(wishlist);
-      return wishlist;
-    },
     clear: async () => setWebRecommendationWishlist(null)
   }), []);
   const loadoutsModel = useMemo(

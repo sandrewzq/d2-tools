@@ -1,5 +1,5 @@
 import type { AccountOperationFeedbackView, VaultRecommendationScanState } from "@d2-tools/app/account";
-import type { AccountItemSummary, AccountSummary, DimWishlist, EquipmentTargetStore, ItemSearchResult, LocalTargetRules, VaultTags } from "../api/types";
+import type { AccountItemSummary, AccountSummary, EquipmentTargetStore, ItemSearchResult, LocalTargetRules, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
@@ -8,7 +8,6 @@ import { collectSelectedSameNameItems, createSelectedItemPreview, selectBestSame
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
 import { ItemDetailModal } from "../shared/components/ItemDetailModal";
 import {
-  buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
   buildWeaponRecommendationViews
 } from "../shared/components/item-detail/buildWeaponDetailView";
@@ -23,7 +22,6 @@ export function HomePageItemDetailModal(props: {
   accountSummary: AccountSummary | null;
   accountOperationFeedback?: AccountOperationFeedbackView;
   recommendationScan: VaultRecommendationScanState;
-  importedWishlist: DimWishlist | null;
   interfaceLocale: "zh-CN" | "en-US";
   itemDetail: ItemDetailWorkspace;
   itemDetailOverlay: {
@@ -74,13 +72,10 @@ export function HomePageItemDetailModal(props: {
       sources: buildVendorWeaponSources(vendorDefinitionState),
       selectionNames: vendorDefinitionState.context.rollLabels,
       currentStats: buildVendorWeaponStats(vendorDefinitionState.context.stats),
-      recommendations: [
-        ...buildWeaponRecommendationViews(
-          vendorDefinitionState.recommendations ?? null,
-          vendorSelectedItem
-        ),
-        ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, vendorSelectedItem)
-      ],
+      recommendations: buildWeaponRecommendationViews(
+        vendorDefinitionState.recommendations ?? null,
+        vendorSelectedItem
+      ),
     });
     if (vendorWeaponModel) {
       return (
@@ -196,7 +191,6 @@ export function HomePageItemDetailModal(props: {
       communityRecommendationError={itemDetail.communityRecommendationError}
       communityInstanceMatch={itemDetail.communityInstanceEvidence ?? undefined}
       recommendationScan={props.recommendationScan}
-      importedWishlist={props.importedWishlist}
       localTargetRules={props.localTargetRules}
       equipmentTargetStore={props.equipmentTargetStore}
       isCommunityRecommendationsLoading={itemDetail.isCommunityRecommendationsLoading}
@@ -225,7 +219,7 @@ export function HomePageItemDetailModal(props: {
       onCopySameNameLocator={(items) => void itemDetail.copySameNameLocator(items)}
       onCopySelectedItemChatGuide={() => void itemDetail.copySelectedItemChatGuide()}
       onCopySelectedItemSummary={() => void itemDetail.copySelectedItemSummary()}
-      onCopyWishlistInsight={() => void itemDetail.copyWishlistInsight()}
+      onCopyTargetInsight={() => void itemDetail.copyTargetInsight()}
       onGenerateItemAiAdvice={(userKnowledge, allowExternalSearch) => void itemDetail.generateItemAiAdvice(userKnowledge, allowExternalSearch)}
       onOpenBestSameNameItem={(items) => {
         const bestItem = selectBestSameNameItem(items);

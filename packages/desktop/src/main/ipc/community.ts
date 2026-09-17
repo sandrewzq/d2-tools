@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { dialog, ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
@@ -14,24 +13,22 @@ import {
 import { loadConfig } from "@d2-tools/services/config/store";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
-  collectWeaponRecommendationCandidateItemHashes,
-  collectWeaponRecommendationItemHashes,
-  collectWeaponRecommendationNamesWithoutItemIds,
+  collectCsvRecommendationItemHashes,
+  collectWeaponRecommendationDefinitionHashes,
   collectWeaponRecommendationPlugHashes,
   collectWeaponRecommendationPlugSetHashes,
-  collectRelatedWeaponRecommendationItemHashes,
   createWeaponRecommendationCsvTemplate,
   createWeaponRecommendationEnglishCsvTemplate,
   exportWeaponRecommendationPlayerCsv,
   importWeaponRecommendationCsv,
-  invalidateWeaponRecommendationKnowledgeCache,
   previewWeaponRecommendationCsv,
   readWeaponRecommendationKnowledgeStatus,
   type WeaponKnowledgeImportPreview,
   type WeaponKnowledgeValidationContext
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
+import { readRecommendationTableText } from "@d2-tools/services/community/recommendationTableFile";
 import {
-  clearCuratedRecommendationDataset,
+  clearImportedRecommendationRules,
   listRecommendationManagedRules,
   readRecommendationManagementSnapshot,
   recommendationSourceItemHashes,
@@ -41,6 +38,12 @@ import {
   type RecommendationManagedRule,
   type RecommendationManagementSnapshot
 } from "@d2-tools/services/community/recommendationManagement";
+import {
+  hasActiveRecommendationRules,
+  recommendationDocumentRevision,
+  relatedRecommendationItemHashes,
+  type RecommendationImportTarget
+} from "@d2-tools/services/community/recommendationDocumentStore";
 import {
   advanceVaultRecommendationMatchCacheRevision,
   buildVaultRecommendationMatchRevision
@@ -101,7 +104,16 @@ export function registerCommunityIpcHandlers(): void {
     if (result.canceled || !result.filePath) {
       return { canceled: true, message: "已取消导出可编辑武器推荐。" };
     }
-    await writeFile(result.filePath, exportWeaponRecommendationPlayerCsv(config.data.data_dir), "utf8");
+    // 库里存的是 Hash，导出要写回官方名：先按规则声明的武器身份取定义池，
+    // 再让导出函数反解名字（DD4）。不新开网络路径。
+    const definitions = await loadCommunityDefinitions(
+      collectCsvRecommendationItemHashes(config.data.data_dir)
+    );
+    await writeFile(
+      result.filePath,
+      exportWeaponRecommendationPlayerCsv(config.data.data_dir, definitions.items),
+      "utf8"
+    );
     return {
       canceled: false,
       file_path: result.filePath,
@@ -112,10 +124,12 @@ export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:knowledge:import:select", async () => {
     const config = loadConfig();
     const result = await dialog.showOpenDialog({
-      title: "选择武器推荐知识库 CSV",
+      title: "选择人工推荐表格",
       defaultPath: join(config.data.data_dir, "imports"),
       properties: ["openFile"],
-      filters: [{ name: "武器推荐知识库 CSV", extensions: ["csv"] }]
+      // 旧版二进制 .xls 也列出来：让它可选中、然后给出「请另存为 .xlsx 或 CSV」的明确提示，
+      // 比在选择器里选不到、用户自己猜要友好。
+      filters: [{ name: "推荐表格", extensions: ["csv", "xlsx", "xlsm", "xls"] }]
     });
     const path = result.filePaths[0];
     if (result.canceled || !path) return null;
@@ -129,7 +143,7 @@ export function registerCommunityIpcHandlers(): void {
     return { ...preview, token };
   });
 
-  ipcMain.handle("community:knowledge:import:confirm", async (_event, token: string) => {
+  ipcMain.handle("community:knowledge:import:confirm", async (_event, token: string, target: RecommendationImportTarget) => {
     const pending = pendingKnowledgeImports.get(token);
     if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
     pendingKnowledgeImports.delete(token);
@@ -142,11 +156,13 @@ export function registerCommunityIpcHandlers(): void {
       throw new Error(formatKnowledgeImportIssue(verifiedPreview));
     }
     const config = loadConfig();
+    // 导入身份 = 用户给的名字 + 新建 / 覆盖；没有默认名字，也不存在默认路径。
     const result = await importWeaponRecommendationCsv(
       config.data.data_dir,
       pending.path,
       pending.fingerprint,
-      verified.validation
+      verified.validation,
+      { name: target?.name ?? "", mode: target?.mode ?? "create" }
     );
     return result;
   });
@@ -182,10 +198,10 @@ export function registerCommunityIpcHandlers(): void {
     const config = loadConfig();
     const affectedWeaponHashes = recommendationSourceItemHashes(config.data.data_dir, sourceKey);
     const snapshot = updateRecommendationManagedSource(config.data.data_dir, sourceKey, state);
-    if ((sourceKey === "dim_wishlist" || sourceKey.startsWith("dim:")) && state === "removed") {
+    // 只有导入文档托管的来源会派生出愿望单装备目标；由服务判断，这里不认来源键的写法。
+    if (snapshot.stored_source_changed && state === "removed") {
       await removeDimWishlistEquipmentTargets(config.data.data_dir).catch(() => undefined);
     }
-    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
     advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
     return enrichRecommendationManagement(config.data.data_dir, {
       ...snapshot,
@@ -205,7 +221,6 @@ export function registerCommunityIpcHandlers(): void {
       .find((rule) => rule.rule_stable_id === input.rule_stable_id)
       ?.weapon_hashes ?? [];
     const snapshot = updateRecommendationManagedRule(config.data.data_dir, input);
-    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
     advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
     return enrichRecommendationManagement(config.data.data_dir, {
       ...snapshot,
@@ -213,15 +228,16 @@ export function registerCommunityIpcHandlers(): void {
     });
   });
 
-  ipcMain.handle("community:management:curated:clear", async () => {
+  ipcMain.handle("community:management:rule-imports:clear", async () => {
     const config = loadConfig();
-    const affectedWeaponHashes = uniqueHashes(
-      readRecommendationManagementSnapshot(config.data.data_dir).sources
-        .filter((source) => source.kind === "curated")
-        .flatMap((source) => recommendationSourceItemHashes(config.data.data_dir, source.source_key))
-    );
-    const snapshot = clearCuratedRecommendationDataset(config.data.data_dir);
-    invalidateWeaponRecommendationKnowledgeCache(config.data.data_dir);
+    // 受影响范围取全部来源的声明武器——超集只让缓存多失效一点，不影响正确性。
+    const affectedWeaponHashes = uniqueHashes([
+      ...recommendationSourceItemHashesBySource(
+        config.data.data_dir,
+        readRecommendationManagementSnapshot(config.data.data_dir).sources.map((source) => source.source_key)
+      ).values()
+    ].flatMap((hashes) => hashes));
+    const snapshot = clearImportedRecommendationRules(config.data.data_dir);
     advanceRecommendationMatchCacheRevision(config.data.data_dir, affectedWeaponHashes);
     return enrichRecommendationManagement(config.data.data_dir, {
       ...snapshot,
@@ -253,33 +269,9 @@ export function registerCommunityIpcHandlers(): void {
     const config = loadConfig();
     const service = createDefaultCommunityPerkService(config);
     const itemHash = Number(item_hash);
-    const rootItems = await getDefinitions(
-      "DestinyInventoryItemDefinition",
-      [itemHash],
-      { projection: "community-match" }
-    );
-    const targetWeaponIdentityRelations = await loadWeaponIdentityRelations([itemHash]);
-    const queries = [{
-      item_hash: itemHash,
-      localized_names: [
-        options?.item_name?.trim() ?? "",
-        rootItems[String(itemHash)]?.displayProperties?.name?.trim() ?? ""
-      ].filter(Boolean)
-    }];
-    const candidateItemHashes = collectWeaponRecommendationCandidateItemHashes(
-      config.data.data_dir,
-      queries,
-      targetWeaponIdentityRelations
-    );
-    const weaponIdentityRelations = mergeWeaponIdentityRelations(
-      targetWeaponIdentityRelations,
-      await loadWeaponIdentityRelations(candidateItemHashes)
-    );
-    const relatedItemHashes = collectRelatedWeaponRecommendationItemHashes(
-      config.data.data_dir,
-      queries,
-      weaponIdentityRelations
-    );
+    // 定义预取的范围：这把武器命中了的规则还声明了哪些武器。身份是导入期算好的，
+    // 读取期只问存储一次，不做名称 / 发布组 / 变体的重新推导。
+    const relatedItemHashes = relatedRecommendationItemHashes(config.data.data_dir, [itemHash]);
     const dimPerkHashes = dimRulePerkHashes(config.data.data_dir, [itemHash]);
     const definitions = await loadCommunityDefinitions(
       uniqueHashes([itemHash, ...relatedItemHashes]),
@@ -292,7 +284,6 @@ export function registerCommunityIpcHandlers(): void {
       plugSetDefinitions: { ...definitions.plugSets, ...options?.plugSetDefinitions },
       englishItemDefinitions: options?.englishItemDefinitions,
       englishPlugSetDefinitions: options?.englishPlugSetDefinitions,
-      weaponIdentityRelations,
       item_name: options?.item_name
     };
 
@@ -335,15 +326,12 @@ async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
 }> {
   const manifestVersion = getDesktopManifestStatus().version?.trim() ?? "";
   if (!manifestVersion) throw new Error("资料库尚未准备完成，不能严格校验武器推荐 CSV。");
-  const csvText = readFileSync(path, "utf8");
-  const itemHashes = collectWeaponRecommendationItemHashes(csvText);
-  const namesWithoutItemIds = collectWeaponRecommendationNamesWithoutItemIds(csvText);
-  const searchedHashes = namesWithoutItemIds.length === 0
-    ? []
-    : (await Promise.all(namesWithoutItemIds.map((weaponName) => (
-      getGameDataCatalog().searchItems({ query: weaponName, limit: 20 })
-    )))).flat().map((item) => item.hash);
-  const definitionHashes = [...new Set([...itemHashes, ...searchedHashes])];
+  // 读表 + 解析整段带上文件名：表头不受支持、格式不对时，用户要能一眼看出是哪个文件（Bug #89）。
+  const csvText = withTableFileName(path, () => readRecommendationTableText(path));
+  // 定义池 = 文件里写了 ID 的 + 只写名字的那些对应的全部官方版本（见 `collectWeaponRecommendationDefinitionHashes`）。
+  const definitionHashes = await withTableFileNameAsync(path, () => (
+    collectWeaponRecommendationDefinitionHashes(csvText, getGameDataCatalog())
+  ));
   const itemDefinitions = await getDefinitions(
     "DestinyInventoryItemDefinition",
     definitionHashes,
@@ -367,12 +355,41 @@ async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
     plug_definitions: plugDefinitions
   };
   return {
-    preview: previewWeaponRecommendationCsv(csvText, path, semanticDefinitions),
+    preview: withTableFileName(path, () => previewWeaponRecommendationCsv(csvText, path, semanticDefinitions)),
     validation: {
       manifest_version: manifestVersion,
-      semantic_definitions: semanticDefinitions
+      semantic_definitions: semanticDefinitions,
+      // S3′：导入期要把每行的武器身份展开成完整 hash 集，需要资料库里的身份关系。
+      // 取的是整个发布组，所以 CSV 里只写普通版也能覆盖到同组的专家版 / 失时版。
+      weaponIdentityRelations: await loadWeaponIdentityRelations(definitionHashes)
     }
   };
+}
+
+/**
+ * 读表失败的文案带上文件名：从「表头不受支持」这类错误里看不出是哪个文件出的问题，
+ * 用户手上可能同时有几份导出的表格（Bug #89）。
+ */
+function withTableFileName<T>(path: string, run: () => T): T {
+  try {
+    return run();
+  } catch (error) {
+    throw tableFileError(path, error);
+  }
+}
+
+/** 同上，给定义池装载这类**异步**步骤用：解析表头同样发生在里面，解析失败也要带文件名。 */
+async function withTableFileNameAsync<T>(path: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw tableFileError(path, error);
+  }
+}
+
+function tableFileError(path: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`文件「${basename(path)}」：${message}`);
 }
 
 function formatKnowledgeImportIssue(preview: WeaponKnowledgeImportPreview): string {
@@ -414,40 +431,19 @@ async function matchVaultCommunityItems(
       ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
     };
   }
-  const knowledgeStatus = readWeaponRecommendationKnowledgeStatus(config.data.data_dir);
-  const verifiedKnowledgeAvailable = Boolean(
-    knowledgeStatus
-    && knowledgeStatus.recommendation_count > 0
-    && knowledgeStatus.source_fingerprint
-    && knowledgeStatus.validation_state === "verified"
-    && knowledgeStatus.validated_manifest_version === manifestStatus.version
-  );
-  // 兼容旧版本已经导入的推荐库：旧库缺少新版校验元数据时，不应让
-  // 用户突然只看到 DIM。旧数据仍参与匹配，但明确标记为未复核，
-  // 新版严格导入仍会在确认前完成完整语义校验。
-  const legacyKnowledgeAvailable = Boolean(
-    knowledgeStatus
-    && knowledgeStatus.recommendation_count > 0
-    && knowledgeStatus.source_fingerprint
-    && knowledgeStatus.validation_state === "unverified"
-    && !knowledgeStatus.validated_manifest_version
-  );
-  const issues = verifiedKnowledgeAvailable ? [] : legacyKnowledgeAvailable ? [{
-    code: "recommendation_legacy_unverified" as const,
-    severity: "warning" as const,
-    message: "当前使用旧版中文推荐数据，尚未按本资料库版本完成复核；建议导入最新武器推荐 CSV。"
-  }] : [{
+  // 可用性只问一件事：有没有可参与判定的事实。是哪份文件、哪种格式导入的，与「能不能用」无关。
+  // 严格校验发生在导入期，过了才写得进来，所以这里不再有「已导入但未复核」这种中间状态。
+  const issues = hasActiveRecommendationRules(config.data.data_dir) ? [] : [{
     code: "recommendation_unavailable" as const,
     severity: "warning" as const,
-    message: "中文推荐知识库当前不可用；仍会继续核对 DIM 和本机自定义推荐。"
+    message: "尚未导入任何推荐来源；仍会继续核对本机愿望单与自定义推荐。"
   }];
   const result = await matchVaultRecommendationsInWorker({
     data_dir: config.data.data_dir,
     account_key: loadOAuthToken(config.data.data_dir)?.membership_id?.trim() ?? "",
     manifest_version: manifestStatus.version ?? "",
     manifest_language: manifestStatus.language ?? config.data.manifest_language,
-    curated_revision: knowledgeStatus?.source_fingerprint ?? "",
-    recommendation_schema_version: knowledgeStatus?.schema_version,
+    recommendation_revision: safeRecommendationDocumentRevision(config.data.data_dir),
     items,
     include_evidence: options.include_evidence !== false
   });
@@ -501,6 +497,10 @@ async function loadCommunityDefinitions(itemHashes: number[], extraPlugHashes: n
   };
 }
 
+/**
+ * 导入期才有身份推导：`previewStrictWeaponKnowledgeCsv` 用它把 CSV 里的武器身份展开成 hash 集。
+ * 读取期（`community:recommendations:get` / 仓库匹配）不再调用——身份已经在导入期定死。
+ */
 async function loadWeaponIdentityRelations(itemHashes: number[]): Promise<WeaponIdentityRelation[]> {
   if (!itemHashes.length) return [];
   try {
@@ -511,14 +511,6 @@ async function loadWeaponIdentityRelations(itemHashes: number[]): Promise<Weapon
     // 旧索引或关系读取异常时保留精确 Hash 行为，不退回模糊名称合并。
     return [];
   }
-}
-
-function mergeWeaponIdentityRelations(
-  ...groups: ReadonlyArray<readonly WeaponIdentityRelation[]>
-): WeaponIdentityRelation[] {
-  const relations = new Map<number, WeaponIdentityRelation>();
-  for (const relation of groups.flat()) relations.set(relation.item_hash, relation);
-  return [...relations.values()];
 }
 
 function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {
@@ -540,16 +532,24 @@ function uniqueHashes(values: number[]): number[] {
   return [...new Set(values.filter((value) => Number.isInteger(value) && value >= 0 && value <= 4_294_967_295))];
 }
 
-function advanceRecommendationMatchCacheRevision(dataDir: string, affectedWeaponHashes: readonly number[]): void {
+export function advanceRecommendationMatchCacheRevision(dataDir: string, affectedWeaponHashes: readonly number[]): void {
   try {
-    const curatedRevision = readWeaponRecommendationKnowledgeStatus(dataDir)?.source_fingerprint ?? "";
     advanceVaultRecommendationMatchCacheRevision(
       dataDir,
-      buildVaultRecommendationMatchRevision(dataDir, curatedRevision),
+      buildVaultRecommendationMatchRevision(dataDir),
       affectedWeaponHashes
     );
   } catch {
     // 派生缓存失效失败不影响来源操作；下一次核对会按 revision 自动重建。
+  }
+}
+
+function safeRecommendationDocumentRevision(dataDir: string): string {
+  try {
+    return recommendationDocumentRevision(dataDir);
+  } catch {
+    // 推荐库暂不可读时给空键：worker 会自己再算一次，算不出来就按当前值核对。
+    return "";
   }
 }
 

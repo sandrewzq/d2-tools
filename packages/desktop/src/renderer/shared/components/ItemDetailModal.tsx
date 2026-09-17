@@ -3,7 +3,6 @@ import type {
   AccountItemSummary,
   AccountSummary,
   AccountItemDetail,
-  DimWishlist,
   EquipmentTargetStore,
   ItemActionPlanInput,
   ItemActionResult,
@@ -29,7 +28,6 @@ import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
 import { resolveItemTransferCharacterId } from "../../utils/itemActions";
 import {
-  buildEquipmentTargetWeaponViews,
   buildWeaponDetailView,
   buildWeaponRecommendationViews
 } from "./item-detail/buildWeaponDetailView";
@@ -45,7 +43,6 @@ type ItemDetailReadyProps = {
   communityRecommendationError: string;
   communityInstanceMatch?: VaultItemInstanceMatchInfo;
   recommendationScan: VaultRecommendationScanState;
-  importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
   isCommunityRecommendationsLoading: boolean;
@@ -79,7 +76,7 @@ type ItemDetailReadyProps = {
   onCopySameNameLocator: (items: SameNameItemSummary[]) => void;
   onCopySelectedItemChatGuide: () => void;
   onCopySelectedItemSummary: () => void;
-  onCopyWishlistInsight: () => void;
+  onCopyTargetInsight: () => void;
   onGenerateItemAiAdvice: (userKnowledge?: string, allowExternalSearch?: boolean) => void;
   onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
   onOpenItemDetail: (item: SameNameItemSummary | ItemSearchResult, source: SelectedItemSource) => void;
@@ -194,10 +191,12 @@ function ItemDetailReadyContent(
     setItemToolMessage("");
   }, [selectedItem.item_key]);
   const isWeapon = selectedItem.group_key === "weapons";
-  const weaponRecommendations = useMemo(() => isWeapon ? [
-    ...buildWeaponRecommendationViews(props.communityRecommendations, selectedItem),
-    ...buildEquipmentTargetWeaponViews(props.equipmentTargetStore, selectedItem)
-  ] : [], [isWeapon, props.communityRecommendations, props.equipmentTargetStore, selectedItem]);
+  // 推荐项只有一条来源路径：统一推荐模型产出的来源事实。
+  // 装备目标不再挤进推荐区（它有「目标命中」这一处独立展示，也在装备目标库面板里管理）。
+  const weaponRecommendations = useMemo(
+    () => isWeapon ? buildWeaponRecommendationViews(props.communityRecommendations, selectedItem) : [],
+    [isWeapon, props.communityRecommendations, selectedItem]
+  );
   const weaponSources = useMemo(
     () => buildWeaponSources(selectedItem, props.itemAvailability),
     [props.itemAvailability, selectedItem]
@@ -429,12 +428,8 @@ function ItemDetailReadyContent(
 
       <ItemDetailTools
               accountSummary={props.accountSummary}
-              communityRecommendations={props.communityRecommendations}
-              communityRecommendationError={props.communityRecommendationError}
-              importedWishlist={props.importedWishlist}
               localTargetRules={props.localTargetRules}
               equipmentTargetStore={props.equipmentTargetStore}
-              isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
               isGeneratingItemAi={props.isGeneratingItemAi}
               isRunningItemAction={props.isRunningItemAction}
               itemAiError={props.itemAiError}
@@ -452,7 +447,7 @@ function ItemDetailReadyContent(
               onCopySameNameLocator={props.onCopySameNameLocator}
               onCopySelectedItemChatGuide={props.onCopySelectedItemChatGuide}
               onCopySelectedItemSummary={props.onCopySelectedItemSummary}
-              onCopyWishlistInsight={props.onCopyWishlistInsight}
+              onCopyTargetInsight={props.onCopyTargetInsight}
               onGenerateItemAiAdvice={props.onGenerateItemAiAdvice}
               onOpenBestSameNameItem={props.onOpenBestSameNameItem}
               onOpenItemDetail={props.onOpenItemDetail}

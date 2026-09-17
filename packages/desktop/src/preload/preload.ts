@@ -18,7 +18,11 @@ import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type {
   EquipmentTargetStore
 } from "@d2-tools/core/targets/equipmentTargets";
-import type { DimWishlist, DimWishlistImportPreview } from "@d2-tools/core/analysis/wishlistImport";
+import type {
+  DimWishlist,
+  DimWishlistImportPreview,
+  DimWishlistLinkReadResult
+} from "@d2-tools/core/analysis/wishlistImport";
 import type {
   WeaponKnowledgeImportPreview,
   WeaponKnowledgeImportResult,
@@ -29,10 +33,10 @@ import type {
   RecommendationManagementSnapshot
 } from "@d2-tools/services/community/recommendationManagement";
 import type {
-  DimWishlistOnlineActivationResult,
-  DimWishlistOnlinePreview,
-  DimWishlistOnlineStatus
-} from "@d2-tools/services/community/dimWishlistUpdates";
+  RecommendationDocumentSummary,
+  RecommendationImportTarget
+} from "@d2-tools/services/community/recommendationDocumentStore";
+
 import type {
   VaultCommunityMatchOptions,
   VaultCommunityMatchResult,
@@ -307,18 +311,15 @@ contextBridge.exposeInMainWorld("d2", {
     equipped_items: AccountSummary["vault"]["items"];
   }) => ipcRenderer.invoke("loadouts:transfer-plan", input) as Promise<BatchTransferPlan>,
   getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
-  saveDimWishlist: (wishlist: DimWishlist) => ipcRenderer.invoke("wishlist:save", wishlist) as Promise<DimWishlist>,
   clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
+  listRecommendationDocuments: () =>
+    ipcRenderer.invoke("recommendation:documents:list") as Promise<RecommendationDocumentSummary[]>,
   selectDimWishlistFile: () =>
     ipcRenderer.invoke("wishlist:import:select") as Promise<DimWishlistImportPreview | null>,
-  confirmDimWishlistImport: (token: string) =>
-    ipcRenderer.invoke("wishlist:import:confirm", token) as Promise<DimWishlist>,
-  getDimWishlistOnlineStatus: () =>
-    ipcRenderer.invoke("wishlist:online:status") as Promise<DimWishlistOnlineStatus>,
-  checkDimWishlistOnlineUpdate: () =>
-    ipcRenderer.invoke("wishlist:online:check") as Promise<DimWishlistOnlinePreview>,
-  confirmDimWishlistOnlineUpdate: (token: string) =>
-    ipcRenderer.invoke("wishlist:online:confirm", token) as Promise<DimWishlistOnlineActivationResult>,
+  readDimWishlistLink: (url: string) =>
+    ipcRenderer.invoke("wishlist:url:read", url) as Promise<DimWishlistLinkReadResult>,
+  confirmDimWishlistImport: (token: string, target: RecommendationImportTarget) =>
+    ipcRenderer.invoke("wishlist:import:confirm", token, target) as Promise<DimWishlist>,
   getLocalTargetRules: () => ipcRenderer.invoke("targets:get") as Promise<LocalTargetRules>,
   saveLocalTargetRules: (rules: LocalTargetRules) =>
     ipcRenderer.invoke("targets:save", rules) as Promise<LocalTargetRules>,
@@ -349,8 +350,8 @@ contextBridge.exposeInMainWorld("d2", {
     }>,
   selectWeaponKnowledgeCsv: () =>
     ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token?: string }) | null>,
-  confirmWeaponKnowledgeCsvImport: (token: string) =>
-    ipcRenderer.invoke("community:knowledge:import:confirm", token) as Promise<WeaponKnowledgeImportResult>,
+  confirmWeaponKnowledgeCsvImport: (token: string, target: RecommendationImportTarget) =>
+    ipcRenderer.invoke("community:knowledge:import:confirm", token, target) as Promise<WeaponKnowledgeImportResult>,
   getWeaponKnowledgeStatus: () =>
     ipcRenderer.invoke("community:knowledge:status:get") as Promise<WeaponRecommendationKnowledgeStatus | null>,
   getRecommendationManagement: () =>
@@ -361,8 +362,8 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("community:management:source:set", sourceKey, state) as Promise<RecommendationManagementSnapshot>,
   setRecommendationRuleState: (input: { source_key: string; rule_stable_id: string; state: "active" | "removed"; reason?: string; source_revision?: string }) =>
     ipcRenderer.invoke("community:management:rule:set", input) as Promise<RecommendationManagementSnapshot>,
-  clearCuratedRecommendationDataset: () =>
-    ipcRenderer.invoke("community:management:curated:clear") as Promise<RecommendationManagementSnapshot>,
+  clearImportedRecommendationRules: () =>
+    ipcRenderer.invoke("community:management:rule-imports:clear") as Promise<RecommendationManagementSnapshot>,
   getVaultTags: () => ipcRenderer.invoke("vault:tags:get") as Promise<VaultTags>,
   saveVaultTag: (input: SaveVaultTagInput) => ipcRenderer.invoke("vault:tag:save", input) as Promise<VaultTags>,
   saveVaultTagsBatch: (inputs: SaveVaultTagInput[]) =>

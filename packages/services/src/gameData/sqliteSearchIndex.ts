@@ -275,6 +275,10 @@ export function createSqliteSearchIndex(
       return queryItemVersionHashes(database, itemHashes, limit);
     },
 
+    getItemHashesByExactName(names) {
+      return queryItemHashesByExactName(database, names);
+    },
+
     getWeaponIdentityRelations(itemHashes) {
       return queryWeaponIdentityRelations(database, itemHashes);
     },
@@ -464,6 +468,34 @@ function selectCanonicalItems(items: IndexedItem[]): Map<string, IndexedItem> {
     }
   }
   return selected;
+}
+
+/**
+ * 「这个名字对应哪些官方装备」的**全集**回答：同名武器的所有官方版本都返回，不做代表版本折叠、
+ * 不排序取前 N（见 `GameDataSearchIndex.getItemHashesByExactName`）。
+ *
+ * 名字按索引里存的 `name`（原样、去首尾空白）与 `search_text`（小写化）两条比对：
+ * 后者让「英文名大小写不一致」的写法也能命中，中文名两者相同因而无副作用。
+ */
+function queryItemHashesByExactName(
+  database: DatabaseSync,
+  names: Iterable<string>
+): number[] {
+  const requested = [...new Set([...names].map((name) => name.trim()).filter(Boolean))];
+  if (!requested.length) return [];
+  const statement = database.prepare(`
+    SELECT DISTINCT hash
+    FROM search_documents
+    WHERE kind = 'item' AND (name = ? OR search_text = ?)
+  `);
+  const results = new Set<number>();
+  for (let offset = 0; offset < requested.length; offset += 250) {
+    for (const name of requested.slice(offset, offset + 250)) {
+      const rows = statement.all(name, name.toLocaleLowerCase()) as Array<{ hash: number }>;
+      for (const row of rows) results.add(toUnsignedHash(row.hash));
+    }
+  }
+  return [...results].sort((left, right) => left - right);
 }
 
 function queryItemVersionHashes(

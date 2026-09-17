@@ -47,7 +47,6 @@ export {
   buildVaultSections,
   buildVaultSlotFilters,
   countLocalTargetMatches,
-  countWishlistMatches,
   classFilterLabels,
   championFilterLabels,
   craftingFilterLabels,

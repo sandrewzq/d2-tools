@@ -1,8 +1,8 @@
 import type {
+  RecommendationDocumentSummary,
   DimWishlistImportPreview,
-  DimWishlistOnlineActivationResult,
-  DimWishlistOnlinePreview,
-  DimWishlistOnlineStatus,
+  DimWishlistLinkReadResult,
+  RecommendationImportTarget,
   FileExportResult,
   RecommendationManagedRule,
   RecommendationManagementSnapshot,
@@ -23,23 +23,21 @@ import type {
 
 export type CommunityApi = {
   getDimWishlist(): Promise<DimWishlist | null>;
-  saveDimWishlist(wishlist: DimWishlist): Promise<DimWishlist>;
   clearDimWishlist(): Promise<null>;
+  listRecommendationDocuments(): Promise<RecommendationDocumentSummary[]>;
   selectDimWishlistFile(): Promise<DimWishlistImportPreview | null>;
-  confirmDimWishlistImport(token: string): Promise<DimWishlist>;
-  getDimWishlistOnlineStatus(): Promise<DimWishlistOnlineStatus>;
-  checkDimWishlistOnlineUpdate(): Promise<DimWishlistOnlinePreview>;
-  confirmDimWishlistOnlineUpdate(token: string): Promise<DimWishlistOnlineActivationResult>;
+  readDimWishlistLink(url: string): Promise<DimWishlistLinkReadResult>;
+  confirmDimWishlistImport(token: string, target: RecommendationImportTarget): Promise<DimWishlist>;
   exportWeaponKnowledgeCsvTemplate(language?: "zh" | "en"): Promise<FileExportResult>;
   exportWeaponKnowledgePlayerCsv(): Promise<FileExportResult>;
   selectWeaponKnowledgeCsv(): Promise<WeaponKnowledgeImportSelection | null>;
-  confirmWeaponKnowledgeCsvImport(token: string): Promise<WeaponKnowledgeImportResult>;
+  confirmWeaponKnowledgeCsvImport(token: string, target: RecommendationImportTarget): Promise<WeaponKnowledgeImportResult>;
   getWeaponKnowledgeStatus(): Promise<WeaponRecommendationKnowledgeStatus | null>;
   getRecommendationManagement(): Promise<RecommendationManagementSnapshot>;
   listRecommendationRules(sourceKey: string, query?: string): Promise<RecommendationManagedRule[]>;
   setRecommendationSourceState(sourceKey: string, state: "active" | "disabled" | "removed"): Promise<RecommendationManagementSnapshot>;
   setRecommendationRuleState(input: { source_key: string; rule_stable_id: string; state: "active" | "removed"; reason?: string; source_revision?: string }): Promise<RecommendationManagementSnapshot>;
-  clearCuratedRecommendationDataset(): Promise<RecommendationManagementSnapshot>;
+  clearImportedRecommendationRules(): Promise<RecommendationManagementSnapshot>;
   getPersonalWeaponKnowledge(weaponName?: string): Promise<PersonalWeaponKnowledgeTable>;
   savePersonalWeaponKnowledge(input: SavePersonalWeaponKnowledgeInput): Promise<PersonalWeaponKnowledgeTable>;
   setPersonalWeaponKnowledgeEnabled(id: string, enabled: boolean): Promise<PersonalWeaponKnowledgeTable>;

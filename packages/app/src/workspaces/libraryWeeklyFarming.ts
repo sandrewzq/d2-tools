@@ -200,8 +200,7 @@ function bestRecommendationMatch(
     const match = item.instance_id ? matches.get(item.instance_id) : undefined;
     if (!match) return [];
     const qualified = match.match_status === "full_match"
-      || match.sources.some((source) => source.state === "full" || source.state === "core")
-      || match.dim?.state === "full";
+      || match.sources.some((source) => source.state === "full" || source.state === "core");
     const source = match.sources.find((entry) => entry.state === "full" || entry.state === "core")
       ?? match.sources[0];
     const score = qualified ? 100 : match.match_status === "partial_match" ? 50 : match.partial;

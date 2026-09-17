@@ -33,6 +33,40 @@ export function recommendationSourceState(
   return row?.state ?? "active";
 }
 
+/**
+ * 来源实例的有效状态：**实例键优先，文档键兜底**。
+ *
+ * 管理面（导入 / 覆盖 / 停用 / 移除）以**导入文档**为管理单位，所以「停用整份导入」写的是文档键；
+ * 而来源事实是按实例投影的。这段继承规则过去在两个适配器里各写了一份，CSV 那份漏了兜底，
+ * 结果「停用整份 CSV 导入」写进去读不出来——用户点停用没有任何反应（DIM 侧正常）。
+ * 只留一处实现，两种格式就不可能再各写一份。
+ *
+ * `sourceId === documentId` 表示这个实例**本身就是文档级来源**（无具名注释段时），
+ * 此时兜底会查同一个键，跳过即可。
+ */
+export function recommendationSourceStateFor(
+  identity: { sourceId: string; documentId: string },
+  overrides: readonly RecommendationSourceOverride[]
+): RecommendationSourceState {
+  const own = overrides.find((entry) => entry.source_key === identity.sourceId)?.state;
+  if (own) return own;
+  if (identity.sourceId === identity.documentId) return "active";
+  return overrides.find((entry) => entry.source_key === identity.documentId)?.state ?? "active";
+}
+
+/** 同上，规则级：实例键上的移除优先，文档键上的移除继承到该文档下全部实例。 */
+export function recommendationRemovedRuleIdsFor(
+  identity: { sourceId: string; documentId: string },
+  overrides: readonly RecommendationRuleOverride[]
+): Set<string> {
+  const keys = identity.sourceId === identity.documentId
+    ? [identity.sourceId]
+    : [identity.sourceId, identity.documentId];
+  return new Set(overrides
+    .filter((entry) => keys.includes(entry.source_key) && entry.state === "removed" && !entry.review_required)
+    .map((entry) => entry.rule_stable_id));
+}
+
 export function activeRecommendationSource(database: DatabaseSync, sourceKey: string): boolean {
   return recommendationSourceState(database, sourceKey) === "active";
 }

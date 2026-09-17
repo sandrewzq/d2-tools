@@ -70,9 +70,8 @@ import {
   buildVaultRecommendationFilterFactIndex,
   buildVaultRecommendationSourceOptions,
   buildVaultRecommendationSummaryIndex,
-  canonicalVaultRecommendationSourceId,
   compareVaultRecommendationMetricKeys,
-  filterVaultRecommendationSummaryIndex,
+  attributeVaultRecommendationSummaryIndex,
   getVaultRecommendationFilterFact,
   getVaultCommunityInstanceKey,
   vaultRecommendationPrimaryFilterLabel,
@@ -89,7 +88,6 @@ import {
   type VaultQuickAction
 } from "./vaultQuickActionStore.js";
 import { VaultQueryIndex, type VaultIndexedQuery } from "./vaultQueryIndex.js";
-import { isDimRecommendationSource } from "../recommendationMatchView.js";
 
 type VaultWorkspaceTab = "filters" | "recommendations";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
@@ -182,25 +180,27 @@ export function VaultPageContentView(props: {
     () => buildVaultRecommendationSummaryIndex(
       props.items,
       undefined,
-      props.wishlist,
       props.recommendationCardSummary
     ),
-    [props.items, props.recommendationCardSummary, props.wishlist]
+    [props.items, props.recommendationCardSummary]
   );
-  const managedRecommendationSourceIds = useMemo(() => {
+  // 管理名册是权威来源名册：它一行一次导入，事实层一条一个具名来源。
+  // 这里把「事实键 → 它属于的那一行」摊平，下游就能统一用管理面的键看来源。
+  const managedSourceKeyByFactKey = useMemo(() => {
     if (!props.wishlistActions?.getRecommendationManagement) return null;
-    if (managedRecommendationSourcesLoadState !== "ready") return new Set<string>();
-    return new Set(
-      managedRecommendationSources
-        .filter((source) => source.configured && source.state === "active")
-        .map((source) => canonicalVaultRecommendationSourceId(source.source_key))
-    );
+    if (managedRecommendationSourcesLoadState !== "ready") return new Map<string, string>();
+    const byFactKey = new Map<string, string>();
+    for (const source of managedRecommendationSources) {
+      if (!source.configured || source.state !== "active") continue;
+      for (const factKey of source.fact_keys) byFactKey.set(factKey, source.source_key);
+    }
+    return byFactKey;
   }, [managedRecommendationSources, managedRecommendationSourcesLoadState, props.wishlistActions?.getRecommendationManagement]);
   const recommendationSummaryByInstance = useMemo(() => (
-    managedRecommendationSourceIds
-      ? filterVaultRecommendationSummaryIndex(rawRecommendationSummaryByInstance, managedRecommendationSourceIds)
+    managedSourceKeyByFactKey
+      ? attributeVaultRecommendationSummaryIndex(rawRecommendationSummaryByInstance, managedSourceKeyByFactKey)
       : rawRecommendationSummaryByInstance
-  ), [managedRecommendationSourceIds, rawRecommendationSummaryByInstance]);
+  ), [managedSourceKeyByFactKey, rawRecommendationSummaryByInstance]);
   const recommendationFilterFactByInstance = useMemo(
     () => buildVaultRecommendationFilterFactIndex(recommendationSummaryByInstance),
     [recommendationSummaryByInstance]
@@ -304,10 +304,9 @@ export function VaultPageContentView(props: {
         armorStatRules,
         frame: frameFilter,
         tags: props.tags,
-        wishlist: props.wishlist,
         ...overrides
       });
-  }, [armorStatRules, championFilter, deferredQuery, group, indexedFilter, props.currentCharacterId, props.tags, props.wishlist, tagFilter, vaultQueryIndex, vaultQueryRevision]);
+  }, [armorStatRules, championFilter, deferredQuery, group, indexedFilter, props.currentCharacterId, props.tags, tagFilter, vaultQueryIndex, vaultQueryRevision]);
   const filteredVaultItems = useMemo(
     () => sortVaultItems(
       queryIndexedItems(),
@@ -350,10 +349,6 @@ export function VaultPageContentView(props: {
   const firstRecommendationSelection = recommendationSourceSelections[0];
   const recommendationPrimaryFilter = firstRecommendationSelection?.primaryFilter ?? "all";
   const recommendationCompleteFilter = firstRecommendationSelection?.completeFilter ?? "all";
-  const recommendationSourceIsDim = Boolean(
-    firstRecommendationSelection
-    && isDimRecommendationSource(firstRecommendationSelection.sourceId)
-  );
 
   function toggleRecommendationSource(sourceId: string) {
     const isSelected = recommendationSourceSelections.some((selection) => selection.sourceId === sourceId);
@@ -433,7 +428,7 @@ export function VaultPageContentView(props: {
     if (!source || !sourceState) return [];
     const labels = [`推荐来源：${source.sourceLabel}`];
     if (selection.primaryFilter !== "all") {
-      labels.push(`perk 命中：${vaultRecommendationPrimaryFilterLabel(selection.primaryFilter, false)}`);
+      labels.push(`perk 命中：${vaultRecommendationPrimaryFilterLabel(selection.primaryFilter)}`);
     }
     if (selection.completeFilter !== "all") {
       labels.push(`完整命中：${selection.completeFilter}`);
@@ -894,8 +889,8 @@ export function VaultPageContentView(props: {
                                         key={filterOption.key}
                                         disabled={filterOption.count === 0}
                                         aria-pressed={selection.primaryFilter === filterOption.key}
-                                        aria-label={`${option.sourceLabel}perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key, false)}，${filterOption.count} 件`}
-                                        title={`perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key, false)}，${filterOption.count} 件`}
+                                        aria-label={`${option.sourceLabel}perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key)}，${filterOption.count} 件`}
+                                        title={`perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key)}，${filterOption.count} 件`}
                                         onClick={() => updateRecommendationSourceSelection(option.sourceId, { primaryFilter: filterOption.key, completeFilter: "all" })}
                                       >
                                         <span>{filterOption.key === "all" ? "全部" : filterOption.key}</span>
@@ -1100,7 +1095,6 @@ type VaultRecommendationFilterOption<T extends string> = {
 
 type VaultRecommendationSourceFilterState = {
   sourceId: string;
-  isDim: boolean;
   primaryOptions: Array<VaultRecommendationFilterOption<VaultRecommendationPrimaryFilter>>;
   completeOptions: Array<VaultRecommendationFilterOption<VaultRecommendationCompleteFilter>>;
 };
@@ -1122,7 +1116,6 @@ function buildVaultRecommendationFilterState(input: {
   if (!sourceIds.length) return { items: [...input.contextualItems], sources: [] };
   const sourceStates: VaultRecommendationSourceFilterState[] = sourceIds.map((sourceId) => {
     const selection = input.selections.find((item) => item.sourceId === sourceId) ?? { sourceId, primaryFilter: "all", completeFilter: "all" };
-    const isDim = isDimRecommendationSource(sourceId);
     const candidates = input.contextualItems.filter((item) => input.selections.every((other) => (
       other.sourceId === sourceId || matchesSourceSelection(item, other, input)
     )));
@@ -1141,7 +1134,7 @@ function buildVaultRecommendationFilterState(input: {
     const primaryOptions: Array<VaultRecommendationFilterOption<VaultRecommendationPrimaryFilter>> = [
       { key: "all", label: "全部", count: candidates.filter((item) => hasSourceRecord(item, sourceId, input.factIndex)).length },
       ...[...metricKeys].sort(compareVaultRecommendationMetricKeys).map((key) => ({ key, label: key, count: primaryCounts.get(key) ?? 0 })),
-      ...(["unrequired", "uncheckable", "uncovered"] as const).map((key) => ({ key, label: vaultRecommendationPrimaryFilterLabel(key, isDim), count: primaryCounts.get(key) ?? 0 }))
+      ...(["unrequired", "uncheckable", "uncovered"] as const).map((key) => ({ key, label: vaultRecommendationPrimaryFilterLabel(key), count: primaryCounts.get(key) ?? 0 }))
     ];
     const completeBase = candidates.filter((item) => {
       const fact = getSourceFact(item, sourceId, input);
@@ -1155,7 +1148,6 @@ function buildVaultRecommendationFilterState(input: {
     }
     return {
       sourceId,
-      isDim,
       primaryOptions,
       completeOptions: [
         { key: "all", label: "不限", count: completeBase.length },
@@ -1257,11 +1249,10 @@ function sameStringList(previous: readonly string[], next: readonly string[]): b
 }
 
 function formatVaultRecommendationMetricOptionLabel(
-  key: VaultRecommendationPrimaryFilter,
-  isDim = false
+  key: VaultRecommendationPrimaryFilter
 ): string {
   if (key === "all") return "全部";
-  if (!isVaultRecommendationMetricKey(key)) return vaultRecommendationPrimaryFilterLabel(key, isDim);
+  if (!isVaultRecommendationMetricKey(key)) return vaultRecommendationPrimaryFilterLabel(key);
   const [matched, required] = key.split("/").map(Number);
   if (matched === required) return `全中 ${key}`;
   if (matched === 0) return `未命中 ${key}`;
@@ -1323,14 +1314,16 @@ function sameManagedRecommendationSources(
     const candidate = right[index];
     return candidate?.source_key === source.source_key
       && candidate.label === source.label
-      && candidate.kind === source.kind
       && candidate.state === source.state
       && candidate.configured === source.configured
       && candidate.rule_count === source.rule_count
       && candidate.weapon_count === source.weapon_count
       && candidate.revision === source.revision
       && candidate.imported_at === source.imported_at
-      && candidate.affected_instance_count === source.affected_instance_count;
+      && candidate.affected_instance_count === source.affected_instance_count
+      // 事实键决定了哪些事实算这一行的：它变了就必须让下游重算，否则会留下上一次的归队结果。
+      && candidate.fact_keys.length === source.fact_keys.length
+      && candidate.fact_keys.every((key, keyIndex) => key === source.fact_keys[keyIndex]);
   });
 }
 

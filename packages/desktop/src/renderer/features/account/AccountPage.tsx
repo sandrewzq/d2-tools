@@ -148,9 +148,8 @@ export function AccountPage(props: {
         ]
       : [],
     undefined,
-    props.wishlist,
     props.recommendationCardSummary
-  ), [props.accountSummary, props.recommendationCardSummary, props.wishlist]);
+  ), [props.accountSummary, props.recommendationCardSummary]);
   const weeklyFarming = useMemo(() => buildLibraryWeeklyFarmingView({
     resource: props.weeklyFarmingCatalog,
     accountSummary: props.accountSummary,

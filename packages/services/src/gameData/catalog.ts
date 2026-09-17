@@ -27,6 +27,16 @@ export type WeaponIdentityQuery = {
   item_hashes: number[];
 };
 
+export type ItemNameQuery = {
+  /**
+   * 精确官方名（中文名或英文名）。
+   *
+   * 返回这些名字下的**全部**官方版本：同名武器的历次复刻都在内，不做代表版本折叠、不设条数上限。
+   * 人工表格只写了武器名时要靠它拿到完整定义池，用 `searchItems` 代劳会漏版本（见 T56）。
+   */
+  names: string[];
+};
+
 export type GameDataRuntimeCapabilities = {
   contract_version: 2;
   supports_perk_families: true;
@@ -40,6 +50,7 @@ export type GameDataCatalog = {
   searchPerks(input: PerkSearchQuery): Promise<PerkSearchResult[]>;
   getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage<ItemSearchResult>>;
   getItemDetail(input: ItemDetailQuery): Promise<ItemSearchResult | null>;
+  getItemHashesByExactName(input: ItemNameQuery): Promise<number[]>;
   getWeaponIdentityRelations(input: WeaponIdentityQuery): Promise<WeaponIdentityRelation[]>;
 };
 

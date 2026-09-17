@@ -31,7 +31,7 @@ import { ownedPlugIdentity, requirementIsSatisfied } from "@d2-tools/core/commun
 import type { AccountWeaponRollSlot } from "@d2-tools/core/account/summary";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
-import type { EquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
+
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
 export type BuildDesktopWeaponDetailInput = {
@@ -381,7 +381,6 @@ export function buildWeaponRecommendationViews(
         presentation: "perk_pool" as const,
         title: requirements.length ? `${purposeLabel} Perk 池` : `${purposeLabel} 武器推荐`,
         reason: record.note || recommendation?.disclaimer || "按来源原始栏位展示推荐候选。",
-        source: "builtin" as const,
         source_label: record.source_label,
         ...(record.page_updated_at ? { updated_at: record.page_updated_at } : {}),
         ...(record.source_url ? { external_url: record.source_url } : {}),
@@ -396,35 +395,10 @@ export function buildWeaponRecommendationViews(
           : []
       };
     });
-  // 组合已不再由任何来源产出（统一为「来源事实」），这里只保留历史结构，输入恒为空数组。
-  const explicitCombos = (classification.kind === "fixed" && !isFixedExotic ? [] : recommendation?.combos ?? [])
-    .map((combo, index) => {
-      const matched = combo.perks.filter((perk) => requirementIsSatisfied(owned, [perk.hash], [perk.name])).length;
-      return {
-        id: `combo:${combo.mode}:${index}`,
-        mode: combo.mode,
-        purposes: [combo.mode],
-        presentation: "combo" as const,
-        title: combo.note || (isFixedExotic ? `${combo.mode.toUpperCase()} 异域使用说明` : `${combo.mode.toUpperCase()} 完整组合`),
-        reason: isFixedExotic
-          ? "该社区来源仅作为固定配置异域的使用说明，不参与随机 Roll 匹配。"
-          : recommendation?.disclaimer || "依据本地知识与愿望单比较当前配置。",
-        source: "builtin" as const,
-        source_label: recommendation?.source_label || "社区推荐",
-        perk_options: isFixedExotic ? [] : combo.perks.map((perk, perkIndex) => ({
-          column_key: `Perk ${perkIndex + 1}`,
-          names: [perk.name],
-          candidates: [recommendationPerkCandidate(perk)]
-        })),
-        masterwork_names: [],
-        mod_names: [],
-        match: isFixedExotic ? "not_applicable" as const : matchRecommendation(item, matched, combo.perks.length),
-        match_notes: isFixedExotic
-          ? ["固定异域不执行社区随机 Roll 匹配；保留此条来源记录作为使用说明。"]
-          : recommendationMatchNotes(item, matched, combo.perks.length)
-      };
-    });
-  return [...sourceRecords, ...explicitCombos];
+  // 组合（`combos`）这条路径已经消失：两个适配器都写死空数组，匹配事实统一成「来源事实」
+  // （`source_records`）。这里原来是它的渲染分支，输入恒为空、永远走不到——留着只会让人以为
+  // 详情还有第二条推荐路径。顺带删掉的「社区推荐」兜底来源名也是同一类残留：来源名一律取导入内容。
+  return sourceRecords;
 }
 
 function recommendationPurposeSummary(
@@ -492,64 +466,6 @@ function normalizeRecommendationCandidateName(value: string | undefined): string
 
 // 没有实例事实时的原始展示：只列出来源给出的组合，明确标注不做核对。
 
-
-function dimDiagnosticSlotLabel(slot: string | undefined): string | undefined {
-  if (slot === "barrel") return "枪管/瞄具";
-  if (slot === "magazine") return "第二列";
-  if (slot === "masterwork") return "大师";
-  if (slot === "perk1") return "Perk 1";
-  if (slot === "perk2") return "Perk 2";
-  if (slot === "origin") return "起源特性";
-  if (slot === "special") return "特殊插槽";
-  if (slot === "unknown") return "推荐项位置未知";
-  return undefined;
-}
-
-export function buildEquipmentTargetWeaponViews(
-  store: EquipmentTargetStore,
-  item: SelectedItemDetail
-): WeaponDetailViewModel["recommendations"] {
-  if (item.group_key !== "weapons") return [];
-  const owned = ownedPlugIdentity({
-    hash: item.hash,
-    socket_plugs: [
-      ...(item.socket_plugs ?? []).map((plug) => ({ hash: plug.hash, name: plug.name })),
-      ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => ({ hash: plug.hash, name: plug.name })))
-    ]
-  });
-  return store.targets.flatMap((target) => {
-    if (!target.enabled
-      || target.kind !== "weapon"
-      || target.source.kind === "dim_wishlist"
-      || target.weapon.status !== "verified") return [];
-    if (target.weapon.item_hash !== item.hash) return [];
-    const matched = target.perk_requirements.filter((perk) => requirementIsSatisfied(owned, [perk.perk_hash], [perk.perk_name])).length;
-    return [{
-      id: target.id,
-      mode: target.mode,
-      purposes: [target.mode],
-      presentation: "combo" as const,
-      title: target.name,
-      reason: `${target.source.label}；只作为目标证据，不会自动修改装备。`,
-      source: "user" as const,
-      source_label: target.source.label,
-      updated_at: target.updated_at,
-      perk_options: target.perk_requirements.map((perk, index) => ({
-        column_key: `Perk ${index + 1}`,
-        names: [perk.perk_name],
-        candidates: [{ hash: perk.perk_hash, hashes: [perk.perk_hash], name: perk.perk_name }]
-      })),
-      masterwork_names: [],
-      mod_names: [],
-      match: target.perk_requirements.length
-        ? matchRecommendation(item, matched, target.perk_requirements.length)
-        : "full" as const,
-      match_notes: target.perk_requirements.length
-        ? recommendationMatchNotes(item, matched, target.perk_requirements.length)
-        : ["目标只指定武器版本，不限制 Roll。"]
-    }];
-  });
-}
 
 function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "perks">): WeaponConfigurationClassification {
   const allColumns = perkGroupsToPoolColumns(item.perks ?? []);

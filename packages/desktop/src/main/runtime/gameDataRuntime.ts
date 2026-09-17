@@ -13,6 +13,7 @@ import type {
   GameDataCatalog,
   GameDataRuntimeCapabilities,
   ItemDetailQuery,
+  ItemNameQuery,
   ItemSearchQuery,
   PerkSearchQuery,
   WeaponIdentityQuery
@@ -25,6 +26,7 @@ type GameDataOperation =
   | "searchPerks"
   | "getPerkRelatedEquipment"
   | "getItemDetail"
+  | "getItemHashesByExactName"
   | "getWeaponIdentityRelations"
   | "getDefinitions"
   | "listArmorSets"
@@ -61,6 +63,7 @@ const operationTimeoutMs: Record<GameDataOperation, number> = {
   searchPerks: 15_000,
   getPerkRelatedEquipment: 15_000,
   getItemDetail: 15_000,
+  getItemHashesByExactName: 15_000,
   getWeaponIdentityRelations: 15_000,
   getDefinitions: 30_000,
   listArmorSets: 30_000,
@@ -99,6 +102,13 @@ const catalog: GameDataCatalog = {
     return measureRuntime(
       "game-data.item-detail",
       () => request<ItemSearchResult | null>("getItemDetail", input),
+      { measurePayload: true }
+    );
+  },
+  getItemHashesByExactName(input: ItemNameQuery) {
+    return measureRuntime(
+      "game-data.item-hashes-by-exact-name",
+      () => request<number[]>("getItemHashesByExactName", input),
       { measurePayload: true }
     );
   },

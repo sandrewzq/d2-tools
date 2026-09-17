@@ -6,7 +6,6 @@ import type { VaultSection } from "@d2-tools/app/vault";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
 import { getVaultItemKey } from "@d2-tools/app/vault";
 import {
-  canonicalVaultRecommendationSourceId,
   selectVaultRecommendationSourceSummaries,
   type VaultRecommendationSummaryIndex
 } from "../recommendationMatchView.js";
@@ -194,8 +193,8 @@ const VaultItemCard = memo(function VaultItemCard(props: {
   const allSourceSummaries = selectVaultRecommendationSourceSummaries(sourceRuleSummaries);
   const orderedSourceSummaries = props.preferredRecommendationSourceId
     ? [...allSourceSummaries].sort((left, right) => (
-        Number(canonicalVaultRecommendationSourceId(right.sourceId) === canonicalVaultRecommendationSourceId(props.preferredRecommendationSourceId ?? ""))
-        - Number(canonicalVaultRecommendationSourceId(left.sourceId) === canonicalVaultRecommendationSourceId(props.preferredRecommendationSourceId ?? ""))
+        Number(right.sourceId === props.preferredRecommendationSourceId)
+        - Number(left.sourceId === props.preferredRecommendationSourceId)
       ))
     : allSourceSummaries;
   const tagValue: VaultTagValue = props.tags.items[props.itemKey]?.tag ?? "none";

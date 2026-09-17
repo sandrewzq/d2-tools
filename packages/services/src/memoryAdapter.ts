@@ -73,10 +73,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
     async getDimWishlist() {
       return wishlist;
     },
-    async saveDimWishlist(nextWishlist) {
-      wishlist = nextWishlist;
-      return wishlist;
-    },
     async clearDimWishlist() {
       wishlist = null;
       return null;

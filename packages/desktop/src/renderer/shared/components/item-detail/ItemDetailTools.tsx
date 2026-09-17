@@ -1,19 +1,16 @@
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets } from "@d2-tools/core/targets/equipmentTargets";
 import type {
   AccountItemActionPatch,
   AccountItemDetail,
   AccountSummary,
-  DimWishlist,
   EquipmentTargetStore,
   ItemActionPlanInput,
   ItemActionResult,
   ItemAiAdviceResult,
   LocalTargetRules,
   VaultTags,
-  VaultTagValue,
-  WeaponRecommendation
+  VaultTagValue
 } from "../../../api/types";
 import type {
   SameNameItemSummary,
@@ -24,23 +21,17 @@ import { selectedItemToAccountItem } from "@d2-tools/app/items";
 import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
 import {
   formatVaultTagLabel,
-  formatWishlistModeLabels,
   getItemSourceStatusTone
 } from "./itemDetailFormatters";
 import { ItemDetailActions } from "./ItemDetailActions";
 import { ItemDetailAi } from "./ItemDetailAi";
-import { ItemDetailCommunity } from "./ItemDetailCommunity";
 import { ItemDetailPerks } from "./ItemDetailPerks";
 import { ItemDetailSameName } from "./ItemDetailSameName";
 
 export type ItemDetailToolsProps = {
   accountSummary: AccountSummary | null;
-  communityRecommendations: WeaponRecommendation | null;
-  communityRecommendationError: string;
-  importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
-  isCommunityRecommendationsLoading: boolean;
   isGeneratingItemAi: boolean;
   isRunningItemAction: boolean;
   itemAiError: string;
@@ -65,7 +56,7 @@ export type ItemDetailToolsProps = {
   onCopySameNameLocator: (items: SameNameItemSummary[]) => void;
   onCopySelectedItemChatGuide: () => void;
   onCopySelectedItemSummary: () => void;
-  onCopyWishlistInsight: () => void;
+  onCopyTargetInsight: () => void;
   onGenerateItemAiAdvice: () => void;
   onOpenBestSameNameItem: (items: SameNameItemSummary[]) => void;
   onOpenItemDetail: (item: SameNameItemSummary, source: SelectedItemSource) => void;
@@ -92,23 +83,16 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
 
   return (
     <section className="item-detail-tool-area item-tool-panel" aria-label="装备详情工具区">
-      <div className="item-detail-tool-tabs" aria-hidden="true">
-        <span className="ui-badge status-neutral">概览</span>
-        <span className="ui-badge status-neutral">同名对比</span>
-        <span className="ui-badge status-neutral">社区推荐</span>
-        <span className="ui-badge status-neutral">操作</span>
-      </div>
       <div className="item-detail-tool-grid">
         <section className="item-detail-tool-section item-detail-tool-overview">
           <h3>概览</h3>
           <ItemDetailOverview selectedItem={selectedItem} />
           <ItemDetailTargetMatch
-            importedWishlist={props.importedWishlist}
             localTargetRules={props.localTargetRules}
             equipmentTargetStore={props.equipmentTargetStore}
             selectedItem={selectedItem}
             vaultTags={props.vaultTags}
-            onCopyWishlistInsight={props.onCopyWishlistInsight}
+            onCopyTargetInsight={props.onCopyTargetInsight}
             onSaveSelectedItemTag={props.onSaveSelectedItemTag}
           />
           <ItemDetailPerks selectedItem={selectedItem} />
@@ -122,22 +106,6 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
             onApplySameNameCurrentKeepTags={props.onApplySameNameCurrentKeepTags}
             onOpenBestSameNameItem={props.onOpenBestSameNameItem}
             onOpenItemDetail={props.onOpenItemDetail}
-          />
-        </section>
-        <section className="item-detail-tool-section item-detail-tool-community">
-          <ItemDetailCommunity
-            communityRecommendations={props.communityRecommendations}
-            communityRecommendationError={props.communityRecommendationError}
-            importedWishlist={props.importedWishlist}
-            isCommunityRecommendationsLoading={props.isCommunityRecommendationsLoading}
-            sameNameItems={props.sameNameItems}
-            selectedItem={selectedItem}
-            vaultTags={props.vaultTags}
-            onApplySameNameCurrentKeepTags={props.onApplySameNameCurrentKeepTags}
-            onCopySameNameLocator={props.onCopySameNameLocator}
-            onCopyWishlistInsight={props.onCopyWishlistInsight}
-            onOpenBestSameNameItem={props.onOpenBestSameNameItem}
-            onSaveSelectedItemTag={props.onSaveSelectedItemTag}
           />
         </section>
         <section className="item-detail-tool-section item-detail-tool-actions">
@@ -203,12 +171,11 @@ function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
 }
 
 function ItemDetailTargetMatch(props: {
-  importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
   selectedItem: SelectedItemDetail;
   vaultTags: VaultTags;
-  onCopyWishlistInsight: () => void;
+  onCopyTargetInsight: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
 }) {
   const accountItem = selectedItemToAccountItem(props.selectedItem);
@@ -216,72 +183,51 @@ function ItemDetailTargetMatch(props: {
     return null;
   }
 
-  const wishlist = evaluateWishlistRoll({
-    ...accountItem,
-    socket_plugs: accountItem.socket_plugs ?? []
-  }, props.importedWishlist ?? undefined);
   const localTarget = evaluateLocalTargets(accountItem, props.localTargetRules);
   const equipmentTarget = evaluateEquipmentTargets(accountItem, props.equipmentTargetStore);
-  const hasImportedWishlist = Boolean(props.importedWishlist?.rules.length);
 
-  if (!wishlist.matched && !localTarget.matched && !equipmentTarget.matched && !hasImportedWishlist) {
+  if (!localTarget.matched && !equipmentTarget.matched) {
     return null;
   }
 
-  const modeLabels = formatWishlistModeLabels(wishlist.labels);
   const tag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
-  const matched = wishlist.matched || localTarget.matched || equipmentTarget.matched;
   const matchSources = formatTargetMatchSources({
-    wishlistMatched: wishlist.matched,
     localTargetMatched: localTarget.matched,
-    equipmentTargetMatched: equipmentTarget.matched,
-    hasImportedWishlist
+    equipmentTargetMatched: equipmentTarget.matched
   });
 
   return (
-    <section className={`target-match-panel ${matched ? "matched" : "empty"}`}>
+    <section className="target-match-panel matched">
       <div className="target-match-header">
         <span className="source-status-badge source-status-ready">目标命中</span>
-        <strong>{matched
-          ? equipmentTarget.matched ? "装备目标命中" : localTarget.matched ? "本地目标命中" : wishlist.labels.includes("DIM Wishlist") ? "DIM 愿望单命中" : "疑似好 roll"
-          : "未命中已导入 DIM 愿望单"}</strong>
+        <strong>{equipmentTarget.matched ? "装备目标命中" : "本地目标命中"}</strong>
       </div>
       <div className="target-match-meta">
         <span>命中来源：{matchSources.join(" / ")}</span>
         <span>本地标记：{formatVaultTagLabel(tag)}</span>
-        {wishlist.matched ? <span>{modeLabels.length ? modeLabels.join(" / ") : wishlist.labels.join(" / ")}</span> : null}
         {localTarget.matched ? <span>{localTarget.labels.join(" / ")}</span> : null}
         {equipmentTarget.matched ? <span>{equipmentTarget.labels.join(" / ")}</span> : null}
       </div>
-      {matched ? (
-        <ul>
-          {localTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-          {equipmentTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-          {wishlist.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-        </ul>
-      ) : (
-        <p>当前装备没有命中已导入的 DIM 愿望单规则。同名对比可继续复查同名装备，也可以结合社区推荐复查。</p>
-      )}
+      <ul>
+        {localTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+        {equipmentTarget.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+      </ul>
       <div className="button-row">
-        {matched ? (
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopyWishlistInsight}>
-            复制命中结论
-          </button>
-        ) : null}
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopyTargetInsight}>
+          复制命中结论
+        </button>
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
       </div>
-      <small>{equipmentTarget.matched ? equipmentTarget.disclaimer : localTarget.matched ? localTarget.disclaimer : wishlist.disclaimer}</small>
+      <small>{equipmentTarget.matched ? equipmentTarget.disclaimer : localTarget.disclaimer}</small>
       <small>命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。</small>
     </section>
   );
 }
 
 function formatTargetMatchSources(input: {
-  wishlistMatched: boolean;
   localTargetMatched: boolean;
   equipmentTargetMatched: boolean;
-  hasImportedWishlist: boolean;
 }): string[] {
   const sources = [];
   if (input.localTargetMatched) {
@@ -289,9 +235,6 @@ function formatTargetMatchSources(input: {
   }
   if (input.equipmentTargetMatched) {
     sources.push("装备目标库");
-  }
-  if (input.wishlistMatched || input.hasImportedWishlist) {
-    sources.push("DIM 愿望单");
   }
   return sources.length ? sources : ["未命中"];
 }

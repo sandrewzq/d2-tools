@@ -42,6 +42,10 @@ try {
 try {
   process.stdout.write(JSON.stringify({
     searchHashes: index.search("item", ["Same Gun"], 10),
+    cappedSearchHashes: index.search("item", ["Same Gun"], 2),
+    exactNameHashes: index.getItemHashesByExactName(["Same Gun"]),
+    normalizedExactNameHashes: index.getItemHashesByExactName(["  same gun "]),
+    missingNameHashes: index.getItemHashesByExactName(["No Such Gun"]),
     duplicateVersionHashes: index.getItemVersionHashes([100], 10),
     canonicalVersionHashes: index.getItemVersionHashes([101], 10),
     separateBucketHashes: index.getItemVersionHashes([300], 10),

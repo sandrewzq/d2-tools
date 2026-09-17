@@ -83,7 +83,7 @@ describe("community perk recommendations", () => {
         { item_hash: 123, perk_hashes: [11, 33], mode: "pvp", note: "" },
         { item_hash: 456, perk_hashes: [44], mode: "general", note: "" }
       ]
-    });
+    }, { name: "Test Picks", mode: "create" });
 
     const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
     const result = await service.getRecommendations(123, { item_name: "Test Weapon", itemDefinitions });
@@ -115,7 +115,7 @@ describe("community perk recommendations", () => {
     saveDimWishlist(dir, {
       title: "Test Picks",
       rules: [{ item_hash: 999, perk_hashes: [11], mode: "general", note: "" }]
-    });
+    }, { name: "Test Picks", mode: "create" });
 
     const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
     const result = await service.getRecommendations(123, {});
@@ -130,7 +130,7 @@ describe("community perk recommendations", () => {
         { item_hash: 123, perk_hashes: [11, 22], mode: "pve", note: "" },
         { item_hash: 123, perk_hashes: [11, 33], mode: "pvp", note: "" }
       ]
-    });
+    }, { name: "Test Picks", mode: "create" });
 
     const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
     const matches = await service.matchVaultItemInstances([
@@ -138,11 +138,11 @@ describe("community perk recommendations", () => {
       { hash: 123, instance_id: "b", socket_plugs: [{ hash: 11 }, { hash: 33 }] },
       { hash: 123, instance_id: "c", socket_plugs: [{ hash: 11 }] }
     ], { itemDefinitions });
-    const dimSources = (index: number) => (matches[index]?.source_matches ?? [])
-      .filter((source) => source.source_id.startsWith("dim:"));
+    // 事实层不带来源格式判别位，夹具里只有刚导入的那一份来源，直接看全部来源事实。
+    const sourcesOf = (index: number) => matches[index]?.source_matches ?? [];
 
-    expect(dimSources(0).some((source) => source.matched_requirement_count === 2)).toBe(true);
-    expect(dimSources(1).some((source) => source.matched_requirement_count === 1)).toBe(true);
+    expect(sourcesOf(0).some((source) => source.matched_requirement_count === 2)).toBe(true);
+    expect(sourcesOf(1).some((source) => source.matched_requirement_count === 1)).toBe(true);
   });
 
 
@@ -164,7 +164,6 @@ describe("community perk recommendations", () => {
           label: "Perk 1",
           candidate_names: ["目标 Perk"],
           candidates: [{ hash: 11, name: "目标 Perk" }],
-          unresolved_candidate_names: []
         }]
       }]
     }));
@@ -181,7 +180,6 @@ describe("community perk recommendations", () => {
           label: "Perk 2",
           candidate_names: ["DIM Perk"],
           candidates: [{ hash: 22, name: "DIM Perk" }],
-          unresolved_candidate_names: []
         }]
       }]
     }));
@@ -228,7 +226,7 @@ describe("community perk recommendations", () => {
       rules: [
         { item_hash: 123, perk_hashes: [11, 22], mode: "pve", note: "" }
       ]
-    });
+    }, { name: "Test Picks", mode: "create" });
 
     const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
     const matches = await service.matchVaultItems(
@@ -249,7 +247,7 @@ describe("community perk recommendations", () => {
     saveDimWishlist(dir, {
       title: "Enhanced Picks",
       rules: [{ item_hash: 123, perk_hashes: [33], mode: "pve", note: "" }]
-    });
+    }, { name: "Enhanced Picks", mode: "create" });
     const definitions: DefinitionComponentData = {
       "33": { hash: 33, itemTypeDisplayName: "特性", plug: { plugCategoryIdentifier: "frames" }, displayProperties: { name: "连锁反应", description: "基础特性" } },
       "44": { hash: 44, itemTypeDisplayName: "强化特征", plug: { plugCategoryIdentifier: "frames" }, displayProperties: { name: "连锁反应", description: "强化特性" } },
@@ -267,7 +265,7 @@ describe("community perk recommendations", () => {
       [{ hash: 123, instance_id: "enhanced-1", socket_plugs: [{ hash: 44, name: "连锁反应" }] }],
       { itemDefinitions: definitions }
     );
-    const enhancedSource = enhanced[0]?.source_matches?.find((source) => source.source_id.startsWith("dim:"));
+    const enhancedSource = enhanced[0]?.source_matches?.[0];
     expect(enhancedSource?.state).toBe("full");
     expect(enhancedSource?.slots
       .filter((slot) => slot.state !== "source_not_specified")
@@ -277,7 +275,7 @@ describe("community perk recommendations", () => {
       [{ hash: 123, instance_id: "other-1", socket_plugs: [{ hash: 55, name: "金中藏弹" }] }],
       { itemDefinitions: definitions }
     );
-    const unrelatedSource = unrelated[0]?.source_matches?.find((source) => source.source_id.startsWith("dim:"));
+    const unrelatedSource = unrelated[0]?.source_matches?.[0];
     expect(unrelatedSource?.slots
       .filter((slot) => slot.state !== "source_not_specified")
       .map((slot) => slot.state)).toEqual(["different"]);
@@ -318,7 +316,7 @@ describe("community perk recommendations", () => {
     saveDimWishlist(dir, {
       title: "Available Picks",
       rules: [{ item_hash: 1, perk_hashes: [1], mode: "general", note: "" }]
-    });
+    }, { name: "Available Picks", mode: "create" });
 
     const source = createDimWishlistSources(dir)[0];
     expect(source.isAvailable({ data: { data_dir: dir } })).toBe(true);
@@ -340,7 +338,6 @@ describe("community perk recommendations", () => {
           label: "Perk 1",
           candidate_names: ["Voltshot"],
           candidates: [{ hash: 11, name: "Voltshot" }],
-          unresolved_candidate_names: []
         }]
       }]
     }));

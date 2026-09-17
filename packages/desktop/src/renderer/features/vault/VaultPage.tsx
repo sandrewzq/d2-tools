@@ -83,14 +83,6 @@ export function VaultPage(props: {
     api.listRecommendationRules(sourceKey, query)
   ), []);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
-    save: async (wishlist) => {
-      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, wishlist);
-      const saved = await api.saveDimWishlist(wishlist);
-      props.onWishlistChanged(await api.getDimWishlist());
-      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
-      return saved;
-    },
     clear: async () => {
       const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist);
       await api.clearDimWishlist();
@@ -98,30 +90,22 @@ export function VaultPage(props: {
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
       await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
     },
+    listRecommendationDocuments: () => api.listRecommendationDocuments(),
     selectDimFile: () => api.selectDimWishlistFile(),
-    confirmDimImport: async (token) => {
-      const saved = await api.confirmDimWishlistImport(token);
+    readWishlistLink: (url) => api.readDimWishlistLink(url),
+    confirmDimImport: async (token, target) => {
+      const saved = await api.confirmDimWishlistImport(token, target);
       const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, saved);
       props.onWishlistChanged(await api.getDimWishlist());
       props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
       await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
       return saved;
     },
-    getDimOnlineStatus: () => api.getDimWishlistOnlineStatus(),
-    checkDimOnlineUpdate: () => api.checkDimWishlistOnlineUpdate(),
-    confirmDimOnlineUpdate: async (token) => {
-      const result = await api.confirmDimWishlistOnlineUpdate(token);
-      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist, result.wishlist);
-      props.onWishlistChanged(await api.getDimWishlist());
-      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
-      return result;
-    },
     exportKnowledgeTemplate: (language) => api.exportWeaponKnowledgeCsvTemplate(language),
     exportKnowledgeCsv: () => api.exportWeaponKnowledgePlayerCsv(),
     selectKnowledgeCsv: () => api.selectWeaponKnowledgeCsv(),
-    confirmKnowledgeImport: async (token) => {
-      const imported = await api.confirmWeaponKnowledgeCsvImport(token);
+    confirmKnowledgeImport: async (token, target) => {
+      const imported = await api.confirmWeaponKnowledgeCsvImport(token, target);
       await props.onCommunityRecommendationsChanged();
       return imported;
     },
@@ -129,8 +113,8 @@ export function VaultPage(props: {
     listRecommendationRules,
     setRecommendationSourceState: async (sourceKey, state) => {
       const snapshot = await api.setRecommendationSourceState(sourceKey, state);
-      // DIM 来源包含旧聚合键 dim_wishlist 和文档级 dim:<documentKey>，两者都会影响愿望单。
-      if (sourceKey.startsWith("dim:")) {
+      // 变更是否落在导入文档托管的来源上由服务给出，视图层不认来源键的写法。
+      if (snapshot.stored_source_changed) {
         props.onWishlistChanged(await api.getDimWishlist());
         if (state === "removed") {
           props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
@@ -144,8 +128,8 @@ export function VaultPage(props: {
       await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
       return snapshot;
     },
-    clearCuratedRecommendationDataset: async () => {
-      const snapshot = await api.clearCuratedRecommendationDataset();
+    clearImportedRecommendationRules: async () => {
+      const snapshot = await api.clearImportedRecommendationRules();
       await Promise.resolve(props.onCommunityRecommendationsChanged(snapshot.affected_weapon_hashes)).catch(() => undefined);
       return snapshot;
     }

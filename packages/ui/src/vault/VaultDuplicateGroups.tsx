@@ -26,7 +26,7 @@ import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
-import { isDimRecommendationSource, presentRecommendationSlotMatch } from "../recommendationMatchView.js";
+import { presentRecommendationSlotMatch } from "../recommendationMatchView.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
 import {
   displayVaultRecommendationSourceLabel,
@@ -882,17 +882,16 @@ function buildDuplicateSourceOptions(
   for (const item of items) {
     const sourceSummaries = recommendationSummaryByInstance?.get(getVaultCommunityInstanceKey(item)) ?? [];
     for (const source of sourceSummaries) {
-      if (isDimRecommendationSource(source.sourceId)) continue;
       if (options.has(source.sourceId)) continue;
       options.set(source.sourceId, {
         sourceId: source.sourceId,
-        sourceLabel: displayVaultRecommendationSourceLabel(source.sourceId, source.sourceLabel)
+        sourceLabel: displayVaultRecommendationSourceLabel(source.sourceLabel)
       });
     }
   }
+  // 所有来源同级：按来源名排序，不再按来源类型或写死顺序排权重。
   return [...options.values()].sort((left, right) => (
-    duplicateSourceOrder(left.sourceId) - duplicateSourceOrder(right.sourceId)
-    || left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN")
+    left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN")
   ));
 }
 
@@ -950,22 +949,12 @@ function sourceMatchForItem(
 function sourceCandidateNames(slot: RecommendationSourceSlotMatch): string[] {
   return uniqueText([
     ...slot.source_candidate_names,
-    ...slot.source_candidates.map((candidate) => candidate.name),
-    ...slot.unresolved_source_candidate_names
+    ...slot.source_candidates.map((candidate) => candidate.name)
   ]);
 }
 
 function uniqueText(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
-}
-
-function duplicateSourceOrder(sourceId: string): number {
-  if (sourceId === "aegis") return 0;
-  if (sourceId === "lgpig") return 1;
-  if (sourceId === "yxcrallxy") return 2;
-  if (sourceId === "sayalarry") return 3;
-  if (isDimRecommendationSource(sourceId)) return 4;
-  return 99;
 }
 
 function weaponRollSockets(item: AccountItemSummary): DuplicateRollSocket[] {

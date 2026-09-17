@@ -4,6 +4,14 @@ export type GameDataSearchKind = "item" | "perk";
 
 export type GameDataSearchIndex = {
   search(kind: GameDataSearchKind, terms: Iterable<string>, limit: number): number[];
+  /**
+   * 按**精确官方名**取该名字下的全部装备 hash（同名武器的所有官方版本都在内）。
+   *
+   * 与 `search` 的区别是「搜索」和「身份」的区别：`search` 有排序、有上限，而且
+   * `getItemVersionHashes` 只返回同一把武器的**代表版本**——拿它当「这个名字对应哪些官方版本」用，
+   * 会漏掉被折叠的版本、也会被同名装备挤掉榜尾。要判定一份人工表格写没写错，必须拿全集。
+   */
+  getItemHashesByExactName(names: Iterable<string>): number[];
   getItemVersionHashes(itemHashes: Iterable<number>, limit: number): number[];
   getWeaponIdentityRelations(itemHashes: Iterable<number>): WeaponIdentityRelation[];
   getRelatedItemSummary(perkHashes: Iterable<number>): { total: number; hashes: number[] };

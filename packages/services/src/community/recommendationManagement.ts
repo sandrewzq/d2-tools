@@ -1,9 +1,16 @@
 import type { DatabaseSync } from "node:sqlite";
+import { openRecommendationDatabase } from "./recommendationDatabase.js";
 import {
-  openRecommendationDatabase,
-  recommendationMetadataValue,
-  writeRecommendationMetadata
-} from "./recommendationDatabase.js";
+  readRecommendationRuleItemHashes,
+  readRecommendationRuleRequirements,
+  type RecommendationStoredRequirement
+} from "./recommendationRuleStore.js";
+import {
+  clearRecommendationDocuments,
+  listRecommendationDocuments,
+  listRecommendationDocumentsFrom,
+  recommendationDocumentRevision
+} from "./recommendationDocumentStore.js";
 import {
   recommendationSourceState,
   setRecommendationRuleState,
@@ -12,24 +19,26 @@ import {
   type RecommendationSourceState
 } from "./recommendationOverrides.js";
 
-const managedSources = [
-  { source_key: "aegis", label: "Aegis推荐", kind: "curated" },
-  { source_key: "lgpig", label: "LGpig推荐", kind: "curated" },
-  { source_key: "yxcrallxy", label: "YXCRALLXY推荐表", kind: "curated" },
-  { source_key: "sayalarry", label: "Sayalarry推荐表", kind: "curated" },
-] as const;
-
 export type RecommendationManagedSource = {
   source_key: string;
   label: string;
-  kind: "curated" | "dim";
   state: RecommendationSourceState;
   configured: boolean;
   rule_count: number;
   weapon_count: number;
   revision: string;
   imported_at: string;
+  /** 这份来源当初从哪个链接读来的；本地文件导入没有链接，管理面也就没有「同步」。 */
+  source_url?: string;
   affected_instance_count?: number;
+  /**
+   * 这一行在**事实层**登记过的全部键：它自己的分组键，外加它下辖每个来源实例的键。
+   *
+   * 管理面一次导入是一行（分组键），事实层按具名来源登记（实例键），两者天然不等。
+   * 消费层要拿管理面的键去看来源事实，必须先按这份对应关系把事实归队；
+   * 少了它，白名单就会因为两个键不相等而把事实全部滤掉（仓库勾选来源后整页 0 件）。
+   */
+  fact_keys: string[];
 };
 
 export type RecommendationManagedRule = {
@@ -48,80 +57,152 @@ export type RecommendationManagedRule = {
   affected_instance_count?: number;
 };
 
+/**
+ * 「清空已导入的推荐规则」这个动作的对象摘要。
+ *
+ * 动作只作用于**规则导入**（人工 CSV）那一类来源，不碰愿望单、不碰账号数据——这是动作的语义，
+ * 由存储层按来源格式算出来。UI 因此不需要认识任何来源身份，只负责展示与确认。
+ */
+export type RecommendationRuleClearance = {
+  configured: boolean;
+  source_count: number;
+  rule_count: number;
+};
+
 export type RecommendationManagementSnapshot = {
-  curated_revision: string;
-  dim_revision: string;
+  /** 全部推荐事实的修订。改动推荐数据后匹配缓存按它失效，与来源格式无关。 */
+  revision: string;
   sources: RecommendationManagedSource[];
   removed_rules: RecommendationManagedRule[];
+  clear_rule_imports: RecommendationRuleClearance;
   affected_weapon_hashes?: number[];
+  /**
+   * 本次操作改动的来源是否由导入文档托管。只有变更入口会设置它，
+   * 供愿望单派生的下游（装备目标）判断是否需要联动——消费方因此不必认识来源键的写法。
+   */
+  stored_source_changed?: boolean;
 };
+
+/**
+ * 存储层的来源身份索引。
+ *
+ * 来源属于哪一类只由「它住在哪张表」决定：文档级来源在 `recommendation_documents`，
+ * 实例级来源在 `recommendation_source_instances`。键的写法不携带类型信息，
+ * 服务层因此不需要解析任何前缀。
+ *
+ * - `groupKey`：同一份来源的全部实例共用的键。实例级来源取所属文档的键，文档级来源取自己。
+ *   筛选与选项用分组键，消费层据此合并同一份来源的多个实例。
+ * - `sourceId`：启用 / 停用 / 移除覆盖所用的键，文档级与实例级是两个不同的键。
+ */
+type StoredSourceIdentity = { sourceId: string; groupKey: string };
+
+type StoredSourceIndex = {
+  documents: Map<string, StoredSourceIdentity>;
+  instances: Map<string, StoredSourceIdentity>;
+};
+
+function loadStoredSourceIndex(database: DatabaseSync): StoredSourceIndex {
+  const documents = new Map<string, StoredSourceIdentity>();
+  const instances = new Map<string, StoredSourceIdentity>();
+  const documentRows = database.prepare(
+    "SELECT document_id FROM recommendation_documents"
+  ).all() as Array<{ document_id: string }>;
+  for (const row of documentRows) {
+    documents.set(row.document_id, { sourceId: row.document_id, groupKey: row.document_id });
+  }
+  const instanceRows = database.prepare(
+    "SELECT source_id, document_id FROM recommendation_source_instances"
+  ).all() as Array<{ source_id: string; document_id: string }>;
+  for (const row of instanceRows) {
+    instances.set(row.source_id, { sourceId: row.source_id, groupKey: row.document_id });
+  }
+  return { documents, instances };
+}
+
+function storedSourceIdentity(index: StoredSourceIndex, sourceKey: string): StoredSourceIdentity | undefined {
+  return index.documents.get(sourceKey) ?? index.instances.get(sourceKey);
+}
+
+/** 文档级来源覆盖其下全部实例，因此清理覆盖状态时要展开成文档键 + 全部实例键。 */
+function storedSourceKeysFor(index: StoredSourceIndex, identity: StoredSourceIdentity): string[] {
+  if (identity.sourceId !== identity.groupKey) return [identity.sourceId];
+  return [
+    identity.sourceId,
+    ...[...index.instances.values()]
+      .filter((entry) => entry.groupKey === identity.groupKey)
+      .map((entry) => entry.sourceId)
+  ];
+}
 
 export function readRecommendationManagementSnapshot(dataDir: string): RecommendationManagementSnapshot {
   const database = openRecommendationDatabase(dataDir);
   try {
-    const curatedRevision = recommendationMetadataValue(database, "dataset_revision");
-    const importedAt = recommendationMetadataValue(database, "imported_at");
-    const curatedRows = database.prepare(`
-      SELECT s.source_key, s.label, COUNT(DISTINCT r.id) AS rule_count,
-             COUNT(DISTINCT item.item_hash) AS weapon_count
-      FROM recommendation_sources s
-      LEFT JOIN weapon_recommendations r ON r.source_id = s.id
-      LEFT JOIN weapon_recommendation_item_ids item ON item.recommendation_id = r.id
-      GROUP BY s.source_key, s.label
-    `).all() as Array<{ source_key: string; label: string; rule_count: number; weapon_count: number }>;
-    const dimSet = database.prepare(`
-      SELECT MAX(d.imported_at) AS imported_at, MAX(d.fingerprint) AS revision
-      FROM recommendation_documents d
-      WHERE d.document_id LIKE 'dim-document:%'
-    `).get() as { imported_at: string; revision: string } | undefined;
-    const sources: RecommendationManagedSource[] = curatedRows.map((row) => ({
-      source_key: row.source_key,
-      label: row.label,
-      kind: "curated" as const,
-      state: recommendationSourceState(database, row.source_key),
-      configured: true,
-      rule_count: Number(row.rule_count ?? 0),
-      weapon_count: Number(row.weapon_count ?? 0),
-      revision: curatedRevision,
-      imported_at: importedAt
-    }));
+    // 事实层的键要按存储里真实存在的实例算，不能按前缀拼——键的写法不携带类型信息。
+    const sourceIndex = loadStoredSourceIndex(database);
     const storedInstances = database.prepare(`
       SELECT s.document_id, d.title AS document_title, d.author AS document_author,
              MAX(s.revision) AS revision, MAX(s.fingerprint) AS fingerprint,
-             MAX(d.imported_at) AS imported_at,
-             COUNT(r.rule_id) AS rule_count,
-             COUNT(DISTINCT r.item_hash) AS weapon_count
+             MAX(d.imported_at) AS imported_at, MAX(d.source_url) AS source_url,
+             COUNT(DISTINCT r.rule_id) AS rule_count,
+             COUNT(DISTINCT item.item_hash) AS weapon_count
       FROM recommendation_source_instances s
       JOIN recommendation_documents d ON d.document_id = s.document_id
       LEFT JOIN recommendation_source_rules r ON r.source_id = s.source_id
-      WHERE s.kind = 'dim' AND s.state <> 'removed'
+      LEFT JOIN recommendation_source_rule_items item
+        ON item.source_id = r.source_id AND item.rule_id = r.rule_id
       GROUP BY s.document_id, d.title, d.author
       ORDER BY imported_at, s.document_id
-    `).all() as Array<{ document_id: string; document_title: string; document_author: string; revision: string; fingerprint: string; imported_at: string; rule_count: number; weapon_count: number }>;
-    // 一个 DIM 导入文档是一个与人工 CSV 平级的可管理来源；作者 / block 只在详情中展示。
-    sources.push(...storedInstances.map((row) => {
-      const sourceKey = `dim:${row.document_id.slice("dim-document:".length)}`;
-      return {
-        source_key: sourceKey,
-        label: row.document_title || "DIM Wishlist",
-        kind: "dim" as const,
-        state: recommendationSourceState(database, sourceKey),
-        configured: true,
-        rule_count: Number(row.rule_count ?? 0),
-        weapon_count: Number(row.weapon_count ?? 0),
-        revision: row.revision || row.fingerprint,
-        imported_at: row.imported_at
-      };
+    `).all() as Array<{
+      document_id: string;
+      document_title: string;
+      document_author: string;
+      revision: string;
+      fingerprint: string;
+      imported_at: string;
+      source_url: string;
+      rule_count: number;
+      weapon_count: number;
+    }>;
+    // 一份导入文档是一个可管理来源，来源键就是存储层的 document_id；
+    // 文档名由用户给，作者与 block 只在详情中展示。
+    // 链接也是文档级属性：来源当初从哪个链接读来，就由它决定这一行有没有「同步」。
+    const sources: RecommendationManagedSource[] = storedInstances.map((row) => ({
+      source_key: row.document_id,
+      label: row.document_title || "",
+      state: recommendationSourceState(database, row.document_id),
+      configured: true,
+      rule_count: Number(row.rule_count ?? 0),
+      weapon_count: Number(row.weapon_count ?? 0),
+      revision: row.revision || row.fingerprint,
+      imported_at: row.imported_at,
+      ...(row.source_url ? { source_url: row.source_url } : {}),
+      fact_keys: storedSourceKeysFor(sourceIndex, {
+        sourceId: row.document_id,
+        groupKey: row.document_id
+      })
     }));
     return {
-      curated_revision: curatedRevision,
-      dim_revision: dimSet?.revision ?? "",
+      revision: recommendationDocumentRevision(dataDir),
       sources,
-      removed_rules: listRecommendationRulesFromDatabase(database, undefined, "removed")
+      removed_rules: listRecommendationRulesFromDatabase(database, undefined, "removed"),
+      clear_rule_imports: readRuleClearance(dataDir)
     };
   } finally {
     database.close();
   }
+}
+
+/**
+ * 「清空已导入的推荐规则」的对象摘要。范围是规则导入（人工 CSV）这一格式的来源；
+ * 判定只在这里做一次，消费方拿到的就是「能不能清、会清掉多少」。
+ */
+function readRuleClearance(dataDir: string): RecommendationRuleClearance {
+  const documents = listRecommendationDocuments(dataDir, "csv");
+  return {
+    configured: documents.length > 0,
+    source_count: documents.length,
+    rule_count: documents.reduce((count, document) => count + document.ruleCount, 0)
+  };
 }
 
 export function listRecommendationManagedRules(
@@ -153,9 +234,11 @@ export function updateRecommendationManagedSource(
   state: RecommendationSourceState
 ): RecommendationManagementSnapshot {
   assertManagedSource(dataDir, sourceKey);
+  // 删除会连同来源键一起消失，所以先问清楚它是不是存储层托管的来源。
+  const storedSourceChanged = isStoredSource(dataDir, sourceKey);
   if (state === "removed") removeSourceDataset(dataDir, sourceKey);
   else setRecommendationSourceState(dataDir, sourceKey, state);
-  return readRecommendationManagementSnapshot(dataDir);
+  return { ...readRecommendationManagementSnapshot(dataDir), stored_source_changed: storedSourceChanged };
 }
 
 export function updateRecommendationManagedRule(
@@ -173,22 +256,22 @@ export function updateRecommendationManagedRule(
   return readRecommendationManagementSnapshot(dataDir);
 }
 
-export function clearCuratedRecommendationDataset(dataDir: string): RecommendationManagementSnapshot {
+/**
+ * 清空规则导入（人工 CSV）那一类来源：整份删除文档，规则随外键级联消失。
+ *
+ * 覆盖表没有外键，所以先按「文档键 + 其下全部实例键」逐键删覆盖行——
+ * 与逐条移除来源走的是同一套键展开（`storedSourceKeysFor`）。
+ */
+export function clearImportedRecommendationRules(dataDir: string): RecommendationManagementSnapshot {
   const database = openRecommendationDatabase(dataDir);
   database.exec("BEGIN IMMEDIATE;");
   try {
-    database.exec(`
-      DELETE FROM weapon_recommendation_perks;
-      DELETE FROM weapon_recommendation_purposes;
-      DELETE FROM weapon_recommendation_item_ids;
-      DELETE FROM weapon_recommendations;
-      DELETE FROM recommendation_sources;
-    `);
-    for (const key of [
-      "schema_version", "source_fingerprint", "imported_at",
-      "semantic_validation_version", "validated_manifest_version", "dataset_revision"
-    ]) writeRecommendationMetadata(database, key, "");
-    writeRecommendationMetadata(database, "curated_dataset_state", `cleared:${new Date().toISOString()}`);
+    const index = loadStoredSourceIndex(database);
+    // 用已持有连接的版本：这里正处在 `BEGIN IMMEDIATE` 里，再 open 一次会自己等自己。
+    for (const document of listRecommendationDocumentsFrom(database, "csv")) {
+      const identity = storedSourceIdentity(index, document.documentId);
+      if (identity) deleteOverrideRows(database, storedSourceKeysFor(index, identity));
+    }
     database.exec("COMMIT;");
   } catch (error) {
     try { database.exec("ROLLBACK;"); } catch { /* 保留原始错误。 */ }
@@ -196,16 +279,8 @@ export function clearCuratedRecommendationDataset(dataDir: string): Recommendati
   } finally {
     database.close();
   }
+  clearRecommendationDocuments(dataDir, "csv");
   return readRecommendationManagementSnapshot(dataDir);
-}
-
-export function curatedRecommendationDatasetWasCleared(dataDir: string): boolean {
-  const database = openRecommendationDatabase(dataDir);
-  try {
-    return recommendationMetadataValue(database, "curated_dataset_state").startsWith("cleared:");
-  } finally {
-    database.close();
-  }
 }
 
 export function recommendationSourceItemHashes(dataDir: string, sourceKey: string): number[] {
@@ -222,53 +297,22 @@ export function recommendationSourceItemHashesBySource(
 
   const database = openRecommendationDatabase(dataDir);
   try {
-    const curatedKeys = requestedKeys.filter((sourceKey) => (
-      !sourceKey.startsWith("dim:")
-    ));
-    if (curatedKeys.length) {
-      const placeholders = curatedKeys.map(() => "?").join(", ");
-      const rows = database.prepare(`
-        SELECT DISTINCT s.source_key, item.item_hash
-        FROM weapon_recommendation_item_ids item
-        JOIN weapon_recommendations r ON r.id = item.recommendation_id
-        JOIN recommendation_sources s ON s.id = r.source_id
-        WHERE s.source_key IN (${placeholders})
-      `).all(...curatedKeys) as Array<{ source_key: string; item_hash: number }>;
-      for (const row of rows) hashesBySource.get(row.source_key)?.add(Number(row.item_hash));
-    }
-
-    const dimKeys = requestedKeys.filter((sourceKey) => sourceKey.startsWith("dim:"));
-    if (dimKeys.length) {
-      const placeholders = dimKeys.map(() => "?").join(", ");
-      const storedSources = database.prepare(`
-        SELECT source_id
-        FROM recommendation_source_instances
-        WHERE source_id IN (${placeholders})
-      `).all(...dimKeys) as Array<{ source_id: string }>;
-      // 文档级来源使用 dim:<documentKey>，规则实例使用 dim:<documentKey>:<blockKey>。
-      // 精确查询上面只覆盖实例 key，文档 key 通过前缀查询补齐。
-      for (const documentKey of dimKeys.filter(isDimDocumentSourceKey)) {
-        const rows = database.prepare(`
-          SELECT source_id
-          FROM recommendation_source_instances
-          WHERE source_id LIKE ?
-        `).all(`${documentKey}:%`) as Array<{ source_id: string }>;
-        storedSources.push(...rows);
-      }
-      const storedSourceIds = [...new Set(storedSources.map((row) => row.source_id))];
-      if (storedSourceIds.length) {
-        const storedPlaceholders = storedSourceIds.map(() => "?").join(", ");
-        const storedRows = database.prepare(`
-          SELECT DISTINCT source_id, item_hash
-          FROM recommendation_source_rules
-          WHERE source_id IN (${storedPlaceholders})
-        `).all(...storedSourceIds) as Array<{ source_id: string; item_hash: number }>;
-        for (const row of storedRows) {
-          const itemHash = Number(row.item_hash);
-          hashesBySource.get(row.source_id)?.add(itemHash);
-          hashesBySource.get(dimDocumentSourceKey(row.source_id))?.add(itemHash);
-        }
-      }
+    const placeholders = requestedKeys.map(() => "?").join(", ");
+    // 键属于文档还是实例由存储列决定：文档级键命中整份文档，实例级键只命中自己。
+    // 武器身份取规则声明的全部 hash（导入期展开的结果），与是否人工导入无关。
+    const storedRows = database.prepare(`
+      SELECT DISTINCT i.source_id AS source_id, d.document_id AS document_id, item.item_hash AS item_hash
+      FROM recommendation_source_instances i
+      JOIN recommendation_documents d ON d.document_id = i.document_id
+      JOIN recommendation_source_rules r ON r.source_id = i.source_id
+      JOIN recommendation_source_rule_items item
+        ON item.source_id = r.source_id AND item.rule_id = r.rule_id
+      WHERE i.source_id IN (${placeholders}) OR d.document_id IN (${placeholders})
+    `).all(...requestedKeys, ...requestedKeys) as Array<{ source_id: string; document_id: string; item_hash: number }>;
+    for (const row of storedRows) {
+      const itemHash = Number(row.item_hash);
+      hashesBySource.get(row.source_id)?.add(itemHash);
+      hashesBySource.get(row.document_id)?.add(itemHash);
     }
 
     return new Map([...hashesBySource].map(([sourceKey, hashes]) => [sourceKey, [...hashes]]));
@@ -281,21 +325,18 @@ function removeSourceDataset(dataDir: string, sourceKey: string): void {
   const database = openRecommendationDatabase(dataDir);
   database.exec("BEGIN IMMEDIATE;");
   try {
-    if (sourceKey.startsWith("dim:")) {
-      const documentId = "dim-document:" + sourceKey.slice("dim:".length);
-      database.prepare("DELETE FROM recommendation_rule_overrides WHERE source_key = ? OR source_key LIKE ?").run(sourceKey, sourceKey + ":%");
-      database.prepare("DELETE FROM recommendation_source_rules WHERE source_id IN (SELECT source_id FROM recommendation_source_instances WHERE document_id = ?)").run(documentId);
-      database.prepare("DELETE FROM recommendation_source_instances WHERE document_id = ?").run(documentId);
-      database.prepare("DELETE FROM recommendation_documents WHERE document_id = ?").run(documentId);
-      const remainingDocuments = database.prepare("SELECT COUNT(*) AS count FROM recommendation_documents WHERE document_id LIKE 'dim-document:%'").get() as { count?: number };
-      if (!Number(remainingDocuments.count ?? 0)) {
-        database.prepare("DELETE FROM external_recommendation_sets WHERE source_kind = 'dim_wishlist'").run();
-      }
+    const index = loadStoredSourceIndex(database);
+    const stored = storedSourceIdentity(index, sourceKey);
+    // 调用前已由 `assertManagedSource` 确认来源住在存储里，所以这里没有第二分支。
+    if (!stored) return;
+    // 删除文档 / 实例行即可级联清掉规则。覆盖表没有外键，
+    // 因此按「文档键 + 其下全部实例键」逐键展开删除。
+    deleteOverrideRows(database, storedSourceKeysFor(index, stored));
+    if (stored.sourceId === stored.groupKey) {
+      database.prepare("DELETE FROM recommendation_documents WHERE document_id = ?").run(stored.sourceId);
     } else {
-      database.prepare("DELETE FROM recommendation_rule_overrides WHERE source_key = ?").run(sourceKey);
-      database.prepare("DELETE FROM recommendation_sources WHERE source_key = ?").run(sourceKey);
+      database.prepare("DELETE FROM recommendation_source_instances WHERE source_id = ?").run(stored.sourceId);
     }
-    database.prepare("DELETE FROM recommendation_source_overrides WHERE source_key = ? OR source_key LIKE ?").run(sourceKey, sourceKey + ":%");
     database.exec("COMMIT;");
   } catch (error) {
     try { database.exec("ROLLBACK;"); } catch { /* 保留原始错误。 */ }
@@ -305,24 +346,31 @@ function removeSourceDataset(dataDir: string, sourceKey: string): void {
   }
 }
 
+function deleteOverrideRows(database: DatabaseSync, sourceKeys: readonly string[]): void {
+  const keys = [...new Set(sourceKeys)];
+  if (!keys.length) return;
+  const placeholders = keys.map(() => "?").join(", ");
+  database.prepare(`DELETE FROM recommendation_rule_overrides WHERE source_key IN (${placeholders})`).run(...keys);
+  database.prepare(`DELETE FROM recommendation_source_overrides WHERE source_key IN (${placeholders})`).run(...keys);
+}
+
 function listRecommendationRulesFromDatabase(
   database: DatabaseSync,
   sourceKey: string | undefined,
   state: "all" | "removed"
 ): RecommendationManagedRule[] {
+  const index = loadStoredSourceIndex(database);
   const overrides = listRuleOverrides(database);
   if (state === "removed") {
     return listRecommendationRuleOverridesFromRows(overrides)
       .filter((entry) => entry.state === "removed")
-      .map((entry) => currentRuleForOverride(database, entry) ?? missingRuleForOverride(entry))
+      .map((entry) => currentRuleForOverride(database, index, entry) ?? missingRuleForOverride(entry))
       .sort(compareRules);
   }
   const overridesByKey = new Map(overrides.map((entry) => [overrideKey(entry.source_key, entry.rule_stable_id), entry]));
-  const curated = curatedRules(database, sourceKey).map((rule) => withOverride(rule, overridesByKey));
-  const dim = (!sourceKey || sourceKey.startsWith("dim:"))
-    ? dimRules(database, sourceKey).map((rule) => withOverride(rule, overridesByKey))
-    : [];
-  return [...curated, ...dim].sort(compareRules);
+  return storedRules(database, index, sourceKey)
+    .map((rule) => withOverride(rule, overridesByKey))
+    .sort(compareRules);
 }
 
 type RuleOverrideRow = ReturnType<typeof listRuleOverrides>[number];
@@ -347,94 +395,59 @@ function listRecommendationRuleOverridesFromRows(rows: RuleOverrideRow[]) {
 
 function currentRuleForOverride(
   database: DatabaseSync,
+  index: StoredSourceIndex,
   override: ReturnType<typeof listRecommendationRuleOverridesFromRows>[number]
 ): RecommendationManagedRule | null {
-  if (override.source_key.startsWith("dim:")) {
-    return dimRuleForOverride(database, override);
-  }
-  const row = database.prepare(`
-    SELECT r.id, r.weapon_name, r.note, s.label AS source_label
-    FROM weapon_recommendations r
-    JOIN recommendation_sources s ON s.id = r.source_id
-    WHERE s.source_key = ? AND r.rule_stable_id = ?
-  `).get(override.source_key, override.rule_stable_id) as {
-    id: number;
-    weapon_name: string;
-    note: string;
-    source_label: string;
-  } | undefined;
-  if (!row) return null;
-
-  const weaponHashes = (database.prepare(`
-    SELECT item_hash FROM weapon_recommendation_item_ids WHERE recommendation_id = ?
-  `).all(row.id) as Array<{ item_hash: number }>).map((entry) => Number(entry.item_hash));
-  const purposes = (database.prepare(`
-    SELECT purpose FROM weapon_recommendation_purposes WHERE recommendation_id = ?
-  `).all(row.id) as Array<{ purpose: "pve" | "pvp" | "general" }>).map((entry) => entry.purpose);
-  const perkRows = database.prepare(`
-    SELECT slot, perk_name
-    FROM weapon_recommendation_perks
-    WHERE recommendation_id = ?
-    ORDER BY slot, ordinal
-  `).all(row.id) as Array<{ slot: string; perk_name: string }>;
-  const requirementsBySlot = new Map<string, string[]>();
-  for (const perk of perkRows) {
-    requirementsBySlot.set(perk.slot, [...(requirementsBySlot.get(perk.slot) ?? []), perk.perk_name]);
-  }
-  return withOverride({
-    source_key: override.source_key,
-    source_label: row.source_label,
-    rule_stable_id: override.rule_stable_id,
-    weapon_hashes: weaponHashes,
-    weapon_name: row.weapon_name,
-    purposes: purposes.length ? purposes : ["general"],
-    requirements: [...requirementsBySlot].map(([slot, names]) => ({ slot, names })),
-    note: row.note,
-    state: "active",
-    review_required: false,
-    source_revision: recommendationMetadataValue(database, "dataset_revision"),
-    reason: ""
-  }, new Map([[overrideKey(override.source_key, override.rule_stable_id), {
-    ...override,
-    review_required: override.review_required ? 1 : 0
-  }]]));
+  return storedRuleForOverride(database, index, override);
 }
 
-function dimRuleForOverride(
+function storedRuleForOverride(
   database: DatabaseSync,
+  index: StoredSourceIndex,
   override: ReturnType<typeof listRecommendationRuleOverridesFromRows>[number]
 ): RecommendationManagedRule | null {
-  // 旧版 dim_wishlist 覆盖键按规则 ID 匹配任意 DIM 来源实例，其余按来源实例精确匹配。
-  const scopedToInstance = override.source_key.startsWith("dim:") && !isDimDocumentSourceKey(override.source_key);
+  // 实例级覆盖键只匹配该实例；文档级覆盖键匹配文档下的全部实例。
+  const identity = storedSourceIdentity(index, override.source_key);
+  const scopedToInstance = Boolean(identity && identity.sourceId !== identity.groupKey);
+  const documentId = identity?.groupKey;
   const stored = database.prepare(`
-    SELECT r.item_hash, r.mode, r.kind, r.perk_hashes, r.note, r.source_id,
+    SELECT r.item_hash, r.mode, r.kind, r.note, r.source_id,
            s.label, s.revision
     FROM recommendation_source_rules r
     JOIN recommendation_source_instances s ON s.source_id = r.source_id
-    WHERE r.rule_id = ? AND s.kind = 'dim'
-      ${scopedToInstance ? "AND r.source_id = ?" : ""}
+    WHERE r.rule_id = ?
+      ${scopedToInstance ? "AND r.source_id = ?" : documentId ? "AND s.document_id = ?" : ""}
     ORDER BY r.rowid
-  `).get(...(scopedToInstance ? [override.rule_stable_id, override.source_key] : [override.rule_stable_id])) as {
+  `).get(...(scopedToInstance ? [override.rule_stable_id, override.source_key]
+    : documentId ? [override.rule_stable_id, documentId]
+      : [override.rule_stable_id])) as {
     item_hash: number;
     mode: "pve" | "pvp" | "general";
     kind: "roll" | "weapon_only";
-    perk_hashes: string;
     note: string;
     source_id: string;
     label: string;
     revision: string;
   } | undefined;
   if (!stored) return null;
+  const requirements = readRecommendationRuleRequirements(
+    database,
+    stored.source_id,
+    [override.rule_stable_id]
+  ).get(override.rule_stable_id) ?? [];
+  const itemHashes = readRecommendationRuleItemHashes(
+    database,
+    stored.source_id,
+    [override.rule_stable_id]
+  ).get(override.rule_stable_id) ?? [Number(stored.item_hash)];
   return {
     source_key: stored.source_id,
     source_label: stored.label,
     rule_stable_id: override.rule_stable_id,
-    weapon_hashes: [Number(stored.item_hash)],
-    weapon_name: `武器 ${stored.item_hash}`,
+    weapon_hashes: itemHashes,
+    weapon_name: `武器 ${itemHashes[0]}`,
     purposes: [stored.mode],
-    requirements: stored.kind === "weapon_only"
-      ? []
-      : [{ slot: "DIM 完整组合", names: parseJsonStrings(stored.perk_hashes) }],
+    requirements: managedRequirements(requirements, stored.kind),
     note: stored.note,
     state: override.state,
     review_required: override.review_required,
@@ -448,7 +461,7 @@ function missingRuleForOverride(
 ): RecommendationManagedRule {
   return {
     source_key: entry.source_key,
-    source_label: managedSources.find((source) => source.source_key === entry.source_key)?.label ?? entry.source_key,
+    source_label: entry.source_key,
     rule_stable_id: entry.rule_stable_id,
     weapon_hashes: [],
     weapon_name: entry.review_required ? "原规则已变化，需要复核" : "当前数据中未找到原规则",
@@ -462,106 +475,67 @@ function missingRuleForOverride(
   };
 }
 
-function curatedRules(database: DatabaseSync, sourceKey?: string): RecommendationManagedRule[] {
+function storedRules(
+  database: DatabaseSync,
+  index: StoredSourceIndex,
+  sourceKey?: string
+): RecommendationManagedRule[] {
+  // 键属于文档还是实例由存储列决定：文档键取整份文档，实例键只取该实例。
+  const identity = sourceKey ? storedSourceIdentity(index, sourceKey) : undefined;
+  const scopedToInstance = Boolean(identity && identity.sourceId !== identity.groupKey);
   const rows = database.prepare(`
-    SELECT r.id, r.rule_stable_id, r.weapon_name, r.note, s.source_key, s.label AS source_label
-    FROM weapon_recommendations r
-    JOIN recommendation_sources s ON s.id = r.source_id
-    WHERE (? = '' OR s.source_key = ?)
-    ORDER BY r.weapon_name, r.id
-  `).all(sourceKey ?? "", sourceKey ?? "") as Array<{
-    id: number;
-    rule_stable_id: string;
-    weapon_name: string;
-    source_key: string;
-    source_label: string;
-    note: string;
-  }>;
-  const ids = new Set(rows.map((row) => row.id));
-  const hashes = groupRows(database.prepare(`
-    SELECT recommendation_id AS id, item_hash AS value
-    FROM weapon_recommendation_item_ids
-  `).all() as Array<{ id: number; value: number }>, ids, Number);
-  const purposes = groupRows(database.prepare(`
-    SELECT recommendation_id AS id, purpose AS value
-    FROM weapon_recommendation_purposes
-  `).all() as Array<{ id: number; value: string }>, ids, String);
-  const perkRows = database.prepare(`
-    SELECT recommendation_id AS id, slot, perk_name
-    FROM weapon_recommendation_perks
-    ORDER BY recommendation_id, slot, ordinal
-  `).all() as Array<{ id: number; slot: string; perk_name: string }>;
-  const requirements = new Map<number, Map<string, string[]>>();
-  for (const row of perkRows) {
-    if (!ids.has(row.id)) continue;
-    const bySlot = requirements.get(row.id) ?? new Map<string, string[]>();
-    bySlot.set(row.slot, [...(bySlot.get(row.slot) ?? []), row.perk_name]);
-    requirements.set(row.id, bySlot);
-  }
-  return rows.map((row) => ({
-    source_key: row.source_key,
-    source_label: row.source_label,
-    rule_stable_id: row.rule_stable_id,
-    weapon_hashes: hashes.get(row.id) ?? [],
-    weapon_name: row.weapon_name,
-    purposes: (purposes.get(row.id) ?? ["general"]) as Array<"pve" | "pvp" | "general">,
-    requirements: [...(requirements.get(row.id) ?? [])].map(([slot, names]) => ({ slot, names })),
-    note: row.note,
-    state: "active",
-    review_required: false,
-    source_revision: recommendationMetadataValue(database, "dataset_revision"),
-    reason: ""
-  }));
-}
-
-function dimRules(database: DatabaseSync, sourceKey?: string): RecommendationManagedRule[] {
-  // DIM 规则只来自新模型：dim:<documentKey> 取整个文档，dim:<documentKey>:<identity> 取单个来源实例。
-  const scoped = Boolean(sourceKey?.startsWith("dim:"));
-  const documentSource = scoped && isDimDocumentSourceKey(sourceKey as string);
-  const rows = database.prepare(`
-    SELECT r.rule_id, r.item_hash, r.mode, r.kind, r.perk_hashes, r.note,
+    SELECT r.rule_id, r.item_hash, r.mode, r.kind, r.note,
            s.source_id,
            s.label, s.revision
     FROM recommendation_source_rules r
     JOIN recommendation_source_instances s ON s.source_id = r.source_id
-    WHERE s.kind = 'dim'
-      ${scoped ? (documentSource ? "AND r.source_id LIKE ?" : "AND r.source_id = ?") : ""}
+    ${scopedToInstance ? "WHERE r.source_id = ?" : identity ? "WHERE s.document_id = ?" : ""}
     ORDER BY r.rowid
-  `).all(...(scoped ? [documentSource ? `${sourceKey}:%` : (sourceKey as string)] : [])) as Array<{
+  `).all(...(scopedToInstance ? [identity!.sourceId] : identity ? [identity.groupKey] : [])) as Array<{
     source_id: string;
     rule_id: string;
     item_hash: number;
     mode: "pve" | "pvp" | "general";
     kind: "roll" | "weapon_only";
-    perk_hashes: string;
     note: string;
     label: string;
     revision: string;
   }>;
-  return rows.map((row) => ({
-    source_key: row.source_id,
-    source_label: row.label,
-    rule_stable_id: row.rule_id,
-    weapon_hashes: [Number(row.item_hash)],
-    weapon_name: `武器 ${row.item_hash}`,
-    purposes: [row.mode],
-    requirements: row.kind === "weapon_only" ? [] : [{ slot: "DIM 完整组合", names: parseJsonStrings(row.perk_hashes) }],
-    note: row.note,
-    state: "active",
-    review_required: false,
-    source_revision: row.revision,
-    reason: ""
-  }));
-}
-
-function isDimDocumentSourceKey(sourceKey: string): boolean {
-  return /^dim:[^:]+$/u.test(sourceKey);
-}
-
-function dimDocumentSourceKey(sourceKey: string): string {
-  if (!sourceKey.startsWith("dim:")) return sourceKey;
-  const [, documentKey] = sourceKey.split(":");
-  return documentKey ? `dim:${documentKey}` : sourceKey;
+  const ruleIdsBySource = new Map<string, string[]>();
+  for (const row of rows) {
+    ruleIdsBySource.set(row.source_id, [...(ruleIdsBySource.get(row.source_id) ?? []), row.rule_id]);
+  }
+  const requirementsBySource = new Map(
+    [...ruleIdsBySource].map(([sourceId, ruleIds]) => (
+      [sourceId, readRecommendationRuleRequirements(database, sourceId, ruleIds)] as const
+    ))
+  );
+  const itemHashesBySource = new Map(
+    [...ruleIdsBySource].map(([sourceId, ruleIds]) => (
+      [sourceId, readRecommendationRuleItemHashes(database, sourceId, ruleIds)] as const
+    ))
+  );
+  return rows.map((row) => {
+    // 一条规则的武器身份可能不止一个哈希（导入期展开了完整身份），全部列出。
+    const itemHashes = itemHashesBySource.get(row.source_id)?.get(row.rule_id) ?? [Number(row.item_hash)];
+    return {
+      source_key: row.source_id,
+      source_label: row.label,
+      rule_stable_id: row.rule_id,
+      weapon_hashes: itemHashes,
+      weapon_name: `武器 ${itemHashes[0]}`,
+      purposes: [row.mode],
+      requirements: managedRequirements(
+        requirementsBySource.get(row.source_id)?.get(row.rule_id) ?? [],
+        row.kind
+      ),
+      note: row.note,
+      state: "active",
+      review_required: false,
+      source_revision: row.revision,
+      reason: ""
+    };
+  });
 }
 
 function withOverride(
@@ -582,40 +556,50 @@ function overrideKey(sourceKey: string, ruleStableId: string): string {
   return `${sourceKey}\u0000${ruleStableId}`;
 }
 
-function groupRows<T>(
-  rows: Array<{ id: number; value: unknown }>,
-  allowedIds: ReadonlySet<number>,
-  convert: (value: unknown) => T
-): Map<number, T[]> {
-  const grouped = new Map<number, T[]>();
-  for (const row of rows) {
-    if (!allowedIds.has(row.id)) continue;
-    grouped.set(row.id, [...(grouped.get(row.id) ?? []), convert(row.value)]);
-  }
-  return grouped;
-}
-
 function compareRules(left: RecommendationManagedRule, right: RecommendationManagedRule): number {
   return left.source_label.localeCompare(right.source_label, "zh-Hans-CN")
     || left.weapon_name.localeCompare(right.weapon_name, "zh-Hans-CN")
     || left.rule_stable_id.localeCompare(right.rule_stable_id);
 }
 
-function parseJsonStrings(value: string): string[] {
+/**
+ * 管理面按「栏位 + 候选名」展示规则要求。
+ *
+ * 来源没有声明栏位时合并成一条组合行：这一层拿不到武器定义，
+ * 解析不出栏位名，所以只能照原样并成一组——与迁移前把 `perk_hashes` 显示为
+ * 一条 `combo` 的口径一致。声明了栏位的来源按栏位分别成行。
+ */
+function managedRequirements(
+  requirements: readonly RecommendationStoredRequirement[],
+  kind: "roll" | "weapon_only"
+): Array<{ slot: string; names: string[] }> {
+  if (kind === "weapon_only") return [];
+  const names = (requirement: RecommendationStoredRequirement) => requirement.candidates.map(String);
+  const unspecified = requirements.filter((requirement) => !requirement.slot);
+  const bySlot = new Map<string, string[]>();
+  for (const requirement of requirements) {
+    if (!requirement.slot) continue;
+    bySlot.set(requirement.slot, [...(bySlot.get(requirement.slot) ?? []), ...names(requirement)]);
+  }
+  return [
+    ...(unspecified.length ? [{ slot: "combo", names: unspecified.flatMap(names) }] : []),
+    ...[...bySlot].map(([slot, slotNames]) => ({ slot, names: slotNames }))
+  ];
+}
+
+function isStoredSource(dataDir: string, sourceKey: string): boolean {
+  const database = openRecommendationDatabase(dataDir);
   try {
-    const parsed = JSON.parse(value) as unknown;
-    return Array.isArray(parsed) ? parsed.map(String) : [];
-  } catch {
-    return [];
+    return Boolean(storedSourceIdentity(loadStoredSourceIndex(database), sourceKey));
+  } finally {
+    database.close();
   }
 }
 
 function assertManagedSource(dataDir: string, sourceKey: string): void {
-  if (managedSources.some((source) => source.source_key === sourceKey) || sourceKey.startsWith("dim:")) return;
   const database = openRecommendationDatabase(dataDir);
   try {
-    const row = database.prepare("SELECT 1 AS present FROM recommendation_sources WHERE source_key = ?").get(sourceKey) as { present?: number } | undefined;
-    if (row?.present === 1) return;
+    if (storedSourceIdentity(loadStoredSourceIndex(database), sourceKey)) return;
   } finally {
     database.close();
   }

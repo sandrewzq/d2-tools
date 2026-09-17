@@ -12,6 +12,14 @@ describe("memory services adapter", () => {
       activitySummary: {
         recent: { total: 1, pve: { total: 1, completed: 1 }, pvp: { total: 0, completed: 0 }, other: { total: 0, completed: 0 } },
         raids: { entries: [] },
+        review: {
+          total_activities: 0,
+          completed_count: 0,
+          completion_rate: 0,
+          groups: [],
+          recent_10: [],
+          completions_in_a_row: 0
+        },
         recent_items: []
       },
       vaultTags: {
@@ -120,6 +128,7 @@ function createMemoryAccount(): AccountSummary {
         item_type: "Hand Cannon",
         tier: "Legendary",
         group_key: "weapons",
+        socket_plugs: [],
         bucket_name: "能量武器"
       }],
       sample_items: []

@@ -76,9 +76,16 @@ export type AccountSession = {
   patch(input: AccountItemPatch, options?: { revalidate?: boolean; preserve?: boolean }): void;
 };
 
+/**
+ * token provider 的返回值。**账号身份比 token 字符串更能代表「会话」**：
+ * access token 每小时到点轮换是常态，同一账号换 token 不等于换账号（Bug #88）。
+ * 拿得到身份就带上，拿不到才退回按 token 字符串判。
+ */
+export type AccountAccessToken = { access_token: string; account_id?: string };
+
 export type CreateAccountSessionOptions = {
   apiKey: string;
-  getAccessToken: () => string | Promise<string>;
+  getAccessToken: () => string | AccountAccessToken | Promise<string | AccountAccessToken>;
   loadDefinitions?: AccountDefinitionLoader;
   definitions?: AccountDefinitionData;
   initialSnapshot?: AccountSnapshot;
@@ -170,7 +177,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
   const profileTtlMs = options.profileTtlMs ?? 45_000;
   const maxItemDetails = options.maxItemDetails ?? 48;
 
-  let currentAccessToken: string | undefined;
+  let currentIdentity: string | undefined;
   let sessionEpoch = 0;
   let membershipCache: MembershipCache | undefined;
   let membershipInFlight: Promise<MembershipCache> | undefined;
@@ -374,7 +381,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       let promise: Promise<AccountItemDetailResult>;
       promise = loadItemDetail(input, accessToken, { forceRefresh })
         .then((detail) => {
-          assertActiveRequest(accessToken, requestEpoch);
+          assertActiveRequest(requestEpoch);
           if (itemDetailEpoch !== requestItemDetailEpoch) {
             throw new Error("Account item details were invalidated while the request was running");
           }
@@ -456,9 +463,9 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
 
   async function getScopedAccessToken(diagnoseSnapshotRefresh = false): Promise<string> {
     const startedAt = performance.now();
-    let accessToken: string;
+    let resolved: AccountAccessToken;
     try {
-      accessToken = (await options.getAccessToken()).trim();
+      resolved = normalizeAccessToken(await options.getAccessToken());
     } catch (error) {
       if (diagnoseSnapshotRefresh) {
         reportDiagnostic({
@@ -469,6 +476,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       }
       throw error;
     }
+    const accessToken = resolved.access_token.trim();
     if (!accessToken) {
       if (diagnoseSnapshotRefresh) {
         reportDiagnostic({
@@ -491,19 +499,24 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
         duration_ms: performance.now() - startedAt
       });
     }
-    if (currentAccessToken === undefined) {
-      currentAccessToken = accessToken;
-    } else if (currentAccessToken !== accessToken) {
-      currentAccessToken = accessToken;
+    // 会话身份优先取账号身份，取不到才退回 token 字符串。
+    const identity = resolved.account_id ?? accessToken;
+    if (currentIdentity === undefined) {
+      currentIdentity = identity;
+    } else if (currentIdentity !== identity) {
+      // 真的换了账号：旧账号的事实一条都不能留。
+      currentIdentity = identity;
       membershipCache = undefined;
       membershipInFlight = undefined;
       clearAccountCaches();
     }
+    // 身份没变就什么都不清——token 到点轮换（约每小时一次）不是换账号。
+    // 过去这里比 token 字符串，于是每次轮换都会清空全部缓存并打断在途请求。
     return accessToken;
   }
 
-  function assertActiveRequest(accessToken: string, requestEpoch: number): void {
-    if (currentAccessToken !== accessToken || sessionEpoch !== requestEpoch) {
+  function assertActiveRequest(requestEpoch: number): void {
+    if (sessionEpoch !== requestEpoch) {
       throw new Error("Bungie account session changed while the request was running");
     }
   }
@@ -548,7 +561,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           "/User/GetMembershipsForCurrentUser/",
           accessToken
         );
-        assertActiveRequest(accessToken, requestEpoch);
+        assertActiveRequest(requestEpoch);
         const selected = selectMembership(data);
         membershipCache = {
           data,
@@ -650,7 +663,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           accessToken,
           { forceRefresh }
         );
-        assertActiveRequest(accessToken, requestEpoch);
+        assertActiveRequest(requestEpoch);
         const existingProfile = findReusableProfileCache(
           profileCaches,
           membershipKey,
@@ -784,7 +797,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
           });
           throw error;
         }
-        assertActiveRequest(accessToken, requestEpoch);
+        assertActiveRequest(requestEpoch);
         const currentProfileVersion = snapshot ? accountProfileVersion(snapshot) : 0;
         const nextProfileVersion = accountProfileVersion(nextSnapshot);
         if (
@@ -978,6 +991,15 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       itemDetails.delete(oldestKey);
     }
   }
+}
+
+/**
+ * 归一 token provider 的两种返回形态。老调用方只给字符串，那就没有账号身份，
+ * 会话只能退回按 token 字符串判——行为与加身份之前一致。
+ */
+function normalizeAccessToken(value: string | AccountAccessToken): AccountAccessToken {
+  if (typeof value === "string") return { access_token: value };
+  return value;
 }
 
 function isProfileOlder(

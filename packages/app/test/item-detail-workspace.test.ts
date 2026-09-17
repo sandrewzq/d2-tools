@@ -3,7 +3,7 @@ import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/
 import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import {
-  buildWishlistInsightText,
+  buildTargetInsightText,
   collectSelectedSameNameItems,
   createSelectedItemPreview,
   getItemKey,
@@ -61,7 +61,7 @@ describe("item detail workspace", () => {
     expect(selectBestSameNameItem(sorted)?.instance_id).toBe("equipped-copy");
   });
 
-  it("builds wishlist and local-target insight text without Desktop hook state", () => {
+  it("builds local-target insight text without Desktop hook state", () => {
     const selected = createSelectedItemPreview({
       ...item("current", 100, "审判"),
       socket_plugs: [{ hash: 500, name: "快速命中" }]
@@ -70,15 +70,13 @@ describe("item detail workspace", () => {
       source_kind: "inventory"
     });
 
-    const text = buildWishlistInsightText({
+    const text = buildTargetInsightText({
       selectedItem: selected,
       vaultTags: { items: { current: { tag: "keep" } } },
-      importedWishlist: wishlist(),
       localTargetRules: localTargetRules()
     });
 
     expect(text).toContain("审判 / 目标命中");
-    expect(text).toContain("DIM 标签：DIM Wishlist");
     expect(text).toContain("本地目标：手炮快速命中");
     expect(text).toContain("本地标记：保留");
   });
@@ -131,21 +129,6 @@ function item(
     socket_plugs: []
   };
 }
-
-function wishlist(): DimWishlist {
-  return {
-    title: "test wishlist",
-    rules: [
-      {
-        item_hash: 100,
-        perk_hashes: [500],
-        mode: "general",
-        note: "快速命中"
-      }
-    ]
-  };
-}
-
 function localTargetRules(): LocalTargetRules {
   return {
     action_policy: "notify_only",

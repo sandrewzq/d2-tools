@@ -49,6 +49,13 @@ function config(dataDir: string): D2Config {
       api_key: "",
       model: "",
       base_url: "",
+      data_sharing_consent: false
+    },
+    features: {
+      color_mode: "light",
+      density: "standard",
+      interface_locale: "zh-CN",
+      manifest_language_follows_interface: true
     }
   };
 }

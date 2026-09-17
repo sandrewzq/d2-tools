@@ -16,6 +16,8 @@ export function VaultRecommendationEvidencePanel(props: {
   onManagedSourcesChange?: (sources: readonly VaultRecommendationManagedSource[]) => void;
 }) {
   const [feedback, setFeedback] = useState<{ tone: "ready" | "error"; message: string } | null>(null);
+  // 导入面板与来源管理各持一份快照；导入改动了存储就自增，让下面那份重读。
+  const [storedSourcesRevision, setStoredSourcesRevision] = useState(0);
   const scan = props.sourceState?.recommendationScan;
 
   return (
@@ -30,12 +32,13 @@ export function VaultRecommendationEvidencePanel(props: {
           actions={props.wishlistActions}
           showManagement={false}
           onApplied={(message: string) => setFeedback({ tone: "ready", message })}
+          onStoredSourcesChanged={() => setStoredSourcesRevision((revision) => revision + 1)}
         />
       ) : null}
       <div className="vault-recommendation-summary" data-ui-kind="callout" data-status="neutral">
         <span>{formatRecommendationScanDetail(scan)}</span>
       </div>
-      {props.wishlistActions ? <VaultRecommendationSourceManager actions={props.wishlistActions} onApplied={(message) => setFeedback({ tone: "ready", message })} onSourcesChange={props.onManagedSourcesChange} onCopyAuditReport={props.onCopyAuditReport} /> : <div className="vault-evidence-empty" data-surface="empty"><strong>当前平台不支持来源管理</strong><span>请使用支持导入和来源管理的桌面端。</span></div>}
+      {props.wishlistActions ? <VaultRecommendationSourceManager actions={props.wishlistActions} sourcesRevision={storedSourcesRevision} onApplied={(message) => setFeedback({ tone: "ready", message })} onSourcesChange={props.onManagedSourcesChange} onCopyAuditReport={props.onCopyAuditReport} /> : <div className="vault-evidence-empty" data-surface="empty"><strong>当前平台不支持来源管理</strong><span>请使用支持导入和来源管理的桌面端。</span></div>}
     </section>
   );
 }
@@ -47,10 +50,7 @@ function formatRecommendationScanDetail(scan?: VaultRecommendationScanState): st
   if (scan.phase === "partial") return `当前保留 ${scan.retained_result_count} 件上次核对结果。`;
   // 按结构化原因给出下一步动作，不从错误字符串推断。
   if (hasRecommendationIssue(scan, "recommendation_unavailable")) {
-    return "还没有可用的中文推荐数据，当前只核对 DIM 愿望单和本机自定义推荐；导入武器推荐 CSV 后才会参与核对。";
-  }
-  if (hasRecommendationIssue(scan, "recommendation_legacy_unverified")) {
-    return "当前使用旧版中文推荐数据，还没按当前资料库版本复核；建议重新导入最新的武器推荐 CSV。";
+    return "尚未导入任何推荐来源；当前只核对本机愿望单与自定义推荐，导入推荐 CSV 后才会参与核对。";
   }
   if (scan.phase === "complete") {
     return `已核对 ${scan.scanned_weapon_count}/${scan.total_weapon_count} 件账号武器，${scan.covered_weapon_count} 件有推荐来源覆盖。`;

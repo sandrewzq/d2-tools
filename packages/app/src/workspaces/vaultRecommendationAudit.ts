@@ -23,19 +23,11 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
       ? [`- ${label} · ${source.source_label} · 未符合（0/${source.requirement_count} 项）`]
       : []
   )));
-  const uncheckableRows = rows.flatMap(({ label, match }) => {
-    const sourceRows = (match?.source_matches ?? []).flatMap((source) => (
-      sourceUncheckableRequirementCount(source) > 0
-        ? [`- ${label} · ${source.source_label} · 数据不完整，未完成推荐项核对`]
-        : []
-    ));
-    const dim = match?.dim_wishlist;
-    return dim?.uncheckable_combo_count
-      ? [...sourceRows, ...(dim.sources?.filter((source) => source.uncheckable_combo_count > 0)
-        .map((source) => `- ${label} · ${source.source_label} · 数据不完整，${source.uncheckable_combo_count} 套推荐未完成核对`)
-        ?? [`- ${label} · DIM · 数据不完整，${dim.uncheckable_combo_count} 套推荐未完成核对`])]
-      : sourceRows;
-  });
+  const uncheckableRows = rows.flatMap(({ label, match }) => (match?.source_matches ?? []).flatMap((source) => (
+    sourceUncheckableRequirementCount(source) > 0
+      ? [`- ${label} · ${source.source_label} · 数据不完整，未完成推荐项核对`]
+      : []
+  )));
   const exoticRows = rows.filter(({ item }) => isExotic(item)).map(({ label, match }) => (
     `- ${label} · ${match ? formatCoverage(match) : "没有实例扫描结果"}`
   ));
@@ -49,13 +41,6 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
   const crossVersionRows = [...versionGroups.entries()].flatMap(([name, hashes]) => hashes.size > 1
     ? [`- ${weapons.find((item) => normalizeName(item.name) === name)?.name ?? name} · ${[...hashes].join(" / ")}`]
     : []);
-  const dimDiagnosticCounts = new Map<string, number>();
-  for (const { match } of rows) {
-    for (const rule of match?.dim_wishlist?.rules ?? []) {
-      const status = rule.diagnostic_status ?? "missing";
-      dimDiagnosticCounts.set(status, (dimDiagnosticCounts.get(status) ?? 0) + 1);
-    }
-  }
   const issueRows = input.scan.issues?.map((issue) => (
     `- ${issue.code} · ${issue.severity === "blocking" ? "阻断" : "警告"} · ${issue.message}`
   )) ?? [];
@@ -70,7 +55,6 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     `- 当前账号武器数：${weapons.length}`,
     `- 资料库版本：${input.scan.manifest_version || "未记录"}`,
     `- 推荐库版本：${input.scan.recommendation_revision || "未记录"}`,
-    `- 推荐库 Schema：${input.scan.recommendation_schema_version ?? "未记录"}`,
     `- 开始时间：${input.scan.started_at || "未记录"}`,
     `- 完成时间：${input.scan.completed_at || "未记录"}`,
     "",
@@ -87,10 +71,7 @@ export function buildVaultRecommendationAuditReport(input: VaultRecommendationAu
     ...(exoticRows.length ? exoticRows : ["- 无"]),
     "",
     `跨版本同名（${crossVersionRows.length} 组）：`,
-    ...(crossVersionRows.length ? crossVersionRows : ["- 无"]),
-    "",
-    "DIM 规则插槽诊断：",
-    ...formatDimDiagnosticCounts(dimDiagnosticCounts)
+    ...(crossVersionRows.length ? crossVersionRows : ["- 无"])
   ].join("\n");
 }
 
@@ -102,25 +83,7 @@ function sourceUncheckableRequirementCount(
 }
 
 function formatCoverage(match: VaultItemInstanceMatchInfo): string {
-  const dim = match.dim_wishlist
-    ? match.dim_wishlist.sources?.length
-      ? `；DIM 来源：${match.dim_wishlist.sources.map((source) => `${source.source_label} ${source.matched_combo_count}/${source.combo_count}`).join("，")}`
-      : `；DIM 符合 ${match.dim_wishlist.matched_combo_count}/${match.dim_wishlist.combo_count} 套推荐`
-    : "";
-  return `${match.coverage === "covered" ? "有来源覆盖" : "无来源覆盖"}；${match.source_matches?.length ?? 0} 个知识库来源${dim}`;
-}
-
-function formatDimDiagnosticCounts(counts: Map<string, number>): string[] {
-  if (!counts.size) return ["- 当前扫描没有 DIM 规则诊断"];
-  const labels: Record<string, string> = {
-    exact: "唯一映射到官方栏位",
-    same_slot_multiple_required: "同栏多个必需项",
-    cross_slot_ambiguous: "跨栏歧义",
-    unknown_slot: "无法定位栏位",
-    special_socket: "特殊或异域插槽",
-    missing: "缺少诊断"
-  };
-  return [...counts.entries()].map(([status, count]) => `- ${labels[status] ?? status}：${count} 条实例规则`);
+  return `${match.coverage === "covered" ? "有来源覆盖" : "无来源覆盖"}；${match.source_matches?.length ?? 0} 个知识库来源`;
 }
 
 function isExotic(item: AccountItemSummary): boolean {

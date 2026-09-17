@@ -16,7 +16,6 @@ export type AccountDerivedWorkspace = {
   vaultRecommendationIssues: VaultRecommendationDependencyIssue[];
   vaultRecommendationManifestVersion?: string;
   vaultRecommendationRevision?: string;
-  vaultRecommendationSchemaVersion?: number;
 };
 
 export type VaultRecommendationScanState = {
@@ -32,7 +31,6 @@ export type VaultRecommendationScanState = {
   issues?: VaultRecommendationDependencyIssue[];
   manifest_version?: string;
   recommendation_revision?: string;
-  recommendation_schema_version?: number;
 };
 
 export type FullAccountWorkspace = AccountWorkspace & AccountDerivedWorkspace;
@@ -104,7 +102,6 @@ export async function loadAccountDerivedWorkspace(
     let vaultRecommendationChangedInstanceIds: string[] = [];
     let vaultRecommendationManifestVersion = "";
     let vaultRecommendationRevision = "";
-    let vaultRecommendationSchemaVersion: number | undefined;
     if (includeCommunityMatch && matchCommunityVaultItems) {
       const result = await matchCommunityVaultItems(
         weaponItems.map((item) => ({
@@ -124,7 +121,6 @@ export async function loadAccountDerivedWorkspace(
       vaultRecommendationChangedInstanceIds = result.changed_instance_ids ?? [];
       vaultRecommendationManifestVersion = result.manifest_version ?? "";
       vaultRecommendationRevision = result.recommendation_revision ?? "";
-      vaultRecommendationSchemaVersion = result.recommendation_schema_version;
       for (const summary of result.card_summaries ?? result.matches.map(createRecommendationCardSummary)) {
         vaultRecommendationCardSummary.set(summary.instance_id ?? `hash:${summary.hash}`, summary);
       }
@@ -140,9 +136,6 @@ export async function loadAccountDerivedWorkspace(
         : {}),
       ...(vaultRecommendationRevision
         ? { vaultRecommendationRevision }
-        : {}),
-      ...(vaultRecommendationSchemaVersion !== undefined
-        ? { vaultRecommendationSchemaVersion }
         : {})
     };
   });

@@ -6,7 +6,6 @@ import type {
   VaultItemInstanceMatchInfo,
   VaultItemMatchInput
 } from "@d2-tools/core/community-perks";
-import { openRecommendationDatabase } from "./recommendationDatabase.js";
 import { recommendationDocumentRevision } from "./recommendationDocumentStore.js";
 import { recommendationOverrideRevision } from "./recommendationOverrides.js";
 
@@ -21,7 +20,9 @@ const databaseFileName = "account-cache.sqlite";
 // 18：全部 DIM 来源都走 source_matches，组合事实不再保留 DIM 内容。
 // 19：DIM 与本地社区来源改为产出来源事实（source_records），不再产出 combos。
 // 20：删除本地导入通道（本地规则表），来源只剩人工推荐 CSV 与 DIM Wishlist。
-const matchAlgorithmVersion = 20;
+// 21：缓存键去掉 legacy `external_recommendation_sets` 指纹（该表族已无写入方）。
+// 22：缓存键去掉「人工 / DIM」两条通道，统一走三级模型的文档与来源实例——同一份事实只有一个键。
+const matchAlgorithmVersion = 22;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;
@@ -35,32 +36,17 @@ export type VaultRecommendationMatchCachePartition = {
   missing: Array<{ index: number; item: VaultItemMatchInput; roll_fingerprint: string }>;
 };
 
-export function buildVaultRecommendationMatchRevision(
-  dataDir: string,
-  curatedRevision: string
-): string {
-  // 缓存里保存了来源标签，因此键必须覆盖标签的全部来源：
-  // DIM 用新三级模型的文档与来源实例，人工推荐仍用旧集合指纹。
+/**
+ * 匹配缓存键。缓存里保存了来源标签与判定结果，所以键必须覆盖全部事实来源：
+ * 文档与来源实例（两种格式共用同一份表）加上启用 / 停用 / 移除的覆盖表。
+ * 格式不参与——同一份事实只有一个键，换格式不产生新键。
+ */
+export function buildVaultRecommendationMatchRevision(dataDir: string): string {
   return sha256(JSON.stringify({
     match_algorithm_version: matchAlgorithmVersion,
-    curated_revision: curatedRevision,
-    dim_documents: recommendationDocumentRevision(dataDir),
-    external_revisions: readExternalRecommendationRevisions(dataDir),
+    document_revision: recommendationDocumentRevision(dataDir),
     override_revision: recommendationOverrideRevision(dataDir)
   }));
-}
-
-function readExternalRecommendationRevisions(dataDir: string): Array<{ source_kind: string; source_fingerprint: string }> {
-  const database = openRecommendationDatabase(dataDir);
-  try {
-    return database.prepare(`
-      SELECT source_kind, source_fingerprint
-      FROM external_recommendation_sets
-      ORDER BY source_kind
-    `).all() as Array<{ source_kind: string; source_fingerprint: string }>;
-  } finally {
-    database.close();
-  }
 }
 
 export function partitionVaultRecommendationMatchCache(

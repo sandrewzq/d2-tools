@@ -13,6 +13,12 @@ describe("reader game data catalog", () => {
         }
       }),
       searchIndex: {
+        getWeaponIdentityRelations() {
+          return [];
+        },
+        getItemHashesByExactName() {
+          return [];
+        },
         search() {
           return [101];
         },
@@ -104,10 +110,27 @@ describe("reader game data catalog", () => {
 
     catalog.close();
   });
+
+  /**
+   * 只写武器名的行要靠这一路拿到「这个名字对应哪些官方版本」的全集：搜索那条路是排过名、截过断、
+   * 又按代表版本折叠过的，不能当全集用（`exactNameHashes` 里那条被折叠掉的版本就是证据）。
+   */
+  it("resolves every same-name version for an exact name through the search index", async () => {
+    const catalog = createReaderGameDataCatalog({
+      reader: createMemoryDefinitionReader({ DestinyInventoryItemDefinition: {} }),
+      searchIndex: createSearchIndex([], [101, 102])
+    });
+
+    await expect(catalog.getItemHashesByExactName({ names: ["同名武器"] }))
+      .resolves.toEqual([101, 102]);
+
+    catalog.close();
+  });
 });
 
 function createSearchIndex(
-  searches: Array<{ kind: GameDataSearchKind; terms: string[]; limit: number }>
+  searches: Array<{ kind: GameDataSearchKind; terms: string[]; limit: number }>,
+  exactNameHashes: number[] = []
 ): GameDataSearchIndex {
   return {
     search(kind, terms, limit) {
@@ -120,6 +143,9 @@ function createSearchIndex(
         return [101].slice(0, limit);
       }
       return [];
+    },
+    getItemHashesByExactName() {
+      return exactNameHashes;
     },
     getItemVersionHashes(itemHashes, limit) {
       return [...itemHashes].slice(0, limit);

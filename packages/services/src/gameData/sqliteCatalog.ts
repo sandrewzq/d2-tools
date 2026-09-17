@@ -59,6 +59,14 @@ export function createSqliteGameDataCatalog(
             }
             return [...hashes].slice(0, limit);
           },
+          getItemHashesByExactName(names) {
+            // 与 `search` 不同，这里不设条数上限：问的是「这个名字对应哪些官方装备」，不是搜索排名。
+            const hashes = new Set(primarySearchIndex.getItemHashesByExactName(names));
+            for (const index of secondarySearchIndexes) {
+              for (const hash of index.getItemHashesByExactName(names)) hashes.add(hash);
+            }
+            return [...hashes].sort((left, right) => left - right);
+          },
           getItemVersionHashes: primarySearchIndex.getItemVersionHashes,
           getWeaponIdentityRelations: primarySearchIndex.getWeaponIdentityRelations,
           getRelatedItemSummary: primarySearchIndex.getRelatedItemSummary,

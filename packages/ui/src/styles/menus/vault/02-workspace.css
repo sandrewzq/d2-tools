@@ -209,7 +209,10 @@
 }
 
 :where(.app-shell) .vault-recommendation-primary-filter {
+  /* 位置不动：分段控件仍在来源名右边、两个下拉仍在右侧各自的栏目里。
+     只是框不再撑满——撑满时框内大半是空的，且各行空得多少不一。 */
   min-width: 0;
+  max-width: 100%;
 }
 
 :where(.app-shell) .vault-recommendation-other-filter {
@@ -253,10 +256,13 @@
   min-width: 0;
 }
 
+/* 分段控件从严贴着自己的内容：撑满整栏时框内大半是空的，而且各来源行空得多寡不一
+   （命中项少的行空得更多），看着像画歪了。窄屏下仍可换行，放不下就折行。 */
 :where(.app-shell) .vault-recommendation-primary-filter > span {
   display: flex;
   flex-wrap: wrap;
-  width: 100%;
+  width: fit-content;
+  max-width: 100%;
   min-width: 0;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
@@ -1577,7 +1583,7 @@
   min-width: 0;
 }
 
-/* 导入人工推荐 CSV：模板下载与选文件同属一条导入流程，收在同一个弹框里。 */
+/* 导入人工推荐表格：模板下载与选文件同属一条导入流程，收在同一个弹框里。 */
 :where(.app-shell) .vault-knowledge-import-dialog {
   width: min(720px, calc(100vw - 32px));
 }
@@ -2087,6 +2093,63 @@
 
 :where(.app-shell) .vault-knowledge-import-issues small {
   color: inherit;
+}
+
+/* 展开写法的冗余：不是问题，用中性表面表达，别跟红框抢注意力。 */
+:where(.app-shell) .vault-wishlist-preview-merged {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-control);
+  background: var(--surface-panel);
+  color: var(--text-muted);
+}
+
+:where(.app-shell) .vault-wishlist-preview-merged strong {
+  color: var(--text-title);
+}
+
+/* 命名与确认属于这张预览卡，但必须整行铺开：挤进右侧那一栏会把文件名与计数压变形。
+   左栏放名字输入，右栏放两个互斥动作，提示语另起一行。 */
+:where(.app-shell) .vault-import-identity {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px 12px;
+  align-items: end;
+  padding-top: 9px;
+  border-top: 1px solid var(--section-divider);
+}
+
+:where(.app-shell) .vault-import-identity > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-import-identity > label > span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-import-identity > label input {
+  width: 100%;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-import-identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+:where(.app-shell) .vault-import-identity-hint {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
 }
 
 :where(.app-shell) .vault-dim-online-status,
@@ -2674,8 +2737,8 @@
     flex-direction: column;
   }
 
-  :where(.app-shell) .vault-recommendation-filter select,
-  :where(.app-shell) .vault-recommendation-primary-filter > span {
+  /* 下拉要铺满整行；分段控件仍然贴着自己的内容，窄到放不下时由 flex-wrap 换行。 */
+  :where(.app-shell) .vault-recommendation-filter select {
     width: 100%;
   }
 
@@ -2750,6 +2813,7 @@
 
   :where(.app-shell) .vault-wishlist-paste,
   :where(.app-shell) .vault-wishlist-preview,
+  :where(.app-shell) .vault-import-identity,
   :where(.app-shell) .vault-dim-online-status,
   :where(.app-shell) .vault-managed-source,
   :where(.app-shell) .vault-managed-rule,

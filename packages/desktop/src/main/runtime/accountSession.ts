@@ -293,7 +293,11 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       getAccessToken: async () => {
         const token = await loadFreshOAuthToken(loadConfig());
         activeAccountId = token.membership_id;
-        return token.access_token;
+        // 带上账号身份：access token 到点轮换是常态，不该被当成换账号（Bug #88）。
+        return {
+          access_token: token.access_token,
+          ...(token.membership_id ? { account_id: token.membership_id } : {})
+        };
       },
       fetchJson: <T>(
         path: string,

@@ -33,11 +33,10 @@ export function buildVaultCleanupProtectionIndex(input: {
     const sourceStates = match?.sources ?? [];
     const hasPositiveRecommendation = sourceStates.some((source) => (
       source.state === "full" || source.state === "core"
-    )) || match?.dim?.state === "full";
+    ));
     const hasWeaponOnlyRecommendation = sourceStates.some((source) => source.state === "weapon_only");
-    const hasUncheckableRecommendation = sourceStates.some((source) => source.state === "uncheckable")
-      || match?.dim?.state === "uncheckable";
-    const hasRecommendationConflict = recommendationPurposesConflict(sourceStates, match);
+    const hasUncheckableRecommendation = sourceStates.some((source) => source.state === "uncheckable");
+    const hasRecommendationConflict = recommendationPurposesConflict(sourceStates);
     const reasons = [
       item.locked ? "已锁定" : "",
       item.instance_id && input.highlightedItemKeys?.instanceIds.has(item.instance_id) ? "配装实例" : "",
@@ -59,8 +58,7 @@ export function buildVaultCleanupProtectionIndex(input: {
 }
 
 function recommendationPurposesConflict(
-  sources: RecommendationCardSourceSummary[],
-  match: RecommendationCardSummary | undefined
+  sources: RecommendationCardSourceSummary[]
 ): boolean {
   const positiveCurated = sources
     .filter((source) => source.state === "full" || source.state === "core")
@@ -68,15 +66,7 @@ function recommendationPurposesConflict(
   const negativeCurated = sources
     .filter((source) => source.state === "key_missing" || source.state === "not_matched")
     .flatMap((source) => source.purposes);
-  const positiveDim = match?.dim?.state === "full"
-    ? match.dim.matched_modes ?? []
-    : [];
-  const negativeDim = match?.dim?.state === "not_matched"
-    ? match.dim.modes
-    : [];
-  return hasOverlappingPurposePair(positiveCurated, negativeCurated)
-    || hasOverlappingPurposePair(positiveCurated, negativeDim)
-    || hasOverlappingPurposePair(positiveDim, negativeCurated);
+  return hasOverlappingPurposePair(positiveCurated, negativeCurated);
 }
 
 function hasOverlappingPurposePair(

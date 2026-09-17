@@ -23,10 +23,6 @@ export type RecommendationSlotMatchPresentation = {
   currentEnabledFallback: string;
 };
 
-export function isDimRecommendationSource(sourceId: string): boolean {
-  return sourceId.startsWith("dim:");
-}
-
 export function presentRecommendationSlotMatch(
   state: RecommendationSourceSlotMatch["state"],
   facts: { hasInstanceOwned: boolean; hasCurrentEnabled: boolean }
@@ -111,17 +107,18 @@ export function presentCuratedRecommendationMatch(
 }
 
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type {
-  RecommendationCardDimSummary,
   RecommendationCardSourceSummary,
   RecommendationCardSummary,
   RecommendationSourceMatch,
-  DimWishlistSourceInstanceMatch,
   VaultItemInstanceMatchInfo
 } from "@d2-tools/core/community-perks";
 
 export type VaultRecommendationSourceSummary = {
+  /**
+   * 来源身份。事实层的 `source_group_id`：**一个具名来源 = 一个键 = 一行**，两种导入格式一致
+   * （用户 2026-09-16 拍板，不按导入文件合并）。消费层不需要也无法从它反推来源类型。
+   */
   sourceId: string;
   sourceLabel: string;
   shortLabel: string;
@@ -181,11 +178,9 @@ export type VaultRecommendationManagedSourceOptionInput = {
   state: "active" | "disabled" | "removed";
 };
 
-const dimRulesByWishlist = new WeakMap<DimWishlist, Map<number, DimWishlist["rules"]>>();
 let cachedSummaryIndexInput: {
   instanceMatchMap?: ReadonlyMap<string, VaultItemInstanceMatchInfo>;
   cardSummaryMap?: ReadonlyMap<string, RecommendationCardSummary>;
-  wishlist?: DimWishlist | null;
   itemSignatures: Map<string, string>;
   index: Map<string, VaultRecommendationSourceSummary[]>;
 } | null = null;
@@ -197,7 +192,6 @@ export function getVaultCommunityInstanceKey(item: AccountItemSummary): string {
 export function buildVaultRecommendationSourceSummaries(
   item: AccountItemSummary,
   instanceMatch?: VaultItemInstanceMatchInfo,
-  wishlist?: DimWishlist | null,
   cardSummary?: RecommendationCardSummary
 ): VaultRecommendationSourceSummary[] {
   // 所有来源（含 DIM）都来自同一份来源事实，卡片不再有 DIM 专属汇总。
@@ -210,7 +204,6 @@ export function buildVaultRecommendationSourceSummaries(
 export function buildVaultRecommendationSummaryIndex(
   items: readonly AccountItemSummary[],
   instanceMatchMap?: ReadonlyMap<string, VaultItemInstanceMatchInfo>,
-  wishlist?: DimWishlist | null,
   cardSummaryMap?: ReadonlyMap<string, RecommendationCardSummary>
 ): Map<string, VaultRecommendationSourceSummary[]> {
   const weaponItems = items.filter((item) => item.group_key === "weapons");
@@ -222,7 +215,6 @@ export function buildVaultRecommendationSummaryIndex(
     cachedSummaryIndexInput !== null
     && cachedSummaryIndexInput.instanceMatchMap === instanceMatchMap
     && cachedSummaryIndexInput.cardSummaryMap === cardSummaryMap
-    && cachedSummaryIndexInput.wishlist === wishlist
     && sameRecommendationItemSignatures(cachedSummaryIndexInput.itemSignatures, itemSignatures)
   ) {
     return cachedSummaryIndexInput.index;
@@ -236,35 +228,40 @@ export function buildVaultRecommendationSummaryIndex(
       buildVaultRecommendationSourceSummaries(
         item,
         instanceMatchMap?.get(instanceKey),
-        wishlist,
         cardSummaryMap?.get(instanceKey)
       )
     );
   }
-  cachedSummaryIndexInput = { instanceMatchMap, cardSummaryMap, wishlist, itemSignatures, index };
+  cachedSummaryIndexInput = { instanceMatchMap, cardSummaryMap, itemSignatures, index };
   return index;
 }
 
 /**
- * Keep recommendation evidence aligned with the active source registry.
+ * 把事实层的来源归队到管理面的行上，并丢掉不属于任何一行的事实。
  *
- * The scan/card cache can outlive a source that was removed from management.
- * Callers that have an authoritative registry should filter the cached index
- * before using it for cards, facts, or source counts so a deleted source cannot
- * reappear through stale scan data.
+ * 管理面一行 = 一次导入，事实层一条 = 一个具名来源，两者的键天然不等
+ * （导入键是文档键，具名来源键是实例键）。`sourceKeyByFactKey` 由管理名册给出
+ * 「事实键 → 它属于的那一行」，归队后下游一律用管理面的键看来源：
+ * 选项、计数、筛选事实都只认这一个粒度。
+ *
+ * 名册是权威：不在名册里的事实（已删除的来源留下的旧扫描结果）一律丢掉，
+ * 所以传一个空映射就等于「一条都不放行」。
  */
-export function filterVaultRecommendationSummaryIndex(
+export function attributeVaultRecommendationSummaryIndex(
   summaryIndex: VaultRecommendationSummaryIndex,
-  allowedSourceIds: ReadonlySet<string>
+  sourceKeyByFactKey: ReadonlyMap<string, string>
 ): Map<string, VaultRecommendationSourceSummary[]> {
-  const filtered = new Map<string, VaultRecommendationSourceSummary[]>();
+  const attributed = new Map<string, VaultRecommendationSourceSummary[]>();
   for (const [instanceKey, summaries] of summaryIndex) {
-    const next = summaries.filter((summary) => (
-      allowedSourceIds.has(canonicalVaultRecommendationSourceId(summary.sourceId))
-    ));
-    if (next.length) filtered.set(instanceKey, next);
+    const next: VaultRecommendationSourceSummary[] = [];
+    for (const summary of summaries) {
+      const managedSourceKey = sourceKeyByFactKey.get(summary.sourceId);
+      if (!managedSourceKey) continue;
+      next.push(managedSourceKey === summary.sourceId ? summary : { ...summary, sourceId: managedSourceKey });
+    }
+    if (next.length) attributed.set(instanceKey, next);
   }
-  return filtered;
+  return attributed;
 }
 
 function recommendationItemSignature(item: AccountItemSummary): string {
@@ -284,29 +281,6 @@ function sameRecommendationItemSignatures(
     if (previous.get(instanceKey) !== signature) return false;
   }
   return true;
-}
-
-
-
-function selectBestDimCombination<T extends {
-  matched_requirement_count: number;
-  requirement_count: number;
-}>(rules: readonly T[]): T | undefined {
-  return rules.reduce<T | undefined>((best, rule) => {
-    if (!best) return rule;
-    const ruleComplete = rule.requirement_count > 0
-      && rule.matched_requirement_count === rule.requirement_count;
-    const bestComplete = best.requirement_count > 0
-      && best.matched_requirement_count === best.requirement_count;
-    if (ruleComplete !== bestComplete) return ruleComplete ? rule : best;
-    const ratioDifference = rule.matched_requirement_count * best.requirement_count
-      - best.matched_requirement_count * rule.requirement_count;
-    if (ratioDifference !== 0) return ratioDifference > 0 ? rule : best;
-    if (rule.requirement_count !== best.requirement_count) {
-      return rule.requirement_count > best.requirement_count ? rule : best;
-    }
-    return rule.matched_requirement_count > best.matched_requirement_count ? rule : best;
-  }, undefined);
 }
 
 export function hasPositiveRecommendationSummary(summary: VaultRecommendationSourceSummary): boolean {
@@ -337,10 +311,7 @@ export function inferVaultRecommendationResultForSource(
   summaries: readonly VaultRecommendationSourceSummary[],
   sourceId: string
 ): VaultRecommendationResult {
-  const canonicalSourceId = canonicalVaultRecommendationSourceId(sourceId);
-  const sourceSummaries = summaries.filter((candidate) => (
-    canonicalVaultRecommendationSourceId(candidate.sourceId) === canonicalSourceId
-  ));
+  const sourceSummaries = summaries.filter((candidate) => candidate.sourceId === sourceId);
   if (!sourceSummaries.length) return "uncovered";
   if (sourceSummaries.some((summary) => summary.state === "full" || summary.state === "core")) {
     return "matched";
@@ -361,7 +332,7 @@ export function selectVaultRecommendationSourceSummaries(
 ): VaultRecommendationSourceSummary[] {
   const summariesBySource = new Map<string, VaultRecommendationSourceSummary>();
   for (const summary of summaries) {
-    const sourceId = canonicalVaultRecommendationSourceId(summary.sourceId);
+    const sourceId = summary.sourceId;
     const current = summariesBySource.get(sourceId);
     if (!current || isBetterSourceSummary(summary, current)) {
       summariesBySource.set(sourceId, summary);
@@ -377,8 +348,7 @@ export function buildVaultRecommendationFilterFactIndex(
   for (const [instanceKey, summaries] of summaryIndex) {
     const factsBySource = new Map<string, VaultRecommendationFilterFact>();
     for (const summary of selectVaultRecommendationSourceSummaries(summaries)) {
-      const sourceId = canonicalVaultRecommendationSourceId(summary.sourceId);
-      factsBySource.set(sourceId, recommendationFilterFactFromSummary(summary));
+      factsBySource.set(summary.sourceId, recommendationFilterFactFromSummary(summary));
     }
     if (factsBySource.size) factIndex.set(instanceKey, factsBySource);
   }
@@ -390,15 +360,14 @@ export function getVaultRecommendationFilterFact(
   instanceKey: string,
   sourceId: string
 ): VaultRecommendationFilterFact | undefined {
-  return factIndex.get(instanceKey)?.get(canonicalVaultRecommendationSourceId(sourceId));
+  return factIndex.get(instanceKey)?.get(sourceId);
 }
 
 export function vaultRecommendationPrimaryFilterLabel(
-  filter: VaultRecommendationPrimaryFilter,
-  isDim: boolean
+  filter: VaultRecommendationPrimaryFilter
 ): string {
   if (filter === "all") return "全部";
-  if (filter === "unrequired") return isDim ? "未指定组合" : "未要求";
+  if (filter === "unrequired") return "未要求";
   if (filter === "uncheckable") return "无法判断";
   if (filter === "uncovered") return "未收录";
   return filter;
@@ -442,27 +411,25 @@ export function buildVaultRecommendationSourceOptions(
 ): VaultRecommendationSourceOption[] {
   const options = new Map<string, VaultRecommendationSourceOption>();
   const managedSourcesById = new Map(managedSources.map((source) => (
-    [canonicalVaultRecommendationSourceId(source.source_key), source] as const
+    [source.source_key, source] as const
   )));
   for (const source of managedSources) {
     if (!source.configured || source.state !== "active") continue;
-    const sourceId = canonicalVaultRecommendationSourceId(source.source_key);
-    const sourceLabel = isDimRecommendationSource(sourceId)
-      ? source.label || "DIM社区愿望单"
-      : displayVaultRecommendationSourceLabel(sourceId, source.label);
+    const sourceId = source.source_key;
+    const sourceLabel = displayVaultRecommendationSourceLabel(source.label);
     options.set(sourceId, {
       sourceId,
       sourceLabel,
-      shortLabel: compactVaultRecommendationSourceLabel(sourceId, sourceLabel),
+      shortLabel: compactVaultRecommendationSourceLabel(sourceLabel),
       count: 0
     });
   }
   for (const summaries of summaryGroups) {
     const summariesBySource = new Map(summaries.map((summary) => (
-      [canonicalVaultRecommendationSourceId(summary.sourceId), summary] as const
+      [summary.sourceId, summary] as const
     )));
     for (const summary of summariesBySource.values()) {
-      const sourceId = canonicalVaultRecommendationSourceId(summary.sourceId);
+      const sourceId = summary.sourceId;
       const managedSource = managedSourcesById.get(sourceId);
       if (managedSourcesAuthoritative && !managedSource) continue;
       if (managedSource && (!managedSource.configured || managedSource.state !== "active")) continue;
@@ -470,14 +437,11 @@ export function buildVaultRecommendationSourceOptions(
       if (existing) {
         existing.count += 1;
       } else {
-        const displaySourceLabel = displayVaultRecommendationSourceLabel(
-          sourceId,
-          isDimRecommendationSource(sourceId) ? "DIM社区愿望单" : summary.sourceLabel
-        );
+        const displaySourceLabel = displayVaultRecommendationSourceLabel(summary.sourceLabel);
         options.set(sourceId, {
           sourceId,
           sourceLabel: displaySourceLabel,
-          shortLabel: compactVaultRecommendationSourceLabel(sourceId, displaySourceLabel),
+          shortLabel: compactVaultRecommendationSourceLabel(displaySourceLabel),
           count: 1
         });
       }
@@ -487,14 +451,6 @@ export function buildVaultRecommendationSourceOptions(
   return [...options.values()].sort((left, right) => (
     left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN")
   ));
-}
-
-export function canonicalVaultRecommendationSourceId(sourceId: string): string {
-  if (sourceId.startsWith("dim:")) {
-    const [, documentKey] = sourceId.split(":");
-    return documentKey ? `dim:${documentKey}` : sourceId;
-  }
-  return sourceId;
 }
 
 export function vaultRecommendationResultLabel(result: VaultRecommendationResult): string {
@@ -523,11 +479,11 @@ export function formatRecommendationPurposes(
 }
 
 function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendationSourceSummary {
-  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_id, source.source_label);
-  const shortSourceLabel = compactVaultRecommendationSourceLabel(source.source_id, sourceLabel);
+  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_label);
+  const shortSourceLabel = compactVaultRecommendationSourceLabel(sourceLabel);
   const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
   return {
-    sourceId: source.source_id,
+    sourceId: source.source_group_id,
     sourceLabel,
     shortLabel: shortSourceLabel,
     state: source.state,
@@ -550,8 +506,8 @@ function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendat
 }
 
 function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecommendationSourceSummary {
-  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_id, source.source_label);
-  const shortSourceLabel = compactVaultRecommendationSourceLabel(source.source_id, sourceLabel);
+  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_label);
+  const shortSourceLabel = compactVaultRecommendationSourceLabel(sourceLabel);
   const resultText = source.state === "weapon_only" || source.requirement_count === 0
     ? "仅推荐武器 · 未指定 Roll"
     : `${source.perk_requirement_count > 0
@@ -560,7 +516,7 @@ function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecomm
           ? ` · ${source.uncheckable_requirement_count} 项无法判断`
           : ""}`;
   return {
-    sourceId: source.source_id,
+    sourceId: source.source_group_id,
     sourceLabel,
     shortLabel: shortSourceLabel,
     state: source.state,
@@ -582,28 +538,11 @@ function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecomm
   };
 }
 
-
-function dimRulesForItemHash(wishlist: DimWishlist, itemHash: number): DimWishlist["rules"] {
-  let rulesByItemHash = dimRulesByWishlist.get(wishlist);
-  if (!rulesByItemHash) {
-    rulesByItemHash = new Map<number, DimWishlist["rules"]>();
-    wishlist.rules.forEach((rule) => {
-      const existing = rulesByItemHash!.get(rule.item_hash);
-      if (existing) existing.push(rule);
-      else rulesByItemHash!.set(rule.item_hash, [rule]);
-    });
-    dimRulesByWishlist.set(wishlist, rulesByItemHash);
-  }
-  return rulesByItemHash.get(itemHash) ?? [];
-}
-
 function compareSourceSummaries(
   left: VaultRecommendationSourceSummary,
   right: VaultRecommendationSourceSummary
 ): number {
-  const dimDifference = Number(isDimRecommendationSource(left.sourceId))
-    - Number(isDimRecommendationSource(right.sourceId));
-  if (dimDifference) return dimDifference;
+  // 所有来源同级：只按符合程度排序，平级按来源名。来源类型不参与排序。
   const rankDifference = summaryRank(left) - summaryRank(right);
   if (rankDifference) return rankDifference;
   return left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN");
@@ -628,14 +567,14 @@ function isBetterSourceSummary(
   return candidate.detail.length > current.detail.length;
 }
 
-// 来源显示名一律用来源自己的 label（DIM 用愿望单标题，人工来源用导入时的推荐来源名）。
+// 来源显示名一律用来源自己的 label（导入时固化的来源名）。
 // 这里只做「没有名字时」的兜底，不再按 sourceId 写死具体来源。
-export function displayVaultRecommendationSourceLabel(_sourceId: string, sourceLabel?: string): string {
+export function displayVaultRecommendationSourceLabel(sourceLabel?: string): string {
   return sourceLabel?.trim() || "推荐来源";
 }
 
 // 卡片上的短名同样来自来源自己的 label，只做长度截断；不同来源必须能分辨。
-function compactVaultRecommendationSourceLabel(_sourceId: string, sourceLabel: string): string {
+function compactVaultRecommendationSourceLabel(sourceLabel: string): string {
   const compact = sourceLabel.replace(/推荐表|推荐/gu, "").trim() || sourceLabel.trim();
   return compact.length > 14 ? `${compact.slice(0, 14)}…` : compact;
 }

@@ -19,7 +19,7 @@
 ### DIM Wish List Sources
 
 - GitHub：<https://github.com/48klocs/dim-wish-list-sources>
-- 默认愿望单文件：<https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt>
+- 上游文件：该仓库提供多份愿望单文本；d2-tools **不固定引用任何一份**，文本由玩家给出链接或选择本地文件导入，链接随来源记下，之后可手动再次同步。
 - 提供内容：社区武器推荐 Roll、作者块、标签和 Wishlist 规则格式。
 - 使用位置：仓库推荐、武器详情。
 - 限制：只反映愿望单作者的偏好，不等于 Bungie 官方结论；单条规则的展开行不能解释为投票数。

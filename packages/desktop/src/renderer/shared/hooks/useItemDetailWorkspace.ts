@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
 import type { ActionLogType } from "@d2-tools/core/actions/log";
-import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, ActionDebugTraceInput, DimWishlist, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultItemInstanceMatchInfo, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
+import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, ActionDebugTraceInput, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultItemInstanceMatchInfo, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import {
-  buildWishlistInsightText,
+  buildTargetInsightText,
   collectSelectedSameNameItems,
   getItemKey,
   selectBestSameNameItem,
@@ -47,7 +47,6 @@ export function useItemDetailWorkspace(input: {
   cleanupProtectionByItemKey?: ReadonlyMap<string, readonly string[]>;
   vaultTags: VaultTags;
   setVaultTags: (tags: VaultTags) => void;
-  importedWishlist: DimWishlist | null;
   localTargetRules: LocalTargetRules;
   diagnostics: DiagnosticsBridge;
   setAccountError: (message: string) => void;
@@ -418,7 +417,7 @@ export function useItemDetailWorkspace(input: {
           .catch((error) => {
             if (!isCurrentRecommendation()) return;
             console.warn("社区推荐加载失败：", error);
-            setCommunityRecommendationError("社区推荐读取失败，已保留 DIM 愿望单和本地目标判断。");
+            setCommunityRecommendationError("社区推荐读取失败，已保留本地来源与目标判断。");
           })
           .finally(() => {
             if (communityRecommendationRequestsRef.current.get(recommendationCacheKey) === request) {
@@ -456,12 +455,11 @@ export function useItemDetailWorkspace(input: {
     }
   }
 
-  async function copyWishlistInsight() {
+  async function copyTargetInsight() {
     if (!selectedItem) return;
-    const text = buildWishlistInsightText({
+    const text = buildTargetInsightText({
       selectedItem,
       vaultTags: input.vaultTags,
-      importedWishlist: input.importedWishlist,
       localTargetRules: input.localTargetRules
     });
     if (!text) return;
@@ -826,7 +824,7 @@ export function useItemDetailWorkspace(input: {
     copySelectedItemChatGuide,
     saveSelectedItemNote,
     saveSelectedItemTag,
-    copyWishlistInsight,
+    copyTargetInsight,
     copySameNameLocator,
     copyItemActionPlanText,
     applySameNameBatchTags,

@@ -44,9 +44,8 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     usedIn: "仓库推荐、武器详情",
     relationship: "社区数据来源",
     githubUrl: "https://github.com/48klocs/dim-wish-list-sources",
-    onlineUrl: "https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt",
     license: "MIT（以仓库当前声明为准）",
-    note: "只反映愿望单作者偏好，不等于 Bungie 官方结论。"
+    note: "只反映愿望单作者偏好，不等于 Bungie 官方结论；文本由用户给出链接或文件导入，应用不替用户固定上游地址。"
   },
   {
     category: "reference",

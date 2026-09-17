@@ -7,7 +7,7 @@ import type {
   VaultItemMatchInput,
   WeaponRecommendation
 } from "@d2-tools/core/community-perks";
-import type { DimWishlistImportPreview } from "@d2-tools/core/analysis/wishlistImport";
+import type { DimWishlistImportPreview, DimWishlistLinkReadResult } from "@d2-tools/core/analysis/wishlistImport";
 
 export type {
   AccountItemDetail,
@@ -41,55 +41,25 @@ export type {
 } from "@d2-tools/core/assistant/guideSchema";
 export type { RecommendationCardSummary, VaultCommunityMatchOptions, VaultCommunityMatchResult, VaultItemInstanceMatchInfo, VaultItemMatchInfo, VaultItemMatchInput, WeaponRecommendation };
 export type {
-  DimWishlistImportPreview
+  DimWishlistImportPreview,
+  DimWishlistLinkReadResult
 };
 
-export type DimWishlistOnlineStatus = {
-  source_url: string;
-  current_revision: string;
-  current_fingerprint: string;
-  activated_at: string;
-  checked_at: string;
-  latest_revision: string;
-  latest_commit_at: string;
-  rule_count: number;
-  weapon_count: number;
-};
-
-export type DimWishlistOnlinePreview = DimWishlistOnlineStatus & {
-  token?: string;
-  update_available: boolean;
-  file_name: string;
-  title: string;
-  preview_fingerprint: string;
-  mode_counts: Record<"pve" | "pvp" | "general", number>;
-  authors: string[];
-  tags: string[];
-};
-
-export type DimWishlistOnlineActivationResult = {
-  wishlist: import("./vaultApi").DimWishlist;
-  status: DimWishlistOnlineStatus;
-};
+export type {
+  RecommendationImportTarget,
+  RecommendationDocumentSummary
+} from "@d2-tools/services/community/recommendationDocumentStore";
 
 export type WeaponRecommendationKnowledgeStatus = {
-  schema_version: number;
-  semantic_validation_version: number;
-  validated_manifest_version: string;
-  validation_state: "verified" | "unverified";
   dataset_revision: string;
-  database_path: string;
-  source_fingerprint: string;
   imported_at: string;
   recommendation_count: number;
   weapon_count: number;
   source_count: number;
-  skipped_row_count: number;
 };
 
 export type WeaponKnowledgeImportPreview = {
   file_name: string;
-  import_mode: "merge" | "replace";
   recommendation_count: number;
   importable_recommendation_count: number;
   weapon_count: number;
@@ -102,7 +72,7 @@ export type WeaponKnowledgeImportPreview = {
     row_number: number;
     weapon_name: string;
     source_label: string;
-    field: "推荐来源" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+    field: "推荐来源" | "规则名称" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
     value: string;
     message: string;
   }>;
@@ -111,7 +81,13 @@ export type WeaponKnowledgeImportPreview = {
 export type WeaponKnowledgeImportResult = WeaponRecommendationKnowledgeStatus & {
   file_name: string;
   imported_row_count: number;
-  import_mode: "merge" | "replace";
+  skipped_row_count: number;
+};
+
+/** 导入身份 = 用户给的名字 + 新建 / 覆盖；界面必须两者都收。 */
+export type WeaponKnowledgeImportTarget = {
+  name: string;
+  mode: "create" | "overwrite";
 };
 
 export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
@@ -121,7 +97,6 @@ export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
 export type RecommendationManagedSource = {
   source_key: string;
   label: string;
-  kind: "curated" | "dim";
   state: "active" | "disabled" | "removed";
   configured: boolean;
   rule_count: number;
@@ -129,6 +104,8 @@ export type RecommendationManagedSource = {
   revision: string;
   imported_at: string;
   affected_instance_count?: number;
+  /** 这一行在事实层登记过的全部键（分组键 + 下辖实例键），见服务层同名类型。 */
+  fact_keys: string[];
 };
 
 export type RecommendationManagedRule = {
@@ -148,11 +125,14 @@ export type RecommendationManagedRule = {
 };
 
 export type RecommendationManagementSnapshot = {
-  curated_revision: string;
-  dim_revision: string;
+  revision: string;
   sources: RecommendationManagedSource[];
   removed_rules: RecommendationManagedRule[];
+  /** 「清空已导入的推荐规则」这个动作的对象摘要，由服务层按存储派生。 */
+  clear_rule_imports: { configured: boolean; source_count: number; rule_count: number };
   affected_weapon_hashes?: number[];
+  /** 本次操作是否改动了一个由导入文档托管的来源，见服务层同名类型。 */
+  stored_source_changed?: boolean;
 };
 
 export type FileExportResult = {

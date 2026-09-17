@@ -1,6 +1,4 @@
 import { evaluateLocalTargets, summarizeLocalTargetMatches, type LocalTargetRules } from "@d2-tools/core/analysis/targets";
-import { evaluateWishlistRoll } from "@d2-tools/core/analysis/wishlist";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { AccountItemSummary, AmmoTypeKey, EquipmentGroupKey } from "@d2-tools/core/account/summary";
 import type { RecommendationCardSummary } from "@d2-tools/core/community-perks";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
@@ -22,7 +20,7 @@ export type VaultAmmoFilter = AmmoTypeKey | "all";
 export type VaultCraftingFilter = "all" | "crafted" | "uncrafted";
 export type VaultArmorStatFilter = ArmorStatKey | "total" | "all";
 export type VaultSortKey = "recommendation" | "name" | "group" | "tier" | "power" | "armor-total" | ArmorStatKey;
-export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "wishlist" | "target";
+export type VaultTagFilter = Exclude<VaultTagValue, "none"> | "all" | "untagged" | "noted" | "target";
 export type VaultLockFilter = "all" | "locked" | "unlocked";
 export type VaultRarityFilter = "all" | "legendary" | "exotic";
 export type VaultGearTierFilter = "all" | "0" | "1" | "2" | "3" | "4" | "5";
@@ -57,7 +55,6 @@ export type VaultFilter = {
   armorStatRules?: VaultArmorStatRule[];
   frame?: string;
   tags?: VaultTags;
-  wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
 };
 
@@ -116,7 +113,6 @@ export type VaultListWorkspace = {
   localTargetMatchCount: number;
   sections: VaultSection[];
   slotFilters: VaultSlotSummary[];
-  wishlistMatchCount: number;
 };
 
 export const vaultGroupLabels: Record<VaultGroupFilter, string> = {
@@ -156,7 +152,6 @@ export const tagLabels: Record<VaultTagFilter, string> = {
   loadout: "配装用",
   untagged: "未标记",
   noted: "有备注",
-  wishlist: "DIM 愿望单",
   target: "目标命中"
 };
 
@@ -256,13 +251,11 @@ export function createVaultListWorkspace(input: {
   filter: VaultFilter;
   sortKey: VaultSortKey;
   tags: VaultTags;
-  wishlist?: DimWishlist | null;
   localTargetRules?: LocalTargetRules | null;
 }): VaultListWorkspace {
   const baseFilter = {
     ...input.filter,
     tags: input.tags,
-    wishlist: input.wishlist,
     localTargetRules: input.localTargetRules
   };
   const availableFrameFilters = buildVaultFrameFilters(filterVaultItems(input.items, {
@@ -308,8 +301,7 @@ export function createVaultListWorkspace(input: {
     groups: buildVaultGroups(input.items),
     localTargetMatchCount: countLocalTargetMatches(input.items, input.localTargetRules),
     sections: buildVaultSections(filteredItems),
-    slotFilters,
-    wishlistMatchCount: countWishlistMatches(input.items, input.wishlist)
+    slotFilters
   };
 }
 
@@ -320,8 +312,8 @@ export function filterVaultItems(items: AccountItemSummary[], filter: VaultFilte
     const entry = (filter.tags ?? { items: {} }).items[getVaultItemKey(item)];
     const matchesGroup = filter.group === "all" || item.group_key === filter.group;
     if (!matchesGroup) return false;
-    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.wishlist, filter.localTargetRules)) return false;
-    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.wishlist, filter.localTargetRules)) return false;
+    if (!matchesTag(item, filter.tag ?? "all", filter.tags ?? { items: {} }, filter.localTargetRules)) return false;
+    if (parsedQuery.tag && !matchesTag(item, parsedQuery.tag, filter.tags ?? { items: {} }, filter.localTargetRules)) return false;
     if (!matchesArmorStatRules(item, filter.armorStatRules ?? [])) return false;
     if (!matchesLock(item, filter.lock ?? "all")) return false;
     if (!matchesSlot(item, filter.slot ?? "all")) return false;
@@ -627,10 +619,6 @@ export function countLocalTargetMatches(items: AccountItemSummary[], rules?: Loc
   return summarizeLocalTargetMatches(items.map(normalizeCoreItem), rules ?? undefined).matched_count;
 }
 
-export function countWishlistMatches(items: AccountItemSummary[], wishlist?: DimWishlist | null): number {
-  return items.filter((item) => evaluateWishlistRoll(normalizeCoreItem(item), wishlist ?? undefined).matched).length;
-}
-
 export function buildVaultContextFacts(input: {
   group: VaultGroupFilter;
   query: string;
@@ -721,7 +709,6 @@ function matchesTag(
   item: AccountItemSummary,
   tag: VaultTagFilter,
   tags: VaultTags,
-  wishlist?: DimWishlist | null,
   localTargetRules?: LocalTargetRules | null
 ): boolean {
   if (tag === "all") {
@@ -729,9 +716,6 @@ function matchesTag(
   }
 
   const itemTag = tags.items[getVaultItemKey(item)]?.tag;
-  if (tag === "wishlist") {
-    return evaluateWishlistRoll(normalizeCoreItem(item), wishlist ?? undefined).matched;
-  }
   if (tag === "target") {
     return evaluateLocalTargets(normalizeCoreItem(item), localTargetRules ?? undefined).matched;
   }
@@ -795,7 +779,7 @@ function isArmorStatKey(value: string): value is ArmorStatKey {
 function isVaultTagFilter(value: string): value is VaultTagFilter {
   return value === "all" || value === "keep" || value === "review" || value === "junk"
     || value === "farm" || value === "loadout"
-    || value === "untagged" || value === "noted" || value === "wishlist" || value === "target";
+    || value === "untagged" || value === "noted" || value === "target";
 }
 
 function typeFilterFor(value: string): VaultGroupFilter | undefined {

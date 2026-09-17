@@ -62,7 +62,6 @@ export function HomePageItemDetailHost(props: HomePageItemDetailHostProps) {
     accountSummary: props.accountSummary,
     vaultTags: props.vaultTags,
     setVaultTags,
-    importedWishlist: props.importedWishlist,
     cleanupProtectionByItemKey,
     detailCacheScopeKey,
     recommendationRevision,

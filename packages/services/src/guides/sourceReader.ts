@@ -1,9 +1,7 @@
-import { lookup } from "node:dns/promises";
-import { isIP } from "node:net";
 import { parse, type DefaultTreeAdapterTypes } from "parse5";
 import { createGuideSourceSections, isSupportedGuideSourceUrl, type GuideSourceReadPreview, type GuideSourceSection } from "@d2-tools/core/guides/source";
+import { readPublicTextUrl } from "../net/publicUrlReader.js";
 
-const maxRedirects = 5;
 const maxResponseBytes = 2_000_000;
 const maxExtractedCharacters = 200_000;
 const requestTimeoutMs = 15_000;
@@ -13,47 +11,17 @@ const blockTags = new Set(["p", "li", "blockquote", "pre", "tr"]);
 
 export async function readGuideSourceUrl(sourceUrl: string, now = new Date()): Promise<GuideSourceReadPreview> {
   if (!isSupportedGuideSourceUrl(sourceUrl)) throw new Error("攻略来源必须使用有效的 HTTP(S) 地址");
-  let currentUrl = new URL(sourceUrl.trim());
+  const read = await readPublicTextUrl(sourceUrl, {
+    label: "攻略链接",
+    userAgent: "d2-tools-guide-reader/0.0.15",
+    accept: "text/html,application/xhtml+xml,text/plain,text/markdown;q=0.9,*/*;q=0.1",
+    acceptedContentTypes: supportedContentTypes,
+    maxBytes: maxResponseBytes,
+    timeoutMs: requestTimeoutMs
+  });
+  const contentType = read.content_type;
+  const rawText = read.text;
   const warnings: string[] = [];
-  let response: Response | null = null;
-
-  for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
-    await assertPublicNetworkUrl(currentUrl);
-    try {
-      response = await fetch(currentUrl, {
-        redirect: "manual",
-        headers: {
-          Accept: "text/html,application/xhtml+xml,text/plain,text/markdown;q=0.9,*/*;q=0.1",
-          "User-Agent": "d2-tools-guide-reader/0.0.15"
-        },
-        signal: AbortSignal.timeout(requestTimeoutMs)
-      });
-    } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`攻略链接读取失败：${detail}`);
-    }
-    if (!isRedirect(response.status)) break;
-    const location = response.headers.get("location");
-    if (!location) throw new Error("攻略链接返回了缺少目标地址的重定向");
-    if (redirectCount === maxRedirects) throw new Error("攻略链接重定向次数过多");
-    await response.body?.cancel();
-    currentUrl = new URL(location, currentUrl);
-    warnings.push(`来源经过重定向：${currentUrl.toString()}`);
-  }
-
-  if (!response) throw new Error("攻略链接没有返回响应");
-  if (!response.ok) throw new Error(`攻略链接读取失败（HTTP ${response.status}）`);
-  const contentType = normalizeContentType(response.headers.get("content-type"));
-  if (!supportedContentTypes.includes(contentType)) {
-    throw new Error(`不支持的攻略内容类型：${contentType || "未知"}`);
-  }
-  const declaredLength = Number(response.headers.get("content-length"));
-  if (Number.isFinite(declaredLength) && declaredLength > maxResponseBytes) {
-    throw new Error("攻略页面超过 2 MB 读取上限");
-  }
-
-  const bytes = await readLimitedResponseBody(response, maxResponseBytes);
-  const rawText = decodeResponseBody(bytes, response.headers.get("content-type"));
   const extracted = contentType === "text/html" || contentType === "application/xhtml+xml"
     ? extractHtmlDocument(rawText)
     : extractPlainText(rawText);
@@ -66,87 +34,18 @@ export async function readGuideSourceUrl(sourceUrl: string, now = new Date()): P
 
   return {
     source_url: sourceUrl.trim(),
-    final_url: currentUrl.toString(),
+    final_url: read.final_url,
     title: extracted.title,
     body: extracted.body,
     sections: extracted.sections,
     content_type: contentType,
     fetched_at: now.toISOString(),
-    byte_length: bytes.byteLength,
-    warnings: [...warnings, ...extracted.warnings],
+    byte_length: read.byte_length,
+    warnings: [...read.warnings, ...warnings, ...extracted.warnings],
     reader: "static-html",
     completeness: extracted.warnings.length ? "partial" : "complete",
     media_count: 0
   };
-}
-
-async function assertPublicNetworkUrl(url: URL): Promise<void> {
-  if (!isSupportedGuideSourceUrl(url.toString()) || url.username || url.password) {
-    throw new Error("攻略链接地址无效");
-  }
-  const hostname = url.hostname.toLocaleLowerCase().replace(/^\[|\]$/g, "");
-  if (hostname === "localhost" || hostname.endsWith(".localhost") || hostname.endsWith(".local")) {
-    throw new Error("攻略链接不能访问本机或局域网地址");
-  }
-  const addresses = isIP(hostname)
-    ? [{ address: hostname }]
-    : await lookup(hostname, { all: true, verbatim: true });
-  if (!addresses.length || addresses.some((entry) => isPrivateAddress(entry.address))) {
-    throw new Error("攻略链接不能访问本机或局域网地址");
-  }
-}
-
-function isPrivateAddress(address: string): boolean {
-  const normalized = address.toLocaleLowerCase();
-  if (normalized.includes(".")) {
-    const ipv4 = normalized.startsWith("::ffff:") ? normalized.slice(7) : normalized;
-    const parts = ipv4.split(".").map(Number);
-    if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return true;
-    const [a, b] = parts as [number, number, number, number];
-    return a === 0
-      || a === 10
-      || a === 127
-      || (a === 100 && b >= 64 && b <= 127)
-      || (a === 169 && b === 254)
-      || (a === 172 && b >= 16 && b <= 31)
-      || (a === 192 && b === 168)
-      || (a === 198 && (b === 18 || b === 19))
-      || a >= 224;
-  }
-  return normalized === "::" || normalized === "::1" || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe8") || normalized.startsWith("fe9") || normalized.startsWith("fea") || normalized.startsWith("feb") || normalized.startsWith("ff");
-}
-
-async function readLimitedResponseBody(response: Response, limit: number): Promise<Uint8Array> {
-  if (!response.body) return new Uint8Array();
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  while (true) {
-    const next = await reader.read();
-    if (next.done) break;
-    length += next.value.byteLength;
-    if (length > limit) {
-      await reader.cancel();
-      throw new Error("攻略页面超过 2 MB 读取上限");
-    }
-    chunks.push(next.value);
-  }
-  const result = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    result.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-  return result;
-}
-
-function decodeResponseBody(bytes: Uint8Array, rawContentType: string | null): string {
-  const charset = rawContentType?.match(/charset\s*=\s*["']?([^;"']+)/i)?.[1]?.trim() || "utf-8";
-  try {
-    return new TextDecoder(charset).decode(bytes);
-  } catch {
-    return new TextDecoder("utf-8").decode(bytes);
-  }
 }
 
 function extractHtmlDocument(html: string): { title?: string; body: string; sections: GuideSourceSection[]; warnings: string[] } {
@@ -257,12 +156,4 @@ function normalizeExtractedLines(lines: string[]): string[] {
     result.push(line);
   }
   return result;
-}
-
-function normalizeContentType(value: string | null): string {
-  return value?.split(";", 1)[0]?.trim().toLocaleLowerCase() ?? "";
-}
-
-function isRedirect(status: number): boolean {
-  return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }

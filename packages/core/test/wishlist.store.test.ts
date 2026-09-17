@@ -8,12 +8,13 @@ describe("DIM wishlist store", () => {
   it("persists imported DIM wishlist rules in the local data directory", () => {
     const dir = mkdtempSync(join(tmpdir(), "d2-tools-wishlist-"));
 
+    // 导入身份是用户给的名字，不是内容或 URL。
     const saved = saveDimWishlist(dir, {
       title: "Community Picks",
       rules: [
         { item_hash: 123, perk_hashes: [11, 22], mode: "pve", note: "PVE clear" }
       ]
-    });
+    }, { name: "Community Picks", mode: "create" });
 
     expect(saved.title).toBe("Community Picks");
     expect(loadDimWishlist(dir)).toEqual(saved);
@@ -27,7 +28,7 @@ describe("DIM wishlist store", () => {
       rules: [
         { item_hash: 456, perk_hashes: [33, 44], mode: "pvp", note: "PVP duels" }
       ]
-    });
+    }, { name: "Temporary Picks", mode: "create" });
 
     clearDimWishlist(dir);
 
