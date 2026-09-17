@@ -228,6 +228,36 @@ describe("L3-2c：同一事实的两种编码，投影必须相同", () => {
     ]);
   });
 
+  it("「有就行」：没有 perk 要求的规则，两种编码都要出事实且投影相同", async () => {
+    // Bug #97。愿望单里的异域武器写的就是「有就行」——只有武器、没有 perk 要求。
+    // 这类规则过去被 DIM 适配器**整条滤掉**：命中了、来源名字也叫得出来，
+    // 但比对结果里没有来源**编号**，于是左边的来源清单数不着它、
+    // 按这份来源勾选也筛不出它，而武器自己还标着「符合推荐」。
+    // 判据与格式无关：两边都得出事实，「每栏任选其一」的写法差异不改变这一点。
+    // CSV 侧用旧版普通玩家模板：统一模板把 Perk 1 / Perk 2 列为必填，写不出「什么都不点」。
+    await expectSameProjection([
+      playerHeader,
+      ["测试步枪", String(weaponHash), "", sourceName, "PvE", "", "", "", "", "", "", "S", ""].join(",")
+    ].join("\n"), [
+      []
+    ]);
+  });
+
+  it("「有就行」的规则带出来源编号，命中条数一个不多（非空锚点写在断言里）", async () => {
+    // 上一条钉「两种编码相同」，但没有钉住**带的是编号**——投影刻意丢掉了 `source_id`
+    // （来源名、编号、署名允许两边不同）。而这次缺的恰恰就是编号，所以单独钉一次。
+    const dir = tempDir();
+    importDim(dir, dimWishlist([[]]));
+    const recommendation = await recommendationFor(dir);
+
+    // 非空锚点：没有这一条，下面「编号存在」会空转通过。
+    expect(recommendation?.source_records).toHaveLength(1);
+    expect(recommendation?.source_records?.[0]?.source_id).toBeTruthy();
+    expect(recommendation?.source_records?.[0]?.requirements).toEqual([]);
+    // 契约的不变那一半：修补只是补上「来自哪份来源」，命中条数照旧。
+    expect(recommendation?.weapon_level_recommendations).toHaveLength(1);
+  });
+
   it("分组键不携带格式概念，且同一来源的记录共用一个分组（生产者侧断言）", async () => {
     // 判据① 过去只在**消费层**（手搭夹具）断言过分组键，生产者侧没有网：
     // 适配器若把格式前缀写进 `source_group_id`，消费层的夹具察觉不到。

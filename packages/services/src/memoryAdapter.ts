@@ -26,7 +26,7 @@ export type MemoryServicesSeed = {
 
 export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
   let vaultTags = seed.vaultTags ?? { items: {} };
-  let wishlist = seed.wishlist ?? null;
+  const wishlist = seed.wishlist ?? null;
   let localTargetRules = seed.localTargetRules ?? {
     action_policy: "notify_only" as const,
     armor: [],
@@ -72,10 +72,6 @@ export function createMemoryServices(seed: MemoryServicesSeed): D2Services {
   const localData: D2Services["localData"] = {
     async getDimWishlist() {
       return wishlist;
-    },
-    async clearDimWishlist() {
-      wishlist = null;
-      return null;
     },
     async getPersonalWeaponKnowledge(weaponName) {
       if (!weaponName) return personalWeaponKnowledge;

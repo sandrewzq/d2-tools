@@ -311,7 +311,6 @@ contextBridge.exposeInMainWorld("d2", {
     equipped_items: AccountSummary["vault"]["items"];
   }) => ipcRenderer.invoke("loadouts:transfer-plan", input) as Promise<BatchTransferPlan>,
   getDimWishlist: () => ipcRenderer.invoke("wishlist:get") as Promise<DimWishlist | null>,
-  clearDimWishlist: () => ipcRenderer.invoke("wishlist:clear") as Promise<null>,
   listRecommendationDocuments: () =>
     ipcRenderer.invoke("recommendation:documents:list") as Promise<RecommendationDocumentSummary[]>,
   selectDimWishlistFile: () =>

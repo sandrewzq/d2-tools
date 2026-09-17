@@ -23,7 +23,6 @@ import type {
 
 export type CommunityApi = {
   getDimWishlist(): Promise<DimWishlist | null>;
-  clearDimWishlist(): Promise<null>;
   listRecommendationDocuments(): Promise<RecommendationDocumentSummary[]>;
   selectDimWishlistFile(): Promise<DimWishlistImportPreview | null>;
   readDimWishlistLink(url: string): Promise<DimWishlistLinkReadResult>;

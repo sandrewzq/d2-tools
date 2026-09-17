@@ -1,5 +1,4 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { LocalTargetRules } from "@d2-tools/core/analysis/targets";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "@d2-tools/services";
@@ -20,7 +19,6 @@ export type VaultPageModel = {
   activeLoadoutName?: string;
   tags: VaultTags;
   targetRules: LocalTargetRules;
-  wishlist: DimWishlist | null;
 };
 
 export type VaultPageWorkspace = VaultPageModel;
@@ -41,7 +39,6 @@ export type VaultPageInput = {
   activeLoadoutName?: string;
   tags: VaultTags;
   targetRules: LocalTargetRules;
-  wishlist: DimWishlist | null;
 };
 
 export async function loadVaultPageWorkspace(
@@ -60,8 +57,7 @@ export async function loadVaultPageWorkspace(
       selectedCharacterId: account.characters[0]?.character_id ?? "",
       activeLoadoutLookup: null,
       tags: accountWorkspace.data.tags,
-      targetRules: accountWorkspace.data.targetRules,
-      wishlist: accountWorkspace.data.wishlist
+      targetRules: accountWorkspace.data.targetRules
     });
   });
 }
@@ -84,8 +80,7 @@ export function createVaultPageWorkspace(input: VaultPageInput): VaultPageWorksp
     activeLoadoutLookup: input.activeLoadoutLookup,
     activeLoadoutName: input.activeLoadoutName,
     tags: input.tags,
-    targetRules: input.targetRules,
-    wishlist: input.wishlist
+    targetRules: input.targetRules
   };
 }
 

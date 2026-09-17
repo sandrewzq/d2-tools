@@ -11,7 +11,6 @@ import {
 } from "@d2-tools/core/analysis/wishlistImport";
 import type { SourceOptions } from "@d2-tools/core/community-perks";
 import {
-  clearDimWishlist,
   loadDimWishlist,
   saveDimWishlist,
   saveDimWishlistFromSource
@@ -194,15 +193,6 @@ export function registerWishlistIpcHandlers(): void {
   ipcMain.handle("recommendation:documents:list", () => {
     const config = loadConfig();
     return listRecommendationDocuments(config.data.data_dir);
-  });
-
-  ipcMain.handle("wishlist:clear", async () => {
-    const config = loadConfig();
-    const before = dimWishlistItemHashes(config.data.data_dir);
-    clearDimWishlist(config.data.data_dir);
-    invalidateDimWishlistMatches(config.data.data_dir, before, dimWishlistItemHashes(config.data.data_dir));
-    await removeDimWishlistEquipmentTargets(config.data.data_dir).catch(() => undefined);
-    return null;
   });
 }
 

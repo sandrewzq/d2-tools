@@ -65,8 +65,6 @@ export type DimWishlistImportIssueCategory =
   | "duplicate_perk"
   /** 这个 perk 在这把枪的候选里找不到，多半是 Hash 或名字写错。 */
   | "unknown_perk"
-  /** 这个 perk 能落在多个栏位，无法唯一归栏。 */
-  | "ambiguous_slot"
   /** 同一行里两个 perk 落在同一栏，不可能同时拥有。 */
   | "same_slot"
   /** 丢掉问题行后，这把枪剩下的规则不再构成完整候选，因此整把枪的规则一起跳过。 */

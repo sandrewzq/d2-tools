@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { fetchAccountSummary } from "../src/account/summary.js";
+import { countAccountItemHashes, fetchAccountSummary } from "../src/account/summary.js";
+import type { AccountCharacterSnapshot, AccountItemSnapshot, AccountSnapshot } from "../src/account/summary.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 const itemDefinitions: DefinitionComponentData = {
@@ -457,6 +458,60 @@ describe("account summary", () => {
     });
   });
 });
+
+// Bug #98：来源行要同时写出「仓库 N 件 / 全账号 M 件」两个范围。
+// 两个数必须同源算出（全账号 = 仓库 + 角色侧），否则行上的两句话会互相打架。
+describe("countAccountItemHashes", () => {
+  it("同一件武器分两个范围数：仓库只算仓库，全账号再加上角色身上、背包与邮政官", () => {
+    const counts = countAccountItemHashes(accountBuckets({
+      vault: [101, 101, 202],
+      equipped: [202, 303],
+      inventory: [101],
+      postmaster: [404]
+    }));
+
+    expect(toRecord(counts.vault)).toEqual({ 101: 2, 202: 1 });
+    expect(toRecord(counts.account)).toEqual({ 101: 3, 202: 2, 303: 1, 404: 1 });
+    // 少的那几件就是「在角色身上、不在仓库里」的那些——仓库那一半数不着它们，
+    // 全账号那一半数得着。这正是用户看到「292 和 305 对不上」的那 13 件。
+    expect(counts.vault.has(303)).toBe(false);
+    expect(counts.vault.has(404)).toBe(false);
+  });
+
+  it("没有账号数据时两个范围一起为空，不会一个 0 一个有数", () => {
+    const counts = countAccountItemHashes(accountBuckets({ vault: [], equipped: [], inventory: [], postmaster: [] }));
+
+    expect(counts.vault.size).toBe(0);
+    expect(counts.account.size).toBe(0);
+  });
+});
+
+function toRecord(counts: Map<number, number>): Record<number, number> {
+  return Object.fromEntries([...counts.entries()].sort((left, right) => left[0] - right[0]));
+}
+
+/**
+ * 只造出计数用得到的部分：每个桶里放一串 Hash。
+ *
+ * `AccountItemSnapshot` 的其余字段与这件事无关，用 `as unknown as` 跳过——
+ * 想要的是「函数按哪个桶算」，不是再复刻一份完整快照。
+ */
+function accountBuckets(buckets: {
+  vault: number[];
+  equipped: number[];
+  inventory: number[];
+  postmaster: number[];
+}): Pick<AccountSnapshot, "vault" | "characters"> {
+  const items = (hashes: number[]) => hashes.map((hash) => ({ hash })) as unknown as AccountItemSnapshot[];
+  return {
+    vault: { item_count: buckets.vault.length, items: items(buckets.vault), sample_items: [] },
+    characters: [{
+      equipped_items: items(buckets.equipped),
+      inventory_items: items(buckets.inventory),
+      postmaster_items: items(buckets.postmaster)
+    } as unknown as AccountCharacterSnapshot]
+  };
+}
 
 function jsonResponse(body: unknown): Response {
   return new Response(JSON.stringify(body), {

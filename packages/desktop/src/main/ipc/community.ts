@@ -62,6 +62,7 @@ import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import { classifyCommunityIpcError, encodeDesktopIpcFailure } from "../../contracts/errors.js";
 import { getDesktopManifestStatus } from "./manifest.js";
 import { getAccountSnapshot } from "../runtime/accountSession.js";
+import { countAccountItemHashes, type AccountItemHashCounts } from "@d2-tools/core/account/summary";
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 import { matchVaultRecommendationsInWorker } from "../runtime/recommendationRuntime.js";
 
@@ -557,24 +558,32 @@ async function enrichRecommendationManagement(
   dataDir: string,
   snapshot: RecommendationManagementSnapshot
 ): Promise<RecommendationManagementSnapshot> {
-  const accountCountByHash = await loadCachedAccountCountByHash();
+  const counts = await loadCachedAccountItemCounts();
   const sourceHashes = recommendationSourceItemHashesBySource(
     dataDir,
     snapshot.sources.map((source) => source.source_key)
   );
   return {
     ...snapshot,
-    removed_rules: await hydrateRecommendationManagedRules(snapshot.removed_rules, accountCountByHash),
+    removed_rules: await hydrateRecommendationManagedRules(snapshot.removed_rules, counts.account),
     sources: snapshot.sources.map((source) => {
+      // 两个范围一次算出来、一起落到同一行上：界面上它们是并排的两句话，
+      // 分开算迟早会有一处漏加角色侧，而对不上的那一天只会被读成程序算错了。
       let affectedInstanceCount = 0;
+      let vaultInstanceCount = 0;
       try {
         for (const itemHash of sourceHashes.get(source.source_key) ?? []) {
-          affectedInstanceCount += accountCountByHash.get(itemHash) ?? 0;
+          affectedInstanceCount += counts.account.get(itemHash) ?? 0;
+          vaultInstanceCount += counts.vault.get(itemHash) ?? 0;
         }
       } catch {
         // 数据源已经移除或暂时不可读时按 0 展示，不阻断其他来源。
       }
-      return { ...source, affected_instance_count: affectedInstanceCount };
+      return {
+        ...source,
+        affected_instance_count: affectedInstanceCount,
+        vault_instance_count: vaultInstanceCount
+      };
     })
   };
 }
@@ -583,7 +592,7 @@ async function hydrateRecommendationManagedRules(
   rules: RecommendationManagedRule[],
   accountCountByHash?: ReadonlyMap<number, number>
 ): Promise<RecommendationManagedRule[]> {
-  const instanceCounts = accountCountByHash ?? await loadCachedAccountCountByHash();
+  const instanceCounts = accountCountByHash ?? (await loadCachedAccountItemCounts()).account;
   const hashes = new Set<number>();
   for (const rule of rules) {
     rule.weapon_hashes.forEach((hash) => hashes.add(hash));
@@ -628,25 +637,16 @@ async function hydrateRecommendationManagedRules(
   }));
 }
 
-async function loadCachedAccountCountByHash(): Promise<Map<number, number>> {
-  const counts = new Map<number, number>();
+async function loadCachedAccountItemCounts(): Promise<AccountItemHashCounts> {
+  const empty: AccountItemHashCounts = { vault: new Map(), account: new Map() };
   try {
     const account = await getAccountSnapshot("cached");
-    const accountItems = [
-      ...account.vault.items,
-      ...account.characters.flatMap((character) => [
-        ...character.equipped_items,
-        ...character.inventory_items,
-        ...character.postmaster_items
-      ])
-    ];
-    for (const item of accountItems) {
-      counts.set(item.hash, (counts.get(item.hash) ?? 0) + 1);
-    }
+    // 两个范围由同一次遍历一起算出来（全账号 = 仓库 + 角色侧），不在这里各数一遍。
+    return countAccountItemHashes(account);
   } catch {
     // 来源管理仍可离线使用；账号影响数量只是辅助信息。
+    return empty;
   }
-  return counts;
 }
 
 function exactUnsignedHash(value: string): number | null {

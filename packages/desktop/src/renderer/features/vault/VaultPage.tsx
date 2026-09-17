@@ -83,13 +83,6 @@ export function VaultPage(props: {
     api.listRecommendationRules(sourceKey, query)
   ), []);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
-    clear: async () => {
-      const affectedWeaponHashes = collectWishlistWeaponHashes(props.wishlist);
-      await api.clearDimWishlist();
-      props.onWishlistChanged(null);
-      props.onEquipmentTargetStoreChanged(await api.getEquipmentTargetStore());
-      await props.onCommunityRecommendationsChanged(affectedWeaponHashes);
-    },
     listRecommendationDocuments: () => api.listRecommendationDocuments(),
     selectDimFile: () => api.selectDimWishlistFile(),
     readWishlistLink: (url) => api.readDimWishlistLink(url),
@@ -159,16 +152,14 @@ export function VaultPage(props: {
     activeLoadoutLookup: props.activeLoadoutLookup,
     activeLoadoutName: props.activeLoadoutName,
     tags: props.tags,
-    targetRules: props.localTargetRules,
-    wishlist: props.wishlist
+    targetRules: props.localTargetRules
   }) : null, [
     props.account,
     props.selectedCharacterId,
     props.activeLoadoutLookup,
     props.activeLoadoutName,
     props.tags,
-    props.localTargetRules,
-    props.wishlist
+    props.localTargetRules
   ]);
 
   if (!props.isBungieConfigured || !props.isAccountLoggedIn || !props.account) {
@@ -233,9 +224,7 @@ export function VaultPage(props: {
         onBatchUnlock: props.onBatchUnlock,
         onBatchTransferToCharacter: props.onBatchTransferToCharacter
       }}
-      wishlist={model.wishlist}
-      recommendationCardSummary={props.recommendationCardSummary}
-      recommendationSourceState={{
+      recommendationCardSummary={props.recommendationCardSummary}      recommendationSourceState={{
         recommendationScan: props.recommendationScan,
       }}
       wishlistActions={wishlistActions}

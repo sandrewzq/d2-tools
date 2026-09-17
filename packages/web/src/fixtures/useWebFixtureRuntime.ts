@@ -638,8 +638,7 @@ export function createWebVaultPageModel(input: {
     activeLoadoutLookup,
     activeLoadoutName: selectedTemplate?.name,
     tags: webVaultTags,
-    targetRules: webLocalTargetRules,
-    wishlist: webWishlist
+    targetRules: webLocalTargetRules
   });
 }
 

@@ -13,7 +13,8 @@ import {
 import { createDefaultCommunityPerkService } from "../src/community/perkRecommendation.js";
 import {
   clearImportedRecommendationRules,
-  readRecommendationManagementSnapshot
+  readRecommendationManagementSnapshot,
+  updateRecommendationManagedSource
 } from "../src/community/recommendationManagement.js";
 import {
   listRecommendationDocuments,
@@ -483,6 +484,33 @@ describe("import identity: 命名 + 新建 / 覆盖（D5）", () => {
     expect(loadRecommendationSources(dir, "dim")).toHaveLength(1);
     expect(snapshot.sources.map((entry) => entry.label)).toEqual(["我的愿望单"]);
     expect(listRecommendationDocuments(dir).map((document) => document.name)).toEqual(["我的愿望单"]);
+  });
+
+  /**
+   * Bug #100：导入区的「移除全部来源」按钮删掉之后，清掉一整份导入只剩逐份删除这条路。
+   * 这条用例钉住它不是空话：来源管理面的一行按下「删除」，那一份导入（文档 + 实例 + 规则）
+   * 必须整个消失，另一份格式的导入原样留着——不然删掉那个按钮就等于把唯一的出口一起删了。
+   */
+  it("removes a whole 愿望单 import through the per-document 删除 path", async () => {
+    const { dir, path } = writeCsv(twoSourceCsv);
+    await importCsv(dir, path, twoSourceCsv, "create");
+    saveDimWishlist(dir, {
+      title: "我的愿望单",
+      rules: [{ rule_stable_id: "dim-1", item_hash: weaponHash, perk_hashes: [voltShotPlug], mode: "pve", note: "" }]
+    }, { name: "我的愿望单", mode: "create" });
+    expect([...listRecommendationDocuments(dir)].map((document) => document.kinds).flat().sort())
+      .toEqual(["csv", "dim"]);
+
+    const wishlistSource = readRecommendationManagementSnapshot(dir).sources
+      .find((entry) => entry.label === "我的愿望单");
+    if (!wishlistSource) throw new Error("管理面没有列出这份愿望单导入");
+
+    updateRecommendationManagedSource(dir, wishlistSource.source_key, "removed");
+
+    expect(loadRecommendationSources(dir, "dim")).toEqual([]);
+    // 另一份导入不受牵连。
+    expect(loadRecommendationSources(dir, "csv")).toHaveLength(2);
+    expect(listRecommendationDocuments(dir).map((document) => document.name)).not.toContain("我的愿望单");
   });
 });
 

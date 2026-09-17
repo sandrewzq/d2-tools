@@ -1584,17 +1584,21 @@
 }
 
 /* 导入人工推荐表格：模板下载与选文件同属一条导入流程，收在同一个弹框里。 */
-:where(.app-shell) .vault-knowledge-import-dialog {
+/* 宽度写成「基础类 + 自己的弹框类」的复合选择器：基础宽度规则在本文件后面，单类名会被它按源序盖掉，
+   这里原先的单类 720px 就一直没生效过（实测渲染出来的还是 920px）。 */
+:where(.app-shell) .vault-wishlist-manager.vault-knowledge-import-dialog {
   width: min(720px, calc(100vw - 32px));
 }
 
-:where(.app-shell) .vault-knowledge-import-steps {
+:where(.app-shell) .vault-import-steps {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
-:where(.app-shell) .vault-knowledge-import-step {
+/* 步骤行：表格导入弹框（下载模板 / 选择表格文件）与愿望单本地文件弹框（选择愿望单文本文件）共用同一排布。
+   两条路的确认卡都跟在这一行下面，宽度一致这件事由弹框宽度保证。 */
+:where(.app-shell) .vault-import-step {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1605,18 +1609,18 @@
   background: var(--surface-panel);
 }
 
-:where(.app-shell) .vault-knowledge-import-step > span {
+:where(.app-shell) .vault-import-step > span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
-:where(.app-shell) .vault-knowledge-import-step strong {
+:where(.app-shell) .vault-import-step strong {
   color: var(--text-title);
   font-size: var(--font-content);
 }
 
-:where(.app-shell) .vault-knowledge-import-step small {
+:where(.app-shell) .vault-import-step small {
   color: var(--text-muted);
   font-size: var(--font-caption);
   line-height: 1.45;
@@ -1752,9 +1756,7 @@
   padding: 24px;
 }
 :where(.app-shell) .vault-wishlist-manager > header,
-:where(.app-shell) .vault-import-section-head,
-:where(.app-shell) .vault-wishlist-confirm,
-:where(.app-shell) .vault-wishlist-confirm > div {
+:where(.app-shell) .vault-import-section-head {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
@@ -1762,15 +1764,13 @@
 }
 
 :where(.app-shell) .vault-wishlist-manager > header,
-:where(.app-shell) .vault-import-section-head,
-:where(.app-shell) .vault-wishlist-confirm {
+:where(.app-shell) .vault-import-section-head {
   justify-content: space-between;
 }
 
 :where(.app-shell) .vault-wishlist-manager > header > div,
 :where(.app-shell) .vault-import-section-head > span,
-:where(.app-shell) .vault-wishlist-preview > span,
-:where(.app-shell) .vault-wishlist-paste label {
+:where(.app-shell) .vault-wishlist-preview > span {
   display: grid;
   gap: 4px;
   min-width: 0;
@@ -1778,8 +1778,7 @@
 
 :where(.app-shell) .vault-wishlist-manager > header span,
 :where(.app-shell) .vault-import-section-head small,
-:where(.app-shell) .vault-wishlist-preview small,
-:where(.app-shell) .vault-wishlist-paste label > span {
+:where(.app-shell) .vault-wishlist-preview small {
   color: var(--text-muted);
 }
 
@@ -1893,6 +1892,19 @@
   background: var(--surface-panel);
 }
 
+/* 按钮栏的宽度由「这个列表里最宽的一行」决定，与当前这一行有几个按钮无关。
+   列表与行共用同一套栏宽（行用 subgrid 接上列表的栏），所以列间距也挂在列表上——
+   subgrid 的行会忽略自己的 column-gap。规则行不在此列，仍是各自 minmax(0, 1fr) auto。 */
+:where(.app-shell) .vault-managed-source-list {
+  grid-template-columns: minmax(0, 1fr) max-content;
+  column-gap: 10px;
+}
+
+:where(.app-shell) .vault-managed-source-list > .vault-managed-source {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
 :where(.app-shell) .vault-managed-source,
 :where(.app-shell) .vault-managed-rule {
   display: grid;
@@ -1923,7 +1935,7 @@
 
 :where(.app-shell) .vault-managed-source-select {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(210px, auto);
+  grid-template-columns: minmax(0, 1fr) 210px;
   gap: 12px;
   align-items: center;
   min-width: 0;
@@ -1936,6 +1948,18 @@
   box-shadow: none;
 }
 
+/* 数字栏定宽 + 右对齐 + 等宽数字：两行的数字才会真正对齐、右边缘不呈锯齿。
+   条数比「几把武器 / 影响几件」亮一档，但它不是第二个标题，字重仍低于来源名。 */
+:where(.app-shell) .vault-managed-source-select > span:last-child {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .vault-managed-source-select > span:last-child b {
+  color: var(--text-title);
+  font-weight: 600;
+}
+
 :where(.app-shell) .vault-managed-source-select:hover,
 :where(.app-shell) .vault-managed-source-select[aria-pressed="true"] {
   border-color: var(--state-selected-border);
@@ -1945,8 +1969,7 @@
 :where(.app-shell) .vault-managed-source-select > span,
 :where(.app-shell) .vault-managed-rule > div,
 :where(.app-shell) .vault-managed-rule-title,
-:where(.app-shell) .vault-curated-dataset-danger > span,
-:where(.app-shell) .vault-management-confirm > span {
+:where(.app-shell) .vault-curated-dataset-danger > span {
   display: grid;
   gap: 3px;
   min-width: 0;
@@ -1954,8 +1977,7 @@
 
 :where(.app-shell) .vault-managed-source-select small,
 :where(.app-shell) .vault-managed-rule small,
-:where(.app-shell) .vault-curated-dataset-danger small,
-:where(.app-shell) .vault-management-confirm small {
+:where(.app-shell) .vault-curated-dataset-danger small {
   color: var(--text-muted);
   font-size: var(--font-caption);
 }
@@ -1965,6 +1987,33 @@
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 6px;
+}
+
+/* 四个动作同一形状，只靠文字颜色分轻重。
+   这是本容器内对公共按钮配方的唯一一处覆盖：停用只把边线补回来（仍是最暗的一档），
+   删除把实心红改成红描边（红只在悬停 / 确认时出现）。先例见 loadouts 的 danger 覆盖。 */
+.app-shell .vault-managed-source-actions [data-control-variant="quiet"] {
+  border-color: var(--border-control);
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.app-shell .vault-managed-source-actions [data-control-variant="quiet"]:not(:disabled):hover {
+  border-color: var(--border-control);
+  color: var(--text-title);
+  background: var(--hover-bg);
+}
+
+.app-shell .vault-managed-source-actions [data-control-variant="danger"] {
+  border-color: var(--control-danger-border);
+  color: var(--danger);
+  background: transparent;
+}
+
+.app-shell .vault-managed-source-actions [data-control-variant="danger"]:not(:disabled):hover {
+  border-color: var(--control-danger-border);
+  color: var(--control-danger-text);
+  background: var(--control-danger-bg);
 }
 
 :where(.app-shell) .vault-managed-rules {
@@ -2036,10 +2085,6 @@
   background: var(--status-error-bg);
 }
 
-:where(.app-shell) .vault-management-confirm {
-  border: 1px solid var(--status-pending);
-}
-
 :where(.app-shell) .vault-import-section-head {
   display: flex;
   flex-wrap: wrap;
@@ -2053,17 +2098,55 @@
   min-width: 0;
 }
 
-:where(.app-shell) .vault-wishlist-paste {
+/* 「从链接同步」弹框。它是链接这一条路的唯一入口，整页只有这一个输入框：
+   输入占左栏，读取按钮与输入同一行、贴着右栏并底对齐，说明另起一行。
+   不这么排的话，按钮和说明会按默认行内流挤在同一行上，看着像压在输入框上。
+   （原先这套排布挂在「粘贴文本」那个已经删掉的通道上，通道删了、类名换了，样式没跟过来。） */
+:where(.app-shell) .vault-wishlist-manager.vault-wishlist-link-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+/* 「导入文本文件」弹框：愿望单本地文件这条路。T68 之前它没有弹框，卡片直接落在页面导入区，
+   于是同一张预览卡在这里被工作区宽度撑开（实测来源名输入框 1476px），与两个弹框里的 490px 差 3 倍。
+   宽度覆盖同样写成复合选择器，理由见上面表格弹框那条。 */
+:where(.app-shell) .vault-wishlist-manager.vault-wishlist-file-dialog {
+  width: min(720px, calc(100vw - 32px));
+}
+
+/* 标题那一栏吃掉剩余宽度：不收的话它按内容宽参与换行，右下角的「关闭」会被挤到单独一行。 */
+:where(.app-shell) .vault-wishlist-link-dialog > header > div {
+  flex: 1 1 0;
+}
+
+:where(.app-shell) .vault-wishlist-link-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: end;
+  min-width: 0;
 }
 
-:where(.app-shell) .vault-wishlist-paste textarea {
+:where(.app-shell) .vault-wishlist-link-body > label {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+:where(.app-shell) .vault-wishlist-link-body > label > span {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .vault-wishlist-link-body > label input {
   width: 100%;
   min-width: 0;
-  resize: vertical;
+}
+
+:where(.app-shell) .vault-wishlist-link-body > small {
+  grid-column: 1 / -1;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
 }
 
 :where(.app-shell) .vault-wishlist-preview,
@@ -2076,6 +2159,12 @@
   border: 1px solid var(--object-border);
   border-radius: var(--radius-frame);
   background: var(--surface-panel);
+}
+
+/* 「来自链接」那一行可能长到没有任何可断处（GitHub 原始地址就是这样）：整段撑过自己那一栏，
+   压到右边的计数上。允许在任意字符处断行，链接就留在本栏里换行。 */
+:where(.app-shell) .vault-wishlist-preview > span > small {
+  overflow-wrap: anywhere;
 }
 
 :where(.app-shell) .vault-knowledge-import-issues {
@@ -2173,10 +2262,6 @@
 :where(.app-shell) .vault-dim-online-status small {
   color: var(--text-muted);
   font-size: var(--font-caption);
-}
-
-:where(.app-shell) .vault-wishlist-confirm {
-  padding: 10px;
 }
 
 :where(.app-shell) .vault-wishlist-feedback {
@@ -2811,7 +2896,7 @@
     border-radius: var(--radius-frame) var(--radius-frame) 0 0;
   }
 
-  :where(.app-shell) .vault-wishlist-paste,
+  :where(.app-shell) .vault-wishlist-link-body,
   :where(.app-shell) .vault-wishlist-preview,
   :where(.app-shell) .vault-import-identity,
   :where(.app-shell) .vault-dim-online-status,
@@ -2826,12 +2911,25 @@
     justify-content: flex-start;
   }
 
+  /* 收回单栏时列表与行必须一起收：行接了列表的栏宽（subgrid），只收行或只收列表
+     都会让另一半继续按两栏排。数字此时靠左——右对齐会贴住右边缘。 */
+  :where(.app-shell) .vault-managed-source-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-managed-source-list > .vault-managed-source {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.app-shell) .vault-managed-source-select > span:last-child {
+    text-align: left;
+  }
+
   :where(.app-shell) .vault-managed-rules-head form {
     width: 100%;
   }
 
-  :where(.app-shell) .vault-wishlist-manager > header,
-  :where(.app-shell) .vault-wishlist-confirm {
+  :where(.app-shell) .vault-wishlist-manager > header {
     align-items: stretch;
     flex-direction: column;
   }

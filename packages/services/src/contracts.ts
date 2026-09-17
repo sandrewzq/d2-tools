@@ -32,7 +32,6 @@ export type ProfileService = {
 
 export type LocalDataService = {
   getDimWishlist(): Promise<DimWishlist | null>;
-  clearDimWishlist(): Promise<null>;
   getPersonalWeaponKnowledge?: (weaponName?: string) => Promise<PersonalWeaponKnowledgeTable>;
   savePersonalWeaponKnowledge?: (input: SavePersonalWeaponKnowledgeInput) => Promise<PersonalWeaponKnowledgeTable>;
   setPersonalWeaponKnowledgeEnabled?: (id: string, enabled: boolean) => Promise<PersonalWeaponKnowledgeTable>;

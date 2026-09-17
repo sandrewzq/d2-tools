@@ -162,10 +162,7 @@ function WebApp() {
     }),
     [fixture, selectedAccountCharacterId, selectedTemplateId]
   );
-  const [webRecommendationWishlist, setWebRecommendationWishlist] = useState<DimWishlist | null>(vaultModel.wishlist ?? null);
-  const webWishlistActions = useMemo<VaultWishlistActions>(() => ({
-    clear: async () => setWebRecommendationWishlist(null)
-  }), []);
+  const webWishlistActions = useMemo<VaultWishlistActions>(() => ({}), []);
   const loadoutsModel = useMemo(
     () => fixture.createLoadoutsPageModel({
       selectedTemplateId,
@@ -502,7 +499,6 @@ function WebApp() {
               highlightedLabel={vaultModel.activeLoadoutName}
               tags={vaultModel.tags}
               openingItemKey=""
-              wishlist={webRecommendationWishlist}
               recommendationSourceState={{
                 recommendationScan: {
                   phase: "idle",

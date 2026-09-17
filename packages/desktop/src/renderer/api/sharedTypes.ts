@@ -97,13 +97,18 @@ export type WeaponKnowledgeImportSelection = WeaponKnowledgeImportPreview & {
 export type RecommendationManagedSource = {
   source_key: string;
   label: string;
+  /** 来源格式的面向用户说法（推荐表格 / 愿望单文本），见服务层同名类型。 */
+  format_label: string;
   state: "active" | "disabled" | "removed";
   configured: boolean;
   rule_count: number;
   weapon_count: number;
   revision: string;
   imported_at: string;
+  /** 这份来源在整个账号里点到多少件（仓库 + 角色身上 + 角色背包 + 邮政官），见服务层同名字段。 */
   affected_instance_count?: number;
+  /** 同一件事，只算仓库里那部分——也就是来源清单上那个数字，见服务层同名字段。 */
+  vault_instance_count?: number;
   /** 这一行在事实层登记过的全部键（分组键 + 下辖实例键），见服务层同名类型。 */
   fact_keys: string[];
 };

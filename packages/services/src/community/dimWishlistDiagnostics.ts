@@ -17,12 +17,32 @@ import {
  * 读取期（`dimWishlistSource.ts`）与导入期校验（`dimWishlistValidation.ts`）都读这里。
  * 这两处过去各写一份的话，就会出现「导入时认为这行没问题、读取时归不到栏」这类
  * 只在改一方的时候才暴露的分叉——T56 反复踩的正是同一个坑。
+ *
+ * ## 归栏结果唯一：按作者写的那一栏归（Bug #102）
+ *
+ * 有些 perk 在这把枪**两个特长栏的掉落池里都有**（例如 `意外复苏` 的两个特长插槽池子里
+ * 都有 `脉冲增幅器`），按插件身份反查会得到两个候选栏位。这不是来源写得不清楚——
+ * DIM 文本本来就是**按栏位顺序**逐个写 perk 的：实测 `dim_wishlist_aegis.txt` 里
+ * 8050 行「所有 perk 都能唯一归栏」的行，书写顺序与栏位顺序逐行一致、0 例外；
+ * `DIM综合愿望单_voltron.txt` 里 246521 行一致（另有 2276 行是把某一栏的第二个候选
+ * 写到行尾，属「同一栏写了两个 perk」的另一种写法，不受影响）。
+ *
+ * 所以消歧规则是：逐个 perk 取候选里「不早于上一个 perk 所在栏、且这一行还没用过」的
+ * 最靠前一个。归栏因此只有一个结果，**不存在「归不了栏」这一档**——曾有过一个「跨栏无法
+ * 唯一归栏」的状态，它让导入期把整行丢掉：作者的候选会从「任选其一」里静默消失
+ * （`意外复苏（专家）` 的第一个特长栏候选少了 `脉冲增幅器`），只有一行规则的枪则整把消失
+ * （`砷毒噬咬-4b` 在在线合集里丢了全部 342 行）。
+ *
+ * 同一行里**同一栏**写了两个 perk 仍照旧报 `same_slot`：那是真的不可能同时拥有
+ * （消歧时两条要求撞在同一栏，或作者本来就把一栏写了两个）。
  */
 
 type SlotCatalogEntry = {
   hash: number;
   name: string;
   slot: DimWishlistDiagnosticSlot;
+  /** 定义里的插槽序号——也是作者书写时的栏位顺序（见 `diagnoseDimWishlistRule`）。 */
+  socket: number;
 };
 
 export type DimWishlistRequirement = {
@@ -54,7 +74,7 @@ export function diagnoseDimWishlistRules<T extends { perk_hashes: number[] }>(
   const evaluated = rules.map((rule) => {
     const diagnostics = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
     const requirements = diagnostics.map((perk) => ({
-      slot: perk.slot_candidates[0] ?? "special",
+      slot: perk.slot,
       hashes: perk.resolved_hashes?.length ? perk.resolved_hashes : [perk.resolved_hash ?? perk.original_hash],
       name: perk.name
     }));
@@ -103,7 +123,7 @@ function buildWeaponSlotCatalog(itemHash: number, options: SourceOptions): SlotC
       : role === "other"
         ? "special"
         : role ?? "special";
-    return group.plugs.map((plug) => ({ hash: plug.hash, name: plug.name, slot }));
+    return group.plugs.map((plug) => ({ hash: plug.hash, name: plug.name, slot, socket: group.socket_index }));
   });
 }
 
@@ -112,49 +132,57 @@ function diagnoseDimWishlistRule(
   perkRefs: Map<number, PerkRef>,
   catalog: SlotCatalogEntry[]
 ): DimWishlistPerkDiagnostic[] {
+  const usedSlots = new Set<DimWishlistDiagnosticSlot>();
+  let lastSocket = Number.NEGATIVE_INFINITY;
   return perkHashes.map((hash): DimWishlistPerkDiagnostic => {
     const sourceName = perkRefs.get(hash)?.name ?? String(hash);
     const exactHashMatches = catalog.filter((entry) => entry.hash === hash);
     const nameMatches = exactHashMatches.length
       ? exactHashMatches
       : catalog.filter((entry) => normalizeComparableName(entry.name) === normalizeComparableName(sourceName));
-    const slots = [...new Set(nameMatches.map((entry) => entry.slot))];
-    const resolvedHashes = [...new Set(nameMatches.map((entry) => entry.hash))];
-    if (!slots.length) {
+    const chosen = chooseSlot(nameMatches, usedSlots, lastSocket);
+    if (!chosen) {
       return {
         original_hash: hash,
         name: sourceName,
-        slot_candidates: ["unknown"],
+        slot: "unknown",
         status: "unknown_slot"
       };
     }
-    if (slots.length > 1) {
-      return {
-        original_hash: hash,
-        name: sourceName,
-        slot_candidates: slots,
-        status: "cross_slot_ambiguous"
-      };
-    }
-    if (slots[0] === "special") {
-      return {
-        original_hash: hash,
-        resolved_hash: resolvedHashes[0],
-        resolved_hashes: resolvedHashes,
-        name: sourceName,
-        slot_candidates: slots,
-        status: "special_socket"
-      };
-    }
+    usedSlots.add(chosen.slot);
+    lastSocket = chosen.socket;
+    // 同名插件可能不止一个（同一栏里的同名变体），它们都算这个要求的候选。
+    const resolvedHashes = [...new Set(
+      nameMatches.filter((entry) => entry.slot === chosen.slot).map((entry) => entry.hash)
+    )];
     return {
       original_hash: hash,
       resolved_hash: resolvedHashes[0],
       resolved_hashes: resolvedHashes,
       name: sourceName,
-      slot_candidates: slots,
-      status: "exact"
+      slot: chosen.slot,
+      status: chosen.slot === "special" ? "special_socket" : "exact"
     };
   });
+}
+
+/**
+ * 这个 perk 归到哪一栏：候选里「不早于上一个 perk 所在栏、且这一行还没用过」的最靠前一个，
+ * 其次是「这一行还没用过」的最靠前一个，最后退回它的第一个候选。
+ *
+ * 「这一行还没用过」不能省：`荣誉利刃` 一行里 `无情打击` 占掉第一栏后，`居合连斩` 两个栏位
+ * 都可能出，只按「不早于上一个」会跟着撞进第一栏，那一行就被误报成同栏冲突。
+ * 最后的退路只在作者确实把同一栏写了两个 perk（或书写顺序与栏位顺序矛盾）时走到，
+ * 那时两条要求撞在一起，由 `findSameSlotConflict` 照旧报成「不可能同时拥有」。
+ */
+function chooseSlot(
+  candidates: readonly SlotCatalogEntry[],
+  usedSlots: ReadonlySet<DimWishlistDiagnosticSlot>,
+  lastSocket: number
+): SlotCatalogEntry | undefined {
+  const free = candidates.filter((entry) => !usedSlots.has(entry.slot));
+  const forward = free.filter((entry) => entry.socket >= lastSocket);
+  return (forward.length ? forward : free.length ? free : candidates)[0];
 }
 
 function normalizeComparableName(value: string): string {

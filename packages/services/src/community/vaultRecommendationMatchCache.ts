@@ -22,7 +22,12 @@ const databaseFileName = "account-cache.sqlite";
 // 20：删除本地导入通道（本地规则表），来源只剩人工推荐 CSV 与 DIM Wishlist。
 // 21：缓存键去掉 legacy `external_recommendation_sets` 指纹（该表族已无写入方）。
 // 22：缓存键去掉「人工 / DIM」两条通道，统一走三级模型的文档与来源实例——同一份事实只有一个键。
-const matchAlgorithmVersion = 22;
+// 23：DIM 的武器级规则（「有就行」）也产出来源事实。此前这类命中只有来源名字、没有来源编号，
+//     来源清单数不着、按来源筛选也筛不出；形状变了必须整体重算。
+// 24：「两个特长栏都可能出」的 perk 改为按作者书写的栏位顺序归栏（Bug #102）。旧缓存里有两种
+//     过期事实：这种行此前被整行丢掉（逐栏候选少了一个来源写明的候选，甚至整把枪没有事实），
+//     所以必须整体重算，而不是等下一次盖号。
+const matchAlgorithmVersion = 24;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;
@@ -66,7 +71,7 @@ export function partitionVaultRecommendationMatchCache(
   try {
     const read = database.prepare(`
       SELECT item_hash, roll_fingerprint, manifest_version, manifest_language,
-             recommendation_revision, match_json
+             recommendation_revision, algorithm_version, match_json
       FROM vault_weapon_match_cache
       WHERE account_key = ? AND instance_id = ?
     `);
@@ -77,12 +82,16 @@ export function partitionVaultRecommendationMatchCache(
         return;
       }
       const row = read.get(context.account_key, item.instance_id) as MatchCacheRow | undefined;
+      // 行的形状由算法版本决定，所以版本对不上与 `recommendation_revision` 对不上是同一件事：
+      // 这一行不是当前算法写下的，必须重算。放在读取这一处判，是因为「这行还能不能用」
+      // 就是在这里定的——只靠「盖版本号时小心」保证，别处迟早会有人只信版本号那一列。
       const cached = row
         && row.item_hash === item.hash
         && row.roll_fingerprint === rollFingerprint
         && row.manifest_version === context.manifest_version
         && row.manifest_language === context.manifest_language
         && row.recommendation_revision === context.recommendation_revision
+        && row.algorithm_version === matchAlgorithmVersion
           ? parseMatch(row.match_json, item.instance_id, item.hash)
           : null;
       if (cached) cachedByIndex.set(index, cached);
@@ -112,14 +121,15 @@ export function saveVaultRecommendationMatchCache(
     const write = database.prepare(`
       INSERT INTO vault_weapon_match_cache (
         account_key, instance_id, item_hash, roll_fingerprint, manifest_version, manifest_language,
-        recommendation_revision, match_json, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        recommendation_revision, algorithm_version, match_json, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(account_key, instance_id) DO UPDATE SET
         item_hash = excluded.item_hash,
         roll_fingerprint = excluded.roll_fingerprint,
         manifest_version = excluded.manifest_version,
         manifest_language = excluded.manifest_language,
         recommendation_revision = excluded.recommendation_revision,
+        algorithm_version = excluded.algorithm_version,
         match_json = excluded.match_json,
         updated_at = excluded.updated_at
     `);
@@ -136,6 +146,7 @@ export function saveVaultRecommendationMatchCache(
           context.manifest_version,
           context.manifest_language,
           context.recommendation_revision,
+          matchAlgorithmVersion,
           JSON.stringify(match),
           now.toISOString()
         );
@@ -155,6 +166,12 @@ export function saveVaultRecommendationMatchCache(
  * but only weapons covered by that edit need to be recalculated. Remove those
  * rows and advance every unaffected row to the new revision so the next account
  * sync does not repeat work that is known to be semantically unchanged.
+ *
+ * 盖版本号的前提是「**只有数据变了，算法没变**」。算法变了（比对结果的形状不同）时盖号
+ * 等于把旧形状宣布成有效——修复会被这一次盖号悄悄顶掉，以后再改形状也会重演。
+ * 所以只盖**同一算法版本**写下的行；别的版本留在旧版本号上，下次核对自然重算。
+ * 读取那一侧另有一道同样的核对（见 `partitionVaultRecommendationMatchCache`）；
+ * 这里是让版本号那一列**不说假话**：写上去的版本号必须真的代表「这行是当前算法核过的」。
  */
 export function advanceVaultRecommendationMatchCacheRevision(
   dataDir: string,
@@ -167,8 +184,8 @@ export function advanceVaultRecommendationMatchCacheRevision(
     database.exec("BEGIN IMMEDIATE;");
     try {
       for (const itemHash of new Set(affectedWeaponHashes)) removeAffected.run(itemHash);
-      database.prepare("UPDATE vault_weapon_match_cache SET recommendation_revision = ?")
-        .run(recommendationRevision);
+      database.prepare("UPDATE vault_weapon_match_cache SET recommendation_revision = ? WHERE algorithm_version = ?")
+        .run(recommendationRevision, matchAlgorithmVersion);
       database.exec("COMMIT;");
     } catch (error) {
       database.exec("ROLLBACK;");
@@ -212,6 +229,7 @@ type MatchCacheRow = {
   manifest_version: string;
   manifest_language: string;
   recommendation_revision: string;
+  algorithm_version: number;
   match_json: string;
 };
 
@@ -242,6 +260,7 @@ function openAccountCacheDatabase(dataDir: string): DatabaseSync {
       manifest_version TEXT NOT NULL,
       manifest_language TEXT NOT NULL,
       recommendation_revision TEXT NOT NULL,
+      algorithm_version INTEGER NOT NULL,
       match_json TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       PRIMARY KEY (account_key, instance_id)
@@ -251,6 +270,12 @@ function openAccountCacheDatabase(dataDir: string): DatabaseSync {
     CREATE INDEX IF NOT EXISTS idx_vault_weapon_match_item
       ON vault_weapon_match_cache(item_hash);
   `);
+  // 早先的行没有算法版本。给 0（永远不等于真实版本）而不是当前版本——
+  // 这些行是哪个版本写的无从得知，宁可让它们重算一次，也不能当成当前形状。
+  // 表是这次刚建的时候 `existingColumns` 为空，那时上面建表已经带上了这一列。
+  if (existingColumns.length > 0 && !existingColumns.some((column) => column.name === "algorithm_version")) {
+    database.exec("ALTER TABLE vault_weapon_match_cache ADD COLUMN algorithm_version INTEGER NOT NULL DEFAULT 0;");
+  }
   return database;
 }
 

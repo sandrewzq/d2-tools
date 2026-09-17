@@ -24,8 +24,7 @@ describe("vault page workspace", () => {
       },
       activeLoadoutName: "宗师配装",
       tags: { items: { "item-1": { tag: "keep" } } },
-      targetRules: emptyLocalTargetRules,
-      wishlist: { title: "DIM", rules: [] }
+      targetRules: emptyLocalTargetRules
     });
 
     expect(model.vaultItems.map((item) => item.instance_id)).toEqual(["item-1"]);
@@ -36,7 +35,6 @@ describe("vault page workspace", () => {
     expect(model.activeLoadoutName).toBe("宗师配装");
     expect(model.tags.items["item-1"]?.tag).toBe("keep");
     expect(model.targetRules).toBe(emptyLocalTargetRules);
-    expect(model.wishlist?.title).toBe("DIM");
   });
 });
 

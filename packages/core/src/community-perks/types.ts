@@ -53,8 +53,12 @@ export type DimWishlistPerkDiagnostic = {
   resolved_hash?: number;
   resolved_hashes?: number[];
   name: string;
-  slot_candidates: DimWishlistDiagnosticSlot[];
-  status: "exact" | "cross_slot_ambiguous" | "unknown_slot" | "special_socket";
+  /**
+   * 这个 perk 落在这把枪的哪一栏。**只有一个结果**：两个特长栏都可能出时按作者书写的
+   * 栏位顺序消歧（见 `dimWishlistDiagnostics`），所以没有「归不了栏」这一档。
+   */
+  slot: DimWishlistDiagnosticSlot;
+  status: "exact" | "unknown_slot" | "special_socket";
 };
 
 export type WeaponRecommendation = {

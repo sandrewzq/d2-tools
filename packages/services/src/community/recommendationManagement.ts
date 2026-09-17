@@ -18,10 +18,18 @@ import {
   type RecommendationRuleState,
   type RecommendationSourceState
 } from "./recommendationOverrides.js";
+import { recommendationSourceKindLabel } from "./recommendationSourceKindLabels.js";
 
 export type RecommendationManagedSource = {
   source_key: string;
   label: string;
+  /**
+   * 这份来源的**来源格式**，用面向用户的名字写出来（「推荐表格」/「愿望单文本」）。
+   *
+   * 名字由存储里的来源类型（`recommendation_source_instances.kind`）算出来——格式判断只在这里做一次，
+   * 消费方拿到的就是可以照原样显示的文字，界面因此不必认识任何一种格式、更不必按格式分叉。
+   */
+  format_label: string;
   state: RecommendationSourceState;
   configured: boolean;
   rule_count: number;
@@ -30,7 +38,21 @@ export type RecommendationManagedSource = {
   imported_at: string;
   /** 这份来源当初从哪个链接读来的；本地文件导入没有链接，管理面也就没有「同步」。 */
   source_url?: string;
+  /**
+   * 这份来源在整个账号里点到多少件（仓库 + 角色身上 + 角色背包 + 邮政官）。
+   *
+   * 与 `vault_instance_count` 是同一件事的两个范围，两者必须同源算出：
+   * 全账号 = 仓库 + 角色侧。分开给是因为界面上要把两个范围并排写出来——
+   * 只给一个数，用户就会拿它去和仓库里的数字对，对不上时看着像程序算错了。
+   */
   affected_instance_count?: number;
+  /**
+   * 同一件事，但只算**仓库**里那部分。
+   *
+   * 它对应的是「勾上这份来源，本页仓库会筛出多少件」，也就是来源清单上那个数字；
+   * 来源行必须两个一起显示，缺一个就又会读出「两个数对不上」。
+   */
+  vault_instance_count?: number;
   /**
    * 这一行在**事实层**登记过的全部键：它自己的分组键，外加它下辖每个来源实例的键。
    *
@@ -143,6 +165,7 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       SELECT s.document_id, d.title AS document_title, d.author AS document_author,
              MAX(s.revision) AS revision, MAX(s.fingerprint) AS fingerprint,
              MAX(d.imported_at) AS imported_at, MAX(d.source_url) AS source_url,
+             GROUP_CONCAT(DISTINCT s.kind) AS source_kinds,
              COUNT(DISTINCT r.rule_id) AS rule_count,
              COUNT(DISTINCT item.item_hash) AS weapon_count
       FROM recommendation_source_instances s
@@ -160,6 +183,7 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       fingerprint: string;
       imported_at: string;
       source_url: string;
+      source_kinds: string;
       rule_count: number;
       weapon_count: number;
     }>;
@@ -169,6 +193,7 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
     const sources: RecommendationManagedSource[] = storedInstances.map((row) => ({
       source_key: row.document_id,
       label: row.document_title || "",
+      format_label: managedSourceFormatLabel(row.source_kinds),
       state: recommendationSourceState(database, row.document_id),
       configured: true,
       rule_count: Number(row.rule_count ?? 0),
@@ -190,6 +215,18 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
   } finally {
     database.close();
   }
+}
+
+/**
+ * 来源行的**来源格式**说法。名字按存储里的来源类型取（`recommendationSourceKindLabels`），
+ * 不按来源名、链接或来源键猜——名字是用户起的，链接是来路，两者都不说明格式。
+ *
+ * 一份文档 = 一次导入 = 一种格式（文档键只由名字决定，覆盖是整份替换），所以正常只会有一种；
+ * 这里按去重后的全部类型换名再拼，是同一行代码在长度为 1 时的表现，不是一条走不到的分支。
+ */
+function managedSourceFormatLabel(sourceKinds: string): string {
+  const kinds = [...new Set(sourceKinds.split(",").filter(Boolean))];
+  return kinds.map(recommendationSourceKindLabel).filter(Boolean).join("、");
 }
 
 /**

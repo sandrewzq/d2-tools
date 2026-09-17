@@ -182,6 +182,73 @@ describe("导入期校验：笔误行按行跳过", () => {
   });
 });
 
+/**
+ * Bug #102：「两个特长栏都可能出」的 perk——两个特长插槽的掉落池里都有它。
+ *
+ * 按插件身份反查会得到两个候选栏位。从前这被判成「跨栏无法唯一归栏」、**整行丢掉**：
+ * 作者写明的候选从「任选其一」里静默消失（`意外复苏（专家）` 的第一栏少了 `脉冲增幅器`），
+ * 整把枪只有一行规则时更是整把消失（`砷毒噬咬-4b` 在在线合集里丢了全部 342 行）。
+ * 实测 DIM 文本是按栏位顺序逐个写 perk 的，所以按书写顺序消歧后归栏只有一个结果，
+ * 这一档不存在了；真·同栏冲突（同一栏写了两个 perk）照旧报。
+ */
+const sharedWeaponHash = 5002;
+const sharedA = 6010;
+const sharedB = 6011;
+
+/** 一把枪：两栏特性，`sharedA` / `sharedB` 两栏都可能出。 */
+const sharedTraitDefinitions = {
+  [String(sharedWeaponHash)]: {
+    hash: sharedWeaponHash,
+    itemTypeDisplayName: "步枪",
+    displayProperties: { name: "两栏步枪", description: "shared trait rifle" },
+    sockets: {
+      socketEntries: [
+        { reusablePlugItems: [{ plugItemHash: barrelA }, { plugItemHash: barrelB }] },
+        { reusablePlugItems: [{ plugItemHash: perkA }, { plugItemHash: perkB }, { plugItemHash: sharedA }, { plugItemHash: sharedB }] },
+        { reusablePlugItems: [{ plugItemHash: sharedA }, { plugItemHash: sharedB }, { plugItemHash: perkC }, { plugItemHash: perkD }] }
+      ]
+    }
+  },
+  [String(sharedA)]: plugDefinition(sharedA, "两栏特性甲", "frames"),
+  [String(sharedB)]: plugDefinition(sharedB, "两栏特性乙", "frames")
+} as DefinitionComponentData;
+
+const sharedOptions: SourceOptions = { itemDefinitions: { ...definitions, ...sharedTraitDefinitions } };
+
+describe("导入期校验：两个特长栏都可能出的 perk 不算问题（Bug #102）", () => {
+  it("写在第二个特长栏位置：不丢行，也不报问题", () => {
+    // 第一栏写 perkA（只可能落第一栏），第二栏位置写的 sharedA（两栏都可能出）。
+    const { result } = validate(rule([barrelA, perkA, sharedA], sharedWeaponHash), sharedOptions);
+
+    expect(result.wishlist.rules).toHaveLength(1);
+    expect(result.skipped_row_count).toBe(0);
+    expect(result.issue_count).toBe(0);
+  });
+
+  it("一行里两个都可能两栏出的 perk：按书写顺序分归两栏，不报同栏冲突", () => {
+    const { result } = validate(rule([sharedA, sharedB], sharedWeaponHash), sharedOptions);
+
+    expect(result.wishlist.rules).toHaveLength(1);
+    expect(result.issue_count).toBe(0);
+  });
+
+  it("两个都只可能落第一栏的 perk：真冲突照旧报", () => {
+    const { result } = validate(rule([perkA, perkB], sharedWeaponHash), sharedOptions);
+
+    expect(result.wishlist.rules).toHaveLength(0);
+    expect(result.skipped_row_count).toBe(1);
+    expect(categories(result)).toEqual(["same_slot"]);
+  });
+
+  it("消歧之后撞车的行也照旧报：书写顺序与栏位顺序矛盾时不许静默放过", () => {
+    // sharedA→第一栏、sharedB→第二栏，最后这个 perkA 只可能落第一栏，没有空栏可去。
+    const { result } = validate(rule([sharedA, sharedB, perkA], sharedWeaponHash), sharedOptions);
+
+    expect(result.wishlist.rules).toHaveLength(0);
+    expect(categories(result)).toEqual(["same_slot"]);
+  });
+});
+
 describe("导入期校验：摊开写的展开行不是笔误", () => {
   /**
    * 实测那份文件的形状（`DIMLGpigWeaponWishlist by moc.txt` 里的光鳃之调）：

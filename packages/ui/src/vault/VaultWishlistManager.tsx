@@ -1,6 +1,7 @@
 import { type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ControlButton } from "../control/ControlButton.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 
 export type VaultDimWishlistImportPreview = {
   token: string;
@@ -82,6 +83,13 @@ export type VaultWeaponKnowledgeImportPreview = {
 export type VaultRecommendationManagedSource = {
   source_key: string;
   label: string;
+  /**
+   * 来源格式的面向用户说法（「推荐表格」/「愿望单文本」）。
+   *
+   * 由服务层按存储里的来源类型算好，界面**照原样显示**：界面不认识任何一种来源格式，
+   * 也不许根据来源名、链接或来源键猜——所以这里没有「哪种格式」的判断，只有这一行文字。
+   */
+  format_label: string;
   state: "active" | "disabled" | "removed";
   configured: boolean;
   rule_count: number;
@@ -90,7 +98,10 @@ export type VaultRecommendationManagedSource = {
   imported_at: string;
   /** 这份来源当初从哪个链接读来的；本地文件导入没有链接，也就没有「同步」。 */
   source_url?: string;
+  /** 这份来源在整个账号里点到多少件（仓库 + 角色身上 + 角色背包 + 邮政官），见服务层同名字段。 */
   affected_instance_count?: number;
+  /** 同一件事，只算仓库里那部分——也就是来源清单上那个数字，见服务层同名字段。 */
+  vault_instance_count?: number;
   /** 这一行在事实层登记过的全部键（分组键 + 下辖实例键），见服务层同名字段。 */
   fact_keys: string[];
 };
@@ -123,7 +134,6 @@ export type VaultRecommendationManagementSnapshot = {
 };
 
 export type VaultWishlistActions = {
-  clear(): Promise<void>;
   listRecommendationDocuments?(): Promise<VaultRecommendationDocumentSummary[]>;
   selectDimFile?(): Promise<VaultDimWishlistImportPreview | null>;
   readWishlistLink?(url: string): Promise<VaultWishlistLinkReadResult>;
@@ -213,7 +223,6 @@ type ManagementConfirmation = {
 };
 
 export function VaultRecommendationDataPanel(props: {
-  wishlist?: DimWishlist | null;
   actions: VaultWishlistActions;
   showManagement?: boolean;
   onApplied?: (message: string) => void;
@@ -222,10 +231,14 @@ export function VaultRecommendationDataPanel(props: {
 }) {
   const importDialogRef = useRef<HTMLElement>(null);
   const linkDialogRef = useRef<HTMLElement>(null);
+  const fileDialogRef = useRef<HTMLElement>(null);
   const linkTitleId = useId();
   const importTitleId = useId();
+  const fileTitleId = useId();
   const [knowledgeImportOpen, setKnowledgeImportOpen] = useState(false);
-  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  // 愿望单文本的两条路（本地文件 / 用户给的链接）各有一个弹框，同一时刻只开一个：
+  // 待确认的预览因此只可能出现在当前开着的那一个框里，不必再记「这份预览是哪条路读来的」。
+  const [dimDialog, setDimDialog] = useState<"file" | "link" | null>(null);
   const [linkInput, setLinkInput] = useState("");
   const [dimFilePreview, setDimFilePreview] = useState<VaultDimWishlistImportPreview | null>(null);
   const [importedDocuments, setImportedDocuments] = useState<VaultRecommendationDocumentSummary[]>([]);
@@ -239,7 +252,6 @@ export function VaultRecommendationDataPanel(props: {
   const [ruleQuery, setRuleQuery] = useState("");
   const [ruleLoadState, setRuleLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [pendingManagementAction, setPendingManagementAction] = useState<ManagementConfirmation | null>(null);
-  const [isConfirmingClear, setIsConfirmingClear] = useState(false);
   const [busyAction, setBusyAction] = useState("");
   const [feedback, setFeedback] = useState<ImportFeedback>(null);
   const onAppliedRef = useRef(props.onApplied);
@@ -257,9 +269,10 @@ export function VaultRecommendationDataPanel(props: {
     && props.actions.clearImportedRecommendationRules
   );
 
-  // 两个弹框（导入表格 / 从链接同步）共用同一套焦点约束：打开时聚焦首个动作，Escape 关闭，Tab 在框内循环。
+  // 两个愿望单弹框（本地文件 / 从链接同步）与表格弹框共用同一套焦点约束：打开时聚焦首个动作，Escape 关闭，Tab 在框内循环。
   useModalFocusTrap(importDialogRef, knowledgeImportOpen, Boolean(busyAction), "[data-knowledge-template-zh]", () => setKnowledgeImportOpen(false));
-  useModalFocusTrap(linkDialogRef, linkDialogOpen, Boolean(busyAction), "[data-wishlist-link-input]", () => setLinkDialogOpen(false));
+  useModalFocusTrap(linkDialogRef, dimDialog === "link", Boolean(busyAction), "[data-wishlist-link-input]", closeDimDialog);
+  useModalFocusTrap(fileDialogRef, dimDialog === "file", Boolean(busyAction), "[data-dim-file-select]", closeDimDialog);
 
   useEffect(() => {
     if (props.showManagement === false || !supportsRecommendationManagement || !props.actions.getRecommendationManagement) return;
@@ -386,6 +399,7 @@ export function VaultRecommendationDataPanel(props: {
     return `来源「${target.name}」${action} · ${ruleCount} 条规则。`;
   }
 
+  /** 读一份本地愿望单文件。由本地文件弹框里的「选择文件」触发——入口按钮先开框，不直接弹系统选文件对话框。 */
   async function selectDimFile() {
     if (!props.actions.selectDimFile) return;
     setBusyAction("dim-select");
@@ -393,7 +407,6 @@ export function VaultRecommendationDataPanel(props: {
       const preview = await props.actions.selectDimFile();
       if (!preview) return;
       setDimFilePreview(preview);
-      setIsConfirmingClear(false);
       // 名字预填文件名（去扩展名），用户可改；每次导入仍由用户在新建 / 覆盖里二选一。
       setImportName(suggestedImportSourceName(preview.file_name));
       const dimNotice = dimPreviewNotice(preview);
@@ -410,34 +423,58 @@ export function VaultRecommendationDataPanel(props: {
   /**
    * 从链接读一份愿望单。**与本地文件同一条流水线**：预览、问题清单、命名与新建 / 覆盖完全一样，
    * 区别只在确认后按链接来源落库（来源行上以后可以再同步）。
+   *
+   * 返回值只说这一步的结果，不替调用方决定弹框开合：读到了预览要给用户确认（`preview`）、
+   * 内容没变没什么可确认（`unchanged`）、没读成（`failed`）。
    */
-  async function readWishlistLink(url: string, options?: { keepDialogOpenOnFailure?: boolean }): Promise<boolean> {
-    if (!props.actions.readWishlistLink) return false;
+  async function readWishlistLink(url: string): Promise<"preview" | "unchanged" | "failed"> {
+    if (!props.actions.readWishlistLink) return "failed";
     setBusyAction("wishlist-link");
     try {
       const result = await props.actions.readWishlistLink(url);
       if (result.unchanged) {
         setDimFilePreview(null);
         setFeedback({ tone: "success", message: `「${result.source_name || result.source_url}」已是最新，没有需要写入的内容。` });
-        return true;
+        return "unchanged";
       }
-      if (!result.preview) return false;
+      if (!result.preview) return "failed";
       setDimFilePreview(result.preview);
-      setIsConfirmingClear(false);
       // 名字预填：链接里最后一段文件名去掉扩展名；同名来源已存在就只剩「覆盖」可点。
       setImportName(suggestedImportSourceName(result.preview.file_name));
       const linkNotice = dimPreviewNotice(result.preview);
       setFeedback(linkNotice
         ? { tone: result.preview.skipped_row_count > 0 ? "neutral" : "success", message: `已从链接读取 ${result.preview.importable_rule_count} 条可导入的愿望单规则；${linkNotice}。确认名字后选择新建或覆盖。${managedSourceNotice()}` }
         : { tone: "success", message: `已从链接读取 ${result.preview.rule_count} 条愿望单规则；确认名字后选择新建或覆盖。${managedSourceNotice()}` });
-      return true;
+      return "preview";
     } catch (error) {
-      if (!options?.keepDialogOpenOnFailure) setDimFilePreview(null);
+      setDimFilePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "愿望单链接读取失败。") });
-      return false;
+      return "failed";
     } finally {
       setBusyAction("");
     }
+  }
+
+  /**
+   * 开框＝开始一次新的愿望单导入：上一份还没确认的预览会被放下（它没写进任何数据，
+   * 重新读一次即可）。于是「框里那张卡一定是这个框读来的」是个不变量。
+   */
+  function openDimDialog(which: "file" | "link") {
+    setDimFilePreview(null);
+    setImportName("");
+    setFeedback(null);
+    setDimDialog(which);
+  }
+
+  /**
+   * 关掉弹框＝放弃这次导入：读到的内容不写库，框里那张还没确认的预览卡一并收掉。
+   * 关闭按钮、Escape、点遮罩三条关法都走这里，免得漏掉一条、卡片又冒到页面上。
+   * 这里不看忙闲——各调用点自己已经挡了（按钮禁用、遮罩与 Escape 判断在忙时不关）。
+   */
+  function closeDimDialog() {
+    setDimDialog(null);
+    setDimFilePreview(null);
+    setImportName("");
   }
 
   async function confirmWishlistLink() {
@@ -446,8 +483,9 @@ export function VaultRecommendationDataPanel(props: {
       setFeedback({ tone: "error", message: "请先粘贴愿望单文本的链接。" });
       return;
     }
-    // 读取成功就收掉弹框，预览与命名确认在页内那张卡上完成——与选本地文件之后完全一样。
-    if (await readWishlistLink(url)) setLinkDialogOpen(false);
+    // 读完**不收弹框**：预览、起名与新建 / 覆盖都在这个框里确认——与表格导入弹框、来源行的「同步」同一个样子。
+    // 只有「内容没变」没有可确认的东西，那时把框收掉、只说一句。
+    if (await readWishlistLink(url) === "unchanged") closeDimDialog();
   }
 
   async function confirmDimImport(mode: VaultImportTarget["mode"]) {
@@ -458,6 +496,8 @@ export function VaultRecommendationDataPanel(props: {
     try {
       const saved = await props.actions.confirmDimImport(dimFilePreview.token, target);
       resetDimInput();
+      // 确认完就收框：本地文件与链接两条路都开着自己的框，收的是同一个（当前只可能开着一个）。
+      setDimDialog(null);
       await refreshAfterImportChange();
       finishApplied(appliedNotice(importAppliedMessage(target, saved.rules.length)));
     } catch (error) {
@@ -526,21 +566,6 @@ export function VaultRecommendationDataPanel(props: {
     } catch (error) {
       setKnowledgePreview(null);
       setFeedback({ tone: "error", message: errorMessage(error, "推荐 CSV 导入失败。") });
-    } finally {
-      setBusyAction("");
-    }
-  }
-
-  async function clearWishlist() {
-    setBusyAction("dim-clear");
-    try {
-      await props.actions.clear();
-      setIsConfirmingClear(false);
-      resetDimInput();
-      await refreshAfterImportChange();
-      setFeedback({ tone: "success", message: "已移除全部导入来源。" });
-    } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "来源移除失败。") });
     } finally {
       setBusyAction("");
     }
@@ -662,6 +687,13 @@ export function VaultRecommendationDataPanel(props: {
   const canClose = !isBusy;
   const selectedManagedSource = managementSnapshot?.sources.find((source) => source.source_key === selectedSourceKey);
 
+  // 愿望单弹框（本地文件 / 链接）开着时这行小字渲染在框内：遮罩是 62% 黑又占满屏幕，
+  // 页面底部那句话落在遮罩后面，用户看不见。
+  // 表格导入弹框仍把它留在页面上（那是另一件事，没在这次范围内）。
+  const feedbackLine = feedback ? (
+    <p className="vault-wishlist-feedback" data-status={feedback.tone} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p>
+  ) : null;
+
   const panel = (
     <section className="vault-recommendation-data-panel" data-surface="section" aria-label="推荐数据" aria-busy={isBusy ? "true" : "false"}>
       <div className="vault-recommendation-data-head">
@@ -684,8 +716,8 @@ export function VaultRecommendationDataPanel(props: {
                 {managementSnapshot.sources.map((source) => (
                   <article className="vault-managed-source" data-surface="row" data-source-state={source.state} key={source.source_key}>
                     <div className="vault-managed-source-select">
-                      <span><strong>{source.label}</strong><small>{managedSourceStateLabel(source)}</small></span>
-                      <span><b>{source.rule_count} 条规则</b><small>{source.weapon_count} 把武器 · 当前账号影响 {source.affected_instance_count ?? 0} 件</small></span>
+                      <span><strong>{source.label}</strong><small>{managedSourceMetaLabel(source)}</small></span>
+                      <span title={managedSourceCountsTitle}><b>{managedSourceRuleLabel(source)}</b><small>{managedSourceWeaponLabel(source)}</small><small>{managedSourceImpactLabel(source)}</small></span>
                     </div>
                     <div className="vault-managed-source-actions">
                       <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{selectedSourceKey === source.source_key ? "收起详情" : "查看详情"}</ControlButton>
@@ -753,10 +785,16 @@ export function VaultRecommendationDataPanel(props: {
             </>
           ) : null}
           {pendingManagementAction ? (
-            <div className="vault-wishlist-confirm vault-management-confirm" data-ui-kind="callout" data-status="warning">
-              <span><strong>{pendingManagementAction.title}</strong><small>{pendingManagementAction.description}</small></span>
-              <div><ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(null)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => void confirmManagementAction()}>{isBusy ? "处理中" : pendingManagementAction.confirmLabel}</ControlButton></div>
-            </div>
+            <ConfirmationDialog
+              title={pendingManagementAction.title}
+              description={pendingManagementAction.description}
+              confirmLabel={pendingManagementAction.confirmLabel}
+              cancelLabel="取消"
+              confirmTone="danger"
+              isBusy={isBusy}
+              onConfirm={() => void confirmManagementAction()}
+              onCancel={() => setPendingManagementAction(null)}
+            />
           ) : null}
         </section>
       ) : null}
@@ -778,37 +816,17 @@ export function VaultRecommendationDataPanel(props: {
 
           <div className="vault-import-action-row">
             <span>
-              <strong>DIM 文本</strong>
+              <strong>愿望单文本</strong>
               <small>从链接同步，或选择本地 .txt / .wishlist 文件。每次导入都要起名并显式选择新建或覆盖，不会静默写入。</small>
             </span>
             <div className="vault-import-action-buttons">
-              {supportsWishlistLink ? <ControlButton data-dim-link="" size="compact" variant="primary" disabled={isBusy} onClick={() => { setLinkDialogOpen(true); setIsConfirmingClear(false); }}>从链接同步</ControlButton> : null}
-              {props.actions.selectDimFile ? <ControlButton data-dim-import="" size="compact" variant="secondary" aria-label="导入愿望单文本文件" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "导入文本文件"}</ControlButton> : null}
-              {props.wishlist ? <ControlButton size="compact" variant="quiet" aria-label="移除全部来源" disabled={isBusy} onClick={() => setIsConfirmingClear(true)}>移除全部来源</ControlButton> : null}
+              {supportsWishlistLink ? <ControlButton data-dim-link="" size="compact" variant="primary" disabled={isBusy} onClick={() => openDimDialog("link")}>从链接同步</ControlButton> : null}
+              {props.actions.selectDimFile ? <ControlButton data-dim-import="" size="compact" variant="secondary" aria-label="导入愿望单文本文件" disabled={isBusy} onClick={() => openDimDialog("file")}>导入文本文件</ControlButton> : null}
             </div>
           </div>
 
           {blockedImportSources.length ? (
             <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">来源{blockedImportSources.map((source) => `「${source.label}」`).join("、")}当前{[...new Set(blockedImportSources.map((source) => source.state === "removed" ? "已按来源移除" : "已停用"))].join(" / ")}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。</p>
-          ) : null}
-
-          {dimFilePreview ? (
-            <DimImportPreviewCard
-              preview={dimFilePreview}
-              importName={importName}
-              existingNames={existingImportNames}
-              busyLabel={busyAction === "dim-confirm" ? "处理中" : ""}
-              isBusy={isBusy || dimFilePreview.importable_rule_count === 0}
-              onNameChange={setImportName}
-              onConfirm={(mode) => void confirmDimImport(mode)}
-            />
-          ) : null}
-
-          {isConfirmingClear ? (
-            <div className="vault-wishlist-confirm vault-import-action-preview" data-ui-kind="callout" data-status="warning">
-              <span>会移除全部 {importedDocuments.length} 份已导入来源；移除后仓库和装备详情不再显示这些来源的匹配结果。只想移除其中一份，请用下方「已导入来源」里对应的「删除」。</span>
-              <div><ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setIsConfirmingClear(false)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => void clearWishlist()}>{busyAction === "dim-clear" ? "移除中" : "确认移除全部"}</ControlButton></div>
-            </div>
           ) : null}
         </div>
       </div>
@@ -852,8 +870,8 @@ export function VaultRecommendationDataPanel(props: {
               <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setKnowledgeImportOpen(false)}>关闭</ControlButton>
             </header>
 
-            <div className="vault-knowledge-import-steps">
-              <div className="vault-knowledge-import-step">
+            <div className="vault-import-steps">
+              <div className="vault-import-step">
                 <span>
                   <strong>1. 下载模板（可选）</strong>
                   <small>没有现成表格时，先下载空白模板填写；中英文列名一致，Hash 等系统字段在导入时自动补齐。</small>
@@ -868,7 +886,7 @@ export function VaultRecommendationDataPanel(props: {
                 </div>
               </div>
 
-              <div className="vault-knowledge-import-step">
+              <div className="vault-import-step">
                 <span>
                   <strong>2. 选择填好的表格文件</strong>
                   <small>支持 .csv 与 .xlsx；当前模板 12 列，上一版 11 列与旧版 13 列、31 列文件仍可导入。</small>
@@ -910,11 +928,64 @@ export function VaultRecommendationDataPanel(props: {
         </div>
       ) : null}
 
-      {linkDialogOpen && supportsWishlistLink ? (
+      {dimDialog === "file" && props.actions.selectDimFile ? (
         <div
           className="modal-backdrop vault-recommendation-data-backdrop"
           role="presentation"
-          onClick={() => { if (!isBusy) setLinkDialogOpen(false); }}
+          onClick={() => { if (!isBusy) closeDimDialog(); }}
+        >
+          <section
+            ref={fileDialogRef}
+            className="vault-wishlist-manager vault-wishlist-file-dialog"
+            data-surface="dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={fileTitleId}
+            aria-busy={isBusy ? "true" : "false"}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header>
+              <div>
+                <strong id={fileTitleId}>导入愿望单文本</strong>
+                <span>选择一份本地愿望单文本（DIM 导出的 .txt 或 .wishlist 文件）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。</span>
+              </div>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>关闭</ControlButton>
+            </header>
+
+            <div className="vault-import-steps">
+              <div className="vault-import-step">
+                <span>
+                  <strong>选择愿望单文本文件</strong>
+                  <small>支持 DIM 导出的 .txt 与 .wishlist；每次导入都要起名并显式选择新建或覆盖，不会静默写入。</small>
+                </span>
+                <div className="vault-import-action-buttons">
+                  <ControlButton data-dim-file-select="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择文件"}</ControlButton>
+                </div>
+              </div>
+            </div>
+
+            {/* 选到的内容就在框里确认：预览、问题行、起名、新建 / 覆盖——与链接弹框、表格导入弹框和来源行的「同步」同一套。 */}
+            {dimFilePreview ? (
+              <DimImportPreviewCard
+                preview={dimFilePreview}
+                importName={importName}
+                existingNames={existingImportNames}
+                busyLabel={busyAction === "dim-confirm" ? "处理中" : ""}
+                isBusy={isBusy || dimFilePreview.importable_rule_count === 0}
+                onNameChange={setImportName}
+                onConfirm={(mode) => void confirmDimImport(mode)}
+              />
+            ) : null}
+            {feedbackLine}
+          </section>
+        </div>
+      ) : null}
+
+      {dimDialog === "link" && supportsWishlistLink ? (
+        <div
+          className="modal-backdrop vault-recommendation-data-backdrop"
+          role="presentation"
+          onClick={() => { if (!isBusy) closeDimDialog(); }}
         >
           <section
             ref={linkDialogRef}
@@ -929,9 +1000,9 @@ export function VaultRecommendationDataPanel(props: {
             <header>
               <div>
                 <strong id={linkTitleId}>从链接同步愿望单</strong>
-                <span>粘贴一份愿望单文本的链接（.txt 原始文件地址）。读取后先在页内预览与命名，确认前不会改动当前数据。</span>
+                <span>粘贴一份愿望单文本的链接（.txt 原始文件地址）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。</span>
               </div>
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setLinkDialogOpen(false)}>关闭</ControlButton>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>关闭</ControlButton>
             </header>
 
             <div className="vault-wishlist-link-body">
@@ -950,21 +1021,36 @@ export function VaultRecommendationDataPanel(props: {
               <ControlButton data-wishlist-link-read="" size="compact" variant="primary" disabled={isBusy || !linkInput.trim()} onClick={() => void confirmWishlistLink()}>{busyAction === "wishlist-link" ? "读取中" : "读取链接"}</ControlButton>
               <small>链接会跟着这份来源记下来：以后在「来源管理」里点「同步」，内容有变化时才让你确认覆盖。</small>
             </div>
+
+            {/* 读到的内容就在框里确认：预览、起名、新建 / 覆盖——与表格导入弹框和来源行的「同步」同一套。 */}
+            {dimFilePreview ? (
+              <DimImportPreviewCard
+                preview={dimFilePreview}
+                importName={importName}
+                existingNames={existingImportNames}
+                busyLabel={busyAction === "dim-confirm" ? "处理中" : ""}
+                isBusy={isBusy || dimFilePreview.importable_rule_count === 0}
+                onNameChange={setImportName}
+                onConfirm={(mode) => void confirmDimImport(mode)}
+              />
+            ) : null}
+            {feedbackLine}
           </section>
         </div>
       ) : null}
 
-      {feedback ? <p className="vault-wishlist-feedback" data-status={feedback.tone} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
+      {dimDialog === null ? feedbackLine : null}
     </section>
   );
   return panel;
 }
 
 /**
- * 愿望单预览卡：本地文件与链接读来的内容共用同一张卡。
+ * 愿望单预览卡：本地文件、链接读来的内容与来源行的「同步」共用同一张卡。
  *
- * 「这条内容读了什么、会写进去多少、哪些行不写」全部由服务层算好，卡片只负责展示与命名确认；
- * 来源行上的「同步」也复用它——同一份来源的更新与首次导入走的是同一套确认。
+ * 「这条内容读了什么、会写进去多少、哪些行不写」全部由服务层算好，卡片只负责展示与命名确认。
+ * 它只出现在弹框里（本地文件框 / 链接框 / 来源行同步框）——T68 之前本地文件这条路把卡片摆在
+ * 页面导入区，同一个组件被工作区宽度撑到两个弹框的 3 倍宽，看着像「起名样式不一样」。
  */
 export function DimImportPreviewCard(props: {
   preview: VaultDimWishlistImportPreview;
@@ -977,7 +1063,7 @@ export function DimImportPreviewCard(props: {
 }) {
   const preview = props.preview;
   return (
-    <div className="vault-wishlist-preview vault-import-action-preview" data-surface="frame" data-ui-kind="state-frame">
+    <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
       <span>
         <strong>{preview.file_name}</strong>
         <small>
@@ -1088,6 +1174,65 @@ export function managedSourceStateLabel(source: VaultRecommendationManagedSource
   if (source.state === "disabled") return "已停用，本地数据仍保留";
   return source.imported_at ? `已启用 · ${formatDateTime(source.imported_at)}` : "已启用";
 }
+
+/**
+ * 来源行与详情标题那行小字：「来源格式 · 状态」。
+ *
+ * 格式名由服务层给出（`format_label`），这里只是把它排在状态前面，**不判断格式**：
+ * 界面上没有「哪种格式显示成什么」的逻辑，加一种格式这里一行都不用改。
+ * 服务层认不出来源类型时格式名是空串，这时只显示状态。
+ */
+export function managedSourceMetaLabel(source: VaultRecommendationManagedSource): string {
+  return [source.format_label, managedSourceStateLabel(source)].filter(Boolean).join(" · ");
+}
+
+/**
+ * 来源行的第一句：这份来源**自己的规模**——写了多少条规则。
+ */
+export function managedSourceRuleLabel(source: VaultRecommendationManagedSource): string {
+  return `${source.rule_count} 条规则`;
+}
+
+/**
+ * 来源行的第二句：这份来源**点名了多少把武器**。
+ *
+ * 「列出」是特意挑的：这一句说的是清单里有什么，**与你有几件无关**。
+ * 早先这里写「422 把武器」，看的人会读成「我有 422 把」——而「有」的数量在第三句，
+ * 两句并排摆着、谁也不说明自己是什么，就成了「这两个数对不上」。
+ *
+ * 它与第一句**分成两句**，是为了每句都短到不会折行：数字栏定宽 210px，
+ * 拼成「1679 条规则 · 列出 422 把武器」时实测 198px，只剩 12px 余量，
+ * 规则数一上万就把「武器」挤到下一行——那正是这一栏要修的毛病。三句各占一行，五位数也放得下。
+ */
+export function managedSourceWeaponLabel(source: VaultRecommendationManagedSource): string {
+  return `列出 ${source.weapon_count} 把武器`;
+}
+
+/**
+ * 来源行的第三句：这份来源**对你的影响**，两个范围并排写出来。
+ *
+ * 「仓库」是勾上这份来源后本页会筛出多少件（也就是来源清单上那个数字），
+ * 「全账号」还含角色身上、背包与邮政官。两个数本来就不该相等——
+ * 只写一个数，用户拿它去和仓库里的数字对、对不上时只会读成程序算错了。
+ */
+export function managedSourceImpactLabel(source: VaultRecommendationManagedSource): string {
+  return `仓库 ${source.vault_instance_count ?? 0} 件 / 全账号 ${source.affected_instance_count ?? 0} 件`;
+}
+
+/**
+ * 上面前两句拼成一句，给详情弹框标题用（那儿是一行通排的文字，不设宽度，不存在折行）。
+ * 由它们拼出来而不是另写一遍，措辞就只有一处，改了这里不会漏掉那里。
+ */
+export function managedSourceScaleLabel(source: VaultRecommendationManagedSource): string {
+  return `${managedSourceRuleLabel(source)} · ${managedSourceWeaponLabel(source)}`;
+}
+
+/**
+ * 上面三句里的计数各是什么，悬停时原样显示。
+ *
+ * 计数只在这一处解释：界面别处不必各写一句，说法不一致时用户只会更糊涂。
+ */
+export const managedSourceCountsTitle = "列出：这份来源点名的武器（与你有几件无关）。仓库：勾上它，仓库里能筛出多少件。全账号：再加上角色身上、角色背包与邮政官。";
 
 function sourceConfirmation(
   source: VaultRecommendationManagedSource,

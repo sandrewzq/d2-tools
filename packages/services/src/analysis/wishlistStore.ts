@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import type { DimWishlist, DimWishlistRule, DimWishlistSourceBlock } from "@d2-tools/core/analysis/wishlistImport";
 import {
-  clearRecommendationDocuments,
   loadRecommendationDocumentInfo,
   loadRecommendationSources,
   saveRecommendationDocument,
@@ -78,10 +77,6 @@ export function saveDimWishlistFromSource(
     instances: dimInstances(normalized)
   });
   return loadDimWishlist(dataDir) ?? normalized;
-}
-
-export function clearDimWishlist(dataDir: string): void {
-  clearRecommendationDocuments(dataDir, "dim");
 }
 
 /**

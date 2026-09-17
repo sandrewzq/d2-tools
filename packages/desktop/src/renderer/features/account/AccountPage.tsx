@@ -8,7 +8,7 @@ import type {
   StartupState,
   WeeklySummary
 } from "../../api/types";
-import type { DimWishlist, RecommendationCardSummary } from "../../api/types";
+import type { RecommendationCardSummary } from "../../api/types";
 import { selectAccountPageModel, type AccountOpenItemPayload, type AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { buildLibraryWeeklyFarmingView, type LibraryWeeklyFarmingItemView } from "@d2-tools/app/library";
 import type { VaultItemMatchInfo } from "@d2-tools/app/library";
@@ -46,7 +46,6 @@ export function AccountPage(props: {
   isRunningItemAction: boolean;
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
-  wishlist: DimWishlist | null;
   recommendationCardSummary: ReadonlyMap<string, RecommendationCardSummary>;
   weeklyFarmingCatalog?: WeeklyFarmingCatalogResource | null;
   weeklyFarmingCommunityMatch?: ReadonlyMap<number, VaultItemMatchInfo>;

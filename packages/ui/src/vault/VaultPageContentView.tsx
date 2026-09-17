@@ -1,7 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { RecommendationCardSummary, VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
@@ -115,7 +114,6 @@ export function VaultPageContentView(props: {
   cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
   highlightedLabel?: string;
   tags: VaultTags;
-  wishlist?: DimWishlist | null;
   openingItemKey?: string;
   locateRequest?: { hash: number; name: string; requestId: number } | null;
   recommendationCardSummary?: ReadonlyMap<string, RecommendationCardSummary>;
@@ -371,9 +369,14 @@ export function VaultPageContentView(props: {
     sourceId: string,
     patch: Partial<Pick<VaultRecommendationSourceSelection, "primaryFilter" | "completeFilter">>
   ) {
-    setRecommendationSourceSelections((current) => current.map((selection) => (
-      selection.sourceId === sourceId ? { ...selection, ...patch } : selection
-    )));
+    setRecommendationSourceSelections((current) => current.map((selection) => {
+      if (selection.sourceId !== sourceId) return selection;
+      // 分段按钮是开关：重新点已经生效的那一段，整条不动。
+      // 「完整」是用户另外挑的条件，只有换了 perk 命中档才需要退回「不限」——
+      // 点开关把同行另一个条件的用户选择清掉，用户只会当成点坏了。
+      if (patch.primaryFilter !== undefined && patch.primaryFilter === selection.primaryFilter) return selection;
+      return { ...selection, ...patch };
+    }));
   }
 
   useEffect(() => {
@@ -889,8 +892,8 @@ export function VaultPageContentView(props: {
                                         key={filterOption.key}
                                         disabled={filterOption.count === 0}
                                         aria-pressed={selection.primaryFilter === filterOption.key}
-                                        aria-label={`${option.sourceLabel}perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key)}，${filterOption.count} 件`}
-                                        title={`perk 命中 ${formatVaultRecommendationMetricOptionLabel(filterOption.key)}，${filterOption.count} 件`}
+                                        aria-label={`${option.sourceLabel}${formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}`}
+                                        title={formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}
                                         onClick={() => updateRecommendationSourceSelection(option.sourceId, { primaryFilter: filterOption.key, completeFilter: "all" })}
                                       >
                                         <span>{filterOption.key === "all" ? "全部" : filterOption.key}</span>
@@ -1022,7 +1025,6 @@ export function VaultPageContentView(props: {
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel" data-vault-scroll-pane="recommendations">
           <div className="vault-recommendation-view-panel">
               <VaultRecommendationEvidencePanel
-                wishlist={props.wishlist}
                 sourceState={props.recommendationSourceState}
                 wishlistActions={props.wishlistActions}
                 onCopyAuditReport={props.onCopyRecommendationAudit}
@@ -1248,15 +1250,23 @@ function sameStringList(previous: readonly string[], next: readonly string[]): b
     && previous.every((value, index) => value === next[index]);
 }
 
-function formatVaultRecommendationMetricOptionLabel(
-  key: VaultRecommendationPrimaryFilter
+/**
+ * 分段按钮的完整说法，只用于悬停与读屏。
+ *
+ * 可见文字是裸的命中档（`2/2`）加独立数量徽标：分段组左边已经挂着可见标签「perk 命中」，
+ * 组内再写一遍「命中 2/2」是重复，而加上「命中」前缀又不带说法就会拼出「perk 命中 命中 1/2」。
+ * 这句话要说清的是**来源要求的项数与其中命中的项数**（分子分母）。
+ */
+function formatVaultRecommendationMetricOptionDescription(
+  key: VaultRecommendationPrimaryFilter,
+  count: number
 ): string {
-  if (key === "all") return "全部";
-  if (!isVaultRecommendationMetricKey(key)) return vaultRecommendationPrimaryFilterLabel(key);
-  const [matched, required] = key.split("/").map(Number);
-  if (matched === required) return `全中 ${key}`;
-  if (matched === 0) return `未命中 ${key}`;
-  return `命中 ${key}`;
+  if (key === "all") return `全部：有本来源记录的候选，${count} 件`;
+  if (key === "unrequired") return `未要求：来源没提要求，${count} 件`;
+  if (key === "uncheckable") return `无法判断：有要求核对不了，${count} 件`;
+  if (key === "uncovered") return `未收录：本来源没有这些武器的记录，${count} 件`;
+  const [matched, required] = key.split("/");
+  return `要求 ${required} 项，命中 ${matched} 项，${count} 件`;
 }
 
 function buildActiveFilterLabels(input: {
@@ -1321,6 +1331,9 @@ function sameManagedRecommendationSources(
       && candidate.revision === source.revision
       && candidate.imported_at === source.imported_at
       && candidate.affected_instance_count === source.affected_instance_count
+      // 仓库那一半必须单独比：把一把枪从邮政官挪进仓库，全账号数不动、仓库数变了，
+      // 只比全账号数就会判成「没变」而把旧的仓库数留在屏幕上。
+      && candidate.vault_instance_count === source.vault_instance_count
       // 事实键决定了哪些事实算这一行的：它变了就必须让下游重算，否则会留下上一次的归队结果。
       && candidate.fact_keys.length === source.fact_keys.length
       && candidate.fact_keys.every((key, keyIndex) => key === source.fact_keys[keyIndex]);

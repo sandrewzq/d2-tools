@@ -1,4 +1,3 @@
-import type { DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import { useState } from "react";
 import { VaultRecommendationDataPanel, type VaultRecommendationManagedSource, type VaultWishlistActions } from "./VaultWishlistManager.js";
@@ -9,7 +8,6 @@ export type VaultRecommendationSourceState = {
 };
 
 export function VaultRecommendationEvidencePanel(props: {
-  wishlist?: DimWishlist | null;
   sourceState?: VaultRecommendationSourceState;
   wishlistActions?: VaultWishlistActions;
   onCopyAuditReport?: () => void | Promise<void>;
@@ -28,7 +26,6 @@ export function VaultRecommendationEvidencePanel(props: {
       {feedback ? <p className={`status-message status-${feedback.tone}`} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p> : null}
       {props.wishlistActions ? (
         <VaultRecommendationDataPanel
-          wishlist={props.wishlist}
           actions={props.wishlistActions}
           showManagement={false}
           onApplied={(message: string) => setFeedback({ tone: "ready", message })}

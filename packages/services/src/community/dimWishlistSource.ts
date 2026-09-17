@@ -144,7 +144,10 @@ function createDimWishlistSourceForRules(
                return toRequirement(column.slot, refs.map((ref) => ref.name), refs);
              }) }]
         : diagnosed
-            .filter(({ requirements }) => locatable(requirements).length > 0)
+            // 每条规则都出一条来源事实——**武器级规则（「有就行」）也在内**，只是要求列表为空。
+            // 异域武器在愿望单里就是这种写法，少了这一条，比对结果里就只剩来源**名字**、
+            // 没有了来源**编号**：来源清单数不着它、按来源勾选筛选也筛不出它，
+            // 而武器自己还标着「符合推荐」。人工推荐表格那边一直是每条都出，这里补齐同一件事。
             .map(({ rule, metadata, requirements }) => ({
               rule_stable_id: rule.rule_stable_id ?? (sourceId + ":" + rule.item_hash + ":" + rule.perk_hashes.join(",")),
               source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel, purposes: [rule.mode],

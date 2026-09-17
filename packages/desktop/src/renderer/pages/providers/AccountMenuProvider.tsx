@@ -40,7 +40,6 @@ export function AccountMenuProvider() {
       isRunningItemAction={writeActions.isRunningItemAction}
       activeLoadoutLookup={session.home.activeLoadoutLookup}
       activeLoadoutTemplate={session.loadouts.activeTemplate}
-      wishlist={account.importedWishlist}
       recommendationCardSummary={account.vaultRecommendationCardSummary}
       weeklyFarmingCatalog={session.library.weeklyFarmingCatalog}
       weeklyFarmingCommunityMatch={session.library.weeklyFarmingCommunityMatch}

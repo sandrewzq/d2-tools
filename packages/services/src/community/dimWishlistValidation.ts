@@ -59,6 +59,14 @@ import {
  *
  * 无论哪种情况，结论都**先出现在预览里**（用户确认前就能看到跳了几行、几把枪），
  * 这是「按行跳过」敢做的前提。
+ *
+ * ## 没有「归不了栏」这一档（Bug #102）
+ *
+ * 「两个特长栏都可能出」的 perk（例如 `意外复苏` 的 `脉冲增幅器`）按作者书写的栏位顺序
+ * 归栏（见 `dimWishlistDiagnostics`），不判成问题。曾经有一档「跨栏无法唯一归栏」，
+ * 它按行丢掉的正是作者写明的候选：`意外复苏（专家）` 的第一个特长栏候选少了 `脉冲增幅器`，
+ * 只有一行规则的 `砷毒噬咬-4b` 则整把消失（在线合集里丢了全部 342 行）。
+ * 判定既然唯一，这一档就不该存在——它回来了就等于「归栏判不了就丢数据」这条路又开了。
  */
 
 /** 预览与回执最多列这么多条示例，其余只给总数——避免一个坏文件把界面和 IPC 撑爆。 */
@@ -234,15 +242,6 @@ function rowIssueFor(
         message: `「${unknown.name}」在这把枪的候选里找不到，可能是 Hash 或名字写错。`
       };
     }
-    const ambiguous = entry.diagnostics.find((perk) => perk.status === "cross_slot_ambiguous");
-    if (ambiguous) {
-      return {
-        ...base,
-        category: "ambiguous_slot",
-        perk_name: ambiguous.name,
-        message: `「${ambiguous.name}」能落在多个栏位，无法唯一归栏。`
-      };
-    }
     const sameSlot = findSameSlotConflict(entry.diagnostics);
     if (sameSlot) {
       return {
@@ -332,17 +331,18 @@ function formsCompleteProduct(
 
 /**
  * 同一行里两个 perk 落在同一栏——一把枪一栏只能有一个 perk，这种组合不可能存在。
- * 只对**唯一归栏且落在标准栏位**的 perk 判：`special` 栏位（大师、起源特性等）不受此限，
- * 无法归栏的 perk 已在上面按更具体的问题报过。
+ *
+ * 归栏已经按书写顺序消歧，所以走到这里有两种情况：作者把**同一栏**写了两个 perk
+ * （把「任选其一」当成「都可以要」），或书写顺序与栏位顺序矛盾——两种都是真的不可能同时拥有。
+ * 只对落在**标准栏位**的 perk 判：`special` 栏位（大师、起源特性等）不受此限。
  */
 function findSameSlotConflict(diagnostics: ReadonlyArray<DimWishlistPerkDiagnostic>): string[] | undefined {
   const namesBySlot = new Map<string, string[]>();
   for (const perk of diagnostics) {
-    const slot = perk.slot_candidates[0];
-    if (perk.status !== "exact" || !slot || !isRecommendationRequirementSlot(slot)) continue;
-    const names = namesBySlot.get(slot) ?? [];
+    if (perk.status !== "exact" || !isRecommendationRequirementSlot(perk.slot)) continue;
+    const names = namesBySlot.get(perk.slot) ?? [];
     names.push(perk.name);
-    namesBySlot.set(slot, names);
+    namesBySlot.set(perk.slot, names);
   }
   for (const names of namesBySlot.values()) if (names.length > 1) return names;
   return undefined;

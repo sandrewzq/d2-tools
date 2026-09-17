@@ -1,11 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ControlButton } from "../control/ControlButton.js";
+import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import {
   DimImportPreviewCard,
   formatManagedRequirements,
   formatModes,
-  managedSourceStateLabel,
+  managedSourceCountsTitle,
+  managedSourceImpactLabel,
+  managedSourceMetaLabel,
+  managedSourceRuleLabel,
+  managedSourceScaleLabel,
+  managedSourceWeaponLabel,
   shortRevision,
   type VaultDimWishlistImportPreview,
   type VaultRecommendationManagedRule,
@@ -18,10 +24,20 @@ type PendingAction = {
   kind: "source" | "rule";
   title: string;
   description: string;
+  /** 确认按钮说的话：与触发它的行内按钮区分开，避免同一页出现两个同名按钮。 */
+  confirmLabel: string;
   source?: VaultRecommendationManagedSource;
   rule?: VaultRecommendationManagedRule;
   sourceState?: "active" | "disabled" | "removed";
 };
+
+/**
+ * 确认框的色调：只有「移除」这类会删本地数据的动作用危险色，
+ * 停用 / 启用只是切换参与状态、随时可切回来，用主色。
+ */
+function confirmToneOf(action: PendingAction): "primary" | "danger" {
+  return action.sourceState === "removed" || action.kind === "rule" ? "danger" : "primary";
+}
 
 export function VaultRecommendationSourceManager(props: {
   actions: VaultWishlistActions;
@@ -175,8 +191,8 @@ export function VaultRecommendationSourceManager(props: {
   function renderSourceRow(source: VaultRecommendationManagedSource) {
     return (
       <article className="vault-managed-source" data-surface="row" data-source-state={source.state} key={source.source_key}>
-        <div className="vault-managed-source-select"><span><strong>{source.label}</strong><small>{managedSourceStateLabel(source)}</small></span><span><b>{source.rule_count} 条规则</b><small>{source.weapon_count} 把武器 · 当前账号影响 {source.affected_instance_count ?? 0} 件</small></span></div>
-        <div className="vault-managed-source-actions"><ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void openDetails(source)}>查看详情</ControlButton>{source.source_url ? <ControlButton data-source-sync="" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void syncSourceFromLink(source)}>{busy === `sync:${source.source_key}` ? "同步中" : "同步"}</ControlButton> : null}{source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `停用${source.label}`, description: "停用后该来源不会参与仓库推荐，数据仍保留。", source, sourceState: "disabled" })}>停用</ControlButton> : null}{source.state === "disabled" ? <ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `启用${source.label}`, description: "启用后该来源会重新参与仓库推荐。", source, sourceState: "active" })}>启用</ControlButton> : null}{source.configured ? <ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `删除${source.label}`, description: "删除后来源数据、规则和本地覆盖状态都会永久清除，需要重新导入才能恢复。", source, sourceState: "removed" })}>删除</ControlButton> : null}</div>
+        <div className="vault-managed-source-select"><span><strong>{source.label}</strong><small>{managedSourceMetaLabel(source)}</small></span><span title={managedSourceCountsTitle}><b>{managedSourceRuleLabel(source)}</b><small>{managedSourceWeaponLabel(source)}</small><small>{managedSourceImpactLabel(source)}</small></span></div>
+        <div className="vault-managed-source-actions"><ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void openDetails(source)}>查看详情</ControlButton>{source.source_url ? <ControlButton data-source-sync="" size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => void syncSourceFromLink(source)}>{busy === `sync:${source.source_key}` ? "同步中" : "同步"}</ControlButton> : null}{source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `停用${source.label}`, description: "停用后该来源不会参与仓库推荐，数据仍保留。", confirmLabel: "确认停用", source, sourceState: "disabled" })}>停用</ControlButton> : null}{source.state === "disabled" ? <ControlButton size="compact" variant="secondary" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `启用${source.label}`, description: "启用后该来源会重新参与仓库推荐。", confirmLabel: "确认启用", source, sourceState: "active" })}>启用</ControlButton> : null}{source.configured ? <ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => setPendingAction({ kind: "source", title: `删除${source.label}`, description: "删除后来源数据、规则和本地覆盖状态都会永久清除，需要重新导入才能恢复。", confirmLabel: "确认删除", source, sourceState: "removed" })}>删除</ControlButton> : null}</div>
       </article>
     );
   }
@@ -198,7 +214,7 @@ export function VaultRecommendationSourceManager(props: {
             <div className="vault-managed-source-list vault-managed-source-list--page" data-surface="list">
               {activeSources.map(renderSourceRow)}
             </div>
-          ) : <div className="vault-management-empty" data-surface="empty"><strong>还没有可管理的推荐来源</strong><span>使用上方导入入口添加人工 CSV 或 DIM Wishlist。</span></div>}
+          ) : <div className="vault-management-empty" data-surface="empty"><strong>还没有可管理的推荐来源</strong><span>使用上方导入入口添加推荐表格或愿望单文本。</span></div>}
         </>
       ) : null}
       {syncSource && syncPreview ? (
@@ -213,8 +229,24 @@ export function VaultRecommendationSourceManager(props: {
           onClose={() => { setSyncSource(null); setSyncPreview(null); }}
         />
       ) : null}
-      {pendingAction && !detailOpen ? <div className="vault-wishlist-confirm vault-management-confirm" data-ui-kind="callout" data-status="warning"><span><strong>{pendingAction.title}</strong><small>{pendingAction.description}</small></span><div><ControlButton size="compact" variant="quiet" disabled={Boolean(busy)} onClick={() => setPendingAction(null)}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={Boolean(busy)} onClick={() => void applyPendingAction()}>{busy ? "处理中" : "确认"}</ControlButton></div></div> : null}
-      {detailOpen && selectedSource ? <SourceDetailDialog source={selectedSource} rules={rules} ruleQuery={ruleQuery} ruleState={ruleState} busy={busy} pendingAction={pendingAction?.kind === "rule" ? pendingAction : null} removedRules={snapshot?.removed_rules.filter((rule) => rule.source_key === selectedSource.source_key || rule.source_key.startsWith(`${selectedSource.source_key}:`)) ?? []} onClose={() => setDetailOpen(false)} onQueryChange={setRuleQuery} onSearch={() => void loadRules(selectedSource.source_key, ruleQuery)} onRemoveRule={(rule) => setPendingAction({ kind: "rule", title: `移除${rule.weapon_name}规则`, description: "只移除当前来源的这一条规则，来源本身不会改变。", rule })} onRestoreRule={(rule) => void restoreRule(rule)} onCancelPending={() => setPendingAction(null)} onConfirmPending={() => void applyPendingAction()} onCopyAuditReport={props.onCopyAuditReport ? async () => {
+      {/*
+        确认层只有这一处：来源动作与规则动作都渲染在这里，都是盖在页面上的一层，
+        不在内容流里占位置——放进清单里会把清单顶下去，也正是这次要改掉的样子。
+        谁来触发都一样，所以这里不看 `detailOpen`，也不看动作种类。
+      */}
+      {pendingAction ? (
+        <ConfirmationDialog
+          title={pendingAction.title}
+          description={pendingAction.description}
+          confirmLabel={pendingAction.confirmLabel}
+          cancelLabel="取消"
+          confirmTone={confirmToneOf(pendingAction)}
+          isBusy={Boolean(busy)}
+          onConfirm={() => void applyPendingAction()}
+          onCancel={() => setPendingAction(null)}
+        />
+      ) : null}
+      {detailOpen && selectedSource ? <SourceDetailDialog source={selectedSource} rules={rules} ruleQuery={ruleQuery} ruleState={ruleState} busy={busy} removedRules={snapshot?.removed_rules.filter((rule) => rule.source_key === selectedSource.source_key || rule.source_key.startsWith(`${selectedSource.source_key}:`)) ?? []} onClose={() => setDetailOpen(false)} onQueryChange={setRuleQuery} onSearch={() => void loadRules(selectedSource.source_key, ruleQuery)} onRemoveRule={(rule) => setPendingAction({ kind: "rule", title: `移除${rule.weapon_name}规则`, description: "只移除当前来源的这一条规则，来源本身不会改变。", confirmLabel: "确认移除规则", rule })} onRestoreRule={(rule) => void restoreRule(rule)} onCopyAuditReport={props.onCopyAuditReport ? async () => {
             try {
               await props.onCopyAuditReport?.();
               props.onApplied?.("只读验收报告已复制。");
@@ -295,7 +327,6 @@ function SourceDetailDialog(props: {
   source: VaultRecommendationManagedSource;
   rules: VaultRecommendationManagedRule[];
   removedRules: VaultRecommendationManagedRule[];
-  pendingAction: PendingAction | null;
   ruleQuery: string;
   ruleState: "idle" | "loading" | "ready" | "error";
   busy: string;
@@ -304,8 +335,6 @@ function SourceDetailDialog(props: {
   onSearch: () => void;
   onRemoveRule: (rule: VaultRecommendationManagedRule) => void;
   onRestoreRule: (rule: VaultRecommendationManagedRule) => void;
-  onCancelPending: () => void;
-  onConfirmPending: () => void;
   onCopyAuditReport?: () => void | Promise<void>;
 }) {
   const titleId = useId();
@@ -335,6 +364,9 @@ function SourceDetailDialog(props: {
     dialogRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (!dialogRef.current || event.defaultPrevented) return;
+      // 上面又盖了一层模态（盖的时候会把这一层设成 inert），键盘就归它：
+      // 少了这一条，Escape 会先把详情关掉、Tab 会把焦点从上层抢回来。
+      if (dialogRef.current.parentElement?.inert) return;
       if (event.key === "Escape") {
         if (busyRef.current) return;
         event.preventDefault();
@@ -370,14 +402,13 @@ function SourceDetailDialog(props: {
   const dialog = (
     <div className="modal-backdrop vault-recommendation-data-backdrop" role="presentation" onClick={() => canClose && props.onClose()}>
       <section ref={dialogRef} className="vault-wishlist-manager vault-source-detail-dialog" data-surface="dialog" role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(event) => event.stopPropagation()}>
-        <header><div><strong id={titleId}>{props.source.label}</strong><span>{managedSourceStateLabel(props.source)} · {props.source.rule_count} 条规则 · {props.source.weapon_count} 把武器</span></div><ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton></header>
+        <header><div><strong id={titleId}>{props.source.label}</strong><span title={managedSourceCountsTitle}>{managedSourceMetaLabel(props.source)} · {managedSourceScaleLabel(props.source)}</span></div><ControlButton size="compact" variant="quiet" disabled={!canClose} onClick={props.onClose}>关闭</ControlButton></header>
         <div className="vault-managed-rules-head"><span><strong>规则详情</strong><small>版本 {shortRevision(props.source.revision)} · 原始作者、分组和来源说明会保留在规则中。</small></span><form onSubmit={(event) => { event.preventDefault(); props.onSearch(); }}><input type="search" value={props.ruleQuery} onChange={(event) => props.onQueryChange(event.target.value)} placeholder="搜索武器、作者或 Perk" aria-label="搜索来源规则" /><ControlButton type="submit" size="compact" variant="secondary" disabled={props.ruleState === "loading"}>搜索</ControlButton></form></div>
         {props.ruleState === "loading" ? <p className="vault-management-state">正在读取规则…</p> : null}
         {props.ruleState === "error" ? <p className="vault-management-state" role="alert">规则读取失败，请重试。</p> : null}
         {props.rules.length ? <div className="vault-managed-rule-list vault-managed-rule-list--dialog" data-surface="list">{props.rules.map((rule) => <article className="vault-managed-rule" data-surface="row" key={`${rule.source_key}:${rule.rule_stable_id}`}><div><span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{formatModes(rule.purposes)} · 当前账号影响 {rule.affected_instance_count ?? 0} 件</small></span><p>{formatManagedRequirements(rule)}</p>{rule.note ? <small>{rule.note}</small> : null}</div>{rule.state === "removed" ? <ControlButton size="compact" variant="secondary" disabled={Boolean(props.busy) || rule.review_required} onClick={() => props.onRestoreRule(rule)}>恢复</ControlButton> : <ControlButton size="compact" variant="quiet" disabled={Boolean(props.busy)} onClick={() => props.onRemoveRule(rule)}>移除规则</ControlButton>}</article>)}</div> : null}
         {props.removedRules.length ? <details className="vault-removed-rules"><summary>已移除规则（{props.removedRules.length}）</summary><div className="vault-managed-rule-list" data-surface="list">{props.removedRules.slice(0, 100).map((rule) => <article className="vault-managed-rule" data-surface="row" key={`removed:${rule.source_key}:${rule.rule_stable_id}`}><div><strong>{rule.weapon_name}</strong><small>{formatManagedRequirements(rule)}</small></div><ControlButton size="compact" variant="secondary" disabled={Boolean(props.busy) || rule.review_required} onClick={() => props.onRestoreRule(rule)}>恢复</ControlButton></article>)}</div></details> : null}
         {props.onCopyAuditReport ? <div className="vault-source-detail-diagnostic"><span><strong>验收与诊断</strong><small>复制当前账号的推荐核对结果，只读导出，不写入标签或游戏数据。</small></span><ControlButton size="compact" variant="quiet" disabled={Boolean(props.busy)} onClick={() => void props.onCopyAuditReport?.()}>复制验收报告</ControlButton></div> : null}
-        {props.pendingAction ? <div className="vault-wishlist-confirm vault-management-confirm" data-ui-kind="callout" data-status="warning"><span><strong>{props.pendingAction.title}</strong><small>{props.pendingAction.description}</small></span><div><ControlButton size="compact" variant="quiet" disabled={Boolean(props.busy)} onClick={props.onCancelPending}>取消</ControlButton><ControlButton size="compact" variant="danger" disabled={Boolean(props.busy)} onClick={props.onConfirmPending}>{props.busy ? "处理中" : "确认移除"}</ControlButton></div></div> : null}
       </section>
     </div>
   );

@@ -378,6 +378,49 @@ export type AccountSnapshot = Omit<AccountSummary, "characters" | "vault"> & {
   };
 };
 
+/** 账号里每个武器 Hash 有多少件，按两个范围各给一张表。 */
+export type AccountItemHashCounts = {
+  /** 只算仓库里那部分。 */
+  vault: Map<number, number>;
+  /** 全账号：仓库 + 角色身上 + 角色背包 + 邮政官。 */
+  account: Map<number, number>;
+};
+
+/**
+ * 数一件武器在账号里有多少件，同时给出「仓库」与「全账号」两个范围。
+ *
+ * 两个范围在界面上是并排显示的两句话（「仓库 N 件 / 全账号 M 件」），
+ * 所以必须**一次走完、一起算出来**——分成两处各数一遍，迟早会有一处漏加角色侧、
+ * 或者某天有人只改了其中一处，两个数就对不上；而对不上的那一天，用户看到的是
+ * 「同一件事两个数」，只会读成程序算错了。
+ *
+ * 角色侧含身上、背包（inventory）与邮政官，与「账号影响」的口径一致。
+ */
+export function countAccountItemHashes(
+  snapshot: Pick<AccountSnapshot, "vault" | "characters">
+): AccountItemHashCounts {
+  const vault = new Map<number, number>();
+  const account = new Map<number, number>();
+  const add = (counts: Map<number, number>, hash: number) => {
+    counts.set(hash, (counts.get(hash) ?? 0) + 1);
+  };
+
+  for (const item of snapshot.vault.items) {
+    add(vault, item.hash);
+    add(account, item.hash);
+  }
+  for (const character of snapshot.characters) {
+    for (const item of [
+      ...character.equipped_items,
+      ...character.inventory_items,
+      ...character.postmaster_items
+    ]) {
+      add(account, item.hash);
+    }
+  }
+  return { vault, account };
+}
+
 /**
  * Removes Bungie-owned empty socket placeholders from player-facing account data.
  *

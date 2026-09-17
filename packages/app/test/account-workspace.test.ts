@@ -52,10 +52,6 @@ describe("account workspace", () => {
         },        async saveDimWishlist() {
           throw new Error("not used");
         },
-        async clearDimWishlist() {
-          throw new Error("not used");
-          throw new Error("not used");
-        },
         async saveVaultTag() {
           throw new Error("not used");
         },
@@ -125,10 +121,6 @@ describe("account workspace", () => {
         async getDimWishlist() {
           throw new Error("wishlist unavailable");
         },        async saveDimWishlist() {
-          throw new Error("not used");
-        },
-        async clearDimWishlist() {
-          throw new Error("not used");
           throw new Error("not used");
         },
         async saveVaultTag() {
@@ -252,10 +244,6 @@ describe("account workspace", () => {
             rules: []
           };
         },        async saveDimWishlist() {
-          throw new Error("not used");
-        },
-        async clearDimWishlist() {
-          throw new Error("not used");
           throw new Error("not used");
         },
         async saveVaultTag() {

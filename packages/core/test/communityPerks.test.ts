@@ -74,6 +74,56 @@ const englishItemDefinitions: DefinitionComponentData = {
 };
 
 describe("community perk recommendations", () => {
+  /**
+   * Bug #102 的读取期形状：`11`（电流激荡）在两个特长栏的掉落池里都有，`33` 只在第一栏，
+   * `22` / `44` 只在第二栏。归栏按作者书写的栏位顺序消歧，所以 `[33, 11]` 里的 `11` 落第二栏。
+   *
+   * 从前 `11` 一律归它的第一个候选栏（第一栏），与 `33` 撞在一起：这一组规则就归约不成
+   * 「每栏任选其一」的候选池，`11` 这个**来源写明的候选**从逐栏候选里消失——仓库里那把枪
+   * 明明能出这个 perk，界面却说来源没提它。
+   */
+  const sharedTraitItemDefinitions: DefinitionComponentData = {
+    "124": {
+      hash: 124,
+      displayProperties: { name: "两栏测试武器", description: "shared trait weapon" },
+      sockets: {
+        socketEntries: [
+          { reusablePlugItems: [{ plugItemHash: 11 }, { plugItemHash: 33 }] },
+          { reusablePlugItems: [{ plugItemHash: 11 }, { plugItemHash: 22 }, { plugItemHash: 44 }] }
+        ]
+      }
+    }
+  };
+  const sharedTraitDefinitions: DefinitionComponentData = {
+    ...itemDefinitions,
+    ...sharedTraitItemDefinitions
+  };
+
+  it("两个特长栏都可能出的 perk 按书写顺序归栏，来源写明的候选留在逐栏候选里", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    saveDimWishlist(dir, {
+      title: "Shared Trait Picks",
+      rules: [
+        { item_hash: 124, perk_hashes: [33, 22], mode: "pve", note: "" },
+        { item_hash: 124, perk_hashes: [33, 44], mode: "pve", note: "" },
+        { item_hash: 124, perk_hashes: [33, 11], mode: "pve", note: "" }
+      ]
+    }, { name: "Shared Trait Picks", mode: "create" });
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const result = await service.getRecommendations(124, {
+      item_name: "两栏测试武器",
+      itemDefinitions: sharedTraitDefinitions
+    });
+
+    // 归约成一组候选池就是一条来源事实；归约不成才会退回一行一条——那样 `11` 已经丢了。
+    expect(result?.source_records).toHaveLength(1);
+    const requirements = result?.source_records?.[0].requirements ?? [];
+    expect(requirements.map((requirement) => requirement.slot)).toEqual(["perk1", "perk2"]);
+    expect(requirements[0]?.candidates.map((candidate) => candidate.hash)).toEqual([33]);
+    expect(requirements[1]?.candidates.map((candidate) => candidate.hash).sort()).toEqual([11, 22, 44]);
+  });
+
   it("returns recommendations from a local DIM wishlist", async () => {
     const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
     saveDimWishlist(dir, {
@@ -145,6 +195,30 @@ describe("community perk recommendations", () => {
     expect(sourcesOf(1).some((source) => source.matched_requirement_count === 1)).toBe(true);
   });
 
+
+  it("「有就行」的规则也要说得出来自哪份来源（Bug #97）", async () => {
+    // 愿望单里的异域武器写的就是这种：只有武器、没有 perk 要求。
+    // 这类规则过去在适配器那一步被整条滤掉，于是比对结果里只剩来源**名字**、没有来源**编号**——
+    // 仓库左边的来源清单数不着它、按这份来源勾选也筛不出它，而武器自己还标着「符合推荐」。
+    // 判据落在仓库真正消费的那一层：命中的武器必须带得出这条来源。
+    const dir = mkdtempSync(join(tmpdir(), "d2-tools-community-"));
+    saveDimWishlist(dir, {
+      title: "Test Picks",
+      rules: [{ item_hash: 123, perk_hashes: [], mode: "pve", note: "" }]
+    }, { name: "Test Picks", mode: "create" });
+
+    const service = createDefaultCommunityPerkService({ data: { data_dir: dir } });
+    const matches = await service.matchVaultItemInstances([
+      { hash: 123, instance_id: "a", socket_plugs: [{ hash: 11 }] }
+    ], { itemDefinitions });
+    const sources = matches[0]?.source_matches ?? [];
+
+    // 非空锚点：没有这一条，下面两句会空转通过。
+    expect(sources).toHaveLength(1);
+    expect(sources[0]!.source_id).toBeTruthy();
+    // 「有就行」在结果里就是这一档——命中照旧，只是这回说得出是哪份来源。
+    expect(sources[0]!.state).toBe("weapon_only");
+  });
 
   it.each([
     { curatedMode: "pve" as const, expected: "compare" as const },
