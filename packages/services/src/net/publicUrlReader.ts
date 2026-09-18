@@ -51,6 +51,9 @@ export async function readPublicTextUrl(
   for (let redirectCount = 0; redirectCount <= maxRedirects; redirectCount += 1) {
     await assertPublicNetworkUrl(currentUrl, options.label);
     try {
+      // 这条路径直连用户给的外部地址，**不**经过 bungie/client.ts 的请求漏斗，也不得
+      // 读/写那里的 Bungie 粘滞 cookie（affinity）：那是 Bungie host 的负载均衡标识，
+      // 发给第三方就是泄露。本文件自己发 fetch 是刻意的，别改成走公共漏斗。
       response = await fetch(currentUrl, {
         redirect: "manual",
         headers: {

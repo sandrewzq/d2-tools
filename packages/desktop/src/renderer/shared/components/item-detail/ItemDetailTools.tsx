@@ -1,8 +1,6 @@
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets } from "@d2-tools/core/targets/equipmentTargets";
 import type {
-  AccountItemActionPatch,
-  AccountItemDetail,
   AccountSummary,
   EquipmentTargetStore,
   ItemActionPlanInput,
@@ -19,6 +17,7 @@ import type {
 } from "../../hooks/useItemDetail";
 import { selectedItemToAccountItem } from "@d2-tools/app/items";
 import type { buildDuplicateGroupBatchTagPlan } from "../../domain/vault/vaultCleanup";
+import type { ItemWriteActionOptions, ItemWriteActionOutcome } from "../../hooks/useItemDetailWorkspace";
 import {
   formatVaultTagLabel,
   getItemSourceStatusTone
@@ -63,15 +62,8 @@ export type ItemDetailToolsProps = {
   onRunItemWriteAction: (
     label: string,
     action: () => Promise<ItemActionResult>,
-    options?: {
-      keepDetailOpen?: boolean;
-      feedbackScope?: "global" | "detail";
-      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
-      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
-      refreshMismatchMessage?: string;
-      expectedAccountPatch?: AccountItemActionPatch;
-    }
-  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
+    options?: ItemWriteActionOptions
+  ) => Promise<ItemWriteActionOutcome>;
   onSaveSelectedItemNote: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
   onSelectedActionCharacterIdChange: (id: string) => void;

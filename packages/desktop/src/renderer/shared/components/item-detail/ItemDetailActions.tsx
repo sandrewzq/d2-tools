@@ -1,6 +1,4 @@
 import type {
-  AccountItemActionPatch,
-  AccountItemDetail,
   AccountSummary,
   ItemActionPlanInput,
   ItemActionResult
@@ -8,6 +6,7 @@ import type {
 import { api } from "../../../api/client";
 import { resolveItemTransferCharacterId } from "../../../utils/itemActions";
 import type { SelectedItemDetail } from "../../hooks/useItemDetail";
+import type { ItemWriteActionOptions, ItemWriteActionOutcome } from "../../hooks/useItemDetailWorkspace";
 import { resolveAccountItemViewLocation } from "../../domain/account/itemActionState";
 
 export type ItemDetailActionsProps = {
@@ -19,15 +18,8 @@ export type ItemDetailActionsProps = {
   onRunItemWriteAction: (
     label: string,
     action: () => Promise<ItemActionResult>,
-    options?: {
-      keepDetailOpen?: boolean;
-      feedbackScope?: "global" | "detail";
-      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
-      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
-      refreshMismatchMessage?: string;
-      expectedAccountPatch?: AccountItemActionPatch;
-    }
-  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
+    options?: ItemWriteActionOptions
+  ) => Promise<ItemWriteActionOutcome>;
   onSelectedActionCharacterIdChange: (id: string) => void;
 };
 

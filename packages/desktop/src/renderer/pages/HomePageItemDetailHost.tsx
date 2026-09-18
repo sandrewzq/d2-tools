@@ -127,7 +127,14 @@ export function HomePageItemDetailHost(props: HomePageItemDetailHostProps) {
       itemDetail={itemDetail}
       itemDetailOverlay={openingRequest ? {
         openingItem: openingRequest.item,
-        isReady: readyRevision === command.revision && selectedItemReady
+        // 就绪看**闩锁**，不看当前这一帧忙不忙。
+        // `readyRevision` 是单调的：下面那个 effect 只在「属这件装备的内容第一次可用」时记下 revision，
+        // 之后只会往前。而 `selectedItemReady` 是实时值，刷新读回期间会反复真假——
+        // 之前这里把它和闩锁 `&&` 在一起，等于把闩锁拆了：写后读回（换 Perk 后要连读 6 次确认）
+        // 和手动「重新读取配置」都会把已经画出来的整屏正文换回骨架，
+        // 顺带把 `pendingPerks`、滚动位置、所在章节一起丢掉。
+        // 所以：首帧由 `selectedItemReady` 决定，一旦到了就不再撤回；忙碌只走 `isBusy`，不参与渲染裁决。
+        isReady: readyRevision === command.revision
       } : null}
     />
   );

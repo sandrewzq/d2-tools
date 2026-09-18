@@ -132,6 +132,18 @@ export type ItemActionResult = {
   ok: true;
   message: string;
   account_patch?: AccountItemActionPatch;
+  /**
+   * 写响应体里带回的该装备逐槽 plugHash —— 服务器自己说这次写之后它长什么样。
+   * 这是换 Perk 最权威的一份依据，比按写入意图拼出来的乐观值更可信（DIM 同路数）。
+   * 为空表示 Bungie 没回这一截或形状不认识，渲染层回落到写入意图。
+   */
+  accepted_socket_plugs?: { socket_index: number; plug_hash: number }[];
+  accepted_socket_plugs_instance_id?: string;
+  /**
+   * Bungie 用 ErrorCode 1679 说「这件装备还有变更在处理中」而没有被收下的**槽位**。
+   * 它不是失败：既不进红色错误态，也不当作成功落地，面板走中性态。
+   */
+  deferred_socket_indexes?: number[];
   diagnostics?: {
     operation_id: string;
     duration_ms: number;

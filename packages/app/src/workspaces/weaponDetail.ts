@@ -12,6 +12,7 @@ import type {
   ItemDefinitionVersionSummary,
   ItemReleaseSummary
 } from "@d2-tools/core/items/release";
+import type { RecommendationRequirementSlot } from "@d2-tools/core/community-perks";
 import type { ItemSourceSummary } from "@d2-tools/core/items/source";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import type { SelectedItemSourceKind } from "./itemDetail.js";
@@ -151,6 +152,13 @@ export type WeaponPerkSelectionColumn = {
   socket_index: number;
   label: string;
   role: WeaponPerkColumnRole;
+  /**
+   * 这一列对应哪个来源栏位（`barrel` / `magazine` / `masterwork` / `perk1` / `perk2` / `origin`）。
+   *
+   * 推荐对照区按来源栏位核对，玩家在那一区选 Perk 时要落回同一列、同一批待提交项，所以这一列
+   * 必须能回答「我是哪个栏位」——不能让消费方按列名或次序猜（T73）。没有实例 Roll 插槽数据时为 `undefined`。
+   */
+  requirement_slot?: RecommendationRequirementSlot;
   candidates: WeaponOwnedPerkCandidate[];
 };
 

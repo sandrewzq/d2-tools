@@ -1,8 +1,8 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { GameAssetImage } from "../../media/GameAssetImage.js";
+import { WeaponPerkEntry, WeaponPerkPlaceholder } from "./WeaponPerkEntry.js";
 import { GameCombatIcon } from "../../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
-import { RefreshControlButton } from "../../control/RefreshControlButton.js";
 import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
 import type {
   WeaponDetailViewModel,
@@ -36,11 +36,32 @@ export type WeaponDetailContentActions = {
   applyPendingPerks?: () => void | Promise<void>;
   refreshConfiguration?: () => void | Promise<void>;
   loadConfiguration?: () => void | Promise<void>;
+  /**
+   * 只补读物品定义的后台读取（不读完整实例 Roll、不把整份详情退回全屏骨架）。
+   * 返回值表示「定义现在可用」；失败返回 false。
+   */
+  loadDefinition?: () => boolean | Promise<boolean>;
   activateSection?: (section: WeaponDetailSection) => void;
 };
 
+/**
+ * 写入面板的反馈状态。
+ *
+ * `submitted` / `reloaded` 从原来的 `success` 拆出来，不是文案洁癖：这两种状态**能断言的事不一样**，
+ * 挤在一个状态里就必然有一边在撒谎。
+ *
+ * - `submitted`：写接口受理了。受理不等于服务器已经认——实测传播延迟可达几分钟（T77），
+ *   所以这里只能说「已提交、显示的是本地状态」，稿子落在 `configurationPanelContent`。
+ * - `reloaded`：刚刚读到了服务器当前配置。至于「读到的是不是刚写进去的那份」，这一层不知道，
+ *   也不猜（T78）。
+ */
 export type WeaponConfigurationWriteFeedback = {
-  status: "idle" | "submitting" | "refreshing" | "success" | "error" | "refresh-error";
+  /**
+   * `deferred` 是第四种结局：写没有落地，但**也不是失败** —— Bungie 用 ErrorCode 1679 说
+   * 「这件装备还有变更在处理中」。既不能进 `error`（会把一次正常写入报成失败），
+   * 也不能进 `submitted`（那是在替服务器宣布结果），所以单列一档走中性态（见 T80）。
+   */
+  status: "idle" | "submitting" | "refreshing" | "submitted" | "reloaded" | "deferred" | "error";
   message?: string;
 };
 
@@ -60,15 +81,20 @@ export type WeaponDetailContentProps = {
 };
 
 const sectionLabels: Array<{ key: WeaponDetailSection; label: string }> = [
-  { key: "configuration", label: "当前配置" },
   { key: "recommendations", label: "推荐 Roll" },
+  { key: "configuration", label: "当前配置" },
   { key: "overview", label: "属性与获取" },
   { key: "upgrades", label: "升级与锻造" }
 ];
 
+// 首屏定位与懒挂载集合都跟着章节顺序走：推荐 Roll 在最上，所以打开详情时先挂载的是它。
+// 挂载即触发 `activateItemDetailSection("recommendations")`，推荐证据随之在打开详情时读取，
+// 不再等滚到视口附近——这是 T71 重排的必然结果，已记入 backlog。
+const firstSection: WeaponDetailSection = "recommendations";
+
 export function WeaponDetailContent(props: WeaponDetailContentProps) {
   const { model } = props;
-  const [internalSection, setInternalSection] = useState<WeaponDetailSection>("configuration");
+  const [internalSection, setInternalSection] = useState<WeaponDetailSection>(firstSection);
   const [poolOpen, setPoolOpen] = useState(false);
   // 掉落池按钮在「完整 Roll 未读取」时负责先加载，加载完成后自动展开。
   const [poolRequested, setPoolRequested] = useState(false);
@@ -79,14 +105,14 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
     }
   }, [poolRequested, props.model.configuration.pool_columns.length]);
   const [instanceRailOpen, setInstanceRailOpen] = useState(false);
-  const [mountedSections, setMountedSections] = useState<Set<WeaponDetailSection>>(() => new Set(["configuration"]));
+  const [mountedSections, setMountedSections] = useState<Set<WeaponDetailSection>>(() => new Set([firstSection]));
   const section = props.activeSection ?? internalSection;
   const sectionIdPrefix = useId();
   const detailRef = useRef<HTMLElement>(null);
   const instanceRailRef = useRef<HTMLElement>(null);
   const instanceRailTriggerRef = useRef<HTMLButtonElement>(null);
   const instanceRailCloseRef = useRef<HTMLButtonElement>(null);
-  const observedSectionRef = useRef<WeaponDetailSection>("configuration");
+  const observedSectionRef = useRef<WeaponDetailSection>(firstSection);
   const activateSectionRef = useRef(props.actions?.activateSection);
   const visibleSectionsRef = useRef(new Map<WeaponDetailSection, number>());
   const sectionRefs = useRef<Record<WeaponDetailSection, HTMLElement | null>>({
@@ -99,14 +125,15 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
 
   useEffect(() => {
     setPoolOpen(false);
-    setInternalSection("configuration");
+    setInternalSection(firstSection);
     setInstanceRailOpen(false);
-    setMountedSections(new Set(["configuration"]));
-    observedSectionRef.current = "configuration";
+    setMountedSections(new Set([firstSection]));
+    observedSectionRef.current = firstSection;
     visibleSectionsRef.current.clear();
   }, [model.identity.hash, model.context.object_id, model.context.kind]);
 
   useEffect(() => {
+    // 「当前配置」没有按需 loader，跳过它；首屏挂载的推荐 Roll 走这里触发推荐证据读取。
     for (const mountedSection of mountedSections) {
       if (mountedSection !== "configuration") activateSectionRef.current?.(mountedSection);
     }
@@ -252,24 +279,29 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
 
       <div className="weapon-detail-workspace" data-surface="split">
         <div className="weapon-detail-sections" data-surface="content-stack">
-          <section ref={(node) => { sectionRefs.current.configuration = node; }} id={`${sectionIdPrefix}-configuration`} className="weapon-detail-section">
-            <ConfigurationSection
+          {/* 三段顺序（T71）：推荐 Roll → 本件 Roll → 完整掉落池。推荐区在首屏最上方，始终挂载。 */}
+          <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section weapon-detail-recommendation-section">
+            <RecommendationSection
               model={model}
-              poolOpen={poolOpen}
-              onRequestFullRoll={() => { setPoolRequested(true); void props.actions?.loadConfiguration?.(); }}
-              onTogglePool={() => setPoolOpen((value) => !value)}
+              evidence={props.recommendationEvidence}
               actions={props.actions}
               configurationWriteFeedback={props.configurationWriteFeedback}
             />
           </section>
-          <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section weapon-detail-recommendation-section">
-            {mountedSections.has("recommendations") ? (
-              <RecommendationSection
-                model={model}
-                evidence={props.recommendationEvidence}
-              />
-            ) : <DeferredWeaponSection label="推荐 Roll" />}
+          <section ref={(node) => { sectionRefs.current.configuration = node; }} id={`${sectionIdPrefix}-configuration`} className="weapon-detail-section">
+            <ConfigurationSection
+              model={model}
+              actions={props.actions}
+              configurationWriteFeedback={props.configurationWriteFeedback}
+            />
           </section>
+          <FullPoolSection
+            model={model}
+            poolOpen={poolOpen}
+            canLoadFullRoll={Boolean(props.actions?.loadConfiguration)}
+            onRequestFullRoll={() => { setPoolRequested(true); void props.actions?.loadConfiguration?.(); }}
+            onTogglePool={() => setPoolOpen((value) => !value)}
+          />
           <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
             {mountedSections.has("overview")
               ? <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
@@ -280,6 +312,12 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               ? <UpgradeSection model={model} />
               : <DeferredWeaponSection label="升级与锻造" />}
           </section>
+          {/* 正文最后一个子元素：待提交面板吸在正文底部，推荐区里选完就能直接提交（T73）。 */}
+          <WeaponWriteDock
+            model={model}
+            actions={props.actions}
+            configurationWriteFeedback={props.configurationWriteFeedback}
+          />
         </div>
         <aside
           ref={instanceRailRef}
@@ -594,11 +632,24 @@ function StatValue(props: {
   );
 }
 
+/**
+ * 这件武器能不能远程换 Perk：账号实例、不是固定配置、且至少有一项真的可切换。
+ *
+ * 「有没有可切换项」只有模型答得上来（`can_apply` 是逐项按插槽状态算出来的，见
+ * `buildSelectionColumns`）。这个判定有三个消费者——本件 Roll 的格子、正文底部的写面板、
+ * 推荐区浮层里的「选择」——所以只写这一处：三处各写一遍，哪天模型改了判据就会不同步，
+ * 表现是「有一处能点、另一处点不动」。
+ */
+function canStageWeaponPerks(model: WeaponDetailViewModel): boolean {
+  const { configuration, context } = model;
+  return context.kind === "account_instance"
+    && configuration.kind !== "fixed"
+    && configuration.selection_columns.some((column) =>
+      column.candidates.some((candidate) => candidate.can_apply));
+}
+
 function ConfigurationSection(props: {
   model: WeaponDetailViewModel;
-  poolOpen: boolean;
-  onRequestFullRoll?: () => void;
-  onTogglePool: () => void;
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
 }) {
@@ -614,6 +665,29 @@ function ConfigurationSection(props: {
     hasDefinitionConfigurationData
     || configuration.selection_columns.length
   );
+  // 这一区的定义事实（固有能力、完整 Perk 池、异域固定配置）只能从武器定义来，而账号实例首屏
+  // 按规格不自动读定义（首屏直接用快照里的 Roll，不等第二次请求）。调用方还给着 loadDefinition
+  // 就说明定义还没读完——补一次**只含定义**的后台读取：它不置整份详情的加载态，所以首屏不会白屏、
+  // 失败也不会反复重来；完整 Roll 仍然只在点「查看完整掉落池」时才读（用户口径）。
+  // 读的过程按区域显示骨架，读完确实没有才是终态文案（规格：未完成的可选数据不得显示「未返回」等终态文案）。
+  const definitionPending = Boolean(props.actions?.loadDefinition)
+    && context.kind === "account_instance"
+    && (configuration.kind !== "random_roll" || !configuration.intrinsic);
+  const [definitionRequestState, setDefinitionRequestState] = useState<"idle" | "pending" | "done" | "failed">("idle");
+  const loadDefinition = props.actions?.loadDefinition;
+  useEffect(() => {
+    // 失败后停在 failed，不再自动重试；重试入口是详情里显式的按钮（完整掉落池 / 刷新）。
+    if (!definitionPending || definitionRequestState !== "idle") return;
+    setDefinitionRequestState("pending");
+    void Promise.resolve(loadDefinition?.()).then(
+      (loaded) => setDefinitionRequestState(loaded === false ? "failed" : "done"),
+      () => setDefinitionRequestState("failed")
+    );
+  }, [definitionPending, definitionRequestState, loadDefinition]);
+  // 还没发出请求的那一帧也算加载中：否则会先闪一下终态文案再变成骨架。
+  const isWaitingForDefinition = definitionRequestState === "pending"
+    || (definitionPending && definitionRequestState === "idle");
+  const isConfigurationPending = isConfigurationLoading || isWaitingForDefinition;
   const isFixedExotic = hasDefinitionConfigurationData
     && props.model.identity.is_exotic
     && configuration.kind === "fixed";
@@ -625,20 +699,10 @@ function ConfigurationSection(props: {
     );
   const showSelection = usesSelectionColumns && configuration.selection_columns.length > 0;
   const columns = usesSelectionColumns ? configuration.selection_columns : configuration.pool_columns;
-  const canWriteConfiguration = context.kind === "account_instance"
-    && configuration.kind !== "fixed"
-    && configuration.selection_columns.some((column) => column.candidates.some((candidate) => candidate.can_apply));
-  const writeFeedback = props.configurationWriteFeedback ?? { status: "idle" as const };
-  const isBusy = writeFeedback.status === "submitting" || writeFeedback.status === "refreshing";
-  const pendingChangeCount = configuration.selection_columns.reduce(
-    (count, column) => count + (column.candidates.some((candidate) => candidate.pending) ? 1 : 0),
-    0
-  );
-  const panelState = writeFeedback.status === "idle" && configuration.has_pending_changes
-    ? "pending"
-    : writeFeedback.status;
-  const showWritePanel = canWriteConfiguration && panelState !== "idle";
-  const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
+  const canWriteConfiguration = canStageWeaponPerks(props.model);
+  // 这一段只用来禁用「换 Perk」的点击（写入进行中不许再改选择）；待提交面板本身在 WeaponWriteDock。
+  const isBusy = (props.configurationWriteFeedback?.status ?? "idle") === "submitting"
+    || (props.configurationWriteFeedback?.status ?? "idle") === "refreshing";
   const loadingCopy = configurationLoadingCopy(context.kind, isDefinitionLoading, isInstanceLoading);
   const title = isConfigurationLoading && !hasConfigurationData
     ? loadingCopy.title
@@ -649,7 +713,7 @@ function ConfigurationSection(props: {
       : context.kind === "vendor_offer"
         ? "当前售卖 Roll"
         : "本件 Roll";
-  const description = isConfigurationLoading
+  const description = isConfigurationPending
     ? loadingCopy.description
     : isFixedExotic
     ? "固有能力与其余固定 Perk 使用同一配置网格，不提供随机池筛选、推荐 Roll 命中或远程切换。"
@@ -674,76 +738,136 @@ function ConfigurationSection(props: {
         title={title}
         description={description}
       />
-      {isConfigurationLoading ? (
+      {isConfigurationPending ? (
         <p className="weapon-detail-config-loading-note" role="status" aria-live="polite">
           <span aria-hidden="true" />
           {loadingCopy.status}
         </p>
       ) : null}
       {hasConfigurationData ? (
-        <div className="weapon-detail-config-grid" aria-busy={isConfigurationLoading}>
+        <div className="weapon-detail-config-grid" aria-busy={isConfigurationPending}>
           {configuration.intrinsic
-            ? <PerkColumn label="固有能力" role="intrinsic" candidates={[configuration.intrinsic]} />
-            : isDefinitionLoading
-              ? <ConfigurationLoadingColumn />
-              : <div className="weapon-detail-intrinsic-empty">未返回固有能力</div>}
+            ? <PerkColumn label="固有能力" role="intrinsic" contextLabel="固有能力" candidates={[configuration.intrinsic]} emphasis="selected" />
+            : isConfigurationPending
+              ? <ConfigurationLoadingColumn label="固有能力" />
+              : <IntrinsicEmptyColumn failed={definitionRequestState === "failed"} />}
           {columns.map((column) => (
             <PerkColumn
               key={column.key}
               label={column.label}
               role={column.role}
+              contextLabel="当前配置"
+              emphasis="selected"
               candidates={column.candidates}
               interactive={showSelection && canWriteConfiguration && !isBusy}
               onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
             />
           ))}
-          {isConfigurationLoading && columns.length === 0 ? <ConfigurationLoadingColumn /> : null}
+          {isConfigurationPending && columns.length === 0 ? <ConfigurationLoadingColumn /> : null}
         </div>
-      ) : isConfigurationLoading ? (
+      ) : isConfigurationPending ? (
         <ConfigurationLoadingGrid />
       ) : (
         <EmptyState text={configurationEmptyText(context.kind)} />
       )}
+    </>
+  );
+}
 
-      {showWritePanel ? (
-        <div
-          className={`weapon-detail-write-panel is-${panelState}`}
-          role={panelState === "error" || panelState === "refresh-error" ? "alert" : "status"}
-          aria-live={panelState === "error" || panelState === "refresh-error" ? "assertive" : "polite"}
-          aria-busy={isBusy}
-        >
-          <span className="weapon-detail-write-indicator" aria-hidden="true" />
-          <div className="weapon-detail-write-copy">
-            <div className="weapon-detail-write-heading">
-              <strong>{panelContent.title}</strong>
-              <span>{panelContent.step}</span>
-            </div>
-            <p>{panelContent.message}</p>
+/**
+ * 待提交写面板（T73 上提：从「本件 Roll」章节搬到详情正文级）。
+ *
+ * 它原来长在「本件 Roll」区里，而 T71 之后推荐对照区排在上面一屏；在推荐区按批次选了几项之后，
+ * 唯一的提交入口在屏幕外——点了「选择」却看不到能提交的东西。现在它是正文的最后一个子元素并吸附在
+ * 正文底部，在哪个区域选都看得见；提交按钮仍然只有这一个，不出现第二个。
+ *
+ * 状态判定与面板文案一字未动，只是搬了位置：条件（可写、有待提交、写入反馈）都从同一份视图模型来。
+ */
+function WeaponWriteDock(props: {
+  model: WeaponDetailViewModel;
+  actions?: WeaponDetailContentProps["actions"];
+  configurationWriteFeedback?: WeaponDetailContentProps["configurationWriteFeedback"];
+}) {
+  const { configuration } = props.model;
+  const canWriteConfiguration = canStageWeaponPerks(props.model);
+  const writeFeedback = props.configurationWriteFeedback ?? { status: "idle" as const };
+  const isBusy = writeFeedback.status === "submitting" || writeFeedback.status === "refreshing";
+  const pendingChangeCount = configuration.selection_columns.reduce(
+    (count, column) => count + (column.candidates.some((candidate) => candidate.pending) ? 1 : 0),
+    0
+  );
+  const panelState = writeFeedback.status === "idle" && configuration.has_pending_changes
+    ? "pending"
+    : writeFeedback.status;
+  if (!canWriteConfiguration || panelState === "idle") return null;
+  const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
+  return (
+    <div className="weapon-detail-write-dock">
+      <div
+        className={`weapon-detail-write-panel is-${configurationPanelTone(panelState)}`}
+        role={panelState === "error" ? "alert" : "status"}
+        aria-live={panelState === "error" ? "assertive" : "polite"}
+        aria-busy={isBusy}
+      >
+        <span className="weapon-detail-write-indicator" aria-hidden="true" />
+        <div className="weapon-detail-write-copy">
+          <div className="weapon-detail-write-heading">
+            <strong>{panelContent.title}</strong>
+            <span>{panelContent.step}</span>
           </div>
-          <div className="weapon-detail-write-actions">
-            {panelState === "pending" ? (
-              <>
-                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
-              </>
-            ) : null}
-            {panelState === "error" ? (
-              <>
-                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-                <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
-                <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
-              </>
-            ) : null}
-            {panelState === "refresh-error" ? (
-              <RefreshControlButton variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</RefreshControlButton>
-            ) : null}
-            {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
-          </div>
+          <p>{panelContent.message}</p>
         </div>
-      ) : null}
+        <div className="weapon-detail-write-actions">
+          {panelState === "pending" ? (
+            <>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
+            </>
+          ) : null}
+          {panelState === "error" ? (
+            <>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+            </>
+          ) : null}
+          {panelState === "deferred" ? (
+            <>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+            </>
+          ) : null}
+          {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
 
-      {context.kind !== "definition" && configuration.kind === "random_roll"
-        && (configuration.pool_columns.length > 0 || (context.kind === "account_instance" && Boolean(props.actions?.loadConfiguration))) ? (
+/**
+ * 完整掉落池是独立区域（T71）：它排在「本件 Roll」之后，有自己的章节盒子与分隔线，
+ * 不再挂在配置章节里面。内容与读取时机一字未动——完整 Roll 仍然只在点这个按钮时才读。
+ */
+function FullPoolSection(props: {
+  model: WeaponDetailViewModel;
+  poolOpen: boolean;
+  canLoadFullRoll: boolean;
+  onRequestFullRoll?: () => void;
+  onTogglePool: () => void;
+}) {
+  const { configuration, context } = props.model;
+  const isVariableExotic = props.model.identity.is_exotic && configuration.kind === "variable_exotic";
+  const showRandomPool = context.kind !== "definition" && configuration.kind === "random_roll"
+    && (configuration.pool_columns.length > 0
+      || (context.kind === "account_instance" && props.canLoadFullRoll));
+  const showExoticPool = context.kind !== "definition" && isVariableExotic
+    && configuration.pool_kind === "randomized"
+    && configuration.pool_columns.length > 0;
+  if (!showRandomPool && !showExoticPool) return null;
+  return (
+    <section className="weapon-detail-section" data-region="full-pool">
+      {showRandomPool ? (
         <section className="weapon-detail-full-pool">
           <button
             type="button"
@@ -764,29 +888,25 @@ function ConfigurationSection(props: {
           </button>
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
-              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
+              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} contextLabel="完整掉落池" candidates={column.candidates} emphasis="selected" />)}
             </div><p className="weapon-detail-note">这里只展示可能掉落的候选，不标记当前已选状态；这件武器未拥有的 Perk 不能远程安装。</p></>
           ) : null}
         </section>
       ) : null}
-
-      {context.kind !== "definition"
-      && isVariableExotic
-      && configuration.pool_kind === "randomized"
-      && configuration.pool_columns.length ? (
+      {showExoticPool ? (
         <section className="weapon-detail-full-pool">
-          <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={props.onTogglePool}>
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={() => props.onTogglePool?.()}>
             <strong>{props.poolOpen ? "收起异域配置候选" : "查看异域配置候选"}</strong>
             <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
           </button>
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
-              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} candidates={column.candidates} />)}
+              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} contextLabel="异域配置候选" candidates={column.candidates} emphasis="selected" />)}
             </div><p className="weapon-detail-note">这些是当前资料库可确认的特殊异域随机配置候选，不代表这件武器已经拥有，也不属于普通传说武器掉落池。</p></>
           ) : null}
         </section>
       ) : null}
-    </>
+    </section>
   );
 }
 
@@ -893,12 +1013,36 @@ function ConfigurationLoadingGrid() {
   );
 }
 
-function ConfigurationLoadingColumn() {
+function ConfigurationLoadingColumn(props: { label?: string }) {
   return (
-    <div className="weapon-detail-config-placeholder-column" aria-hidden="true">
-      <span />
-      <div><i /><b /><em /></div>
-    </div>
+    // 用真列的外壳与真表头，只有内容位置画骨架：列高、表头高、卡片几何都和真列逐像素相同。
+    <section className="weapon-detail-perk-column weapon-detail-perk-column-loading" aria-hidden="true">
+      <h4>{props.label ?? <span />}</h4>
+      <div>
+        <WeaponPerkPlaceholder variant="loading" />
+      </div>
+    </section>
+  );
+}
+
+/**
+ * 读完定义确实没有固有能力（或定义这一次没读回来）时的空态。
+ *
+ * 仍然保留列名：没有列名的整格会比邻列高出表头那一格，正是改动前用户看到的「错位」。
+ * 两种文案必须分得开——「未返回」是定义真的读完了，「未能读取」是这次定义没拿到，
+ * 后者不该让用户以为这件武器没有固有能力。
+ */
+function IntrinsicEmptyColumn(props: { failed?: boolean }) {
+  return (
+    <section className="weapon-detail-perk-column role-intrinsic">
+      <h4>固有能力</h4>
+      <div>
+        <WeaponPerkPlaceholder
+          variant="empty"
+          text={props.failed ? "固有能力未能读取" : "未返回固有能力"}
+        />
+      </div>
+    </section>
   );
 }
 
@@ -915,24 +1059,74 @@ function configurationPanelContent(
         message: "确认后才会写入游戏；写入成功前，当前配置保持不变。"
       };
     case "submitting":
-      return { title: "正在提交武器配置", step: "第 1/2 步", message: message ?? "正在将 Perk 更改提交到游戏服务..." };
+      return { title: "正在提交武器配置", step: "提交中", message: message ?? "正在将 Perk 更改提交到游戏服务..." };
     case "refreshing":
-      return { title: "正在同步最新配置", step: "第 2/2 步", message: message ?? "正在读取游戏返回的最新装备状态..." };
-    case "success":
-      return { title: "武器配置已更新", step: "已完成", message: message ?? "详情已按服务器最新状态重绘。" };
+      return { title: "正在同步最新配置", step: "同步中", message: message ?? "正在读取游戏返回的最新装备状态..." };
+    case "submitted":
+      return {
+        title: "武器配置更改已提交",
+        step: "待核对",
+        message: message ?? "当前显示的是本地状态；账号同步后以服务器为准。"
+      };
+    case "reloaded":
+      return {
+        title: "已读取服务器当前配置",
+        step: "已读取",
+        message: message ?? "显示的是刚刚从服务器读到的内容。"
+      };
+    case "deferred":
+      return {
+        title: "这件装备还有变更在处理中",
+        step: "待重试",
+        message: message ?? "Bungie 还没有处理完上一次更改，这次没有提交。稍后重新读取配置再试。"
+      };
     case "error":
-      return { title: "武器配置未更新", step: "需要处理", message: message ?? "提交失败，已核对服务器当前配置。你可以保留选择重试。" };
-    case "refresh-error":
-      return { title: "写入成功，详情同步失败", step: "需要刷新", message: message ?? "请重新读取服务器配置，确认当前实际状态。" };
+      return { title: "武器配置未更新", step: "需要处理", message: message ?? "提交失败。你可以保留选择重试。" };
     default:
       return { title: "", step: "", message: "" };
   }
 }
 
+/**
+ * 面板配色只认三种语气；`submitted` 与 `reloaded` 都是「没有失败」，共用成功那套。
+ *
+ * 返回类型里留着 `idle` 是为了这个映射本身完备（状态联合里就有它）。它到不了 DOM：
+ * 调用点在上面遇到 `panelState === "idle"` 就直接不渲染面板。
+ */
+function configurationPanelTone(
+  state: WeaponConfigurationWriteFeedback["status"] | "pending"
+): "pending" | "idle" | "submitting" | "refreshing" | "success" | "error" {
+  if (state === "submitted" || state === "reloaded") return "success";
+  // `deferred` 落到中性的待办配色：它不是失败，也不该借用成功那套绿色（见 T80）。
+  if (state === "deferred") return "pending";
+  return state;
+}
+
+/**
+ * Perk 短状态词表只有这一处：同一件事（来源要什么、本件有没有、是不是当前）在整页只用一个说法。
+ *
+ * 推荐对照区原来两侧各写一套——来源侧走调用方传入的标签、本件侧 4 个词直接硬编码在标记里——
+ * 于是同一行两列对同一件事给出不同的词（「本件命中」/「符合」、「推荐候选」/「本件拥有」），
+ * 读的人要多花一次换算（T72 方案 C）。判定的分支不变，只是把话说成同一套。
+ */
+const perkStatusWord = {
+  hitActive: "符合 · 当前",
+  hit: "符合",
+  missed: "未拥有",
+  active: "当前启用",
+  notRequired: "来源未要求",
+  uncheckable: "无法判断",
+  pending: "待应用"
+} as const;
+
 function PerkColumn(props: {
   label: string;
   role: WeaponPerkColumnRole;
   candidates: readonly WeaponPerkCandidate[];
+  /** 条目归属的区块名（浮层身份行与无障碍标签用） */
+  contextLabel: string;
+  /** Roll 各列属于配置区：「当前」按蓝色选中语义表达（见 WeaponPerkEntry 的 emphasis） */
+  emphasis?: "marker" | "selected";
   interactive?: boolean;
   onSelect?: (perk: WeaponPerkCandidate) => void;
 }) {
@@ -942,13 +1136,34 @@ function PerkColumn(props: {
       <div>
         {props.candidates.length ? props.candidates.map((perk) => {
           const selection = "selected" in perk ? perk as WeaponPerkSelectionColumn["candidates"][number] : undefined;
+          // 「是不是当前」「是不是待应用」两件事整页同一套词（见 perkStatusWord）：换 Perk 是先选后提交，
+          // 推荐对照区里选中的那格写「待应用」，配置列里同一批选中也必须写「待应用」，不能一个说「已选」
+          // 一个说「待应用」。剩下两个词说的是另一个问题（换成它要不要额外条件），只在配置列里出现。
           const stateLabel = selection
-            ? selection.pending ? "待应用" : selection.selected ? "当前已选" : selection.can_apply ? "这件武器拥有 · 可切换" : "这件武器拥有"
+            ? selection.pending ? perkStatusWord.pending : selection.selected ? perkStatusWord.active : selection.can_apply ? "本件拥有 · 可切换" : "本件拥有"
             : undefined;
-          const content = <>{stateLabel || perk.enhanced_of_hash ? <small>{[stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ")}</small> : null}<GameAssetImage className="game-definition-icon" src={perk.icon} alt="" loading="lazy" /><span><strong>{perk.name}</strong><p>{perk.description}</p></span></>;
-          return props.interactive && selection?.can_apply ? (
-            <button key={perk.hash} type="button" className={["weapon-detail-perk", selection.selected && "is-selected", selection.pending && "is-pending"].filter(Boolean).join(" ")} aria-pressed={selection.selected || selection.pending} onClick={() => props.onSelect?.(perk)}>{content}</button>
-          ) : <article key={perk.hash} className={["weapon-detail-perk", selection?.selected && "is-selected", selection?.pending && "is-pending"].filter(Boolean).join(" ")}>{content}</article>;
+          const statusLabel = [stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ");
+          const statusDetail = selection
+            ? selection.pending ? "本件拥有，已选中，等待写入" : selection.selected ? "本件拥有，当前启用" : selection.can_apply ? "本件拥有，可以切换成它" : "本件拥有"
+            : perk.enhanced_of_hash ? "强化版本" : "";
+          return (
+            <WeaponPerkEntry
+              key={perk.hash}
+              name={perk.name}
+              description={perk.description}
+              icon={perk.icon}
+              statusLabel={statusLabel || undefined}
+              statusDetail={statusDetail || undefined}
+              contextLabel={props.contextLabel}
+              ariaLabel={[perk.name, props.contextLabel, statusDetail].filter(Boolean).join("，")}
+              selected={selection?.selected}
+              pending={selection?.pending}
+              emphasis={props.emphasis}
+              // 可切换的格子点击＝换 Perk（与改动前一致）；其余格子点击＝看说明。
+              onActivate={props.interactive && selection?.can_apply ? () => props.onSelect?.(perk) : undefined}
+              pressed={Boolean(selection?.selected || selection?.pending)}
+            />
+          );
         }) : <EmptyState text="此列没有返回候选。" />}
       </div>
     </section>
@@ -966,11 +1181,19 @@ function PerkColumn(props: {
 function RecommendationSection(props: {
   model: WeaponDetailViewModel;
   evidence?: WeaponDetailContentProps["recommendationEvidence"];
+  actions?: WeaponDetailContentProps["actions"];
+  configurationWriteFeedback?: WeaponDetailContentProps["configurationWriteFeedback"];
 }) {
   const { model } = props;
   const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
   const isDefinition = model.context.kind === "definition";
   const panelId = useId();
+  // 推荐区换 Perk（T73）：可远程切换时，本件拥有条目在浮层里「选择 / 取消选择」，与本件 Roll 同一批提交。
+  // 写入进行中的那一刻不开新入口（与本件 Roll 的格子同一条闸门）。
+  const stagePerk = props.actions?.stagePerk;
+  const canStagePerks = Boolean(stagePerk)
+    && (props.configurationWriteFeedback?.status ?? "idle") === "idle"
+    && canStageWeaponPerks(model);
   const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
   const sourceMatches = evidence
     ? evidence.sourceMatches.slice().sort((left, right) => (
@@ -1006,6 +1229,8 @@ function RecommendationSection(props: {
                 key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
                 model={model}
                 sourceMatch={sourceMatch}
+                canStagePerks={canStagePerks}
+                onStagePerk={stagePerk}
               />
             ))}
           </div>
@@ -1024,6 +1249,8 @@ function RecommendationSection(props: {
 function RecommendationSourceEvidenceCard(props: {
   model: WeaponDetailViewModel;
   sourceMatch: RecommendationSourceMatch;
+  canStagePerks: boolean;
+  onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
 }) {
   const source = props.sourceMatch;
   const [open, setOpen] = useState(false);
@@ -1094,8 +1321,23 @@ function RecommendationSourceEvidenceCard(props: {
           ) : (
             <>
               <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel}推荐项核对`}>
+                {/* 栏头（T72 方案 B）：逐行的「来源要求 / 本件拥有」收成这里一处，列模板与槽位行逐像素相同，
+                    吸附在滚动口顶部；两半的图例也只在这里说一次。窄屏两半纵向堆叠时这一条隐去、
+                    每个半区恢复自己的表头（媒体查询里切换）。两类表头任一时刻只有一类是可见的，
+                    所以读屏也只会听到一次列名与图例，这里不额外 aria-hidden。 */}
+                <div className="weapon-detail-source-slot-columns">
+                  <span>栏位</span>
+                  <span>来源要求<em>多候选满足其一即可</em></span>
+                  <span>本件拥有<em>环＝当前启用，红环＝来源没要</em></span>
+                </div>
                 {specifiedSlots.map((slot) => (
-                  <RecommendationSourceSlotRow key={slot.slot} model={props.model} slot={slot} />
+                  <RecommendationSourceSlotRow
+                    key={slot.slot}
+                    model={props.model}
+                    slot={slot}
+                    canStagePerks={props.canStagePerks}
+                    onStagePerk={props.onStagePerk}
+                  />
                 ))}
               </div>
               {unrequestedSlotLabels.length ? (
@@ -1122,9 +1364,15 @@ function RecommendationSlotComparison(props: {
   sourceCandidateFallback: string;
   instanceOwned: RecommendationPerkVisual[];
   instanceOwnedFallback: string;
-  sourceStatusLabels: { hit: string; hitActive: string; candidate: string; uncheckable: string };
 }) {
   const { label, state, sourceCandidates, instanceOwned } = props;
+  // 两列同一套短状态词（见 perkStatusWord）：同一件事在整页只用一个说法。
+  const sourceStatus = (candidate: RecommendationPerkVisual) => candidate.hit
+    ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
+    : state === "uncheckable" ? perkStatusWord.uncheckable : perkStatusWord.missed;
+  const ownedStatus = (candidate: RecommendationPerkVisual) => candidate.hit
+    ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
+    : candidate.active ? perkStatusWord.active : perkStatusWord.notRequired;
   return (
     <div
       className="weapon-detail-source-slot"
@@ -1139,47 +1387,68 @@ function RecommendationSlotComparison(props: {
         <section>
           <header><span>来源要求</span>{sourceCandidates.length > 1 ? <small>满足其中一个即可</small> : null}</header>
           {sourceCandidates.length ? (
-            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${label}来源要求`}>
-              {sourceCandidates.map((candidate) => (
-                <RecommendationPerkIcon
-                  key={candidate.key}
-                  perk={candidate}
-                  hit={candidate.hit === true}
-                  active={candidate.active === true}
-                  muted={state === "match" && candidate.hit !== true}
-                  unknown={candidate.unresolved}
-                  contextLabel="来源推荐"
-                  visibleStatusLabel={candidate.hit
-                    ? candidate.active ? props.sourceStatusLabels.hitActive : props.sourceStatusLabels.hit
-                    : props.sourceStatusLabels.candidate}
-                  statusLabel={candidate.hit
-                    ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
-                    : state === "uncheckable" ? props.sourceStatusLabels.uncheckable : "本件没有这个推荐项"}
-                />
-              ))}
+            <div className="weapon-detail-perk-entries" role="group" aria-label={`${label}来源要求`}>
+              {sourceCandidates.map((candidate) => {
+                const statusDetail = candidate.hit
+                  ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
+                  : state === "uncheckable" ? "当前无法确认本件是否拥有" : "本件没有这个推荐项";
+                return (
+                  <WeaponPerkEntry
+                    key={candidate.key}
+                    name={candidate.name}
+                    englishName={candidate.englishName}
+                    description={candidate.description}
+                    icon={candidate.icon}
+                    hit={candidate.hit === true}
+                    selected={candidate.active === true}
+                    muted={state === "match" && candidate.hit !== true}
+                    unknown={candidate.unresolved}
+                    contextLabel="来源推荐"
+                    statusLabel={sourceStatus(candidate)}
+                    statusDetail={statusDetail}
+                    ariaLabel={recommendationPerkAriaLabel(candidate, "来源推荐", statusDetail)}
+                  />
+                );
+              })}
             </div>
           ) : <p>{props.sourceCandidateFallback}</p>}
         </section>
         <section>
-          <header><span>本件拥有</span><small>蓝点表示当前启用</small></header>
+          <header><span>本件拥有</span><small>环＝当前启用，红环＝来源没要</small></header>
           {instanceOwned.length ? (
-            <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${label}本件拥有`}>
-              {instanceOwned.map((candidate) => (
-                <RecommendationPerkIcon
-                  key={candidate.key}
-                  perk={candidate}
-                  hit={candidate.hit === true}
-                  active={candidate.active === true}
-                  muted={state === "match" && candidate.hit !== true}
-                  contextLabel="本件拥有"
-                  visibleStatusLabel={candidate.hit
-                    ? candidate.active ? "符合 · 当前" : "符合"
-                    : candidate.active ? "当前启用" : "本件拥有"}
-                  statusLabel={candidate.hit
+            <div className="weapon-detail-perk-entries" role="group" aria-label={`${label}本件拥有`}>
+              {instanceOwned.map((candidate) => {
+                const staged = candidate.pending === true;
+                const statusDetail = staged
+                  ? "本件拥有，已选中，等待写入"
+                  : candidate.hit
                     ? candidate.active ? "符合来源要求，当前已启用" : "符合来源要求，当前未启用"
-                    : candidate.active ? "当前已启用，但不在该来源候选中" : "本件拥有，但不在该来源候选中"}
-                />
-              ))}
+                    : candidate.active ? "当前已启用，但不在该来源候选中" : "本件拥有，但不在该来源候选中";
+                return (
+                  <WeaponPerkEntry
+                    key={candidate.key}
+                    name={candidate.name}
+                    englishName={candidate.englishName}
+                    description={candidate.description}
+                    icon={candidate.icon}
+                    hit={candidate.hit === true}
+                    selected={candidate.active === true}
+                    pending={staged}
+                    // 「不符」栏的直接原因：本件当前装着它、而来源没要它（判定条件见 WeaponPerkEntry 的 mismatch）。
+                    // 来源要求列不标——那一列在「不符」栏里每张卡都长这样，标了等于把这四个字重复 N 遍。
+                    mismatch={state === "different" && candidate.hit !== true && candidate.active === true}
+                    muted={state === "match" && candidate.hit !== true}
+                    contextLabel="本件拥有"
+                    statusLabel={staged ? perkStatusWord.pending : ownedStatus(candidate)}
+                    statusDetail={statusDetail}
+                    ariaLabel={recommendationPerkAriaLabel(candidate, "本件拥有", statusDetail)}
+                    // 换 Perk 是批量的：这里只把这一项放进同一批待提交项，提交仍在同一处写面板（T73）。
+                    action={candidate.onToggleSelect && (staged || candidate.canApply === true)
+                      ? { label: staged ? "取消选择" : "选择", onActivate: candidate.onToggleSelect }
+                      : undefined}
+                  />
+                );
+              })}
             </div>
           ) : <p>{props.instanceOwnedFallback}</p>}
         </section>
@@ -1191,14 +1460,30 @@ function RecommendationSlotComparison(props: {
 function RecommendationSourceSlotRow(props: {
   model: WeaponDetailViewModel;
   slot: RecommendationSourceSlotMatch;
+  /** 可远程切换（账号实例 + 非固定配置 + 写入空闲）时，本件拥有条目才能在浮层里选择 */
+  canStagePerks: boolean;
+  onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
 }) {
   const { model, slot } = props;
   const sourceCandidates = recommendationSourceCandidates(model, slot);
-  const instanceOwned = slot.instance_owned.map((plug) => recommendationOwnedPerk(model, plug));
   const presentation = presentRecommendationSlotMatch(slot.state, {
     hasInstanceOwned: slot.instance_owned.length > 0,
     hasCurrentEnabled: slot.current_enabled.length > 0
   });
+  // 推荐区换 Perk（T73）：来源栏位 → 同一件武器的配置列 → 同一批待提交项。
+  // 两边的交集只有 `weapon_roll.sockets[].slot`（来源事实与配置列都从它来），配置列因此带着
+  // `requirement_slot`；这里不按列名或次序猜，配不上就不给动作（宁可少一个入口，不给错一个）。
+  const column = props.canStagePerks
+    ? model.configuration.selection_columns.find((candidate) => candidate.requirement_slot === slot.slot)
+    : undefined;
+  const stageSelection = (plug: RecommendationSourceSlotMatch["instance_owned"][number]) => {
+    if (!column || !props.onStagePerk) return undefined;
+    const stage = props.onStagePerk;
+    const perk = column.candidates.find((candidate) => candidate.hash === plug.hash)
+      ?? column.candidates.find((candidate) => sameLabel(candidate.name, plug.name));
+    if (!perk) return undefined;
+    return { perk, toggle: () => stage(column, perk) };
+  };
   return (
     <RecommendationSlotComparison
       label={slot.label}
@@ -1211,18 +1496,20 @@ function RecommendationSourceSlotRow(props: {
         active: recommendationPerkMatches(model, candidate, slot.current_enabled)
       }))}
       sourceCandidateFallback={slot.state === "source_not_specified" ? "未指定" : "要求名称未返回"}
-      instanceOwned={instanceOwned.map((candidate) => ({
-        ...candidate,
-        hit: recommendationPerkMatches(model, candidate, sourceCandidates),
-        active: recommendationPerkMatches(model, candidate, slot.current_enabled) || candidate.selected
-      }))}
+      instanceOwned={slot.instance_owned.map((plug) => {
+        const visual = recommendationOwnedPerk(model, plug);
+        const stage = stageSelection(plug);
+        return {
+          ...visual,
+          hit: recommendationPerkMatches(model, visual, sourceCandidates),
+          active: recommendationPerkMatches(model, visual, slot.current_enabled) || visual.selected === true,
+          // 「已经装着的那一项」不是可切换项，这一条在模型里判（can_apply），这里不重判一次。
+          canApply: stage?.perk.can_apply === true,
+          pending: stage?.perk.pending === true,
+          onToggleSelect: stage?.toggle
+        };
+      })}
       instanceOwnedFallback={presentation.instanceOwnedFallback}
-      sourceStatusLabels={{
-        hit: "本件命中",
-        hitActive: "本件命中 · 当前",
-        candidate: "推荐候选",
-        uncheckable: "当前无法确认本件是否拥有"
-      }}
     />
   );
 }
@@ -1342,12 +1629,6 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
                 return { ...visual, hit: hasObject && inCandidates, active: hasObject && plug.current };
               })}
               instanceOwnedFallback={isDefinition ? "资料库对象没有账号实例" : "这件武器还没有这一栏的数据"}
-              sourceStatusLabels={{
-                hit: "本件命中",
-                hitActive: "本件命中 · 当前",
-                candidate: "推荐候选",
-                uncheckable: "当前无法确认本件是否拥有"
-              }}
             />
           ) : (
             <section key={option.column_key} data-match-state={isDefinition ? undefined : option.owned ? "match" : "different"}>
@@ -1357,28 +1638,37 @@ function RecommendationCard(props: { model: WeaponDetailViewModel; recommendatio
                   ? "组合要求"
                   : option.requirement_state === "uncheckable" ? "无法判断" : option.owned ? "符合" : "不符"}</span>
               </header>
-              <div className="weapon-detail-recommendation-perks" role="group" aria-label={`${option.column_key}推荐候选`}>
-                {(option.candidates ?? []).map((candidate) => (
-                  <RecommendationPerkIcon
-                    key={candidate.key}
-                    perk={candidate}
-                    hit={hasObject && candidate.hit}
-                    active={hasObject && candidate.active}
-                    muted={hasObject && option.owned && !candidate.hit}
-                    unknown={!candidate.icon}
-                    contextLabel="完整组合要求"
-                    visibleStatusLabel={isDefinition
-                      ? "组合要求"
-                      : candidate.hit
-                        ? candidate.active ? "命中 · 当前" : "命中"
-                        : "推荐候选"}
-                    statusLabel={isDefinition
-                      ? "数据源明确给出的完整组合项"
-                      : candidate.hit
-                        ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
-                        : "本件没有这个推荐项"}
-                  />
-                ))}
+              <div className="weapon-detail-perk-entries" role="group" aria-label={`${option.column_key}推荐候选`}>
+                {(option.candidates ?? []).map((candidate) => {
+                  const hit = hasObject && candidate.hit;
+                  const active = hasObject && candidate.active;
+                  const statusDetail = isDefinition
+                    ? "数据源明确给出的完整组合项"
+                    : candidate.hit
+                      ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
+                      : "本件没有这个推荐项";
+                  return (
+                    <WeaponPerkEntry
+                      key={candidate.key}
+                      name={candidate.name}
+                      englishName={candidate.englishName}
+                      description={candidate.description}
+                      icon={candidate.icon}
+                      hit={hit}
+                      selected={active}
+                      muted={hasObject && option.owned && !candidate.hit}
+                      unknown={!candidate.icon}
+                      contextLabel="完整组合要求"
+                      statusLabel={isDefinition
+                        ? "组合要求"
+                        : candidate.hit
+                          ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
+                          : perkStatusWord.missed}
+                      statusDetail={statusDetail}
+                      ariaLabel={recommendationPerkAriaLabel({ name: candidate.name, hit, active }, "完整组合要求", statusDetail)}
+                    />
+                  );
+                })}
               </div>
             </section>
           ))}
@@ -1415,95 +1705,21 @@ type RecommendationPerkVisual = {
   unresolved?: boolean;
   hit?: boolean;
   active?: boolean;
+  /** 本件拥有项在这一栏能不能切（实例可写时才有值；来源侧候选不带） */
+  canApply?: boolean;
+  /** 已进本件 Roll 那一批待提交项 */
+  pending?: boolean;
+  /** 在这一栏换 Perk：与「本件 Roll」用同一个批量待提交（T73） */
+  onToggleSelect?: () => void;
 };
 
-function RecommendationPerkIcon(props: {
-  perk: RecommendationPerkVisual;
-  hit?: boolean;
-  active?: boolean;
-  muted?: boolean;
-  unknown?: boolean;
-  contextLabel: string;
-  visibleStatusLabel: string;
-  statusLabel: string;
-}) {
-  const { perk } = props;
-  const [open, setOpen] = useState(false);
-  const rootRef = useRef<HTMLSpanElement>(null);
-  const tooltipId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    document.addEventListener("pointerdown", closeOnPointerDown);
-    document.addEventListener("keydown", closeOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeOnPointerDown);
-      document.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [open]);
-
-  const ariaLabel = [
-    perk.name,
-    props.contextLabel,
-    props.hit ? "命中推荐" : undefined,
-    props.active ? "当前启用" : undefined,
-    props.statusLabel
-  ].filter(Boolean).join("，");
-  return (
-    <span
-      ref={rootRef}
-      className="weapon-detail-recommendation-perk"
-      data-hit={props.hit ? "true" : undefined}
-      data-active={props.active ? "true" : undefined}
-      data-muted={props.muted ? "true" : undefined}
-      data-unknown={props.unknown ? "true" : undefined}
-      data-open={open ? "true" : undefined}
-    >
-      <button
-        type="button"
-        aria-label={ariaLabel}
-        aria-describedby={tooltipId}
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-      >
-        <span className="weapon-detail-recommendation-perk-art">
-          <GameAssetImage
-            src={normalizeRecommendationIconUrl(perk.icon)}
-            alt=""
-            loading="lazy"
-            fallback={<span className="weapon-detail-recommendation-perk-placeholder" aria-hidden="true">◆</span>}
-          />
-        </span>
-        <span className="weapon-detail-recommendation-perk-copy">
-          <strong>{perk.name}</strong>
-          <small>{props.visibleStatusLabel}</small>
-        </span>
-        {props.hit ? <span className="weapon-detail-recommendation-perk-hit" aria-hidden="true">✓</span> : null}
-        {props.active ? <span className="weapon-detail-recommendation-perk-active" aria-hidden="true" /> : null}
-      </button>
-      <span id={tooltipId} className="weapon-detail-recommendation-perk-popover" role="tooltip">
-        <span className="weapon-detail-recommendation-perk-popover-heading">
-          <span className="weapon-detail-recommendation-perk-art">
-            <GameAssetImage
-              src={normalizeRecommendationIconUrl(perk.icon)}
-              alt=""
-              loading="lazy"
-              fallback={<span className="weapon-detail-recommendation-perk-placeholder" aria-hidden="true">◆</span>}
-            />
-          </span>
-          <span><strong>{perk.name}</strong>{perk.englishName ? <small>{perk.englishName}</small> : null}</span>
-        </span>
-        <span className="weapon-detail-recommendation-perk-description">{perk.description || "游戏资料没有返回这项 Perk 的说明。"}</span>
-        <span className="weapon-detail-recommendation-perk-context"><strong>{props.contextLabel}</strong><small>{props.statusLabel}</small></span>
-      </span>
-    </span>
-  );
+/** 推荐区条目的无障碍标签：名称、身份、命中与启用状态、完整状态各说一次。 */
+function recommendationPerkAriaLabel(
+  perk: Pick<RecommendationPerkVisual, "name" | "hit" | "active">,
+  contextLabel: string,
+  statusDetail: string
+): string {
+  return [perk.name, contextLabel, perk.hit ? "命中推荐" : undefined, perk.active ? "当前启用" : undefined, statusDetail].filter(Boolean).join("，");
 }
 
 function recommendationMatchBadgeClass(match: WeaponRecommendation["match"]): string {
@@ -1763,12 +1979,6 @@ function weaponPerkMatchesTarget(
   if (!candidate.enhanced_of_hash) return false;
   const baseCandidate = allWeaponPerkCandidates(model).find((entry) => entry.hash === candidate.enhanced_of_hash);
   return sameLabel(baseCandidate?.name, targetName);
-}
-
-function normalizeRecommendationIconUrl(value: string | undefined): string | undefined {
-  const normalized = value?.trim();
-  if (!normalized) return undefined;
-  return normalized.startsWith("/") ? `https://www.bungie.net${normalized}` : normalized;
 }
 
 function normalizedLabel(value?: string): string {

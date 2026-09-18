@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
-import type { AccountItemPlugSummary, AccountItemReusablePlugSummary } from "@d2-tools/core/account/summary";
+import type { AccountItemPlugSummary, AccountItemReusablePlugSummary, AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ItemPlugSummary } from "@d2-tools/core/items/perks";
 import type { SelectedItemDetail } from "../src/renderer/shared/hooks/useItemDetail";
 import { buildWeaponDetailView } from "../src/renderer/shared/components/item-detail/buildWeaponDetailView";
+import {
+  createSelectedItemPreview,
+  mergeSelectedItemDetail,
+  type ItemDefinitionDetailLike
+} from "../../app/src/workspaces/itemDetail";
 
 describe("weapon detail view", () => {
   it("keeps the base perk pool and classifies frames-category traits correctly", () => {
@@ -110,6 +115,40 @@ describe("weapon detail view", () => {
       .toMatchObject({ label: "核心升级", candidates: [{ hash: core.hash, selected: true }] });
   });
 
+  // 打开详情时 sockets 来自 buildPreviewSocketsFromWeaponRoll：快照只有「拥有哪些插件、当前装的是哪个」，
+  // 插槽可不可用 / 能不能插它并不知道，那几项被统一占位成 false。把占位当事实读，会让整件武器在读完
+  // 完整 Roll（点「查看完整掉落池」）之前一律不可切换——本件 Roll 的格子与推荐区浮层里的「选择」都点不动。
+  it("keeps switching available from the snapshot alone, before the full roll is read", () => {
+    const selectedItem = previewedWeapon();
+    expect(selectedItem.detail_loaded).toMatchObject({ definition: true, instance: false });
+
+    const model = buildWeaponDetailView({ selectedItem });
+    const magazine = model?.configuration.selection_columns.find((column) => column.socket_index === 2);
+    // 推荐区按来源栏位找列，靠的就是这个字段（来源事实与配置列的唯一交集）。
+    expect(magazine?.requirement_slot).toBe("magazine");
+    // 拥有、且不是当前装的那一项＝可以换过去；当前装的那一项没有动作可给。
+    expect(magazine?.candidates.map((candidate) => [candidate.name, candidate.can_apply])).toEqual([
+      ["精确弹药", false],
+      ["轻质弹匣", true]
+    ]);
+  });
+
+  it("falls back to the game's socket state once the full roll is loaded", () => {
+    const enabledItem = verifiedWeapon(true);
+    const enabled = buildWeaponDetailView({ selectedItem: enabledItem })
+      ?.configuration.selection_columns.find((column) => column.socket_index === 2);
+    expect(enabled?.candidates.map((candidate) => [candidate.name, candidate.can_apply])).toEqual([
+      ["精确弹药", false],
+      ["轻质弹匣", true]
+    ]);
+
+    // 游戏说这一栏不可用／插不进去时，硬条件说了算：快照认为能换也不给换。
+    const disabledItem = verifiedWeapon(false);
+    const disabled = buildWeaponDetailView({ selectedItem: disabledItem })
+      ?.configuration.selection_columns.find((column) => column.socket_index === 2);
+    expect(disabled?.candidates.find((candidate) => candidate.name === "轻质弹匣")?.can_apply).toBe(false);
+  });
+
 });
 
 function weapon(input: {
@@ -191,5 +230,104 @@ function plug(
     description: "",
     category_identifier: category,
     item_type: itemType
+  };
+}
+
+/** 账号快照里的一条 Roll 插件：分类字段决定它落在哪个来源栏位。 */
+function rollPlug(
+  hash: number,
+  name: string,
+  category: string,
+  itemType: string,
+  selected = false
+) {
+  return { hash, name, description: "", category_identifier: category, item_type: itemType, selected };
+}
+
+/**
+ * 打开详情、定义补读完、完整 Roll 还没读的状态：`sockets` 由快照搭出来
+ * （`buildPreviewSocketsFromWeaponRoll`），插槽可用性那几项是占位值，不是游戏返回的事实。
+ */
+function previewedWeapon(): SelectedItemDetail {
+  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣", true);
+  const ownedMagazine = rollPlug(201, "轻质弹匣", "v400.weapon.magazine", "弹匣");
+  const currentBarrel = rollPlug(100, "箭头制退器", "v400.weapon.barrel", "枪管", true);
+  const trait = rollPlug(300, "快速命中", "frames", "特性", true);
+  const summary = {
+    hash: 970034755,
+    name: "赐予者的祝福",
+    icon: "",
+    group_key: "weapons",
+    item_key: "instance-1",
+    instance_id: "instance-1",
+    socket_plugs: [currentMagazine, ownedMagazine, currentBarrel, trait],
+    weapon_roll: {
+      fingerprint: "fingerprint-1",
+      complete: true,
+      incomplete_reasons: [],
+      sockets: [
+        {
+          socket_index: 1,
+          role: "barrel",
+          slot: "barrel",
+          label: "枪管",
+          current_plug: currentBarrel,
+          owned_plugs: [currentBarrel],
+          complete: true,
+          incomplete_reasons: []
+        },
+        {
+          socket_index: 2,
+          role: "magazine",
+          slot: "magazine",
+          label: "第二列",
+          current_plug: currentMagazine,
+          owned_plugs: [currentMagazine, ownedMagazine],
+          complete: true,
+          incomplete_reasons: []
+        },
+        {
+          socket_index: 3,
+          role: "trait",
+          slot: "perk1",
+          label: "Perk 1",
+          current_plug: trait,
+          owned_plugs: [trait],
+          complete: true,
+          incomplete_reasons: []
+        }
+      ]
+    }
+  } as unknown as AccountItemSummary;
+  const definition = {
+    description: "武器说明",
+    perks: [
+      { socket_index: 1, plugs: [currentBarrel] },
+      { socket_index: 2, plugs: [currentMagazine, ownedMagazine] },
+      { socket_index: 3, plugs: [trait] }
+    ]
+  } as unknown as ItemDefinitionDetailLike;
+  return mergeSelectedItemDetail(createSelectedItemPreview(summary, {}), definition);
+}
+
+/** 完整 Roll 读完之后的状态：`sockets` 换成游戏返回的真值，`detail_loaded.instance` 转真。 */
+function verifiedWeapon(socketEnabled: boolean): SelectedItemDetail {
+  const base = previewedWeapon();
+  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣", true);
+  const ownedMagazine = rollPlug(201, "轻质弹匣", "v400.weapon.magazine", "弹匣");
+  return {
+    ...base,
+    detail_loaded: { definition: true, instance: true },
+    sockets: [{
+      socket_index: 2,
+      is_visible: true,
+      is_enabled: socketEnabled,
+      enable_fail_indexes: [],
+      selected_plug: currentMagazine as AccountItemPlugSummary,
+      reusable_plugs: [
+        reusablePlug(currentMagazine),
+        { ...reusablePlug(ownedMagazine), selected: false }
+      ]
+    }]
   };
 }

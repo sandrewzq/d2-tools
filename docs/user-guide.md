@@ -26,6 +26,7 @@ d2-tools 不需要你手动安装 Node.js、Python 或 Docker。
 - 仓库标签和备注
 - DIM 愿望单导入
 - 操作日志和诊断数据
+- Bungie 请求的负载均衡粘滞标识（`bungie-affinity.json`；不是凭据，删掉只会让写入后的读取慢一点）
 
 安装或更新程序时，这些数据不会被自动删除。
 

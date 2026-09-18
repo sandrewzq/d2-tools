@@ -20,7 +20,8 @@ import {
   setItemLockState as bungieSetItemLockState,
   snapshotLoadout as bungieSnapshotLoadout,
   updateLoadoutIdentifiers as bungieUpdateLoadoutIdentifiers,
-  transferItem as bungieTransferItem
+  transferItem as bungieTransferItem,
+  type SocketPlugWriteOutcome
 } from "@d2-tools/services/bungie/actions";
 import type { D2Config } from "@d2-tools/core/config/schema";
 import type { DestinyProfileResponse } from "@d2-tools/core/account/summary";
@@ -30,6 +31,7 @@ import {
   loadActionLog
 } from "@d2-tools/services/actions/logStore";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { hasBungieAffinityCookie } from "@d2-tools/services/bungie/cookies";
 import type {
   AccountItemActionPatch,
   AccountWriteVerificationInput,
@@ -132,10 +134,18 @@ export function registerActionIpcHandlers(): void {
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
+      socketIndex: input.socket_index,
+      plugHash: input.plug_hash,
+      changeCount: 1,
       successMessage: `已应用 Perk：${input.plug_name ?? input.plug_hash}`,
       run: async ({ config, token }) => {
         const location = await prepareSocketWrite(input.item_id);
-        await applySocketPlugWithRecovery({ config, token, input, location });
+        const outcome = await applySocketPlugWithRecovery({ config, token, input, location });
+        return {
+          socket_plugs: outcome.socket_plugs,
+          socket_plugs_instance_id: outcome.instance_id ?? input.item_id,
+          ...(outcome.deferred ? { deferred_socket_indexes: [input.socket_index] } : {})
+        };
       }
     });
   });
@@ -147,14 +157,20 @@ export function registerActionIpcHandlers(): void {
       itemName: input.item_name,
       itemInstanceId: input.item_id,
       characterId: input.character_id,
+      changeCount: input.changes.length,
       successMessage: `已应用 ${input.changes.length} 个 Perk 更改`,
       run: async ({ config, token }) => {
         if (!input.changes.length) {
           throw new Error("没有需要应用的 Perk 更改。");
         }
         const location = await prepareSocketWrite(input.item_id);
+        // 写响应体逐条并起来（每条只覆盖它自己那几个槽），没有响应体的条目回落到 null，
+        // 由渲染层按写入意图落地。没被收下的槽位单独列出，混在成功里会变成假成功。
+        let instanceId: string | null = null;
+        const socketPlugs = new Map<number, { socket_index: number; plug_hash: number }>();
+        const deferredSocketIndexes: number[] = [];
         for (const change of input.changes) {
-          await applySocketPlugWithRecovery({
+          const outcome = await applySocketPlugWithRecovery({
             config,
             token,
             location,
@@ -169,7 +185,20 @@ export function registerActionIpcHandlers(): void {
               plug_name: change.plug_name
             }
           });
+          if (outcome.deferred) {
+            deferredSocketIndexes.push(change.socket_index);
+            continue;
+          }
+          instanceId ??= outcome.instance_id;
+          for (const plug of outcome.socket_plugs ?? []) {
+            socketPlugs.set(plug.socket_index, plug);
+          }
         }
+        return {
+          socket_plugs: socketPlugs.size ? [...socketPlugs.values()] : null,
+          socket_plugs_instance_id: instanceId ?? input.item_id,
+          ...(deferredSocketIndexes.length ? { deferred_socket_indexes: deferredSocketIndexes } : {})
+        };
       }
     });
   });
@@ -442,19 +471,36 @@ async function prepareSocketWrite(instanceId: string): Promise<AccountItemLocati
   return location;
 }
 
+/**
+ * 一次 socket 写的结局。
+ *
+ * `deferred` 是**第三种结果**：写没落地，但也不是失败 —— Bungie 用 ErrorCode 1679 表达
+ * 「这件装备还有一次变更在处理中」，那是个几分钟量级的状态，不是判我们失败的依据。
+ */
+type SocketPlugApplyOutcome = {
+  socket_plugs: SocketPlugWriteOutcome["socket_plugs"];
+  instance_id: string | null;
+  deferred: boolean;
+};
+
+const SOCKET_PLUG_DEFERRED: SocketPlugApplyOutcome = {
+  socket_plugs: null,
+  instance_id: null,
+  deferred: true
+};
+
 async function applySocketPlugWithRecovery(input: {
   config: D2Config;
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
   location: AccountItemLocation;
-}): Promise<void> {
+}): Promise<SocketPlugApplyOutcome> {
   try {
-    await insertSocketPlugAtLocation(input);
-    return;
+    return { ...(await insertSocketPlugAtLocation(input)), deferred: false };
   } catch (error) {
     if (isItemRefreshRequiredWriteError(error)) {
-      await retrySocketPlugAfterRefresh(input);
-      return;
+      const resent = await resendSocketPlugAfterRefresh(input);
+      return resent ? { ...resent, deferred: false } : SOCKET_PLUG_DEFERRED;
     }
     if (isItemNotFoundWriteError(error)) {
       const refreshedLocation = await resolveAccountItemLocation(input.input.item_id, "refresh");
@@ -463,8 +509,7 @@ async function applySocketPlugWithRecovery(input: {
       }
       assertSocketWriteLocation(refreshedLocation);
       await refreshAccountItemDetail(input.input.item_id);
-      await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
-      return;
+      return { ...(await insertSocketPlugAtLocation({ ...input, location: refreshedLocation })), deferred: false };
     }
     throw error;
   }
@@ -475,8 +520,8 @@ async function insertSocketPlugAtLocation(input: {
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
   location: AccountItemLocation;
-}): Promise<void> {
-  await bungieInsertSocketPlug({
+}): Promise<SocketPlugWriteOutcome> {
+  return bungieInsertSocketPlug({
     config: input.config,
     token: input.token,
     membershipType: input.input.membership_type,
@@ -503,50 +548,51 @@ async function refreshAccountItemDetail(instanceId: string) {
   return getAccountItemDetailByInstanceId(instanceId, "refresh");
 }
 
-async function retrySocketPlugAfterRefresh(input: {
+/** 1679 之后的重发间隔。只影响「重发几次」，不影响判据 —— 这里已经没有读回判定了。 */
+const SOCKET_PLUG_RESEND_DELAYS = [750, 2_000] as const;
+
+/**
+ * ErrorCode 1679 之后刷新位置再重发。**这里不判对错。**
+ *
+ * 原来这条路上挂着一个写后读回裁判（`hasAppliedSocketPlug`：刷新装备详情、比对
+ * `selected_plug.hash`），预算只有 750ms + 2000ms = 2.75 秒。实测 Bungie 的写入传播延迟是
+ * **3 分 32 秒**（2026-09-18 留痕，op `04adaf08` 在第 6 次读回才 `reflected: true`），差两个数量级，
+ * 所以只要走到这条路就**必然**把一次正常写入报成「武器配置未更新 / 需要处理」。
+ *
+ * 判据只有一个，就是写接口的受理（见 docs/development.md 的不变量）。1679 本身只说明这件装备
+ * 还有变更在飞；重发用尽仍是 1679 就如实返回「未提交」，交给调用方按中性态上报，不 throw。
+ */
+async function resendSocketPlugAfterRefresh(input: {
   config: D2Config;
   token: FreshOAuthToken;
   input: InsertSocketPlugActionInput;
-}): Promise<void> {
-  // Bungie can keep an item mutation pending briefly after returning ErrorCode 1679.
-  // Each retry obtains a new item response and location; no stale request is reused.
-  for (const waitMs of [750, 2_000]) {
+}): Promise<SocketPlugWriteOutcome | null> {
+  for (const waitMs of SOCKET_PLUG_RESEND_DELAYS) {
     await new Promise((resolve) => setTimeout(resolve, waitMs));
-    const refreshedDetail = await refreshAccountItemDetail(input.input.item_id);
-    if (hasAppliedSocketPlug(refreshedDetail, input.input)) return;
-    if (!hasReusableSocketPlug(refreshedDetail, input.input)) {
-      throw new Error("装备已刷新，原候选 Perk 在最新配置中不可用。请重新选择后再试。");
-    }
+    // 每次都拿新的位置：不重用任何陈旧请求（这一条是原来就有的，保留）。
     const refreshedLocation = await resolveAccountItemLocation(input.input.item_id, "refresh");
     assertSocketWriteLocation(refreshedLocation);
     try {
-      await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
-      return;
+      return await insertSocketPlugAtLocation({ ...input, location: refreshedLocation });
     } catch (error) {
       if (!isItemRefreshRequiredWriteError(error)) throw error;
     }
   }
-
-  throw new Error("Bungie 尚未同步这件装备，已强制刷新并重试 3 次。请等待几秒后重新打开详情再试。");
+  return null;
 }
 
-function hasAppliedSocketPlug(
-  detail: Awaited<ReturnType<typeof getAccountItemDetailByInstanceId>>,
-  input: InsertSocketPlugActionInput
-): boolean {
-  return detail.sockets
-    .find((socket) => socket.socket_index === input.socket_index)
-    ?.selected_plug?.hash === input.plug_hash;
-}
-
-function hasReusableSocketPlug(
-  detail: Awaited<ReturnType<typeof getAccountItemDetailByInstanceId>>,
-  input: InsertSocketPlugActionInput
-): boolean {
-  return detail.sockets
-    .find((socket) => socket.socket_index === input.socket_index)
-    ?.reusable_plugs.some((plug) => plug.hash === input.plug_hash) ?? false;
-}
+/**
+ * 一次写操作带回的、需要落到渲染层的载荷。
+ *
+ * `socket_plugs` 优先取**写响应体**里服务器自己给的插槽状态（DIM 的路子）；没给就回落到
+ * `null`，由渲染层按写入意图落地。`deferred_socket_indexes` 是「Bungie 说这件装备还有变更在处理中」而没有收下的槽位 ——
+ * 它既不是成功也不是失败，渲染层据此走中性态。
+ */
+type WriteActionRunResult = {
+  socket_plugs?: SocketPlugWriteOutcome["socket_plugs"];
+  socket_plugs_instance_id?: string | null;
+  deferred_socket_indexes?: number[];
+};
 
 type WriteActionRunInput = {
   action: ActionLogType;
@@ -554,13 +600,18 @@ type WriteActionRunInput = {
   itemName?: string;
   itemInstanceId?: string;
   characterId?: string;
+  /** 单槽写入时钉进留痕，事后能把一条 op 绑回具体槽位与 Perk。 */
+  socketIndex?: number;
+  plugHash?: number;
   successMessage: string;
+  /** 这次写操作包含几条改变。只用于把「几项没提交」说成一句人话。 */
+  changeCount?: number;
   accountPatch?: AccountItemActionPatch;
   invalidateAllItemDetails?: boolean;
   run: (context: {
     config: D2Config;
     token: FreshOAuthToken;
-  }) => Promise<void>;
+  }) => Promise<WriteActionRunResult | void>;
 };
 
 async function runWriteAction(input: WriteActionRunInput): Promise<ItemActionResult> {
@@ -574,6 +625,10 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
   const config = loadConfig();
   const operationId = input.trace?.operation_id ?? randomUUID();
   const trace = { ...input.trace, operation_id: operationId };
+  const traceScope = {
+    ...(isFiniteNumber(input.socketIndex) ? { socket_index: input.socketIndex } : {}),
+    ...(isFiniteNumber(input.plugHash) ? { plug_hash: input.plugHash } : {})
+  };
   writeActionDebugTrace(config.data.data_dir, {
     operation_id: operationId,
     action: input.action,
@@ -582,20 +637,33 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     item_instance_id: input.itemInstanceId,
     character_id: input.characterId,
     elapsed_ms: 0,
+    ...traceScope,
     message: "开始执行 Desktop 写操作"
   });
   const startedAt = performance.now();
   let authDurationMs = 0;
   let bungieDurationMs = 0;
   let postprocessDurationMs = 0;
+  let successMessage = input.successMessage;
 
   try {
     const authStartedAt = performance.now();
     const token = await loadFreshOAuthToken(config);
     authDurationMs = performance.now() - authStartedAt;
     const bungieStartedAt = performance.now();
-    await input.run({ config, token });
+    const runResult = (await input.run({ config, token })) || undefined;
     bungieDurationMs = performance.now() - bungieStartedAt;
+    // 有槽位没被收下就不能按原样报成功：`successMessage` 是调用点按「全部提交」写死的。
+    // `changeCount` 只有换 Perk 那条路会传；不传的写操作永远不会带回 `deferred_socket_indexes`，
+    // 所以这里回落到 1 只是为了让类型闭合，不会把别的操作说成「部分提交」。
+    const changeCount = input.changeCount ?? 1;
+    const deferredIndexes = runResult?.deferred_socket_indexes ?? [];
+    const fullyDeferred = deferredIndexes.length >= changeCount;
+    if (deferredIndexes.length) {
+      successMessage = fullyDeferred
+        ? "这件装备还有变更正在 Bungie 那边处理，本次没有提交。请稍后重新读取配置再试。"
+        : `已提交 ${changeCount - deferredIndexes.length} 项；其余 ${deferredIndexes.length} 项因这件装备仍有变更在处理中而未提交。`;
+    }
     const postprocessStartedAt = performance.now();
     if (input.invalidateAllItemDetails) {
       await invalidateAccountItemDetails();
@@ -605,7 +673,7 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
     writeActionDebugTrace(config.data.data_dir, {
       operation_id: operationId,
       action: input.action,
-      phase: "submit-complete",
+      phase: fullyDeferred ? "submit-deferred" : "submit-complete",
       item_name: input.itemName,
       item_instance_id: input.itemInstanceId,
       character_id: input.characterId,
@@ -615,7 +683,8 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
       postprocess_duration_ms: postprocessDurationMs,
       elapsed_ms: durationMs,
       ok: true,
-      message: input.successMessage
+      ...traceScope,
+      message: successMessage
     });
     appendActionLog(config.data.data_dir, {
       ...trace,
@@ -628,12 +697,21 @@ async function performWriteAction(input: WriteActionRunInput): Promise<ItemActio
       bungie_duration_ms: bungieDurationMs,
       postprocess_duration_ms: postprocessDurationMs,
       ok: true,
-      message: input.successMessage
+      message: successMessage
     });
     return {
       ok: true,
-      message: input.successMessage,
+      message: successMessage,
       ...(input.accountPatch ? { account_patch: input.accountPatch } : {}),
+      ...(runResult?.socket_plugs?.length
+        ? {
+            accepted_socket_plugs: runResult.socket_plugs,
+            ...(runResult.socket_plugs_instance_id
+              ? { accepted_socket_plugs_instance_id: runResult.socket_plugs_instance_id }
+              : {})
+          }
+        : {}),
+      ...(deferredIndexes.length ? { deferred_socket_indexes: deferredIndexes } : {}),
       diagnostics: {
         operation_id: operationId,
         duration_ms: durationMs,
@@ -685,6 +763,8 @@ function sanitizeActionDebugTrace(input: ActionDebugTraceInput): ActionDebugTrac
     ...(input.item_name ? { item_name: input.item_name.slice(0, 200) } : {}),
     ...(input.item_instance_id ? { item_instance_id: input.item_instance_id.slice(0, 80) } : {}),
     ...(input.character_id ? { character_id: input.character_id.slice(0, 80) } : {}),
+    ...(isFiniteNumber(input.socket_index) ? { socket_index: Math.max(0, Math.trunc(input.socket_index)) } : {}),
+    ...(isFiniteNumber(input.plug_hash) ? { plug_hash: Math.trunc(input.plug_hash) } : {}),
     ...(isFiniteNumber(input.attempt) ? { attempt: Math.max(0, Math.trunc(input.attempt)) } : {}),
     ...(isFiniteNumber(input.total_attempts) ? { total_attempts: Math.max(0, Math.trunc(input.total_attempts)) } : {}),
     ...(isFiniteNumber(input.expected_count) ? { expected_count: Math.max(0, Math.trunc(input.expected_count)) } : {}),
@@ -704,7 +784,12 @@ function sanitizeActionDebugTrace(input: ActionDebugTraceInput): ActionDebugTrac
 }
 
 function writeActionDebugTrace(dataDir: string, input: ActionDebugTraceInput) {
-  const entry = appendActionDebugTrace(dataDir, input);
+  // 亲和性在这里盖章，不信任调用方传来的值：jar 住在主进程（见 main.ts 的装配），
+  // 渲染进程看不见它。每条留痕都带上，「读回不匹配」才分得清是亲和性没起来还是别的原因。
+  const entry = appendActionDebugTrace(dataDir, {
+    ...input,
+    affinity_cookie: hasBungieAffinityCookie()
+  });
   console.info("[write-action-debug]", JSON.stringify(entry));
   return entry;
 }

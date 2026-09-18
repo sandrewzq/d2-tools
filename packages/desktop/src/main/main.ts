@@ -11,6 +11,7 @@ import {
 } from "./ipc/updates.js";
 import { getWindowBackgroundColor } from "./ipc/window.js";
 import { loadConfig } from "@d2-tools/services/config/store";
+import { configureBungieCookieJar, createBungieAffinityCookieJar } from "@d2-tools/services/bungie/cookies";
 import {
   initializeRuntimeCoordinator,
   shutdownRuntimeCoordinator
@@ -81,6 +82,15 @@ if (!hasSingleInstanceLock) {
 app.whenReady().then(async () => {
   recordStartupMilestone("startup.electron-ready");
   Menu.setApplicationMenu(null);
+  // 粘滞 cookie（affinitize）在这里装配：Bungie 的写接口只冲掉它命中的那台后端的缓存，
+  // 不回带 `set-cookie` 的话，随后的读回可能落到另一台还留着旧副本的后端，看上去就像
+  // 「写成功但详情一直是旧配置」。见 docs/work/backlog/T76-bungie-affinity-cookie.md。
+  //
+  // 放在组合根、不放 runtimeCoordinator：那个模块的单测把 loadConfig 打桩成 data_dir
+  // "D:/data"，在那里配置会让测试对不存在的盘符做真实文件系统操作。
+  configureBungieCookieJar(
+    createBungieAffinityCookieJar({ dataDir: loadConfig().data.data_dir })
+  );
   initializeRuntimeCoordinator();
   recordStartupMilestone("startup.runtime-coordinator-ready");
   registerIpcHandlers();

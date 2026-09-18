@@ -24,6 +24,13 @@
   display: grid;
   min-width: 0;
   color: var(--text-body);
+  /* 章节页签（.weapon-detail-nav）的吸附高度，只此一处定义。
+     页签自己 sticky 在滚动口顶边，任何还要吸附在它下面的东西（实例栏、推荐对照的吸附栏头）
+     都只能按这个值让位——让开多少不是设计选择，是页签实际多高。
+     实测 compact 49 / standard 51 / comfortable 55，三档都精确等于 `--control-h + 17px`
+     （7+7 内边距 + 分页组上下各 1px 边框 + 1px 底边框），所以按 token 推、不写死像素：
+     写死一个数，换一档密度那几处就各飘各的。 */
+  --weapon-detail-nav-height: calc(var(--control-h) + 17px);
 }
 
 .weapon-detail button,
@@ -122,7 +129,6 @@
 
 .weapon-detail-identity p,
 .weapon-detail-section-heading p,
-.weapon-detail-perk p,
 .weapon-detail-source-row p,
 .weapon-detail-write-copy p,
 .weapon-detail-recommendation p,
@@ -271,7 +277,12 @@
 .weapon-detail-nav {
   position: sticky;
   top: 0;
-  z-index: var(--layer-sticky);
+  /* 章节页签是**窗口构件**，压在所有内容级吸附件之上，所以比 --layer-sticky 高一级
+     （同一个惯用法见 loadouts/03-workspace.css 的 loadout-editor-head）。
+     光让开位置不够：position: sticky 的「出界」那一相是几何钳制——栏头被自己的列表底边推出界时
+     会**逆着滚动方向往上走进这条带子**，位置躲不掉，只能靠层级。两条若平局就按 DOM 顺序裁决，
+     栏头在来源卡里、DOM 靠后，于是它画在页签上面（实测出界过程 22 个滚动位页签点不到）。 */
+  z-index: calc(var(--layer-sticky) + 1);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -350,31 +361,19 @@
 .weapon-detail-config-loading-note { display: flex; min-height: 34px; align-items: center; gap: 8px; margin: -2px 0 0; padding: 7px 9px; border: 1px solid var(--border-subtle); border-radius: var(--radius-control); color: var(--text-muted); background: var(--surface-subtle); font-size: var(--font-caption); line-height: 1.45; }
 .weapon-detail-config-loading-note > span { width: 8px; height: 8px; flex: 0 0 auto; border: 2px solid var(--selected-border); border-top-color: transparent; border-radius: 50%; animation: weapon-detail-config-spin 0.8s linear infinite; }
 .weapon-detail-config-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; align-items: start; }
-.weapon-detail-config-placeholder-column { min-width: 0; }
-.weapon-detail-config-placeholder-column > span { display: block; width: 58%; height: 16px; margin-bottom: 7px; border-radius: var(--radius-control); background: var(--surface-interactive); animation: weapon-detail-config-pulse 1.2s ease-in-out infinite alternate; }
-.weapon-detail-config-placeholder-column > div { display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; min-height: 66px; padding: 8px; border: 1px solid var(--object-border); border-radius: var(--radius-object); background: var(--card-bg); }
-.weapon-detail-config-placeholder-column i { grid-row: 1 / span 2; width: 38px; height: 38px; border-radius: var(--radius-control); background: var(--surface-interactive); animation: weapon-detail-config-pulse 1.2s ease-in-out infinite alternate; }
-.weapon-detail-config-placeholder-column b,
-.weapon-detail-config-placeholder-column em { display: block; grid-column: 2; height: 12px; border-radius: var(--radius-control); background: var(--surface-interactive); animation: weapon-detail-config-pulse 1.2s ease-in-out infinite alternate; }
-.weapon-detail-config-placeholder-column b { align-self: end; width: 84%; }
-.weapon-detail-config-placeholder-column em { align-self: start; width: 62%; opacity: 0.72; }
+/* 加载列复用真列外壳与真表头，条形画在 h4 的行盒里：表头高度与真列逐像素相同，卡片不跳位。 */
+.weapon-detail-perk-column-loading h4 > span { display: inline-block; width: 58%; height: 12px; vertical-align: middle; border-radius: var(--radius-control); background: color-mix(in srgb, var(--text-muted) 26%, var(--surface-interactive)); animation: weapon-detail-config-pulse 1.2s ease-in-out infinite alternate; }
 .weapon-detail-perk-column { min-width: 0; }
 .weapon-detail-perk-column h4 { margin: 0 0 7px; color: var(--text-muted); font-size: var(--font-body); }
 .weapon-detail-perk-column > div { display: grid; gap: 6px; }
-.weapon-detail-intrinsic-empty { min-height: 64px; padding: 10px; border: 1px dashed var(--border-control); color: var(--text-muted); }
-.weapon-detail-perk { position: relative; display: grid; grid-template-columns: 38px minmax(0, 1fr); gap: 8px; width: 100%; min-height: 66px; padding: 8px; border: 1px solid var(--object-border); border-radius: var(--radius-object); color: var(--body); background: var(--card-bg); text-align: left; }
-button.weapon-detail-perk { cursor: pointer; }
-button.weapon-detail-perk:hover { border-color: var(--state-selected-border); background: var(--item-bg-hover); }
-.weapon-detail-perk > img { width: 38px; height: 38px; border-radius: var(--radius-control); }
-.weapon-detail-perk > span { grid-column: 2; min-width: 0; }
-.weapon-detail-perk > small { grid-column: 1 / -1; margin: -8px -8px 0; padding: 4px 7px; color: var(--body); background: var(--section-bg); font-size: 12px; font-weight: 700; }
-.weapon-detail-perk strong { color: var(--text-title); font-size: var(--font-content); }
-.weapon-detail-perk p { margin-top: 2px; font-size: var(--font-meta); }
-.weapon-detail-perk.is-selected { border-color: var(--selected-border); background: var(--selected-bg); }
-.weapon-detail-perk.is-selected > small { color: var(--selected-fg); background: color-mix(in srgb, var(--selected-bg) 76%, var(--surface-interactive)); }
-.weapon-detail-perk.is-pending { border-color: var(--status-pending); background: var(--status-pending-bg); }
 
-.weapon-detail-write-panel { position: sticky; z-index: var(--layer-sticky); bottom: 8px; display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 62px; padding: 10px 12px; border: 1px solid var(--status-warning); border-radius: var(--radius-object); background: var(--status-warning-bg); box-shadow: 0 10px 24px rgb(0 0 0 / 28%); }
+/* 待提交面板的停靠层（T73）：面板本身没有定位，吸附交给这一层。
+   它挂在正文最后一个子元素上，所以只要正文还在视口里，面板就贴着正文底边可见——
+   在推荐区里选完「选择」，不必滚回「本件 Roll」才找到提交按钮。
+   空白处不吃点击（pointer-events: none），只有面板本体接收。 */
+.weapon-detail-write-dock { position: sticky; z-index: var(--layer-sticky); bottom: 8px; padding: 0 18px 12px; pointer-events: none; }
+.weapon-detail-write-dock > * { pointer-events: auto; }
+.weapon-detail-write-panel { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 62px; padding: 10px 12px; border: 1px solid var(--status-warning); border-radius: var(--radius-object); background: var(--status-warning-bg); box-shadow: 0 10px 24px rgb(0 0 0 / 28%); }
 .weapon-detail-write-indicator { width: 8px; height: 8px; border: 2px solid var(--status-pending); border-radius: 50%; background: var(--status-pending); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-pending) 18%, transparent); }
 .weapon-detail-write-copy { min-width: 0; }
 .weapon-detail-write-heading { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
@@ -393,9 +392,6 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-write-panel.is-error { border-color: color-mix(in srgb, var(--status-error) 72%, var(--border-subtle)); background: color-mix(in srgb, var(--status-error-bg) 72%, var(--surface-subtle)); }
 .weapon-detail-write-panel.is-error .weapon-detail-write-indicator { border-color: var(--status-error); background: var(--status-error); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-error) 18%, transparent); }
 .weapon-detail-write-panel.is-error .weapon-detail-write-heading span { color: var(--status-error); }
-.weapon-detail-write-panel.is-refresh-error { border-color: color-mix(in srgb, var(--status-warning) 72%, var(--border-subtle)); background: color-mix(in srgb, var(--status-warning-bg) 72%, var(--surface-subtle)); }
-.weapon-detail-write-panel.is-refresh-error .weapon-detail-write-indicator { border-color: var(--status-warning); background: var(--status-warning); box-shadow: 0 0 0 3px color-mix(in srgb, var(--status-warning) 18%, transparent); }
-.weapon-detail-write-panel.is-refresh-error .weapon-detail-write-heading span { color: var(--status-warning); }
 .weapon-detail-write-busy-label { min-width: 64px; color: var(--text-muted); font-size: var(--font-body); text-align: center; }
 .weapon-detail-operation-feedback { display: grid; grid-template-columns: 10px minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 8px; padding: 9px 11px; border: 1px solid color-mix(in srgb, var(--status-pending) 72%, var(--border-subtle)); border-radius: var(--radius-control); background: color-mix(in srgb, var(--status-pending-bg) 72%, var(--surface-subtle)); }
 .weapon-detail-operation-feedback strong { color: var(--text-title); font-size: var(--font-content); }
@@ -413,14 +409,13 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 
 @media (prefers-reduced-motion: reduce) {
   .weapon-detail-config-loading-note > span,
-  .weapon-detail-config-placeholder-column > span,
-  .weapon-detail-config-placeholder-column i,
-  .weapon-detail-config-placeholder-column b,
-  .weapon-detail-config-placeholder-column em { animation: none; }
+  .weapon-detail-perk-column-loading h4 > span,
+  .weapon-detail-perk-entry-bar { animation: none; }
 }
 
-.weapon-detail-full-pool { border-top: 1px solid var(--section-divider); }
-.weapon-detail-full-pool > button { display: flex; width: 100%; min-height: 42px; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; padding: 0 10px; text-align: left; }
+/* 完整掉落池是自己的章节（T71）：上下留白与分隔线由 .weapon-detail-section 提供，
+   这里不再自带 border-top，也不再把按钮贴上配置网格。 */
+.weapon-detail-full-pool > button { display: flex; width: 100%; min-height: 42px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 10px; text-align: left; }
 .weapon-detail-full-pool > button span { color: var(--text-muted); font-size: var(--font-body); }
 .weapon-detail-pool-grid { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; margin-top: 10px; }
 .weapon-detail-pool-grid > :first-child { grid-column: 2; }
@@ -466,42 +461,112 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-recommendation-combo > section[data-match-state="match"] > header span { color: var(--status-ready); }
 .weapon-detail-recommendation-combo > section[data-match-state="different"] > header span { color: var(--status-error); }
 .weapon-detail-recommendation-combo > section > small { color: var(--text-muted); font-size: var(--font-caption); }
-.weapon-detail-recommendation-perks { display: flex; min-height: 50px; flex-wrap: wrap; align-items: flex-start; gap: 7px; overflow: visible; }
-.weapon-detail-recommendation-perk { display: block; position: relative; z-index: 0; min-width: 132px; max-width: 220px; flex: 1 1 148px; }
-.weapon-detail-recommendation-perk:focus-within,
-.weapon-detail-recommendation-perk:hover,
-.weapon-detail-recommendation-perk[data-open="true"] { z-index: var(--layer-popover); }
-.weapon-detail-recommendation-perk > button { display: grid; position: relative; width: 100%; min-height: 50px; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 9px 5px 6px; border: 1px solid var(--border-control); border-radius: var(--radius-control); color: var(--text-title); background: var(--surface-interactive); text-align: left; cursor: help; transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease, transform 120ms ease; }
-.weapon-detail-recommendation-perk[data-muted="true"] > button { color: var(--text-body); background: color-mix(in srgb, var(--surface-interactive) 72%, var(--surface-panel)); }
-.weapon-detail-recommendation-perk[data-muted="true"] .weapon-detail-recommendation-perk-art { opacity: 0.66; }
-.weapon-detail-recommendation-perk > button:hover { border-color: var(--text-muted); transform: translateY(-1px); }
-.weapon-detail-recommendation-perk > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-.weapon-detail-recommendation-perk[data-hit="true"] > button { border-color: color-mix(in srgb, var(--status-ready) 78%, var(--border-control)); background: color-mix(in srgb, var(--status-ready) 7%, var(--surface-interactive)); box-shadow: inset 3px 0 0 var(--status-ready); }
-.weapon-detail-recommendation-perk[data-unknown="true"] > button { border-style: dashed; }
-.weapon-detail-recommendation-perk-art { display: grid; width: 36px; height: 36px; place-items: center; overflow: hidden; border-radius: 50%; color: #e8edf4; background: #18202d; font-size: 12px; }
-.weapon-detail-recommendation-perk-art > img { width: 100%; height: 100%; object-fit: cover; }
-.weapon-detail-recommendation-perk-placeholder { opacity: 0.7; font-size: 12px; }
-.weapon-detail-recommendation-perk-copy { display: grid; min-width: 0; align-content: center; gap: 2px; }
-.weapon-detail-recommendation-perk-copy strong { overflow: hidden; color: inherit; font-size: var(--font-meta); font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
-.weapon-detail-recommendation-perk-copy small { overflow: hidden; color: var(--text-muted); font-size: var(--font-caption); line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
-.weapon-detail-recommendation-perk[data-hit="true"] .weapon-detail-recommendation-perk-copy small { color: var(--status-ready); font-weight: 700; }
-.weapon-detail-recommendation-perk[data-active="true"] .weapon-detail-recommendation-perk-copy small { color: var(--selected-fg); }
-.weapon-detail-recommendation-perk-hit { display: grid; position: absolute; top: 1px; left: 31px; width: 16px; height: 16px; place-items: center; border: 2px solid var(--surface-panel); border-radius: 50%; color: #07140c; background: var(--status-ready); font-size: 12px; font-weight: 700; line-height: 1; }
-.weapon-detail-recommendation-perk-active { position: absolute; bottom: 4px; left: 32px; width: 10px; height: 10px; border: 2px solid var(--surface-panel); border-radius: 50%; background: var(--selected-border); box-shadow: 0 0 0 1px color-mix(in srgb, var(--selected-border) 55%, transparent); }
-.weapon-detail-recommendation-perk-popover { display: grid; position: absolute; z-index: var(--layer-popover); bottom: calc(100% + 10px); left: 50%; width: min(304px, calc(100vw - 32px)); gap: 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--border-control) 78%, var(--accent-primary)); border-radius: var(--radius-object); color: var(--text-body); background: var(--chrome); box-shadow: 0 16px 36px rgb(0 0 0 / 34%); opacity: 0; pointer-events: none; transform: translate(-50%, 5px); transition: opacity 100ms ease, transform 100ms ease; visibility: hidden; }
-.weapon-detail-recommendation-perk:hover > .weapon-detail-recommendation-perk-popover,
-.weapon-detail-recommendation-perk:focus-within > .weapon-detail-recommendation-perk-popover,
-.weapon-detail-recommendation-perk[data-open="true"] > .weapon-detail-recommendation-perk-popover { opacity: 1; transform: translate(-50%, 0); visibility: visible; }
-.weapon-detail-recommendation-perk-popover::after { position: absolute; bottom: -6px; left: calc(50% - 6px); width: 10px; height: 10px; border-right: 1px solid var(--border-control); border-bottom: 1px solid var(--border-control); background: var(--chrome); content: ""; transform: rotate(45deg); }
-.weapon-detail-recommendation-perk-popover-heading { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 9px; }
-.weapon-detail-recommendation-perk-popover-heading .weapon-detail-recommendation-perk-art { width: 40px; height: 40px; }
-.weapon-detail-recommendation-perk-popover-heading > span:last-child { display: grid; min-width: 0; gap: 2px; }
-.weapon-detail-recommendation-perk-popover-heading strong { color: var(--text-title); font-size: var(--font-content); }
-.weapon-detail-recommendation-perk-popover-heading small { color: var(--text-muted); font-size: var(--font-caption); overflow-wrap: anywhere; }
-.weapon-detail-recommendation-perk-description { color: var(--text-body); font-size: var(--font-meta); line-height: 1.5; }
-.weapon-detail-recommendation-perk-context { display: grid; gap: 2px; padding-top: 7px; border-top: 1px solid var(--border-subtle); }
-.weapon-detail-recommendation-perk-context strong { color: var(--accent-primary); font-size: var(--font-caption); }
-.weapon-detail-recommendation-perk-context small { color: var(--text-muted); font-size: var(--font-caption); }
+/* 条目宽度属于列表（T72 方案 A）：等宽列模板让「这一栏的卡片只有一个宽度取值」，
+   两半用同一套模板就落在同一组列线上；本件 Roll 是一列一格一行，不用这套模板。 */
+.weapon-detail-perk-entries { display: grid; min-height: 50px; align-content: start; align-items: start; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 7px; overflow: visible; }
+.weapon-detail-perk-entries > .weapon-detail-perk-entry { min-width: 0; }
+.weapon-detail-perk-entry { display: block; position: relative; z-index: 0; width: 100%; }
+/* 抬这一下只为「说明浮层不被邻卡压住」：兄弟条目都停在 0，所以只要比 0 高就够了。
+   原来抬到 --layer-popover(20)，比章节页签和吸附栏头(都 --layer-sticky=10)还高，
+   鼠标停在卡片上时那张卡片会连浮层一起盖到页签上面——同一类「层级没分家」。
+   收到吸附头之下：仍然赢过所有兄弟，但永远盖不住吸附的页面构件。
+   （浮层的 z-index 只在本条目的层叠上下文里生效，所以改条目这一层就等于改浮层那一层。） */
+.weapon-detail-perk-entry:focus-within,
+.weapon-detail-perk-entry:hover,
+.weapon-detail-perk-entry[data-open="true"] { z-index: calc(var(--layer-sticky) - 1); }
+/* 盒子几何只有这一处定义：真条目（button）与空态 / 骨架占位（span）都挂 .weapon-detail-perk-entry-box。 */
+.weapon-detail-perk-entry > button,
+.weapon-detail-perk-entry-box { display: grid; position: relative; width: 100%; min-height: 50px; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 9px 5px 6px; border: 1px solid var(--border-control); border-radius: var(--radius-control); color: var(--text-title); background: var(--surface-interactive); text-align: left; }
+.weapon-detail-perk-entry > button { cursor: help; transition: border-color 120ms ease, box-shadow 120ms ease, background-color 120ms ease, transform 120ms ease; }
+/* 点击＝执行动作（换 Perk）而不是看说明：鼠标改回指针 */
+.weapon-detail-perk-entry[data-action="true"] > button { cursor: pointer; }
+.weapon-detail-perk-entry[data-muted="true"] > button { color: var(--text-body); background: color-mix(in srgb, var(--surface-interactive) 72%, var(--surface-panel)); }
+.weapon-detail-perk-entry[data-muted="true"] .weapon-detail-perk-entry-art { opacity: 0.66; }
+.weapon-detail-perk-entry > button:hover { border-color: var(--text-muted); transform: translateY(-1px); }
+.weapon-detail-perk-entry > button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.weapon-detail-perk-entry[data-hit="true"] > button { border-color: color-mix(in srgb, var(--status-ready) 78%, var(--border-control)); background: color-mix(in srgb, var(--status-ready) 7%, var(--surface-interactive)); box-shadow: inset 3px 0 0 var(--status-ready); }
+.weapon-detail-perk-entry[data-unknown="true"] > button { border-style: dashed; }
+.weapon-detail-perk-entry-art { display: grid; width: 36px; height: 36px; place-items: center; overflow: hidden; border-radius: 50%; color: #e8edf4; background: #18202d; font-size: 12px; }
+.weapon-detail-perk-entry-art > img { width: 100%; height: 100%; object-fit: cover; }
+.weapon-detail-perk-entry-placeholder { opacity: 0.7; font-size: 12px; }
+.weapon-detail-perk-entry-copy { display: grid; min-width: 0; align-content: center; gap: 2px; }
+.weapon-detail-perk-entry-copy strong { overflow: hidden; color: inherit; font-size: var(--font-meta); font-weight: 700; line-height: 1.25; text-overflow: ellipsis; white-space: nowrap; }
+.weapon-detail-perk-entry-copy small { overflow: hidden; color: var(--text-muted); font-size: var(--font-caption); line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+/* 空态与骨架：盒子几何随 .weapon-detail-perk-entry-box，这里只管内容。 */
+/* 空态：虚线框 + 一句话，通栏（不占图标位），所以与条目同高。 */
+.weapon-detail-perk-entry[data-placeholder="empty"] .weapon-detail-perk-entry-box { grid-template-columns: minmax(0, 1fr); border-style: dashed; }
+.weapon-detail-perk-entry-empty-text { color: var(--text-muted); font-size: var(--font-caption); line-height: 1.45; }
+.weapon-detail-perk-entry-bar { display: block; border-radius: var(--radius-control); background: color-mix(in srgb, var(--text-muted) 26%, var(--surface-interactive)); animation: weapon-detail-config-pulse 1.2s ease-in-out infinite alternate; }
+.weapon-detail-perk-entry-bar-art { width: 36px; height: 36px; border-radius: 50%; }
+.weapon-detail-perk-entry-bar-title { width: 84%; height: 12px; }
+.weapon-detail-perk-entry-bar-status { width: 62%; height: 10px; opacity: 0.72; }
+.weapon-detail-perk-entry[data-hit="true"] .weapon-detail-perk-entry-copy small { color: var(--status-ready); font-weight: 700; }
+/* 「当前」的一路信号（T73 m2）：推荐对照区与整页蓝色选中语义用同一支蓝，但表达不同。
+   未命中时这一路几乎是唯一的信号，原来的 10px 实心灰蓝点对卡片底只有 3.2:1，
+   现在文字改蓝加粗、图标上的标记放大成空心环（形状见 .weapon-detail-perk-entry-active）。 */
+.weapon-detail-perk-entry[data-active="true"] .weapon-detail-perk-entry-copy small { color: var(--accent-primary); font-weight: 700; }
+/* 本件 Roll / 固有能力 / 完整掉落池的「当前已选」＝整页通用的蓝色选中语义：选中底 + 选中边框 + 左缘实色条，
+   左缘条是结构信号，不只靠颜色（规格：当前选中 Perk 使用蓝色选中语义）。那里已经有三路结构信号，
+   状态文字沿用选中字色，不跟着推荐对照区改成同一支蓝（T70 已验收的样子）。 */
+.weapon-detail-perk-entry[data-emphasis="selected"][data-active="true"] > button { border-color: var(--state-selected-border); background: var(--state-selected-bg); box-shadow: inset 3px 0 0 var(--state-selected-border); }
+.weapon-detail-perk-entry[data-emphasis="selected"][data-active="true"] .weapon-detail-perk-entry-copy small { color: var(--selected-fg); font-weight: 700; }
+/* 待提交：只换边框与短状态的颜色，不铺底（规格：不得大面积铺底、不得只靠颜色）。
+   琥珀而不是蓝（T73 拍板）：tokens 里 --accent-primary 与 --status-pending 指向同一支 --blue，
+   于是「当前启用」的字和「待应用」的字都是 #8cc7ef——实测一屏 9 张卡里 5 张的字是这支色，
+   4 个状态共用一支。琥珀本来就是 --status-warning（一件还没落盘的改动），语义对得上，
+   蓝从此只表示「当前启用」。 */
+.weapon-detail-perk-entry[data-pending="true"] > button { border-color: var(--status-warning); }
+.weapon-detail-perk-entry[data-pending="true"] .weapon-detail-perk-entry-copy small { color: var(--status-warning); }
+/* 四枚标记是四种形，去色后照样分（T73 拍板「拆成形」）：
+   命中＝开口笔画、待应用＝直角实心方块、当前＝闭合空心环、不匹配＝叉。
+   改之前勾和环都写 border-radius:50%、都 16px、都骑图标右缘、左边只差 1px——去色之后是同一个圆。 */
+.weapon-detail-perk-entry-hit { display: grid; position: absolute; top: 1px; left: 31px; width: 16px; height: 16px; place-items: center; border: 0; border-radius: 0; color: var(--status-ready); background: none; font-size: 19px; font-weight: 900; line-height: 1; }
+/* 描边不能用多层 text-shadow：勾的笔画只有 ~2px，四周各 1px 的暗边会把中间那点绿整个吃掉，
+   4× 下就成一坨黑。filter: drop-shadow 描的是**字形自己的轮廓**（透明处不投影），
+   叠三层得到一圈紧贴笔画的暗边，中间那笔绿原样留着。 */
+.weapon-detail-perk-entry-hit,
+.weapon-detail-perk-entry-mismatch { filter: drop-shadow(0 0 1.5px #0f1620) drop-shadow(0 0 1.5px #0f1620) drop-shadow(0 0 2px #0f1620); }
+/* 「待应用」在图标左下角的那枚方块。它和边框色、状态字是同一件事的三路信号，三路一起换色。 */
+.weapon-detail-perk-entry-pending { position: absolute; bottom: 1px; left: 5px; width: 16px; height: 16px; border-radius: 4px; background: var(--status-warning); box-shadow: 0 0 0 2px var(--surface-interactive); }
+.weapon-detail-perk-entry[data-emphasis="selected"] .weapon-detail-perk-entry-pending { box-shadow: 0 0 0 2px var(--state-selected-bg), inset 0 0 0 2px var(--selected-fg); }
+/* 「不匹配」（T73 拍板）：本件当前装着、而来源没要的那一项，图标左上角一枚叉。
+   左上角是全表唯一没被占的角——右上＝命中勾、右下＝当前环、左下＝待应用方块。 */
+.weapon-detail-perk-entry-mismatch { display: grid; position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; place-items: center; color: var(--status-error); font-size: 15px; font-weight: 900; line-height: 1; }
+/* 推荐对照区（不传 emphasis）的「当前」标记：16px 空心蓝环，与 16px 实心绿勾同尺寸、同在图标右缘
+   （勾在上、环在下），命中与当前靠形状区分（实心勾 / 空心环），不只靠颜色。 */
+.weapon-detail-perk-entry:not([data-emphasis="selected"]) .weapon-detail-perk-entry-active { position: absolute; bottom: 1px; left: 30px; width: 16px; height: 16px; border: 3.5px solid var(--accent-primary); border-radius: 50%; background: transparent; box-shadow: 0 0 0 2px var(--surface-panel); }
+/* 本件 Roll / 固有能力 / 完整掉落池（emphasis="selected"）的标记沿用原来的小实心点：那里已经有三路蓝色
+   结构信号，标记只作为第四路点缀，不跟着推荐对照区放大。 */
+.weapon-detail-perk-entry[data-emphasis="selected"] .weapon-detail-perk-entry-active { position: absolute; bottom: 4px; left: 32px; width: 10px; height: 10px; border: 2px solid var(--surface-panel); border-radius: 50%; background: var(--selected-border); box-shadow: 0 0 0 1px color-mix(in srgb, var(--selected-border) 55%, transparent); }
+/* 「不匹配」那一路：状态词与环一起变红（T73 拍板「染红，连图例一起改」）。
+   两处的特异性都得写满，否则被上面那两条盖掉、这一档和没标一模一样——
+   上一版原型就栽在这里（[data-ring-demo] .weapon-detail-perk-entry-active 只有 0,2,0，
+   被 :not([data-emphasis="selected"]) 那条 0,3,0 吃掉，两档对照像素级相同却没人发现）：
+   状态词要压过 `[data-active="true"] …small`（0,3,0），环要压过那条 0,3,0 的环规则。
+   环染红之后列头图例必须跟着改——那句「蓝环表示当前启用」在两处
+   （WeaponDetailContent.tsx:1283 栏头、:1369 窄屏半区表头），已改成「环＝当前启用，红环＝来源没要」。 */
+.weapon-detail-perk-entry[data-mismatch="true"][data-active="true"] .weapon-detail-perk-entry-copy small { color: var(--status-error); }
+.weapon-detail-perk-entry:not([data-emphasis="selected"])[data-mismatch="true"] .weapon-detail-perk-entry-active { border-color: var(--status-error); }
+.weapon-detail-perk-entry-popover { display: grid; position: absolute; z-index: var(--layer-popover); bottom: calc(100% + 10px); left: 50%; width: min(304px, calc(100vw - 32px)); gap: 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--border-control) 78%, var(--accent-primary)); border-radius: var(--radius-object); color: var(--text-body); background: var(--chrome); box-shadow: 0 16px 36px rgb(0 0 0 / 34%); opacity: 0; pointer-events: none; transform: translate(-50%, 5px); transition: opacity 100ms ease, transform 100ms ease; visibility: hidden; }
+.weapon-detail-perk-entry:hover > .weapon-detail-perk-entry-popover,
+.weapon-detail-perk-entry:focus-within > .weapon-detail-perk-entry-popover,
+.weapon-detail-perk-entry[data-open="true"] > .weapon-detail-perk-entry-popover { opacity: 1; transform: translate(-50%, 0); visibility: visible; }
+.weapon-detail-perk-entry-popover::after { position: absolute; bottom: -6px; left: calc(50% - 6px); width: 10px; height: 10px; border-right: 1px solid var(--border-control); border-bottom: 1px solid var(--border-control); background: var(--chrome); content: ""; transform: rotate(45deg); }
+.weapon-detail-perk-entry-popover-heading { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 9px; }
+.weapon-detail-perk-entry-popover-heading .weapon-detail-perk-entry-art { width: 40px; height: 40px; }
+.weapon-detail-perk-entry-popover-heading > span:last-child { display: grid; min-width: 0; gap: 2px; }
+.weapon-detail-perk-entry-popover-heading strong { color: var(--text-title); font-size: var(--font-content); }
+.weapon-detail-perk-entry-popover-heading small { color: var(--text-muted); font-size: var(--font-caption); overflow-wrap: anywhere; }
+.weapon-detail-perk-entry-description { color: var(--text-body); font-size: var(--font-meta); line-height: 1.5; }
+.weapon-detail-perk-entry-context { display: grid; gap: 2px; padding-top: 7px; border-top: 1px solid var(--border-subtle); }
+.weapon-detail-perk-entry-context strong { color: var(--accent-primary); font-size: var(--font-caption); }
+.weapon-detail-perk-entry-context small { color: var(--text-muted); font-size: var(--font-caption); }
+/* 浮层里的一行显式动作（T73：推荐对照区的「选择 / 取消选择」）。按钮本身走整页的按钮变体，
+   这里只给这一行容器：与上面的说明之间一条分隔线，不挤压浮层的其他内容。
+   浮层整体是 pointer-events: none（纯说明不该抢鼠标，悬停穿过去仍落在下面的卡片上），
+   这一条把点击能力只还给按钮自己——整层恢复可点会让浮层盖住的那片区域变成点不动的死区。 */
+.weapon-detail-perk-entry-action { display: grid; gap: 7px; padding-top: 9px; border-top: 1px solid var(--section-divider); }
+.weapon-detail-perk-entry-action > button { pointer-events: auto; }
 .weapon-detail-source-evidence { overflow: visible; --weapon-recommendation-accent: var(--status-neutral); --weapon-recommendation-bg: var(--status-neutral-bg); border: 1px solid color-mix(in srgb, var(--weapon-recommendation-accent) 38%, var(--object-border)); border-radius: var(--radius-object); background: var(--card-bg); }
 .weapon-detail-source-evidence[data-match-state="full"],
 .weapon-detail-source-evidence[data-match-state="core"] { --weapon-recommendation-accent: var(--status-ready); --weapon-recommendation-bg: color-mix(in srgb, var(--status-ready) 8%, var(--surface-panel)); }
@@ -555,8 +620,18 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-source-slot[data-match-state="uncheckable"] > header > strong::before { background: transparent; }
 .weapon-detail-source-slot > header > .ui-badge { border-color: var(--weapon-slot-accent); color: var(--surface-panel); background: var(--weapon-slot-accent); box-shadow: none; font-weight: 700; }
 .weapon-detail-source-slot-comparison { display: contents; }
-.weapon-detail-source-slot-comparison > section { display: grid; min-width: 0; min-height: 72px; align-content: center; gap: 7px; padding: 8px 10px; border-left: 1px solid var(--border-subtle); }
-.weapon-detail-source-slot-comparison > section > header { display: flex; min-height: 20px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 3px 10px; }
+/* 栏头（T72 方案 B）：逐行表头收成来源卡顶部一条，列模板与槽位行逐像素相同（列线对得上），
+   吸附时不靠记忆读列名；被自己的来源卡推出边界时正常让位。
+   吸附在**章节页签下面**，不是滚动口顶边：页签已经占了 top: 0，这条跟它同层（都 --layer-sticky）、
+   又不透明，两边都写 0 就是逐像素重合，而平局按 DOM 顺序裁决——栏头在来源卡里、DOM 更靠后，
+   于是它盖住页签（T72-B 落地时的「飘到最上层」bug）。让开页签高度即互不重叠，z-index 平不平就不重要了。 */
+.weapon-detail-source-slot-columns { display: grid; position: sticky; z-index: var(--layer-sticky); top: var(--weapon-detail-nav-height); grid-template-columns: minmax(96px, 112px) repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--section-divider); background: var(--surface-panel); }
+.weapon-detail-source-slot-columns > span { padding: 8px 10px; color: var(--text-body); font-size: var(--font-meta); font-weight: 700; }
+.weapon-detail-source-slot-columns > span:first-child { padding-left: 13px; }
+.weapon-detail-source-slot-columns em { display: block; color: var(--text-muted); font-style: normal; font-weight: 400; font-size: var(--font-caption); }
+.weapon-detail-source-slot-comparison > section { display: grid; min-width: 0; min-height: 72px; align-content: start; gap: 7px; padding: 8px 10px; border-left: 1px solid var(--border-subtle); }
+/* 宽屏两列共用一个栏头，逐行表头隐去；窄屏两半纵向堆叠时反过来（媒体查询里恢复）。 */
+.weapon-detail-source-slot-comparison > section > header { display: none; }
 .weapon-detail-source-slot-comparison > section > header > span { color: var(--text-body); font-size: var(--font-meta); font-weight: 700; }
 .weapon-detail-source-slot-comparison > section > header > small { color: var(--text-muted); font-size: var(--font-caption); }
 .weapon-detail-source-slot-comparison > section > p { margin: 0; color: var(--text-muted); font-size: var(--font-meta); line-height: 1.45; }
@@ -580,7 +655,9 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
 .weapon-detail-catalyst progress { width: 100%; accent-color: var(--status-warning); }
 .weapon-detail-catalyst ul { margin: 0; padding-left: 18px; }
 
-.weapon-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: 55px; max-height: calc(100dvh - 154px); overflow-y: auto; overflow-wrap: anywhere; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
+/* 同样吸附在章节页签下面。原来写死 55px，那是 comfortable 一档的页签高；standard 是 51、compact 是 49，
+   另外两档都差 4~6px。改成跟栏头同一个变量，三档一起对上。 */
+.weapon-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: var(--weapon-detail-nav-height); max-height: calc(100dvh - 154px); overflow-y: auto; overflow-wrap: anywhere; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
 .weapon-detail-rail-drawer-head { position: sticky; z-index: var(--layer-sticky); top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 7px 12px; border-bottom: 1px solid var(--section-divider); background: var(--chrome); }
 .weapon-detail-rail-drawer-head > div { display: grid; gap: 1px; }
 .weapon-detail-rail-drawer-head span { color: var(--blue); font-size: var(--font-caption); font-weight: 700; }
@@ -640,6 +717,7 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-definition-details > div { grid-template-columns: 1fr; }
   .weapon-detail-nav { position: static; padding-inline: 10px; }
   .weapon-detail-section { padding: 12px; }
+  .weapon-detail-write-dock { padding: 0 12px 10px; }
   .weapon-detail-section-heading { align-items: start; flex-direction: column; }
   .weapon-detail-section-heading p { text-align: left; }
   .weapon-detail-data-heading { align-items: flex-start; flex-direction: column; }
@@ -679,12 +757,15 @@ button.weapon-detail-perk:hover { border-color: var(--state-selected-border); ba
   .weapon-detail-source-slot > header > .ui-badge { justify-self: end; }
   .weapon-detail-source-slot-comparison { display: grid; grid-column: 1 / -1; grid-template-columns: 1fr; }
   .weapon-detail-source-slot-comparison > section { border-top: 1px solid var(--border-subtle); border-left: 0; }
-  .weapon-detail-recommendation-perk { max-width: none; }
-  .weapon-detail-recommendation-perk-popover { left: 0; transform: translate(0, 5px); }
-  .weapon-detail-recommendation-perk:hover > .weapon-detail-recommendation-perk-popover,
-  .weapon-detail-recommendation-perk:focus-within > .weapon-detail-recommendation-perk-popover,
-  .weapon-detail-recommendation-perk[data-open="true"] > .weapon-detail-recommendation-perk-popover { transform: translate(0, 0); }
-  .weapon-detail-recommendation-perk-popover::after { left: 18px; }
+  /* 两半纵向堆叠后「来源要求 / 本件拥有」不再并排，顶部栏头失去意义：隐去栏头，恢复每半区自己的表头。 */
+  .weapon-detail-source-slot-columns { display: none; }
+  .weapon-detail-source-slot-comparison > section > header { display: flex; min-height: 20px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 3px 10px; }
+  .weapon-detail-perk-entry { max-width: none; }
+  .weapon-detail-perk-entry-popover { left: 0; transform: translate(0, 5px); }
+  .weapon-detail-perk-entry:hover > .weapon-detail-perk-entry-popover,
+  .weapon-detail-perk-entry:focus-within > .weapon-detail-perk-entry-popover,
+  .weapon-detail-perk-entry[data-open="true"] > .weapon-detail-perk-entry-popover { transform: translate(0, 0); }
+  .weapon-detail-perk-entry-popover::after { left: 18px; }
   .weapon-detail-upgrade-table > div { grid-template-columns: minmax(92px, 0.75fr) minmax(0, 1.25fr); }
   .weapon-detail-upgrade-table > div > * { overflow-wrap: anywhere; }
 }

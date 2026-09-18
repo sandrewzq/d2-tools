@@ -298,6 +298,202 @@ describe("architecture maintenance guardrails", () => {
     }
   });
 
+  it("builds perk entries in one component and keeps every perk class name styled", () => {
+    // T69：同一张 Perk 小卡片曾有两套实现——本件 Roll 一套、推荐对照区一套——宽度、内边距、
+    // 圆角、字号各写各的，同一页里同一个东西长得不一样。现在两处都走 WeaponPerkEntry。
+    // 这条用例挡三件事：标记回流成「详情页里手搓」、类名改名只改一半（样式里改了、标记里没改），
+    // 以及旧类名残留。改名只改一半最阴：页面上少一段布局却不报错，只能靠眼睛发现——所以扫描按
+    // 整条 `weapon-detail-*` 前缀来，不只看 perk 开头的那几个。
+    const detail = readFileSync(join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"), "utf8");
+    const entry = readFileSync(join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponPerkEntry.tsx"), "utf8");
+    const perkCss = readFileSync(join(repoRoot, "packages", "ui", "src", "styles", "components", "09-weapon-detail.css"), "utf8");
+    const styles = walkCss(join(repoRoot, "packages", "ui", "src", "styles"))
+      .map((file) => readFileSync(file, "utf8"))
+      .join("\n");
+
+    // 两处（本件 Roll 与推荐来源对照）都必须复用同一个组件，而不是只改一处。
+    expect(detail.match(/<WeaponPerkEntry\b/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    // 条目外观的类名只许出现在那个组件里：图标、名称、短状态、命中勾都不许在详情页里手写。
+    expect(detail).not.toContain("weapon-detail-perk-entry");
+
+    // 扫描本身有效：这两个文件是这套类名的出产地，取不到就说明正则失效了，后面的空集合会白过。
+    const tokensOf = (source: string) => [...new Set(source.match(/weapon-detail-[a-z0-9-]*/g) ?? [])];
+    expect(tokensOf(entry).length + tokensOf(detail).length, "没扫到任何 weapon-detail 类名").toBeGreaterThan(20);
+    // 标记里出现的每个类名都要真的有一条样式，否则就是改名只改了一半。
+    for (const [file, source] of [["WeaponDetailContent.tsx", detail], ["WeaponPerkEntry.tsx", entry]]) {
+      const missing = tokensOf(source).filter((token) => !styles.includes(`.${token}`));
+      expect(missing, `${file} 里这些类名在样式里不存在：${missing.join("、")}`).toEqual([]);
+    }
+    expect(perkCss).not.toContain("weapon-detail-recommendation-perk");
+    expect(perkCss).not.toMatch(/\.weapon-detail-perk(?![\w-])/);
+
+    // 宽度属于列表，不属于条目（T72 方案 A）：列表用一条等宽列模板决定「一行放几张、每张多宽」，
+    // 条目只交还 `min-width: 0` 让栅格自己收窄，不自己声明宽度。
+    // 钉模板而不是钉老写法（`min-width` + `max-width` + `flex` 三件套）：老写法里每个条目自带一个
+    // 宽度上限，同一栏的卡片宽度由各自内容决定，推荐区两半因此各算各的列宽、列线对不上；
+    // 模板才是「宽度只有一个来源」这件事的可检查形态——把模板删了、改回条目自己撑宽，这行就红。
+    const listRule = perkCss.match(/\.weapon-detail-perk-entries\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(listRule, "列表没有等宽列模板（grid-template-columns: repeat(auto-fill, minmax(...))），一行放几张会退回由内容决定").toMatch(/grid-template-columns:\s*repeat\(\s*auto-fill\s*,\s*minmax\(/);
+    const entryWidthRule = perkCss.match(/\.weapon-detail-perk-entries\s*>\s*\.weapon-detail-perk-entry\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(entryWidthRule, "列表没有约束条目宽度，窄栏里的长名字会把列撑破").toContain("min-width: 0");
+    // 词边界：`min-width` / `max-width` 里也含 `width`，按子串判会把它们误当成「条目自己声明宽度」。
+    for (const property of ["width", "max-width", "flex"]) {
+      expect(entryWidthRule, `条目又自己声明了宽度（${property}:），两半的列宽会各算各的`).not.toMatch(new RegExp(`(?:^|[;\\s])${property}\\s*:`));
+    }
+
+    // 浮层里那一行动作按钮（T73「选择 / 取消选择」）必须真的点得到：浮层整体是 pointer-events: none
+    // ——说明浮层不该抢鼠标，悬停要能穿过去——所以点击能力只能显式还给按钮自己。
+    // 实测过一次：少了这一行，按钮在浏览器里 elementFromPoint 命中的是它背后的卡片，永远点不着。
+    const popoverRule = perkCss.match(/\.weapon-detail-perk-entry-popover\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(popoverRule, "说明浮层不再让鼠标穿透，会盖住卡片变成点不动的死区").toContain("pointer-events: none");
+    const actionRule = perkCss.match(/\.weapon-detail-perk-entry-action\s*>\s*button\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(actionRule, "浮层里的动作按钮没把点击要回来，等于一个点不动的按钮").toContain("pointer-events: auto");
+    // 动作行由组件渲染（详情页里连 `weapon-detail-perk-entry` 这一串都不许出现，见上面的扫描）。
+    expect(entry, "WeaponPerkEntry 没渲染浮层动作行").toContain("weapon-detail-perk-entry-action");
+
+    // T70：同一种卡片在页面里曾长出第三、第四套盒子——固有能力空态（64 高、padding 10）与配置加载骨架
+    // （66 高、padding 8、38 方形图标）各是一份老几何，T69 统一条目时没带上它们，于是占位比卡片高出一截。
+    // 现在空态与骨架都渲染同一个盒子类，几何只有一条规则；下面两件事一起挡：旧的占位类名回流、
+    // 以及盒子几何被搬回 `> button` 那种只有真条目吃得到的写法。
+    expect(detail).toMatch(/<WeaponPerkPlaceholder\b/);
+    for (const legacy of ["weapon-detail-config-placeholder-column", "weapon-detail-intrinsic-empty"]) {
+      expect(detail, `详情页又自己造了一份占位几何：${legacy}`).not.toContain(legacy);
+      expect(perkCss, `样式里还留着旧的占位几何：${legacy}`).not.toContain(legacy);
+    }
+    // 类名要带词边界：`-box-never` 这种改名如果按子串匹配会被当成同一类名而漏掉。
+    // 选择器也不许跨行匹配：注释里提到过这个类名时，`[^{]*` 会一路吃到下一条规则的规则体，
+    // 于是「几何规则被改名」也能匹配上一条注释（第一版就是这么漏掉改坏 M10 的）。
+    const boxRules = [...perkCss.matchAll(/^[^\n{]*\.weapon-detail-perk-entry-box(?![\w-])[^\n{]*\{[^}]*\}/gm)].map((match) => match[0]);
+    expect(
+      boxRules.some((rule) => rule.includes("grid-template-columns") && rule.includes("min-height") && rule.includes("padding")),
+      "条目盒子几何（栅格、最小高度、内边距）必须定义在 .weapon-detail-perk-entry-box 上，占位与骨架才吃得到"
+    ).toBe(true);
+    // 空态仍然在自己的列壳里、带列名：改动前那个裸 div 没有表头，整格比邻列高出表头那一格。
+    expect(detail, "固有能力空态丢了列名，整格会比邻列高一格").toMatch(
+      /<h4>固有能力<\/h4>\s*<div>\s*<WeaponPerkPlaceholder\s+variant="empty"/
+    );
+    // 骨架的图标位与真图标同形（36 圆），不是老骨架的 38 方形。
+    const barRule = perkCss.match(/\.weapon-detail-perk-entry-bar-art\s*\{[^}]*\}/)?.[0] ?? "";
+    for (const property of ["36px", "border-radius: 50%"]) {
+      expect(barRule, "骨架图标位要与真图标同形（36 圆）").toContain(property);
+    }
+
+    // T70：「当前已选」在本件 Roll 里是唯一的状态，必须有一个不只靠颜色的结构信号（左缘实色条），
+    // 且四处 Roll 列都要把它打开。推荐对照区不传 emphasis（规格给那一区的表达是蓝点 + 文字）。
+    expect(perkCss, "本件 Roll 的当前已选缺少结构信号（左缘实色条）").toMatch(
+      /\[data-emphasis="selected"\]\[data-active="true"\][^{]*\{[^}]*inset/
+    );
+    expect(detail.match(/emphasis="selected"/g)?.length ?? 0, "有 Roll 列没打开选中表达").toBeGreaterThanOrEqual(4);
+
+    // T70 回归：「固有能力」这一格曾拿**正片读取**的入口（loadConfiguration → 宿主上的
+    // loadSelectedItemFullDetail）去补定义。那条路会置整份详情的加载态，于是宿主把整份详情换成
+    // 全屏骨架（首屏白屏），骨架一挂载又触发下一次读取——读取失败时表现为「一直在闪」。
+    // 现在这条按需读取只走 loadDefinition（后台、不置详情加载态），且触发条件必须仍然只看它。
+    const pendingExpression = detail.match(/const definitionPending = ([\s\S]*?);/)?.[1] ?? "";
+    expect(pendingExpression, "按需读定义的触发条件没找到，后面两句会白过").not.toBe("");
+    expect(pendingExpression, "按需读定义又接回了整份详情的读取入口").toContain("props.actions?.loadDefinition");
+    expect(pendingExpression, "按需读定义又接回了整份详情的读取入口").not.toContain("loadConfiguration");
+    // 后台读取本身也不许动加载态字段：动了就等于从数据层再做一次上面那件事。
+    const hook = readFileSync(
+      join(repoRoot, "packages", "desktop", "src", "renderer", "shared", "hooks", "useItemDetail.ts"),
+      "utf8"
+    );
+    const backgroundRead = hook.match(/async function loadSelectedItemDefinition\(\)[\s\S]*?\n  \}\n/)?.[0] ?? "";
+    expect(backgroundRead, "后台补读定义的实现没找到，后面三句会白过").not.toBe("");
+    expect(backgroundRead, "后台补读定义没有走定义读取").toContain("api.getItemDetail");
+    expect(backgroundRead, "后台补读定义顺手读了完整实例 Roll").not.toContain("loadAccountItemDetailCached");
+    for (const loadingField of ["detail_loading", "is_detail_loading", "setItemDetailLoadingKey"]) {
+      expect(backgroundRead, `后台补读定义改了详情加载态：${loadingField}`).not.toContain(loadingField);
+    }
+    // 接线也必须接对：详情页那个 loadDefinition 要指向后台补读，而不是又指回整份详情的读取。
+    // 这一条挡的正是本轮回归——实现写对了、接线接回旧入口，症状一模一样。
+    const modal = readFileSync(
+      join(repoRoot, "packages", "desktop", "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
+      "utf8"
+    );
+    const definitionAction = modal.match(/loadDefinition: ([^,]+),/)?.[1] ?? "";
+    expect(definitionAction, "详情弹框没接后台补读定义，后面两句会白过").not.toBe("");
+    expect(definitionAction, "详情页的按需读定义接回了整份详情的读取入口").not.toContain("onLoadSelectedItemFullDetail");
+    expect(definitionAction, "详情页的按需读定义没接到后台补读上").toContain("onLoadSelectedItemDefinition");
+  });
+
+  it("keeps the item detail readiness gate latched so a background read cannot blank the screen", () => {
+    // 上一句守卫挡的是「补定义不许置加载态」。挡住一个入口，挡不住同一类错：**置位的人没错，
+    // 是视图层把这个标志当成了内容闸门。** 宿主把「此刻忙不忙」和「画不画正文」合取在一起，
+    // 于是任何一次重新读取——写后读回（换 Perk 后连读 6 次确认，累计十几秒）、手动「重新读取配置」
+    // ——都会把整屏正文换回全屏骨架，顺带丢掉 pendingPerks、滚动位置和所在章节。
+    // 现在就绪只看一条单调闩锁，忙碌只走 isBusy。两头都要钉：合取加回来会白屏，闩锁改成无条件前进
+    // 会反过来——第一次打开就画一份还没有内容的详情。
+    const host = readFileSync(join(desktopRoot, "src", "renderer", "pages", "HomePageItemDetailHost.tsx"), "utf8");
+
+    const isReadyExpression = host.match(/isReady:\s*([^\n]+)/)?.[1] ?? "";
+    expect(isReadyExpression, "宿主里没找到 isReady 的取值，后面两句会白过").not.toBe("");
+    expect(
+      isReadyExpression,
+      "就绪闸门又和实时忙碌标志合取了：任意一次重新读取都会把已画出的正文换回骨架"
+    ).not.toContain("selectedItemReady");
+    expect(isReadyExpression, "就绪闸门不再是那条单调闩锁").toContain("readyRevision === command.revision");
+
+    // 合上闩锁的时机仍然是「属这件装备的首帧内容可用」。按 `setReadyRevision(0)`（复位）和
+    // 这一个分开找：两处都含 `setReadyRevision` 这串，只能按赋值形态区分。
+    const latchEffect = [...host.matchAll(/useEffect\(\(\) => \{[\s\S]*?\}, \[[^\]]*\]\);/g)]
+      .map((match) => match[0])
+      .find((block) => /setReadyRevision\(\s*revision\s*\)/.test(block)) ?? "";
+    expect(latchEffect, "没找到合上就绪闩锁的 effect，后面两句会白过").not.toBe("");
+    expect(latchEffect, "就绪闩锁不再等首帧内容，第一次打开会直接画一份空详情").toContain("selectedItemReady");
+    expect(latchEffect, "就绪闩锁不再等首帧内容，第一次打开会直接画一份空详情").toContain("setReadyRevision(revision)");
+  });
+
+  it("keeps the three weapon-detail regions in the order the user asked for", () => {
+    // T71：用户口径「推荐 roll 放最上面，当前 roll 放中间，完整放下面」。改前完整掉落池挂在
+    // 「当前配置」章节里面（自带一条 border-top），所以页面上是「本件 Roll + 完整」一块、
+    // 「推荐判断」另一块；现在三块是三个兄弟章节，各自吃同一条 .weapon-detail-section 盒模型。
+    // 顺序是关键：它不是样式，改错了页面不报错、只是要滚动才能找到东西，所以按位置钉住。
+    const detail = readFileSync(join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"), "utf8");
+    const indexOf = (needle: string) => {
+      const at = detail.indexOf(needle);
+      expect(at, `详情页里找不到 ${needle}，后面几句会白过`).toBeGreaterThan(-1);
+      return at;
+    };
+
+    const recommendations = indexOf("sectionRefs.current.recommendations");
+    const configuration = indexOf("sectionRefs.current.configuration");
+    const pool = indexOf("<FullPoolSection");
+    expect(recommendations, "推荐 Roll 又排到了 本件 Roll 后面").toBeLessThan(configuration);
+    expect(configuration, "完整掉落池又排到了 本件 Roll 前面").toBeLessThan(pool);
+
+    // 章节导航与章节同一顺序，否则点第二个页签会往回跳。
+    // 类型标注里带分号（`{ key: …; label: … }`），所以按 `];` 收尾，不能按分号截断。
+    const labels = detail.match(/const sectionLabels[\s\S]*?\];/)?.[0] ?? "";
+    expect(labels, "章节导航没找到，下一句会白过").not.toBe("");
+    expect(labels, "章节导航顺序没跟着章节顺序走").toMatch(
+      /recommendations[\s\S]*configuration[\s\S]*overview[\s\S]*upgrades/
+    );
+
+    // 首屏定位与懒挂载集合都跟着第一节走：推荐 Roll 现在是第一节，挂载即读推荐证据。
+    expect(detail, "首屏第一节没改回推荐 Roll").toContain('const firstSection: WeaponDetailSection = "recommendations";');
+    for (const usage of [
+      "useState<WeaponDetailSection>(firstSection)",
+      "new Set([firstSection])",
+      "observedSectionRef = useRef<WeaponDetailSection>(firstSection)"
+    ]) {
+      expect(detail, `首屏定位/挂载集合没跟着第一节走：${usage}`).toContain(usage);
+    }
+
+    // 完整掉落池必须真的离开配置章节：配置章节的函数体里不许再有它的类名，也不许再收它的开关。
+    const configBody = detail.match(/function ConfigurationSection\([\s\S]*?\n\}\n/)?.[0] ?? "";
+    expect(configBody, "配置章节的实现没找到，后面两句会白过").not.toBe("");
+    expect(configBody, "完整掉落池又挂回了配置章节里").not.toContain("weapon-detail-full-pool");
+    expect(configBody, "配置章节还在收完整掉落池的开关").not.toContain("props.poolOpen");
+    // 它得有自己的章节盒子与区域标记，否则三区又并回两块。
+    expect(detail, "完整掉落池没有自己的章节盒子（三区就没分开）").toMatch(
+      /<section className="weapon-detail-section" data-region="full-pool">/
+    );
+    // 单独成区之后，那条只为「贴着配置网格」而写的内部分隔线要撤掉，否则一条分隔线画两次。
+    const perkCss = readFileSync(join(repoRoot, "packages", "ui", "src", "styles", "components", "09-weapon-detail.css"), "utf8");
+    expect(perkCss, "完整掉落池还自带一条内部分隔线").not.toMatch(/\.weapon-detail-full-pool\s*\{[^}]*border-top/);
+  });
+
   it("keeps the source row's two scopes written by one shared sentence", () => {
     // Bug #98：来源行原来并排摆着「1679 条规则 / 422 把武器 · 当前账号影响 305 件」，
     // 加上左侧清单那个仓库口径的数字，四个数字四种口径、页面上一个字都没解释。
@@ -412,6 +608,131 @@ describe("architecture maintenance guardrails", () => {
     expect(readFileSync(join(repoRoot, diagnostics), "utf8")).toContain("unknown_slot");
   });
 
+  it("keeps every Bungie Platform request affinitized so a write can be read back from the same backend", () => {
+    // 背景（T76）：换 Perk 的写接口只冲掉它命中的那台后端的缓存。不回带 Bungie 下发的
+    // 粘滞 cookie，随后的读回就可能落到另一台还留着旧副本的后端，界面于是报「写入成功，
+    // 但游戏服务返回的仍是旧配置」——写其实已经落地了。
+    const client = readFileSync(join(repoRoot, "packages", "services", "src", "bungie", "client.ts"), "utf8");
+    const cookies = readFileSync(join(repoRoot, "packages", "services", "src", "bungie", "cookies.ts"), "utf8");
+    const mainEntry = readFileSync(join(desktopRoot, "src", "main", "main.ts"), "utf8");
+    const publicUrlReader = readFileSync(join(repoRoot, "packages", "services", "src", "net", "publicUrlReader.ts"), "utf8");
+
+    // 捕获与回带必须在**同一个**漏斗里：写入走 actions、读回走 account session，
+    // 两处各自构造请求，只接一个入口（或只做一半）与完全不做是一样的。
+    expect(client).toContain("getActiveBungieCookieJar()");
+    expect(client).toContain('"Cookie": cookieHeader');
+    expect(client).toContain("affinity?.capture(response)");
+    // `headers.get("set-cookie")` 会把多个 cookie 用 ", " 拼起来，而 Expires 属性里含逗号，
+    // 用它必然把一条 cookie 切成两条。
+    expect(client).not.toContain('headers.get("set-cookie")');
+    expect(cookies).toContain("headers.getSetCookie()");
+
+    // 装配必须发生在组合根：jar 建了但没人 configure，所有请求都看不到它，等于没做。
+    expect(mainEntry).toContain("configureBungieCookieJar(");
+
+    // 直连第三方地址的读取路径绝不能拿到 Bungie 的粘滞标识。
+    expect(publicUrlReader).not.toContain("cookieJar");
+    expect(publicUrlReader).not.toContain("getActiveBungieCookieJar");
+
+    // 亲和性不是用户数据：不进便携备份，也不该被「清理缓存」清掉（清了就丢掉跨重启的粘滞，
+    // 而陈旧的值无害——Cloudflare 会忽略或重发）。
+    expect(readFileSync(join(desktopRoot, "src", "main", "ipc", "configBackup.ts"), "utf8"))
+      .not.toContain("bungie-affinity");
+    expect(readFileSync(join(repoRoot, "packages", "services", "src", "cache", "maintenance.ts"), "utf8"))
+      .not.toContain("bungie-affinity");
+  });
+
+  it("keeps perk writes confirmed by the write call itself, never by a blocking read-back", () => {
+    // 背景（T77 / T78）：Bungie 写入的传播延迟实测在受理后 26 秒仍读到旧值、2 分 45 秒读到新值，
+    // 上界没测出来。拿十几秒去判「服务器没跟上」就是把正常传播定性成失败——「写入成功，
+    // 详情同步失败」这条假报的来源。写接口返回受理时它已经是权威状态（DIM 同样直接采用写接口
+    // 的返回，不做读回确认）。
+    const modal = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
+      "utf8"
+    );
+    const workspace = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetailWorkspace.ts"),
+      "utf8"
+    );
+    const detailContent = readFileSync(
+      join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"),
+      "utf8"
+    );
+    const detailHook = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "hooks", "useItemDetail.ts"),
+      "utf8"
+    );
+    const acceptedStore = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "stores", "acceptedSocketPlugs.ts"),
+      "utf8"
+    );
+
+    // 换 Perk 必须走「受理即落地」，否则写成功了界面也不动。
+    expect(modal).toContain("acceptedSocketChanges:");
+    // 读回只允许以 probe 跑：照旧走网络、照旧留痕，但拿到的旧值不许合并回界面、不许置加载态。
+    expect(workspace).toContain('refreshSelectedItemDetail({ mode: "probe" })');
+    // 「服务器还没吐回来」不得再被定性成用户可见的失败态。
+    expect(detailContent).not.toContain("refresh-error");
+
+    // 受理状态必须活得比弹框久，否则「关掉再打开是旧 Perk」会卷土重来（T78）。
+    expect(acceptedStore).toContain("const recordsByInstanceId = new Map");
+    // 叠加只发生在读取出口，且探针走的是不叠加的那条（否则探针读回自己叠的值，永远「对上」）。
+    expect(detailHook).toContain("withAcceptedSocketPlugs(instanceId, detail)");
+    expect(detailHook).toContain("serverTruth: silent");
+    // 弹框关闭不得连带清掉受理状态。
+    expect(detailHook).not.toMatch(/function closeSelectedItemDetail[\s\S]{0,200}acceptedSocketPlugs/);
+
+    // 面板只说「已提交」。服务器认没认由账号同步说了算，界面没有资格代它宣布「已确认」。
+    expect(detailContent).not.toContain("已与服务器确认");
+    expect(detailContent).not.toContain('step: "已完成"');
+    expect(modal).not.toContain("已与服务器确认");
+    expect(workspace).not.toContain("onSettled");
+  });
+
+  it("keeps the write response as evidence and the write call as the verdict, with one write in flight", () => {
+    // 背景（T80）：主进程 ipc/actions.ts 里另有一条换 Perk 的写路径，它自带一个写后读回裁判，
+    // 预算 750ms + 2000ms = 2.75 秒，而实测传播是 3 分 32 秒 —— 只要走到那条重发路就必然把
+    // 一次正常写入报成「武器配置未更新 / 需要处理」。触发它的是**重复提交**：用户在一件装备
+    // 已有变更在飞时又点了一次「应用」，第二次必然吃 ErrorCode 1679。
+    const mainActions = readFileSync(
+      join(desktopRoot, "src", "main", "ipc", "actions.ts"),
+      "utf8"
+    );
+    const servicesActions = readFileSync(
+      join(repoRoot, "packages", "services", "src", "bungie", "actions.ts"),
+      "utf8"
+    );
+    const modal = readFileSync(
+      join(desktopRoot, "src", "renderer", "shared", "components", "ItemDetailModal.tsx"),
+      "utf8"
+    );
+    const detailContent = readFileSync(
+      join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"),
+      "utf8"
+    );
+
+    // 写响应体只当旁证：解析出来、逐槽传上去，解析失败一律回落 null 而不是抛。
+    expect(servicesActions).toContain("readSocketPlugWriteOutcome");
+    expect(servicesActions).toContain("/Destiny2/Actions/Items/InsertSocketPlugFree/");
+    // 主进程不许再挂读回裁判：一旦重新出现「刷新详情 + 比对选中的 plug hash」这条路，
+    // 2.75 秒的预算会立刻把正常传播误报成失败。（注释里留着它的名字是有意为之——那是
+    // 这次修复的来历，所以比对前先把注释剥掉，只查活代码。）
+    const mainActionsCode = stripSourceComments(mainActions);
+    expect(mainActionsCode).not.toContain("hasAppliedSocketPlug");
+    expect(mainActionsCode).not.toContain("hasReusableSocketPlug");
+    expect(mainActionsCode).not.toContain("selected_plug");
+    // 没被收下的槽位要逐条说出是哪一个，不是只报一个数量——渲染层据此决定哪几条不落地。
+    expect(mainActions).toContain("deferred_socket_indexes");
+
+    // 一条都不落地 ≠ 失败：面板必须有独立的中性档，否则只能借 error 档上报（就是这次报错的来源）。
+    expect(detailContent).toContain('"deferred"');
+    expect(modal).toContain("outcome.deferred");
+
+    // 重入闸：一次只能有一个写操作在飞。少了它，连点两次「应用」第二次必然 1679。
+    expect(modal).toMatch(/applyPendingPerks: async \(\) => \{[\s\S]{0,400}props\.isRunningItemAction\) return;/);
+  });
+
 });
 
 // 处理程序的正文：从它的注册处到下一个注册处。用例据此断言「这一段里调了什么」，
@@ -421,6 +742,11 @@ function wishlistHandlerBody(source: string, handler: string): string {
   if (start < 0) throw new Error(`找不到处理程序：${handler}`);
   const next = source.indexOf("ipcMain.handle(", start + 1);
   return source.slice(start, next < 0 ? source.length : next);
+}
+
+/** 剥掉注释，只留活代码。用于「某个符号不许再出现在实现里，但注释里可以留作来历」这类断言。 */
+function stripSourceComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
 }
 
 /** 运行时代码（各包的 src 目录）：不含 dist、node_modules 与测试目录。 */
@@ -434,5 +760,14 @@ function walkSource(directory: string): string[] {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) return walkSource(path);
     return /\.tsx?$/.test(entry.name) ? [relative(repoRoot, path)] : [];
+  });
+}
+
+/** 样式文件：`packages/ui/src/styles` 下的全部 .css。 */
+function walkCss(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = join(directory, entry.name);
+    if (entry.isDirectory()) return walkCss(path);
+    return /\.css$/.test(entry.name) ? [path] : [];
   });
 }

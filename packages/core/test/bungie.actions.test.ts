@@ -5,6 +5,7 @@ import {
   equipLoadout,
   insertSocketPlug,
   pullFromPostmaster,
+  readSocketPlugWriteOutcome,
   setItemLockState,
   snapshotLoadout,
   transferItem
@@ -200,6 +201,46 @@ describe("Bungie item actions", () => {
     });
   });
 
+  it("returns the socket state carried by the insert-plug write response", async () => {
+    const fetchImpl: typeof fetch = async () => jsonResponse({
+      ErrorCode: 1,
+      Message: "Ok",
+      Response: {
+        item: {
+          data: { itemInstanceId: "item-1" },
+          sockets: {
+            data: {
+              sockets: [
+                { socketIndex: 2, plugHash: 550838496, isEnabled: true, isVisible: true },
+                { socketIndex: 3, plugHash: 1807273211, isEnabled: true, isVisible: true }
+              ]
+            }
+          }
+        }
+      }
+    });
+
+    const outcome = await insertSocketPlug({
+      config,
+      token,
+      membershipType: 3,
+      characterId: "character-1",
+      itemId: "item-1",
+      socketIndex: 3,
+      plugHash: 456,
+      baseUrl: "https://example.test/Platform",
+      fetchImpl
+    });
+
+    expect(outcome).toEqual({
+      instance_id: "item-1",
+      socket_plugs: [
+        { socket_index: 2, plug_hash: 550838496 },
+        { socket_index: 3, plug_hash: 1807273211 }
+      ]
+    });
+  });
+
   it("pulls an item from the postmaster to a character", async () => {
     let request: Request | undefined;
     const fetchImpl: typeof fetch = async (input, init) => {
@@ -283,5 +324,54 @@ describe("Bungie item actions", () => {
       membershipType: 3,
       loadoutIndex: 2
     });
+  });
+});
+
+/**
+ * 解析器是「写已经成功、只是没读懂响应体」时唯一的分叉点，所以每条分支都必须是 `null`
+ * 而不是抛异常 —— 把一次受理成功的写入报成失败，正是 T80 要根除的那种 bug。
+ */
+describe("readSocketPlugWriteOutcome", () => {
+  it("reads instance id and per-socket plug hashes", () => {
+    expect(readSocketPlugWriteOutcome({
+      item: {
+        data: { itemInstanceId: "item-1" },
+        sockets: { data: { sockets: [{ socketIndex: 0, plugHash: 111 }, { socketIndex: 1, plugHash: 222 }] } }
+      }
+    })).toEqual({
+      instance_id: "item-1",
+      socket_plugs: [{ socket_index: 0, plug_hash: 111 }, { socket_index: 1, plug_hash: 222 }]
+    });
+  });
+
+  it("skips sockets that are not a {socketIndex, plugHash} pair", () => {
+    expect(readSocketPlugWriteOutcome({
+      item: {
+        data: { itemInstanceId: "item-1" },
+        sockets: { data: { sockets: [{ socketIndex: 0, plugHash: 111 }, { plugHash: 222 }, { socketIndex: 2 }, null, "nope"] } }
+      }
+    })).toEqual({
+      instance_id: "item-1",
+      socket_plugs: [{ socket_index: 0, plug_hash: 111 }]
+    });
+  });
+
+  it("falls back to null socket_plugs when the response carries no sockets", () => {
+    expect(readSocketPlugWriteOutcome({ item: { data: { itemInstanceId: "item-1" } } })).toEqual({
+      instance_id: "item-1",
+      socket_plugs: null
+    });
+  });
+
+  it("still reads the instance id when sockets are empty", () => {
+    expect(readSocketPlugWriteOutcome({
+      item: { data: { itemInstanceId: "item-1" }, sockets: { data: { sockets: [] } } }
+    })).toEqual({ instance_id: "item-1", socket_plugs: null });
+  });
+
+  it("returns a fully null outcome for a shape it does not understand", () => {
+    for (const response of [null, undefined, 0, "ok", {}, { item: null }, { item: { sockets: { data: {} } } }]) {
+      expect(readSocketPlugWriteOutcome(response)).toEqual({ instance_id: null, socket_plugs: null });
+    }
   });
 });

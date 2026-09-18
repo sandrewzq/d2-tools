@@ -512,6 +512,25 @@ function buildSelectionColumns(
   selectionNames: string[] | undefined,
   pendingPerks: Record<number, number> | undefined
 ): WeaponPerkSelectionColumn[] {
+  // 推荐对照区按来源栏位核对，玩家在那一区换 Perk 要落回同一列、同一批待提交项（T73）：
+  // 来源事实用的是 `weapon_roll.sockets[].slot`，这一份映射就是两边的唯一交集，
+  // 消费方不必按列名或次序猜。`other` 不在来源栏位里（来源不会要求它），不入映射。
+  const requirementSlotBySocketIndex = new Map(
+    (item.weapon_roll?.sockets ?? []).map((socket) => [socket.socket_index, socket.slot])
+  );
+  const requirementSlotOf = (socketIndex: number) => {
+    const slot = requirementSlotBySocketIndex.get(socketIndex);
+    return slot && slot !== "other" ? slot : undefined;
+  };
+  // 打开详情时 `sockets` 是 `buildPreviewSocketsFromWeaponRoll` 用快照（weapon_roll）搭的近似值：
+  // 快照只有「拥有哪些插件、当前装的是哪个」，插槽可不可用、能不能插这几项它不知道，
+  // 于是被那一步统一占位成 false。把占位当事实读，全件武器的换 Perk（本件 Roll 的格子、
+  // 推荐区浮层里的「选择」）在读完完整 Roll 之前会一起变成只读，而完整 Roll 只在点
+  // 「查看完整掉落池」时才读——用户看到的就是「无法切换」。
+  // 所以判据按插槽状态是否核实过分开：核实过（detail_loaded.instance）才用游戏返回的
+  // is_enabled / can_insert 等硬条件，没核实过就按快照判「拥有且不是当前这项」
+  // ——与定义没读时的 buildRollSelectionColumns 同一条规则。
+  const socketStateVerified = item.detail_loaded?.instance === true;
   if (item.sockets?.length) {
     const poolBySocket = new Map(poolColumns.map((column) => [column.socket_index, column]));
     const selectedSocketHashes = new Set(item.sockets.flatMap((socket) => (
@@ -562,22 +581,29 @@ function buildSelectionColumns(
       return [{
         key: pool?.key ?? `socket-${socketIndex}`,
         socket_index: socketIndex,
+        requirement_slot: requirementSlotOf(socketIndex),
         label: pool?.label ?? weaponSocketColumnLabel(socketPlugs, role, socketIndex),
         role,
         candidates: [...reusablePlugs, ...selectedFallback].map((plug) => {
           const reusablePlug = isReusablePlugSummary(plug) ? plug : undefined;
+          // 「已经装着的那一项」不是可切换项：换 Perk 换的是「换成它」，原地不动没有动作可给。
+          // 这一条只在模型里写一次——本件 Roll 的格子与推荐区浮层的「选择」都读它，
+          // 两处各判一次就会漂移。
+          const isCurrentPlug = selectedPlug?.hash === plug.hash;
           return {
             hash: plug.hash,
             name: plug.name,
             description: plug.description ?? "",
             icon: plug.icon,
             enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
-            selected: reusablePlug?.selected === true || selectedPlug?.hash === plug.hash,
-            can_apply: socket?.is_enabled === true
-              && reusablePlug?.can_insert === true
-              && reusablePlug.enabled !== false
-              && reusablePlug.insert_fail_indexes.length === 0
-              && reusablePlug.enable_fail_indexes.length === 0,
+            selected: reusablePlug?.selected === true || isCurrentPlug,
+            can_apply: !isCurrentPlug && (socketStateVerified
+              ? socket?.is_enabled === true
+                && reusablePlug?.can_insert === true
+                && reusablePlug.enabled !== false
+                && reusablePlug.insert_fail_indexes.length === 0
+                && reusablePlug.enable_fail_indexes.length === 0
+              : true),
             pending: pendingPerks?.[socketIndex] === plug.hash,
             unresolved_in_definition_pool: !poolHashes.has(plug.hash)
               && !poolNames.has(normalizePerkVariantName(plug.name))
@@ -601,6 +627,7 @@ function buildSelectionColumns(
       return [{
         key: `socket-${socketIndex}`,
         socket_index: socketIndex,
+        requirement_slot: requirementSlotOf(socketIndex),
         label: weaponSocketColumnLabel(plugs, role, socketIndex),
         role,
         candidates: plugs.map((plug) => ({

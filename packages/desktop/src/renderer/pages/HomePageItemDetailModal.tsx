@@ -234,6 +234,7 @@ export function HomePageItemDetailModal(props: {
       onOpenItemDetail={itemDetailOverlayCommands.openItemDetail}
       onRunItemWriteAction={(label, action, options) => itemDetail.runItemWriteAction(label, action, options)}
       onLoadSelectedItemFullDetail={itemDetail.loadSelectedItemFullDetail}
+      onLoadSelectedItemDefinition={itemDetail.loadSelectedItemDefinition}
       onRefreshSelectedItemDetail={itemDetail.refreshSelectedItemDetail}
       onActivateItemDetailSection={itemDetail.activateItemDetailSection}
       onSaveSelectedItemNote={() => void itemDetail.saveSelectedItemNote()}

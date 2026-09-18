@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
 import type { ActionLogType } from "@d2-tools/core/actions/log";
+import type { AcceptedSocketPlugChange } from "@d2-tools/core/account/summary";
 import type { AccountItemActionPatch, AccountItemDetail, AccountItemSummary, AccountSummary, ActionDebugTraceInput, ItemActionResult, ItemAiAdviceResult, ItemSearchResult, LibraryHistory, LocalTargetRules, VaultItemInstanceMatchInfo, VaultTags, VaultTagValue, WeaponRecommendation } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
 import {
@@ -39,6 +40,101 @@ type RecommendationSectionItem = {
 type DiagnosticsBridge = {
   loadActionLog: () => Promise<void>;
 };
+
+/**
+ * 一次「写后读回」的逐槽对照。
+ *
+ * 谓词（`backgroundVerification.verify`）与留痕（`describeAttempt`）都由它派生，这样两者永远
+ * 同源，不会出现「判定说不匹配、留痕说都匹配」这种自相矛盾。
+ */
+export type RefreshedItemVerification = {
+  expected_count: number;
+  matched_count: number;
+  /** 逐槽「期望 vs 读到」。只进 `write-action-debug.json`，不面向用户；全命中时缺省。 */
+  message?: string;
+};
+
+/**
+ * 写响应体里带回的插槽状态**与写入意图不一致**的槽位，写成留痕用的句子。
+ *
+ * Bungie 的写响应体理论上就是这次写之后服务器认为的装备状态（DIM 直接拿它重建本地 item），
+ * 但它在本环境没法用真写验证。所以这里只把**不一致**记下来当证据，不据此改界面 ——
+ * 万一响应体回的是写之前的状态，用户选的那一项就被无声吃掉了。
+ * 真出现「受理但被静默拒绝」，这些行就是第一手材料（见 T77 §七）。
+ */
+function describeSocketPlugResponseMismatches(input: {
+  intended: readonly AcceptedSocketPlugChange[];
+  fromResponse?: readonly { socket_index: number; plug_hash: number }[];
+}): string[] {
+  if (!input.fromResponse?.length) return [];
+  const responded = new Map(input.fromResponse.map((plug) => [plug.socket_index, plug.plug_hash]));
+  const mismatches: string[] = [];
+  for (const change of input.intended) {
+    const actual = responded.get(change.socket_index);
+    if (actual === undefined || actual === change.plug_hash) continue;
+    mismatches.push(
+      `插槽 ${change.socket_index}：写响应体回 ${actual}，意图是 ${change.plug_hash}`
+    );
+  }
+  return mismatches;
+}
+
+/**
+ * 换 Perk 后后台核对的台阶（累计约 12.5 分钟）。
+ *
+ * 依据是实测：写入被受理后 26 秒仍读到旧值，3 分 32 秒读到新值（2026-09-18 的留痕，
+ * op `04adaf08` 在第 6 次读回才 `reflected: true`），**收敛上界仍然没有测出来** ——
+ * 同一天的 op `63e6a903` 在整个窗口里一次都没读到，89 分钟后才证明它其实落地了。
+ *
+ * 所以这套台阶的作用只是「尽量早地看到服务器跟上」，**不是判据**：
+ * 走完还没读到只说明「窗口内没观察到」，不代表写入失败，也绝不据此改界面（见 T80）。
+ */
+const SOCKET_PLUG_VERIFY_DELAYS = [0, 30_000, 60_000, 120_000, 240_000, 300_000] as const;
+
+/** `runItemWriteAction` 的选项。三处调用方（弹框、动作行、工具区）共用同一份声明。 */
+export type ItemWriteActionOptions = {
+  keepDetailOpen?: boolean;
+  feedbackScope?: "global" | "detail";
+  onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
+  /**
+   * 本次写入要落地的换 Perk 结果。受理即权威：写接口返回成功就把本地状态改掉，
+   * **不等写后读回**（实测传播延迟可达几分钟，见 T77）。这与 `expectedAccountPatch`
+   * 是同一套语义，只是插槽状态不归账号 store 管，所以走详情这条线。
+   */
+  acceptedSocketChanges?: { instance_id: string; changes: readonly AcceptedSocketPlugChange[] };
+  /**
+   * 写入受理后**后台**核对服务器何时跟上。不阻塞返回、不报错、绝不把读到的旧值写回界面。
+   *
+   * 它只留痕，**不回调改界面文案**：面板没有资格替服务器宣布结果（T78 之前那个回调就是靠
+   * 一次读回把「服务器认了」写上屏的）。
+   */
+  backgroundVerification?: {
+    verify: (detail: AccountItemDetail) => boolean;
+    describeAttempt?: (detail: AccountItemDetail) => RefreshedItemVerification;
+  };
+  expectedAccountPatch?: AccountItemActionPatch;
+};
+
+export type ItemWriteActionOutcome = {
+  ok: boolean;
+  refreshed: boolean;
+  message: string;
+  cancelled?: boolean;
+  /**
+   * 写没落地，但也不是失败：Bungie 用 ErrorCode 1679 说「这件装备还有变更在处理中」。
+   *
+   * 单独一条是因为它既不能进红色错误态（会把一次正常写入报成失败，见 T80），
+   * 也不能当成功落地（那是在替服务器宣布结果）。调用方走中性态。
+   */
+  deferred?: boolean;
+};
+
+/** 写操作留痕的分组 id。详情弹框的手动重读也用它来单独标记一条读回留痕。 */
+export function createWriteActionOperationId(): string {
+  return typeof globalThis.crypto?.randomUUID === "function"
+    ? globalThis.crypto.randomUUID()
+    : `item-action-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export function useItemDetailWorkspace(input: {
   accountSummary: AccountSummary | null;
@@ -87,7 +183,9 @@ export function useItemDetailWorkspace(input: {
     itemDetailError,
     openItemDetail,
     loadSelectedItemFullDetail,
+    loadSelectedItemDefinition,
     refreshSelectedItemDetail,
+    applyAcceptedSocketPlugs: applyAcceptedSocketPlugsToDetail,
     closeSelectedItemDetail: closeItemDetailCore
   } = useItemDetail({
     cacheScopeKey: input.detailCacheScopeKey,
@@ -605,15 +703,8 @@ export function useItemDetailWorkspace(input: {
   async function runItemWriteAction(
     label: string,
     run: () => Promise<ItemActionResult>,
-    options?: {
-      keepDetailOpen?: boolean;
-      feedbackScope?: "global" | "detail";
-      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
-      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
-      refreshMismatchMessage?: string;
-      expectedAccountPatch?: AccountItemActionPatch;
-    }
-  ): Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }> {
+    options?: ItemWriteActionOptions
+  ): Promise<ItemWriteActionOutcome> {
     const publishMessage = (message: string) => {
       if (options?.feedbackScope !== "detail") {
         input.setItemActionMessage(message);
@@ -684,48 +775,67 @@ export function useItemDetailWorkspace(input: {
         void input.diagnostics.loadActionLog().catch(() => undefined);
         return { ok: true, refreshed: false, message };
       }
-      if (options?.keepDetailOpen) {
-        try {
-          publishProgress("refreshing", "写入请求已受理，正在读取服务器配置确认结果...");
-          const refreshed = await refreshItemDetailUntilVerified({
-            refresh: refreshSelectedItemDetail,
-            verify: options.verifyRefreshedItem,
-            onRetry: (attempt, total) => publishProgress(
-              "refreshing",
-              `Bungie 正在同步配置，正在重新读取（${attempt}/${total}）...`
-            )
-          });
-          if (!refreshed) {
-            const message = options.refreshMismatchMessage
-              ?? "写入请求已受理，但 Bungie 返回的详情仍是旧状态，当前配置尚未确认。请稍后重新读取。";
-            publishMessage(message);
-            return { ok: true, refreshed: false, message };
-          }
-          publishMessage("已从 Bungie 读取并确认服务器最新配置。");
-        } catch (error) {
-          if (options?.feedbackScope !== "detail") {
-            input.setAccountError(error instanceof Error ? error.message : "写入请求已受理，但读取装备配置失败");
-          }
-          const message = "写入请求已受理，但尚未确认服务器最新配置。请重新读取配置后再继续操作。";
-          publishMessage(message);
-          return {
-            ok: true,
-            refreshed: false,
-            message
-          };
+      // 换 Perk：受理即权威。本地先落地，服务器什么时候跟上交给后台核对。
+      const acceptedChanges = options?.acceptedSocketChanges;
+      if (acceptedChanges?.changes.length) {
+        const deferredIndexes = new Set(result.deferred_socket_indexes ?? []);
+        const acceptedOnly = acceptedChanges.changes.filter(
+          (change) => !deferredIndexes.has(change.socket_index)
+        );
+        if (acceptedOnly.length) {
+          applyAcceptedSocketPlugsToDetail(acceptedChanges.instance_id, acceptedOnly);
         }
-      } else {
-        closeSelectedItemDetail();
-        publishMessage(`${result.message} 页面会在下次账号同步时校准。`);
+        const mismatches = describeSocketPlugResponseMismatches({
+          intended: acceptedOnly,
+          fromResponse: result.accepted_socket_plugs
+        });
+        if (mismatches.length) {
+          recordWriteActionDebug({
+            ...debugBase,
+            operation_id: operationId,
+            phase: "socket-plug-response-mismatch",
+            elapsed_ms: performance.now() - actionStartedAt,
+            message: mismatches.join("；")
+          });
+        }
+        const message = acceptedOnly.length < acceptedChanges.changes.length
+          ? result.message
+          : "武器配置更改已提交。";
+        if (!acceptedOnly.length) {
+          // 一条都没被收下：既不红也不绿。Bungie 只是说这件装备忙，不是判我们失败（见 T80）。
+          publishMessage(message);
+          input.setAccountOperationFeedback({
+            tone: "pending",
+            phase: "submitting",
+            itemInstanceIds: [acceptedChanges.instance_id],
+            message
+          });
+          void input.diagnostics.loadActionLog().catch(() => undefined);
+          return { ok: false, refreshed: false, deferred: true, message };
+        }
+        // 只说「提交了」。受理之后服务器认没认，这里不知道，面板也不替它说（见 T78）。
+        publishMessage(message);
+        input.setAccountOperationFeedback({
+          tone: "success",
+          phase: "confirmed",
+          itemInstanceIds: [acceptedChanges.instance_id],
+          message
+        });
+        startSocketPlugBackgroundVerification({
+          operationId,
+          debugBase,
+          verification: options?.backgroundVerification
+        });
+        void input.diagnostics.loadActionLog().catch(() => undefined);
+        return { ok: true, refreshed: true, message };
       }
+      closeSelectedItemDetail();
+      publishMessage(`${result.message} 页面会在下次账号同步时校准。`);
       void input.diagnostics.loadActionLog().catch(() => undefined);
-      const completionMessage = options?.keepDetailOpen
-        ? "已从 Bungie 读取并确认服务器最新配置。"
-        : `${result.message} 页面会在下次账号同步时校准。`;
       return {
         ok: true,
-        refreshed: options?.keepDetailOpen === true,
-        message: completionMessage
+        refreshed: false,
+        message: `${result.message} 页面会在下次账号同步时校准。`
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : `${label}失败`;
@@ -749,22 +859,104 @@ export function useItemDetailWorkspace(input: {
     }
   }
 
+  /**
+   * 写入受理之后，在后台看服务器什么时候跟上。
+   *
+   * **这不是门闸。** 它不阻塞 `runItemWriteAction` 的返回、不报错、也绝不把读到的旧值写回界面
+   * （读回走 `refreshSelectedItemDetail({ mode: "probe" })`，不合并、不置加载态）。
+   * 实测 Bungie 的写入传播延迟可以超过 26 秒、几分钟才收敛，所以台阶按这个量级铺，
+   * 而不是拿十几秒去判人家失败 —— 那是「写入成功，详情同步失败」这条假报的来源（见 T77）。
+   *
+   * **它也不改界面文案。** 对上、没对上，都只是留痕：面板说的是「已提交」，不是「服务器认了」。
+   *
+   * 留痕：对上时只有一条 `verification-complete`，不产生噪声；没对上时每次补一条
+   * `verification-read`，写清「插槽 2：期望 X，读到 Y」。
+   */
+  function startSocketPlugBackgroundVerification(input: {
+    operationId: string;
+    debugBase: { action: ActionLogType; item_name?: string; item_instance_id?: string; character_id?: string };
+    verification?: {
+      verify: (detail: AccountItemDetail) => boolean;
+      describeAttempt?: (detail: AccountItemDetail) => RefreshedItemVerification;
+    };
+  }): void {
+    const verification = input.verification;
+    if (!verification) return;
+    void refreshItemDetailUntilVerified({
+      refresh: () => refreshSelectedItemDetail({ mode: "probe" }),
+      verify: verification.verify,
+      describeAttempt: verification.describeAttempt,
+      // 留痕挂在这次写操作上：读回读到了什么，只有这里知道。
+      trace: { operation_id: input.operationId, ...input.debugBase }
+    }).catch(() => undefined);
+  }
+
   async function refreshItemDetailUntilVerified(input: {
     refresh: () => Promise<AccountItemDetail | null>;
-    verify?: (detail: AccountItemDetail) => boolean;
-    onRetry: (attempt: number, total: number) => void;
-  }): Promise<boolean> {
-    const retryDelays = input.verify ? [0, 750, 1_500, 2_500, 4_000, 6_000] : [0];
-    for (let index = 0; index < retryDelays.length; index += 1) {
+    verify: (detail: AccountItemDetail) => boolean;
+    describeAttempt?: (detail: AccountItemDetail) => RefreshedItemVerification;
+    trace?: {
+      operation_id: string;
+      action: ActionLogType;
+      item_name?: string;
+      item_instance_id?: string;
+      character_id?: string;
+    };
+  }): Promise<void> {
+    const retryDelays = SOCKET_PLUG_VERIFY_DELAYS;
+    const totalAttempts = retryDelays.length;
+    const traceBase = input.trace;
+    for (let index = 0; index < totalAttempts; index += 1) {
+      const attempt = index + 1;
       const delay = retryDelays[index];
-      if (delay > 0) {
-        input.onRetry(index + 1, retryDelays.length);
-        await new Promise((resolve) => setTimeout(resolve, delay));
+      if (delay > 0) await new Promise((resolve) => setTimeout(resolve, delay));
+      const startedAt = performance.now();
+      // 后台探针读失败（断网、限流）不是用户的事：记一条继续等，别把写入说成失败。
+      const detail = await input.refresh().catch(() => null);
+      const matched = Boolean(detail) && input.verify(detail as AccountItemDetail);
+      if (matched) {
+        if (traceBase) {
+          recordWriteActionDebug({
+            ...traceBase,
+            phase: "verification-complete",
+            attempt,
+            total_attempts: totalAttempts,
+            duration_ms: performance.now() - startedAt,
+            reflected: true,
+            ok: true
+          });
+        }
+        return;
       }
-      const detail = await input.refresh();
-      if (detail && (!input.verify || input.verify(detail))) return true;
+      if (traceBase) {
+        const description = detail && input.describeAttempt ? input.describeAttempt(detail) : undefined;
+        recordWriteActionDebug({
+          ...traceBase,
+          phase: "verification-read",
+          attempt,
+          total_attempts: totalAttempts,
+          expected_count: description?.expected_count,
+          matched_count: description?.matched_count,
+          duration_ms: performance.now() - startedAt,
+          reflected: false,
+          ok: Boolean(detail),
+          message: description?.message ?? (detail ? "读回的配置与期望不一致" : "这次读取没有返回详情")
+        });
+      }
     }
-    return false;
+    if (traceBase) {
+      recordWriteActionDebug({
+        ...traceBase,
+        phase: "verification-complete",
+        attempt: totalAttempts,
+        total_attempts: totalAttempts,
+        reflected: false,
+        // `ok: false` 只描述**这一次核对**没观察到，不是「写入失败」。同一个窗口里读不到
+        // 而写入其实落地了是常态（2026-09-18 的 op `63e6a903` 就是），别拿它当判据。
+        ok: false,
+        message: `窗口内 ${totalAttempts} 次核对都没有观察到期望的配置（窗口内未观察到，不代表写入失败）`
+      });
+    }
   }
 
   function recordWriteActionDebug(event: ActionDebugTraceInput): void {
@@ -774,12 +966,6 @@ export function useItemDetailWorkspace(input: {
       .catch((error) => {
         console.warn("写操作诊断日志记录失败：", error);
       });
-  }
-
-  function createWriteActionOperationId(): string {
-    return typeof globalThis.crypto?.randomUUID === "function"
-      ? globalThis.crypto.randomUUID()
-      : `item-action-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   }
 
   function resolveWriteActionLogType(
@@ -816,6 +1002,7 @@ export function useItemDetailWorkspace(input: {
     isGeneratingItemAi,
     openItemDetail,
     loadSelectedItemFullDetail,
+    loadSelectedItemDefinition,
     closeSelectedItemDetail,
     setItemNoteDraft,
     setSelectedActionCharacterId,

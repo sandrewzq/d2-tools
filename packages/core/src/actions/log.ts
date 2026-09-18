@@ -26,13 +26,25 @@ export type ActionDebugTracePhase =
   | "submit-start"
   | "submit-complete"
   | "submit-failed"
+  /**
+   * 写没有落地，但也不是失败：Bungie 用 ErrorCode 1679 说「这件装备还有变更在处理中」。
+   *
+   * 单独一档是因为 2026-09-18 那次排查里，这条状态被 `submit-failed` 的措辞盖住了 ——
+   * 留痕看上去像写入失败，实际是「服务器还没来得及处理，而我们已经放弃重试」。
+   */
+  | "submit-deferred"
   | "bungie-request"
   | "account-patch-applied"
   | "account-confirmation-registered"
   | "verification-start"
   | "verification-wait"
   | "verification-read"
-  | "verification-complete";
+  | "verification-complete"
+  /**
+   * 写响应体带回的插槽状态与写入意图不一致。只留痕、不改界面 —— 它是「受理但被静默拒绝」
+   * 这个担心唯一的第一手证据（见 T77 §七）。
+   */
+  | "socket-plug-response-mismatch";
 
 export type ActionDebugTraceInput = {
   operation_id: string;
@@ -41,6 +53,14 @@ export type ActionDebugTraceInput = {
   item_name?: string;
   item_instance_id?: string;
   character_id?: string;
+  /**
+   * 这条留痕是哪个槽位 / 哪个 plug 的写入。
+   *
+   * 2026-09-18 排查「换 Perk 报错」时，留痕里只有 `item_instance_id`，四条 op 到底写的是哪个槽位
+   * 哪个 Perk 只能靠推断补出来。写入调用点本来就知道这两个值，钉进留痕即可。
+   */
+  socket_index?: number;
+  plug_hash?: number;
   attempt?: number;
   total_attempts?: number;
   expected_count?: number;
@@ -53,6 +73,13 @@ export type ActionDebugTraceInput = {
   postprocess_duration_ms?: number;
   elapsed_ms?: number;
   account_available?: boolean;
+  /**
+   * 记录这条留痕时，Bungie 请求漏斗里是否已经持有粘滞 cookie（affinitize）。
+   * 由主进程盖章——jar 住在那里，渲染进程看不见。它是**布尔**，不是 cookie 值。
+   *
+   * 用途：读回不匹配时区分「jar 是空的（亲和性没起来）」和「jar 非空却仍读不回（另有原因）」。
+   */
+  affinity_cookie?: boolean;
   reflected?: boolean;
   ok?: boolean;
   message?: string;

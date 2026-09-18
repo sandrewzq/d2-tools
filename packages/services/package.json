@@ -123,6 +123,10 @@
       "types": "./dist/bungie/client.d.ts",
       "import": "./dist/bungie/client.js"
     },
+    "./bungie/cookies": {
+      "types": "./dist/bungie/cookies.d.ts",
+      "import": "./dist/bungie/cookies.js"
+    },
     "./bungie/actions": {
       "types": "./dist/bungie/actions.d.ts",
       "import": "./dist/bungie/actions.js"

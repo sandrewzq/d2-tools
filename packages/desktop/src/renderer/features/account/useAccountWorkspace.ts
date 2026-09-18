@@ -15,6 +15,7 @@ import {
 } from "../../shared/stores/accountEntityStore";
 import { formatBungieLoginError } from "./loginErrors";
 import { formatAccountLoadFailure } from "./accountLoadError";
+import { expireAcceptedSocketPlugs } from "../../shared/stores/acceptedSocketPlugs";
 import { startRendererPerformanceSpan } from "../../shared/performance/rendererPerformanceDiagnostics";
 
 type DiagnosticsBridge = {
@@ -279,6 +280,9 @@ export function useAccountWorkspace(input: {
           throw new Error("同步返回的账号快照早于页面当前状态，本次结果未应用");
         }
         summary = acceptedSummary;
+        // 完整账号同步是受理状态唯一的合法覆盖者（T78）：窗口内写进来的同步不动它，
+        // 窗口耗尽之后服务器还说是旧的，就认账。
+        expireAcceptedSocketPlugs();
         setIsShowingCachedAccount(false);
         setLastAccountLoadedAt(new Date());
         if (reason === "manual") {

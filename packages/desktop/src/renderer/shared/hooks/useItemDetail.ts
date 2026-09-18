@@ -2,6 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "../../api/client";
 import type { AccountItemDetail, AccountItemSummary, ItemDefinitionDetail, ItemSearchResult, LibraryHistory } from "../../api/types";
 import {
+  applyAcceptedSocketPlugs as buildAcceptedSocketPlugPatch,
+  type AcceptedSocketPlugChange
+} from "@d2-tools/core/account/summary";
+import {
+  recordAcceptedSocketPlugs,
+  settleAcceptedSocketPlugsFromServer,
+  withAcceptedSocketPlugs
+} from "../stores/acceptedSocketPlugs";
+import {
   createSelectedItemPreview,
   getItemKey,
   mergeSelectedItemDetail,
@@ -42,7 +51,30 @@ const sharedAccountDetailRequests = new Map<string, Promise<AccountItemDetail>>(
 const sharedAccountDetailVersions = new Map<string, number>();
 const SHARED_ACCOUNT_DETAIL_CACHE_LIMIT = 120;
 
+/**
+ * 读一件装备的完整实例详情。
+ *
+ * 出口处会叠加「已受理但服务器还没读回来」的换 Perk 结果（见 `shared/stores/acceptedSocketPlugs`）——
+ * 这就是「读取不得覆盖受理状态」那条不变量的落点，所以叠加必须在这一层做，调用方不必各写一遍。
+ *
+ * `serverTruth: true` 给后台探针用：服务器原样、不叠加，只顺带让已对上的受理状态提前退休。
+ */
 export function loadAccountItemDetailCached(
+  instanceId: string,
+  options: { scopeKey?: string; rollFingerprint?: string; force?: boolean; serverTruth?: boolean } = {}
+): Promise<AccountItemDetail> {
+  const read = readAccountItemDetail(instanceId, options);
+  if (options.serverTruth) {
+    return read.then((detail) => {
+      settleAcceptedSocketPlugsFromServer(instanceId, detail);
+      return detail;
+    });
+  }
+  // 只在出口叠加：缓存与 in-flight 去重里存的仍是服务器原样，受理状态永远是从当下重新叠的。
+  return read.then((detail) => withAcceptedSocketPlugs(instanceId, detail));
+}
+
+function readAccountItemDetail(
   instanceId: string,
   options: { scopeKey?: string; rollFingerprint?: string; force?: boolean } = {}
 ): Promise<AccountItemDetail> {
@@ -114,6 +146,7 @@ export function useItemDetail(options: {
   const accountItemDetailCacheRef = useRef(new Map<string, AccountItemDetail>());
   const cacheScopeKeyRef = useRef(cacheScopeKey);
   const requestSequenceRef = useRef(0);
+  const definitionRequestsRef = useRef(new Map<string, Promise<boolean>>());
 
   useEffect(() => {
     if (cacheScopeKeyRef.current !== cacheScopeKey) {
@@ -327,7 +360,69 @@ export function useItemDetail(options: {
     setItemDetailLoadingKey((value) => value === itemKey ? "" : value);
   }
 
-  async function refreshSelectedItemDetail(): Promise<AccountItemDetail | null> {
+  /**
+   * 只补读物品定义的后台读取：给「固有能力」这类只能来自定义、而首屏按规格不自动读定义的内容用。
+   *
+   * 与 `loadSelectedItemFullDetail` 的差别是刻意的（用户口径：打开详情不读完整掉落，完整 Roll 等点按钮再请求）：
+   *
+   * - 不读完整实例 Roll；
+   * - **不置** `detail_loading` / `is_detail_loading` / `itemDetailLoadingKey`：置了宿主会把整份详情退回全屏
+   *   骨架（首屏白屏），而骨架一挂载又会重新触发本函数，读取失败时就是一直在闪；
+   * - 失败只追加一次错误文案，**不自动重试**；重试入口是详情里的显式按钮（走 `loadSelectedItemFullDetail`）。
+   *
+   * 同一件物品单飞：并发调用共享同一个 Promise。返回值表示「定义现在可用」。
+   */
+  async function loadSelectedItemDefinition(): Promise<boolean> {
+    const current = selectedItem;
+    if (!current) return false;
+    const itemKey = current.item_key;
+    const pendingRequest = definitionRequestsRef.current.get(itemKey);
+    if (pendingRequest) return pendingRequest;
+    const definitionHash = current.hash;
+    const requestScopeKey = cacheScopeKeyRef.current;
+    const requestSequence = requestSequenceRef.current;
+    const isCurrent = () => requestSequenceRef.current === requestSequence
+      && cacheScopeKeyRef.current === requestScopeKey;
+    const cached = touchItemDetailCache(itemDetailCacheRef.current, definitionHash);
+    if (cached) {
+      setSelectedItem((value) => value?.item_key === itemKey
+        ? mergeDefinitionWithoutLoadingState(value, cached)
+        : value);
+      return true;
+    }
+    const request = api.getItemDetail(definitionHash).then((detail) => {
+      if (!isCurrent()) return false;
+      itemDetailCacheRef.current.set(definitionHash, detail);
+      evictOldestCacheEntry(itemDetailCacheRef.current, ITEM_DETAIL_CACHE_LIMIT);
+      setSelectedItem((value) => value?.item_key === itemKey
+        ? mergeDefinitionWithoutLoadingState(value, detail)
+        : value);
+      return true;
+    }).catch((error) => {
+      if (!isCurrent()) return false;
+      appendItemDetailError(setItemDetailError, errorMessage(error, "物品定义详情读取失败"));
+      return false;
+    }).finally(() => {
+      if (definitionRequestsRef.current.get(itemKey) === request) {
+        definitionRequestsRef.current.delete(itemKey);
+      }
+    });
+    definitionRequestsRef.current.set(itemKey, request);
+    return request;
+  }
+
+  /**
+   * 写后读回的两种跑法。
+   *
+   * - `interactive`（默认）：用户主动要的读取（手动「重新读取配置」）。照常显示加载态。
+   * - `probe`：后台静默校对。照常走网络、照常写缓存，但**不置加载态、不合并进 `selectedItem`、
+   *   不写错误文案** —— 后台探针只负责「看上有没有」，没有资格改写用户正在看的界面。
+   *   置加载态会让 `.weapon-detail-config-loading-note` 反复挂载/卸载，六列网格跟着上下跳。
+   */
+  async function refreshSelectedItemDetail(
+    options: { mode?: "interactive" | "probe" } = {}
+  ): Promise<AccountItemDetail | null> {
+    const silent = options.mode === "probe";
     const current = selectedItem;
     if (!current?.instance_id) return null;
     const itemKey = current.item_key;
@@ -340,16 +435,20 @@ export function useItemDetail(options: {
     );
     deleteAccountItemDetailCacheEntries(accountItemDetailCacheRef.current, requestScopeKey, instanceId);
     invalidateCachedAccountItemDetail(instanceId, requestScopeKey);
-    setItemDetailError("");
-    setItemDetailLoadingKey(itemKey);
-    setSelectedItem((value) => value?.item_key === itemKey
-      ? withDetailLoadingState(value, { definition: false, instance: true })
-      : value);
+    if (!silent) {
+      setItemDetailError("");
+      setItemDetailLoadingKey(itemKey);
+      setSelectedItem((value) => value?.item_key === itemKey
+        ? withDetailLoadingState(value, { definition: false, instance: true })
+        : value);
+    }
     try {
       const detail = await loadAccountItemDetailCached(instanceId, {
         scopeKey: requestScopeKey,
         rollFingerprint: current.weapon_roll?.fingerprint,
-        force: true
+        force: true,
+        // 探针要的是服务器原样：读到叠了自己乐观值的详情，每轮都会「对上」，永远校不出结果。
+        serverTruth: silent
       });
       if (!isCurrent()) return null;
       accountItemDetailCacheRef.current.set(
@@ -361,22 +460,48 @@ export function useItemDetail(options: {
         detail
       );
       evictOldestCacheEntry(accountItemDetailCacheRef.current, ACCOUNT_ITEM_DETAIL_CACHE_LIMIT);
-      setSelectedItem((value) => value?.item_key === itemKey
-        ? withDetailLoadingState(mergeAccountItemDetail(value, detail), { definition: false, instance: false })
-        : value);
+      if (!silent) {
+        setSelectedItem((value) => value?.item_key === itemKey
+          ? withDetailLoadingState(mergeAccountItemDetail(value, detail), { definition: false, instance: false })
+          : value);
+      }
       return detail;
     } catch (error) {
       if (!isCurrent()) return null;
-      setSelectedItem((value) => value?.item_key === itemKey
-        ? withDetailLoadingState(value, { definition: false, instance: false })
-        : value);
-      setItemDetailError(errorMessage(error, "账号实例详情刷新失败"));
+      if (!silent) {
+        setSelectedItem((value) => value?.item_key === itemKey
+          ? withDetailLoadingState(value, { definition: false, instance: false })
+          : value);
+        setItemDetailError(errorMessage(error, "账号实例详情刷新失败"));
+      }
       throw error;
     } finally {
-      if (isCurrent()) {
+      if (isCurrent() && !silent) {
         setItemDetailLoadingKey((value) => value === itemKey ? "" : value);
       }
     }
+  }
+
+  /**
+   * 把 Bungie 已受理的换 Perk 结果落到本件详情上。
+   *
+   * 受理即权威：不等服务器读回（实测传播延迟可达数分钟，见 T77）。插槽状态在详情上有四份
+   * 并行表示，交给 core 的 `applyAcceptedSocketPlugs` 同源更新。
+   *
+   * 这里做两件事，缺一不可：登记到模块级的受理状态（活得比弹框久，关掉再打开还认得），
+   * 以及就地更新当前这份详情（立刻见效）。只做后者就是 T78 之前那两个 bug。
+   */
+  function applyAcceptedSocketPlugs(
+    instanceId: string,
+    changes: readonly AcceptedSocketPlugChange[]
+  ): void {
+    if (!instanceId || !changes.length) return;
+    recordAcceptedSocketPlugs(instanceId, changes);
+    setSelectedItem((value) => {
+      if (!value || value.instance_id !== instanceId) return value;
+      const patch = buildAcceptedSocketPlugPatch(value, changes);
+      return patch ? { ...value, ...patch } : value;
+    });
   }
 
   function closeSelectedItemDetail() {
@@ -411,7 +536,9 @@ export function useItemDetail(options: {
     itemDetailError,
     openItemDetail,
     loadSelectedItemFullDetail,
+    loadSelectedItemDefinition,
     refreshSelectedItemDetail,
+    applyAcceptedSocketPlugs,
     closeSelectedItemDetail
   };
 }
@@ -507,6 +634,24 @@ function withDetailLoadingState(
     ...item,
     detail_loading: detailLoading,
     is_detail_loading: detailLoading.definition || detailLoading.instance
+  };
+}
+
+/**
+ * 合并定义事实、但**不动**加载态字段。
+ *
+ * `mergeSelectedItemDetail` 会把 `is_detail_loading` 置假、`detail_loaded.definition` 置真——那是「正片读取」
+ * 的语义。后台只补定义时不能这么算：整份详情的加载态只由「正片读取」（打开详情、点完整掉落池、刷新）决定，
+ * 否则一次后台补定义就会把宿主上的 `is_detail_loading` 抹掉，看起来像读完了。
+ */
+function mergeDefinitionWithoutLoadingState(
+  item: SelectedItemDetail,
+  detail: ItemDefinitionDetail
+): SelectedItemDetail {
+  return {
+    ...mergeSelectedItemDetail(item, detail),
+    detail_loading: item.detail_loading,
+    is_detail_loading: item.is_detail_loading
   };
 }
 

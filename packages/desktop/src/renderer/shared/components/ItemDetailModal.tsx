@@ -17,10 +17,16 @@ import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import type { ItemSearchResult } from "../../api/types";
 import type { LiveItemAvailabilityEntry } from "@d2-tools/core/items/liveAvailability";
+import {
+  acceptedSocketPlugsReflected,
+  summarizeAcceptedSocketPlugs,
+  type AcceptedSocketPlugChange
+} from "@d2-tools/core/account/summary";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { getItemKey, selectedItemToAccountItem, type ArmorDetailViewModel, type WeaponDetailViewModel } from "@d2-tools/app/items";
 import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
+import { createWriteActionOperationId, type ItemWriteActionOptions, type ItemWriteActionOutcome } from "../hooks/useItemDetailWorkspace";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
 import { ArmorDetailContent, DetailInstanceActionPanel, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
@@ -83,16 +89,11 @@ type ItemDetailReadyProps = {
   onRunItemWriteAction: (
     label: string,
     action: () => Promise<ItemActionResult>,
-    options?: {
-      keepDetailOpen?: boolean;
-      feedbackScope?: "global" | "detail";
-      onProgress?: (phase: "submitting" | "refreshing", message: string) => void;
-      verifyRefreshedItem?: (detail: AccountItemDetail) => boolean;
-      refreshMismatchMessage?: string;
-      expectedAccountPatch?: AccountItemActionPatch;
-    }
-  ) => Promise<{ ok: boolean; refreshed: boolean; message: string; cancelled?: boolean }>;
+    options?: ItemWriteActionOptions
+  ) => Promise<ItemWriteActionOutcome>;
   onLoadSelectedItemFullDetail: () => Promise<void>;
+  /** 只补读物品定义（不读完整实例 Roll、不动整份详情的加载态）；给「固有能力」这类只能来自定义的格子用。 */
+  onLoadSelectedItemDefinition: () => Promise<boolean>;
   onRefreshSelectedItemDetail: () => Promise<AccountItemDetail | null>;
   onActivateItemDetailSection: (section: "configuration" | "overview" | "recommendations" | "upgrades" | "analysis") => void;
   onSaveSelectedItemNote: () => void;
@@ -297,6 +298,10 @@ function ItemDetailReadyContent(
               loadConfiguration: selectedItem.detail_loaded?.definition && selectedItem.detail_loaded?.instance
                 ? undefined
                 : props.onLoadSelectedItemFullDetail,
+              // 固有能力这类「只能来自定义」的格子走后台补读：不读完整 Roll、不把整份详情退回全屏骨架。
+              loadDefinition: selectedItem.detail_loaded?.definition
+                ? undefined
+                : props.onLoadSelectedItemDefinition,
               stagePerk: (column, perk) => {
                 if (props.isRunningItemAction) return;
                 setPerkWriteFeedback({ status: "idle" });
@@ -317,69 +322,96 @@ function ItemDetailReadyContent(
                 setPerkWriteFeedback({ status: "idle" });
               },
               applyPendingPerks: async () => {
+                // 重入闸：一次只能有一个写操作在飞。少了它，用户在一件装备已有变更在 Bungie
+                // 那边处理时再点一次「应用」，第二次必然吃 ErrorCode 1679（2026-09-18 那次
+                // 「武器配置未更新 / 需要处理」就是这么来的，见 T80）。
+                if (props.isRunningItemAction) return;
                 const changes = Object.entries(pendingPerks).map(([socketIndex, plugHash]) => ({
                   socketIndex: Number(socketIndex),
                   plugHash
                 }));
                 if (!changes.length || !selectedItem.instance_id || !props.selectedActionCharacterId) return;
-                setPerkWriteFeedback({ status: "submitting", message: `正在提交 ${changes.length} 项 Perk 更改...` });
-                const outcome = await props.onRunItemWriteAction("应用武器配置到", () => api.applySocketPlugs({
+                const instanceId = selectedItem.instance_id;
+                // 同一份 payload 既是发给写接口的请求，也是受理后落到本地的依据：两处永远一致。
+                const pluginChanges = toAcceptedSocketPlugChanges(changes, selectedItem.sockets);
+                const outcome = await props.onRunItemWriteAction("应用武器配置", () => api.applySocketPlugs({
                   membership_type: props.accountSummary?.membership_type ?? 0,
                   character_id: selectedItemCharacterId ?? props.selectedActionCharacterId,
                   item_id: selectedItem.instance_id ?? "",
                   item_name: selectedItem.name,
-                  changes: changes.map((change) => ({
-                    socket_index: change.socketIndex,
-                    plug_hash: change.plugHash,
-                    plug_name: selectedItem.sockets
-                      ?.find((socket) => socket.socket_index === change.socketIndex)
-                      ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash)?.name
-                  }))
+                  changes: pluginChanges
                 }), {
                   keepDetailOpen: true,
                   feedbackScope: "detail",
                   onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message }),
-                  verifyRefreshedItem: (detail) => hasAppliedPerkChanges(detail, changes),
-                  refreshMismatchMessage: "Perk 更改请求已受理，但连续自动读取后游戏服务仍返回旧配置，当前配置尚未确认。请稍后重新读取。"
+                  // 受理即权威：写接口返回成功就把本地配置改成新选的 Perk，不等服务器读回。
+                  acceptedSocketChanges: { instance_id: instanceId, changes: pluginChanges },
+                  // 后台看服务器什么时候跟上。它不阻塞、不报错、也不会把旧配置弹回来；对没对上
+                  // 都只留痕，**不据此改面板文案** —— 面板没有资格替服务器说「已确认」（见 T78）。
+                  backgroundVerification: {
+                    verify: (detail) => acceptedSocketPlugsReflected(detail, pluginChanges),
+                    describeAttempt: (detail) => summarizeAcceptedSocketPlugs(detail, pluginChanges)
+                  }
                 });
                 if (outcome.cancelled) {
                   setPerkWriteFeedback({ status: "idle" });
+                  return;
+                }
+                if (outcome.deferred) {
+                  // 中性态：没提交成功，但也不是失败。保留待应用选择，用户可以稍后重试。
+                  setPerkWriteFeedback({ status: "deferred", message: outcome.message });
                   return;
                 }
                 if (!outcome.ok) {
                   setPerkWriteFeedback({ status: "error", message: outcome.message });
                   return;
                 }
-                if (!outcome.refreshed) {
-                  setPerkWriteFeedback({ status: "refresh-error", message: outcome.message });
-                  return;
-                }
                 setPendingPerks({});
-                setPerkWriteFeedback({ status: "success", message: outcome.message });
+                setPerkWriteFeedback({ status: "submitted", message: outcome.message });
               },
               refreshConfiguration: async () => {
-                const clearPendingAfterRefresh = perkWriteFeedback.status === "refresh-error";
+                const pendingChanges = toAcceptedSocketPlugChanges(
+                  Object.entries(pendingPerks).map(([socketIndex, plugHash]) => ({
+                    socketIndex: Number(socketIndex),
+                    plugHash
+                  })),
+                  selectedItem.sockets
+                );
                 setPerkWriteFeedback({ status: "refreshing", message: "正在读取服务器当前配置..." });
                 try {
+                  const startedAt = performance.now();
                   const detail = await props.onRefreshSelectedItemDetail();
-                  if (clearPendingAfterRefresh && (!detail || !hasAppliedPerkChanges(
-                    detail,
-                    Object.entries(pendingPerks).map(([socketIndex, plugHash]) => ({
-                      socketIndex: Number(socketIndex),
-                      plugHash
-                    }))
-                  ))) {
-                    setPerkWriteFeedback({
-                      status: "refresh-error",
-                      message: "游戏服务返回的仍是旧配置，请稍后再次读取。"
-                    });
-                    return;
-                  }
-                  if (clearPendingAfterRefresh) setPendingPerks({});
-                  setPerkWriteFeedback({ status: "success", message: "已读取服务器最新配置。" });
+                  const verification = detail
+                    ? summarizeAcceptedSocketPlugs(detail, pendingChanges)
+                    : undefined;
+                  const reflected = detail
+                    ? acceptedSocketPlugsReflected(detail, pendingChanges)
+                    : false;
+                  // 用户手动重读也留一条痕：截图里那两次失败就是走的这条路，
+                  // 没有这条留痕就看不出当时究竟读到了什么。
+                  void api.recordActionDebugTrace({
+                    operation_id: createWriteActionOperationId(),
+                    action: "insert-socket-plug",
+                    phase: "verification-read",
+                    item_name: selectedItem.name,
+                    item_instance_id: selectedItem.instance_id ?? undefined,
+                    character_id: props.selectedActionCharacterId ?? undefined,
+                    expected_count: verification?.expected_count ?? pendingChanges.length,
+                    matched_count: verification?.matched_count ?? 0,
+                    duration_ms: performance.now() - startedAt,
+                    reflected,
+                    ok: Boolean(detail),
+                    message: verification?.message ?? (detail ? undefined : "手动重读没有返回详情")
+                  }).catch((error) => {
+                    console.warn("写操作诊断日志记录失败：", error);
+                  });
+                  // 读到的是旧值不等于读取失败 —— 实测传播延迟可以到几分钟。这里只如实说
+                  // 「读到了服务器当前配置」，不对「有没有换成新的」下任何断言（见 T78）。
+                  if (reflected) setPendingPerks({});
+                  setPerkWriteFeedback({ status: "reloaded", message: "已读取服务器当前配置。" });
                 } catch (error) {
                   setPerkWriteFeedback({
-                    status: "refresh-error",
+                    status: "error",
                     message: error instanceof Error ? error.message : "配置刷新失败，请稍后重试。"
                   });
                 }
@@ -510,13 +542,18 @@ function resolveRecommendationEvidenceStatus(
   return "ready";
 }
 
-function hasAppliedPerkChanges(
-  detail: AccountItemDetail,
-  changes: ReadonlyArray<{ socketIndex: number; plugHash: number }>
-): boolean {
-  return changes.every((change) => detail.sockets
-    .find((socket) => socket.socket_index === change.socketIndex)
-    ?.selected_plug?.hash === change.plugHash);
+/** 待选项（`pendingPerks` 的形状）转成受理变更。写接口请求与本地核对必须发同一份，别再各拼一遍。 */
+function toAcceptedSocketPlugChanges(
+  changes: ReadonlyArray<{ socketIndex: number; plugHash: number }>,
+  sockets: SelectedItemDetail["sockets"]
+): AcceptedSocketPlugChange[] {
+  return changes.map((change) => ({
+    socket_index: change.socketIndex,
+    plug_hash: change.plugHash,
+    plug_name: sockets
+      ?.find((socket) => socket.socket_index === change.socketIndex)
+      ?.reusable_plugs.find((candidate) => candidate.hash === change.plugHash)?.name
+  }));
 }
 
 function ItemDetailInstanceActions(input: {

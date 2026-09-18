@@ -6,6 +6,8 @@
 
 d2-tools 是本地运行的桌面工具。配置、Bungie OAuth token、Manifest 与账号缓存、仓库标签、备注、应用配装、操作日志和 AI 配置默认保存在当前电脑的数据目录中。
 
+数据目录里还有一个 `bungie-affinity.json`：它是 Bungie 接口的负载均衡粘滞标识（Bungie 在响应里下发的 `set-cookie`）。它**不是凭据**，不包含账号、token 或密钥，只是让后续请求落到同一台后端、从而能读到自己刚写入的结果；删除它不会影响登录，只会让写入后的第一次读取可能需要多读几次。它只发给 `bungie.net`。
+
 Windows 默认目录为：
 
 ```text

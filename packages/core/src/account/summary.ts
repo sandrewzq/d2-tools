@@ -502,6 +502,165 @@ export type AccountItemDetailQuery = {
   character_id?: string;
 };
 
+/** 一条「Bungie 已受理」的换 Perk 意图：写接口受理即视为权威，不等服务器读回。 */
+export type AcceptedSocketPlugChange = {
+  socket_index: number;
+  plug_hash: number;
+  plug_name?: string;
+};
+
+/** 承载插槽四视图的宿主。`AccountItemDetail` 与渲染层的 `SelectedItemDetail` 都满足。 */
+export type AcceptedSocketPlugTarget = {
+  sockets?: AccountItemSocketSummary[];
+  socket_plugs?: AccountItemPlugSummary[];
+  weapon_roll?: AccountWeaponRollSummary;
+};
+
+/** 受理结果落到详情上的**增量**：调用方 `{ ...detail, ...patch }` 即可。 */
+export type AcceptedSocketPlugPatch = {
+  sockets: AccountItemSocketSummary[];
+  socket_plugs: AccountItemPlugSummary[];
+  weapon_roll?: AccountWeaponRollSummary;
+};
+
+/**
+ * 把已受理的换 Perk 结果算成一份增量。纯函数，无 I/O。
+ *
+ * 「这个槽位现在装着谁」在详情里有**四份并行表示**，必须同源更新，否则同一屏的不同区域会互相打架：
+ *
+ * | 表示 | 谁读它 |
+ * |---|---|
+ * | `sockets[].selected_plug` | 配置列、完整掉落池的「当前」 |
+ * | `sockets[].reusable_plugs[].selected` | 本件 Roll 的每个格子（`buildWeaponDetailView` 的 `selected`） |
+ * | `socket_plugs[]`（由 `selected_plug` 派生） | 同名的另一处消费点 |
+ * | `weapon_roll.sockets[].current_plug` + `owned_plugs[].selected` + `fingerprint` | 推荐对照区、缓存键 |
+ *
+ * 前两份漏掉任何一份，都会出现「新旧两项同时显示当前启用」。
+ *
+ * 定位不到 `socket_index` 的条目整条跳过（不新增槽位）；一条都没落上时返回 `null`，调用方保持原对象。
+ */
+export function applyAcceptedSocketPlugs(
+  detail: AcceptedSocketPlugTarget,
+  changes: readonly AcceptedSocketPlugChange[]
+): AcceptedSocketPlugPatch | null {
+  const currentSockets = detail.sockets;
+  if (!changes.length || !currentSockets?.length) return null;
+  const byIndex = new Map(changes.map((change) => [change.socket_index, change]));
+  let applied = false;
+  const sockets = currentSockets.map((socket) => {
+    const change = byIndex.get(socket.socket_index);
+    if (!change) return socket;
+    applied = true;
+    return {
+      ...socket,
+      selected_plug: buildAcceptedPlugSummary(socket, change),
+      // 同一槽位内至多一条 `selected`，且必然是新的这一条 —— 两份表示说的是同一件事。
+      reusable_plugs: socket.reusable_plugs.map((plug) => (
+        markPlugSelected(plug, plug.hash === change.plug_hash)
+      ))
+    };
+  });
+  if (!applied) return null;
+  const weaponRoll = detail.weapon_roll
+    ? applyAcceptedSocketPlugsToWeaponRoll(detail.weapon_roll, sockets, byIndex)
+    : undefined;
+  return {
+    sockets,
+    // 与 buildAccountItemDetailFromResponse 用的是同一条派生，不要手写第二份。
+    socket_plugs: sockets.flatMap((socket) => (
+      socket.is_visible && socket.selected_plug ? [socket.selected_plug] : []
+    )),
+    ...(weaponRoll ? { weapon_roll: weaponRoll } : {})
+  };
+}
+
+/**
+ * 「服务器有没有吐回这些变更」的判据**只写一次**：受理状态提前退休、后台核对的留痕、
+ * 手动重读的对照都读它。空变更视为已反映。
+ */
+export function summarizeAcceptedSocketPlugs(
+  detail: AcceptedSocketPlugTarget,
+  changes: readonly AcceptedSocketPlugChange[]
+): { expected_count: number; matched_count: number; message?: string } {
+  const mismatches: string[] = [];
+  let matchedCount = 0;
+  for (const change of changes) {
+    const actual = detail.sockets
+      ?.find((socket) => socket.socket_index === change.socket_index)
+      ?.selected_plug?.hash;
+    if (actual === change.plug_hash) {
+      matchedCount += 1;
+      continue;
+    }
+    mismatches.push(`插槽 ${change.socket_index}：期望 ${change.plug_hash}，读到 ${actual ?? "（无）"}`);
+  }
+  return {
+    expected_count: changes.length,
+    matched_count: matchedCount,
+    message: mismatches.length ? mismatches.join("；") : undefined
+  };
+}
+
+export function acceptedSocketPlugsReflected(
+  detail: AcceptedSocketPlugTarget,
+  changes: readonly AcceptedSocketPlugChange[]
+): boolean {
+  const summary = summarizeAcceptedSocketPlugs(detail, changes);
+  return summary.matched_count === summary.expected_count;
+}
+
+function applyAcceptedSocketPlugsToWeaponRoll(
+  weaponRoll: AccountWeaponRollSummary,
+  sockets: readonly AccountItemSocketSummary[],
+  byIndex: ReadonlyMap<number, AcceptedSocketPlugChange>
+): AccountWeaponRollSummary {
+  let touched = false;
+  const rollSockets = weaponRoll.sockets.map((socket) => {
+    const change = byIndex.get(socket.socket_index);
+    const plug = sockets.find((entry) => entry.socket_index === socket.socket_index)?.selected_plug;
+    if (!change || !plug) return socket;
+    touched = true;
+    return {
+      ...socket,
+      current_plug: {
+        hash: plug.hash,
+        name: plug.name,
+        selected: true,
+        ...(plug.icon ? { icon: plug.icon } : {}),
+        ...(plug.description ? { description: plug.description } : {}),
+        ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
+        ...(plug.item_type ? { item_type: plug.item_type } : {})
+      },
+      // 与 `current_plug` 说的是同一件事：推荐对照区的「当前启用」读的正是这份标记。
+      owned_plugs: socket.owned_plugs.map((owned) => markPlugSelected(owned, owned.hash === plug.hash))
+    };
+  });
+  if (!touched) return weaponRoll;
+  return { ...weaponRoll, fingerprint: weaponRollFingerprint(rollSockets), sockets: rollSockets };
+}
+
+/** 只在该翻的时候翻：没变化就返回原引用，省掉一次无谓的浅拷贝。 */
+function markPlugSelected<T extends { hash: number; selected?: boolean }>(plug: T, selected: boolean): T {
+  return (plug.selected ?? false) === selected ? plug : { ...plug, selected };
+}
+
+function buildAcceptedPlugSummary(
+  socket: AccountItemSocketSummary,
+  change: AcceptedSocketPlugChange
+): AccountItemPlugSummary {
+  const candidate = socket.reusable_plugs.find((plug) => plug.hash === change.plug_hash);
+  const name = change.plug_name?.trim() || candidate?.name.trim() || String(change.plug_hash);
+  return {
+    hash: change.plug_hash,
+    socket_index: socket.socket_index,
+    name,
+    ...(candidate?.icon ? { icon: candidate.icon } : {}),
+    ...(candidate?.description ? { description: candidate.description } : {}),
+    ...(candidate?.category_identifier ? { category_identifier: candidate.category_identifier } : {}),
+    ...(candidate?.item_type ? { item_type: candidate.item_type } : {})
+  };
+}
+
 export type AccountDefinitionRequest = {
   itemHashes: number[];
   bucketHashes: number[];
