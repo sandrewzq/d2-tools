@@ -58,6 +58,12 @@ export function AppShell(props: AppShellProps) {
   }, [props.colorMode, props.platformActions]);
 
   useEffect(() => {
+    // <html data-theme> 是 color_mode 在壳外的投影（启动回退屏、body 底色），由 preload 赶在第一帧前写上。
+    // 这里保证设置页改主题时它跟着壳内一起变，两处不会漂移。
+    document.documentElement.dataset.theme = props.colorMode;
+  }, [props.colorMode]);
+
+  useEffect(() => {
     setIsMobileStatusOpen(false);
   }, [props.activePage]);
 

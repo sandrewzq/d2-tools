@@ -138,6 +138,29 @@ import type {
 } from "../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../shared/updateTypes.js";
 
+/*
+ * 启动回退屏（App.tsx 的「正在启动 d2-tools...」/「加载中...」）挂在 #root 下，在 .app-shell 之外，
+ * 拿不到壳上的 data-color-mode。不在这里先把 color_mode 写到 <html> 上，亮色模式下这段启动画面
+ * 会吃 :root 的深色值，看着就是一块黑。
+ *
+ * 真源仍是 config.features.color_mode（主进程读，通过 --d2-color-mode 传进来）；
+ * <html data-theme> 与 .app-shell[data-color-mode] 是它在不同 DOM 范围上的投影，不是两套口径。
+ */
+const initialColorMode = process.argv
+  .find((argument) => argument.startsWith("--d2-color-mode="))
+  ?.slice("--d2-color-mode=".length);
+
+function applyInitialColorMode(): void {
+  if (initialColorMode !== "light" && initialColorMode !== "dark") return;
+  const root = document.documentElement;
+  if (!root) return;
+  root.dataset.theme = initialColorMode;
+}
+
+applyInitialColorMode();
+// 兜底：极少数情况下 preload 跑在 documentElement 就绪之前，解析完再补一次。
+document.addEventListener("DOMContentLoaded", applyInitialColorMode, { once: true });
+
 const accountSnapshotChangedChannel: typeof import("../contracts/account.js").accountSnapshotChangedChannel =
   "account:snapshot:changed";
 

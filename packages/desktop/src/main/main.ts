@@ -52,7 +52,7 @@ async function createWindow(): Promise<void> {
     height: isVisualCapture ? captureHeight : 1080,
     minWidth: 980,
     minHeight: 680,
-    show: !isVisualCapture,
+    show: false,
     title: "d2-tools",
     icon: appIcon,
     autoHideMenuBar: true,
@@ -62,8 +62,24 @@ async function createWindow(): Promise<void> {
       preload: join(currentDir, "../preload/preload.cjs"),
       contextIsolation: true,
       nodeIntegration: false,
-      backgroundThrottling: !isVisualCapture
+      backgroundThrottling: !isVisualCapture,
+      // 启动回退屏挂在 #root 下、在 .app-shell 之外，拿不到壳上的 data-color-mode。
+      // 把 color_mode 传给 preload，让它赶在第一帧之前写到 <html data-theme>。
+      additionalArguments: [`--d2-color-mode=${initialColorMode}`]
     }
+  });
+
+  // 窗口在渲染出内容之前根本不显示（T75 修法 A）。
+  // did-fail-load 是兜底：页面加载失败也得把窗口放出来，否则看上去像没启动。
+  let revealed = false;
+  const revealWindow = () => {
+    if (revealed || isVisualCapture) return;
+    revealed = true;
+    window.show();
+  };
+  window.once("ready-to-show", revealWindow);
+  window.webContents.once("did-fail-load", (_event, _code, _description, _url, isMainFrame) => {
+    if (isMainFrame) revealWindow();
   });
 
   if (isDevelopment) {

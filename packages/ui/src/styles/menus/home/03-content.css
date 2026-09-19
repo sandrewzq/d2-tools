@@ -271,7 +271,8 @@
   box-shadow: 0 0 0 2px var(--focus-ring);
 }
 
-:where(.app-shell) .weekly-activity-reward.is-pending {
+:where(.app-shell) .weekly-activity-reward.is-pending,
+:where(.app-shell) .weekly-activity-reward.is-error {
   grid-template-columns: 1fr;
 }
 

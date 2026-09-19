@@ -47,7 +47,7 @@ export type VaultAccountStoreSnapshot = Pick<
 > & {
   characters: Array<Pick<
     AccountSummary["characters"][number],
-    "character_id" | "class_name" | "light" | "loadout_slots"
+    "character_id" | "class_name" | "light" | "emblem_url" | "loadout_slots"
   > & {
     equipped_items: AccountItemSummary[];
     inventory_items: AccountItemSummary[];
@@ -592,6 +592,7 @@ function denormalizeVaultAccountSnapshot(
         character_id: character.character_id,
         class_name: character.class_name,
         light: character.light,
+        emblem_url: character.emblem_url,
         loadout_slots: character.loadout_slots,
         equipped_items: items(character.equippedItemKeys),
         inventory_items: items(character.inventoryItemKeys),

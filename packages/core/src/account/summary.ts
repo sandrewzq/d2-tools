@@ -188,8 +188,11 @@ export type AccountItemPlugObjectiveSummary = {
 
 export type AccountItemReusablePlugSource = "instance" | "character" | "profile" | "manifest";
 
+/**
+ * 候选列表里的一条。**不带 `selected`**：这一项是不是当前装的，由读取方拿 `hash` 与
+ * `socket.selected_plug?.hash` 比较得出，不另存一份会漂移的副本（T79）。
+ */
 export type AccountItemReusablePlugSummary = AccountItemPlugSummary & {
-  selected: boolean;
   can_insert?: boolean;
   enabled?: boolean;
   insert_fail_indexes: number[];
@@ -221,6 +224,10 @@ export type AccountWeaponRollIncompleteReason =
   | "missing_plug_definition"
   | "unclassified_socket";
 
+/**
+ * Roll 里的一条。**不带 `selected`**：是不是当前项由读取方拿 `hash` 与
+ * `current_plug?.hash` 比较得出（T79）。
+ */
 export type AccountWeaponRollPlugSummary = {
   hash: number;
   name: string;
@@ -228,7 +235,6 @@ export type AccountWeaponRollPlugSummary = {
   description?: string;
   category_identifier?: string;
   item_type?: string;
-  selected: boolean;
 };
 
 export type AccountWeaponRollSocketSummary = {
@@ -526,16 +532,11 @@ export type AcceptedSocketPlugPatch = {
 /**
  * 把已受理的换 Perk 结果算成一份增量。纯函数，无 I/O。
  *
- * 「这个槽位现在装着谁」在详情里有**四份并行表示**，必须同源更新，否则同一屏的不同区域会互相打架：
- *
- * | 表示 | 谁读它 |
- * |---|---|
- * | `sockets[].selected_plug` | 配置列、完整掉落池的「当前」 |
- * | `sockets[].reusable_plugs[].selected` | 本件 Roll 的每个格子（`buildWeaponDetailView` 的 `selected`） |
- * | `socket_plugs[]`（由 `selected_plug` 派生） | 同名的另一处消费点 |
- * | `weapon_roll.sockets[].current_plug` + `owned_plugs[].selected` + `fingerprint` | 推荐对照区、缓存键 |
- *
- * 前两份漏掉任何一份，都会出现「新旧两项同时显示当前启用」。
+ * 「这个槽位现在装着谁」只认一处真源：`sockets[].selected_plug`。其余视图都不再另存副本 ——
+ * `socket_plugs[]` 由它 `flatMap` 派生，`weapon_roll.sockets[].current_plug` 与 `fingerprint`
+ * 由它推导。原来 `reusable_plugs[].selected` 与 `owned_plugs[].selected` 各存一份布尔副本，
+ * 漏改任何一份都会让同一屏出现「新旧两项同时显示当前启用」（T78）；删除副本、读取方一律
+ * 从真源现算之后，这类漂移在结构上不再可能（T79）。
  *
  * 定位不到 `socket_index` 的条目整条跳过（不新增槽位）；一条都没落上时返回 `null`，调用方保持原对象。
  */
@@ -551,14 +552,8 @@ export function applyAcceptedSocketPlugs(
     const change = byIndex.get(socket.socket_index);
     if (!change) return socket;
     applied = true;
-    return {
-      ...socket,
-      selected_plug: buildAcceptedPlugSummary(socket, change),
-      // 同一槽位内至多一条 `selected`，且必然是新的这一条 —— 两份表示说的是同一件事。
-      reusable_plugs: socket.reusable_plugs.map((plug) => (
-        markPlugSelected(plug, plug.hash === change.plug_hash)
-      ))
-    };
+    // 只写真源。候选列表的「当前启用」不在这里改，读侧自己拿 hash 比。
+    return { ...socket, selected_plug: buildAcceptedPlugSummary(socket, change) };
   });
   if (!applied) return null;
   const weaponRoll = detail.weapon_roll
@@ -625,23 +620,15 @@ function applyAcceptedSocketPlugsToWeaponRoll(
       current_plug: {
         hash: plug.hash,
         name: plug.name,
-        selected: true,
         ...(plug.icon ? { icon: plug.icon } : {}),
         ...(plug.description ? { description: plug.description } : {}),
         ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
         ...(plug.item_type ? { item_type: plug.item_type } : {})
-      },
-      // 与 `current_plug` 说的是同一件事：推荐对照区的「当前启用」读的正是这份标记。
-      owned_plugs: socket.owned_plugs.map((owned) => markPlugSelected(owned, owned.hash === plug.hash))
+      }
     };
   });
   if (!touched) return weaponRoll;
   return { ...weaponRoll, fingerprint: weaponRollFingerprint(rollSockets), sockets: rollSockets };
-}
-
-/** 只在该翻的时候翻：没变化就返回原引用，省掉一次无谓的浅拷贝。 */
-function markPlugSelected<T extends { hash: number; selected?: boolean }>(plug: T, selected: boolean): T {
-  return (plug.selected ?? false) === selected ? plug : { ...plug, selected };
 }
 
 function buildAcceptedPlugSummary(
@@ -2085,7 +2072,6 @@ function summarizeSockets(input: {
         const next = buildReusablePlugSummary(
           candidate,
           source,
-          selectedHash,
           objectives,
           input.definitions,
           input.objectiveDefinitions
@@ -2094,7 +2080,6 @@ function summarizeSockets(input: {
           reusableByHash.set(candidate.plugItemHash, next);
           continue;
         }
-        existing.selected ||= next.selected;
         existing.can_insert = existing.can_insert ?? next.can_insert;
         existing.enabled = existing.enabled ?? next.enabled;
         existing.insert_fail_indexes = existing.insert_fail_indexes.length
@@ -2172,14 +2157,10 @@ function summarizeWeaponRoll(
     const currentHash = typeof socket.plugHash === "number" ? socket.plugHash : undefined;
     const ownedByHash = new Map<number, AccountWeaponRollPlugSummary>();
     let missingDefinition = false;
-    const addPlug = (hash: number, selected: boolean): void => {
+    const addPlug = (hash: number): void => {
       const definition = definitions[String(hash)] as DefinitionRecord | undefined;
       if (!definition) missingDefinition = true;
-      const existing = ownedByHash.get(hash);
-      if (existing) {
-        existing.selected ||= selected;
-        return;
-      }
+      if (ownedByHash.has(hash)) return;
       ownedByHash.set(hash, {
         hash,
         name: definition?.displayProperties?.name?.trim() || `Plug ${hash}`,
@@ -2192,15 +2173,14 @@ function summarizeWeaponRoll(
         ...(definition?.plug?.plugCategoryIdentifier
           ? { category_identifier: definition.plug.plugCategoryIdentifier }
           : {}),
-        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {}),
-        selected
+        ...(definition?.itemTypeDisplayName ? { item_type: definition.itemTypeDisplayName } : {})
       });
     };
 
     for (const plug of reusableBySocket[String(socketIndex)] ?? []) {
-      if (typeof plug.plugItemHash === "number") addPlug(plug.plugItemHash, plug.plugItemHash === currentHash);
+      if (typeof plug.plugItemHash === "number") addPlug(plug.plugItemHash);
     }
-    if (currentHash !== undefined) addPlug(currentHash, true);
+    if (currentHash !== undefined) addPlug(currentHash);
 
     const ownedPlugs = [...ownedByHash.values()];
     const role = classifyWeaponRollSocket(ownedPlugs);
@@ -2381,14 +2361,12 @@ function weaponRollFingerprint(sockets: readonly AccountWeaponRollSocketSummary[
 function buildReusablePlugSummary(
   plug: DestinyItemPlugState,
   source: AccountItemReusablePlugSource,
-  selectedHash: number | undefined,
   objectives: DestinyObjectiveProgress[] | undefined,
   definitions: DefinitionComponentData,
   objectiveDefinitions: DefinitionComponentData
 ): AccountItemReusablePlugSummary {
   return {
     ...buildPlugSummary(plug.plugItemHash, objectives, definitions, objectiveDefinitions),
-    selected: plug.plugItemHash === selectedHash,
     can_insert: plug.canInsert,
     enabled: plug.enabled,
     insert_fail_indexes: plug.insertFailIndexes ?? [],

@@ -4,6 +4,11 @@ import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { D2Services } from "@d2-tools/services";
 import { runQuery, type QueryState } from "../queryState.js";
 import { loadFullAccountWorkspace } from "./accountDerived.js";
+import {
+  buildAccountCharacterTabs,
+  type AccountCharacterTab,
+  type AccountCharacterTabSource
+} from "./characterTabs.js";
 import type { VaultItemSourceKind, VaultLocatedItem } from "./vaultList.js";
 
 export type VaultPageModel = {
@@ -11,6 +16,7 @@ export type VaultPageModel = {
   vaultItemCount: number;
   currentCharacterId: string;
   currentCharacterLabel: string;
+  characterTabs: AccountCharacterTab[];
   activeLoadoutLookup: {
     instanceIds: Set<string>;
     bucketHashKeys: Set<string>;
@@ -25,16 +31,14 @@ export type VaultPageWorkspace = VaultPageModel;
 
 export type VaultPageInput = {
   account: {
-    characters: Array<{
-      character_id: string;
-      class_name: string;
-      equipped_items: AccountItemSummary[];
-      inventory_items: AccountItemSummary[];
-      postmaster_items: AccountItemSummary[];
-    }>;
+    characters: Array<
+      AccountCharacterTabSource["characters"][number]
+      & { postmaster_items: AccountItemSummary[] }
+    >;
     vault: { item_count?: number; items: AccountItemSummary[] };
   };
-  selectedCharacterId: string;
+  /** 不传时回落到账号里的第一个角色；调用方通常传入当前选中的角色。 */
+  selectedCharacterId?: string;
   activeLoadoutLookup: VaultPageModel["activeLoadoutLookup"];
   activeLoadoutName?: string;
   tags: VaultTags;
@@ -54,7 +58,6 @@ export async function loadVaultPageWorkspace(
 
     return createVaultPageWorkspace({
       account,
-      selectedCharacterId: account.characters[0]?.character_id ?? "",
       activeLoadoutLookup: null,
       tags: accountWorkspace.data.tags,
       targetRules: accountWorkspace.data.targetRules
@@ -77,6 +80,7 @@ export function createVaultPageWorkspace(input: VaultPageInput): VaultPageWorksp
     vaultItemCount: input.account.vault.item_count ?? input.account.vault.items.length,
     currentCharacterId,
     currentCharacterLabel,
+    characterTabs: buildAccountCharacterTabs(input.account, currentCharacterId),
     activeLoadoutLookup: input.activeLoadoutLookup,
     activeLoadoutName: input.activeLoadoutName,
     tags: input.tags,

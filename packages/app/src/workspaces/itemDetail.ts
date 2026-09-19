@@ -260,7 +260,6 @@ function buildPreviewSocketsFromWeaponRoll(
   );
 
   return weaponRoll.sockets.map((socket) => {
-    const currentHash = socket.current_plug?.hash;
     const plugByHash = new Map(socket.owned_plugs.map((plug) => [plug.hash, plug]));
     if (socket.current_plug) plugByHash.set(socket.current_plug.hash, socket.current_plug);
     const toPlug = (plug: (typeof socket.owned_plugs)[number]) => ({
@@ -277,7 +276,6 @@ function buildPreviewSocketsFromWeaponRoll(
       selected_plug: selectedPlug,
       reusable_plugs: [...plugByHash.values()].map((plug) => ({
         ...toPlug(plug),
-        selected: plug.hash === currentHash || plug.selected,
         can_insert: false,
         enabled: false,
         insert_fail_indexes: [],

@@ -1,6 +1,6 @@
 # T81：首页掉落池条目跳进本周刷取
 
-> 状态：🟢 **跳转与定位已实现**（2026-09-18 拍板只做跳转）；**标记待做**
+> 状态：✅ 已通过实窗验收（2026-09-19）。范围是 2026-09-18 拍板的「只做跳转」；原始诉求里的「标记（已持有 / 推荐）」经 2026-09-19 确认不做，见 §五。
 > 来源：T74 第九节第 1 条（2026-09-18 拍板单独开号）。
 > 关联：T74（掉落池数据）、T45（本周刷取面板，跳转落点是它定的）。
 
@@ -57,16 +57,19 @@
 本机缓存的当周轮换 4 个活动（国王的陨落 1374392663、最后一愿 2122313384、二象性 2823159265、
 晚星之主 300092127）拼出的 key 全部命中。
 
-## 五、待做：条目上的标记
+## 五、条目上的标记：确认不做（2026-09-19）
 
-标记（已持有 / 推荐）本次不做。首页简报（`desktop/src/main/runtime/homeBriefing.ts`）的 `buildLootPool`
+原始诉求里有「标记（已持有 / 推荐）」。2026-09-18 拍板只做跳转，2026-09-19 关闭本任务时用户确认标记不做。
+下面把现状与代价留档，将来真要做时不用重新查一遍：
+
+首页简报（`desktop/src/main/runtime/homeBriefing.ts`）的 `buildLootPool`
 只产出 `{ hash, name, group_key, icon?, item_type? }`，没有账号持有与 T20 推荐。
 账号 Profile 已经在首页简报链路里（`buildWeeklyLiveDataFromBungie` 消费 `snapshot.profile`），
 但 T20 推荐匹配（`definitionMatches` / `instanceMatches`）目前只活在资料库侧，接进来是主进程改动，
 并牵动那份简报的缓存失效与刷新计划。
 
 约束不变：数据都已经在（账号持有、推荐、图样），不要新造一份并行状态；
-标记要复用 `LibraryWeeklyFarmingView` 已有的判断（`decision` / `recommendationLabel` / `ownedCount`）。
+要做时得复用 `LibraryWeeklyFarmingView` 已有的判断（`decision` / `recommendationLabel` / `ownedCount`）。
 
 ## 六、验收标准
 

@@ -8,7 +8,7 @@ import {
   type AccountPowerFraction,
   type AccountPowerSlotKey
 } from "@d2-tools/core/account/power";
-import type { AccountItemSummary, AccountSummary, CharacterSummary } from "@d2-tools/core/account/summary";
+import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 
 export type CharacterPowerSourceKind =
   | "equipped"
@@ -57,9 +57,26 @@ export type CharacterPowerView = {
 
 type Candidate = AccountPowerCandidate<CharacterPowerSource>;
 
+/**
+ * 光等计算真正读取的角色字段。账号全量快照（AccountSummary）和桌面端仓库用的精简角色
+ * 快照都满足这份结构，所以这里只声明需要的那几项，不要求调用方拿出完整账号。
+ */
+export type AccountPowerCharacterSource = {
+  character_id: string;
+  class_name: string;
+  light?: number;
+  equipped_items: AccountItemSummary[];
+  inventory_items: AccountItemSummary[];
+};
+
+export type AccountPowerAccountSource = {
+  characters: AccountPowerCharacterSource[];
+  vault: { items: AccountItemSummary[] };
+};
+
 export function buildCharacterPowerView(
-  account: AccountSummary,
-  character: CharacterSummary
+  account: AccountPowerAccountSource,
+  character: AccountPowerCharacterSource
 ): CharacterPowerView {
   const accountCandidates = collectAccountPowerCandidates(account, character);
   const executableCandidates = accountCandidates.filter((candidate) => (
@@ -106,8 +123,8 @@ export function buildCharacterPowerView(
 }
 
 function collectAccountPowerCandidates(
-  account: AccountSummary,
-  selectedCharacter: CharacterSummary
+  account: AccountPowerAccountSource,
+  selectedCharacter: AccountPowerCharacterSource
 ): Candidate[] {
   const candidates: Candidate[] = [];
   const addItems = (

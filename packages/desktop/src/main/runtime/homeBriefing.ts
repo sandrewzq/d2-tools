@@ -128,9 +128,17 @@ async function buildHomeBriefing(
     definitions
   });
   const lootPoolHashes = collectRotatingLootPoolHashes(weeklyLiveData.items ?? []);
+  let lootPoolReadFailed = false;
   if (lootPoolHashes.length) {
-    const lootDefinitions = await getDefinitions("DestinyInventoryItemDefinition", lootPoolHashes);
-    Object.assign(definitions.items, lootDefinitions);
+    try {
+      const lootDefinitions = await getDefinitions("DestinyInventoryItemDefinition", lootPoolHashes);
+      Object.assign(definitions.items, lootDefinitions);
+    } catch (error) {
+      // 这一批定义读不到只降级掉落池。原来没有兜底，读失败会把整份首页简报抛掉：
+      // 为了八张轮换卡的掉落关系，整个首页都拿不到（T82）。
+      lootPoolReadFailed = true;
+      console.warn("轮换掉落池定义读取失败，本次简报不展示掉落池。", error);
+    }
   }
   const freshDaily = buildDailySummary(now, dailyLiveData);
   const daily = cached ? {
@@ -143,7 +151,7 @@ async function buildHomeBriefing(
     }
   } : freshDaily;
   const weekly = refreshPlan.activities || !cached
-    ? attachRotatingLootPools(buildWeeklySummary(now, weeklyLiveData), definitions.items)
+    ? attachRotatingLootPools(buildWeeklySummary(now, weeklyLiveData), definitions.items, lootPoolReadFailed)
     : cached.weekly;
   return {
     version: 9,
@@ -178,18 +186,31 @@ function collectRotatingLootPoolHashes(items: WeeklySummaryItem[]): number[] {
 
 function attachRotatingLootPools(
   summary: WeeklySummary,
-  itemDefinitions: DefinitionComponentData
+  itemDefinitions: DefinitionComponentData,
+  lootPoolReadFailed: boolean
 ): WeeklySummary {
   const priorities = { ...summary.priorities };
   for (const kind of ["rotating_raid", "rotating_dungeon"] as const) {
     const priority = priorities[kind];
     const entries = (priority.entries ?? []).map((entry) => {
       const lootPool = buildLootPool(entry.related_hashes?.[0], itemDefinitions);
-      return lootPool.length ? { ...entry, loot_pool: lootPool } : entry;
+      if (lootPool.length) return { ...entry, loot_pool: lootPool };
+      // 读失败只标在「受控数据集确实覆盖了这个活动」的卡上。数据集本来就没覆盖的活动
+      // 保持原来的「待核对」，两种状态在界面上分得开（T82）。
+      return lootPoolReadFailed && hasControlledLootPool(entry.related_hashes?.[0])
+        ? { ...entry, loot_pool_read_failed: true }
+        : entry;
     });
     priorities[kind] = { ...priority, entries };
   }
   return { ...summary, priorities };
+}
+
+/** 受控数据集里有没有这个活动的掉落关系。空就是没覆盖，与「读失败」是两回事。 */
+function hasControlledLootPool(activityHash: number | undefined): boolean {
+  return typeof activityHash === "number"
+    && Number.isFinite(activityHash)
+    && lootPoolItemHashesForActivity(activityHash).length > 0;
 }
 
 function buildLootPool(

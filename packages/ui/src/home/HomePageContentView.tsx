@@ -107,6 +107,8 @@ export type HomeWeeklyActivityEntry = {
   related_hashes?: number[];
   rewards?: HomeWeeklyActivityReward[];
   loot_pool?: HomeWeeklyActivityReward[];
+  /** 掉落池定义这次没读到。与「数据集没覆盖这个活动」不同，可以重试（T82）。 */
+  loot_pool_read_failed?: boolean;
 };
 export type HomeStartupState = {
   cards: {
@@ -547,8 +549,12 @@ function HomeActivityEntry(props: {
   onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
   onOpenWeeklyFarming?: (activityKey: string) => void;
 }) {
-  const lootPool = props.entry.loot_pool?.filter((reward) => reward.name.trim())
-    ?? (props.entry.rewards ?? []).filter((reward) => reward.name.trim() && isHomeWeaponReward(reward));
+  const lootPoolReadFailed = Boolean(props.entry.loot_pool_read_failed);
+  // 读失败时不退回聚合奖励：那块内容不是掉落池，挂在「掉落池」标签下属于错误归因。
+  const lootPool = lootPoolReadFailed
+    ? []
+    : props.entry.loot_pool?.filter((reward) => reward.name.trim())
+      ?? (props.entry.rewards ?? []).filter((reward) => reward.name.trim() && isHomeWeaponReward(reward));
   const activityHash = props.entry.related_hashes?.[0];
   // 只有掉落池确有内容（即数据集覆盖了该活动）才给入口：未覆盖的活动在本周刷取里用的是
   // `uncovered:<kind>:<名称>` 形式的 key，拼不出来，跳过去会定位不到。
@@ -582,10 +588,20 @@ function HomeActivityEntry(props: {
           {lootPool.length ? lootPool.map((reward) => (
             <HomeActivityReward key={reward.hash} reward={reward} onOpen={props.onOpenReward} />
           )) : (
-            <div className="weekly-activity-reward is-pending">
+            <div className={lootPoolReadFailed ? "weekly-activity-reward is-error" : "weekly-activity-reward is-pending"}>
               <div>
-                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{homeText(props.copy, "掉落池待核对")}</strong>
-                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{homeText(props.copy, "轮换已确认，掉落关系尚未核对。")}</small>
+                <strong
+                  data-ui-part="value"
+                  data-info-priority="context"
+                  data-text-tone={lootPoolReadFailed ? "status" : "primary"}
+                  data-status={lootPoolReadFailed ? "error" : undefined}
+                >{homeText(props.copy, lootPoolReadFailed ? "掉落池读取失败" : "掉落池待核对")}</strong>
+                <small
+                  data-ui-part="detail"
+                  data-info-priority="reading"
+                  data-text-tone={lootPoolReadFailed ? "status" : "body"}
+                  data-status={lootPoolReadFailed ? "error" : undefined}
+                >{homeText(props.copy, lootPoolReadFailed ? "这次没读到掉落池定义，刷新首页可以重试。" : "轮换已确认，掉落关系尚未核对。")}</small>
               </div>
             </div>
           )}

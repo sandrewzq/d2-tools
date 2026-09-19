@@ -984,7 +984,7 @@ function weaponRollSockets(item: AccountItemSummary): DuplicateRollSocket[] {
 
       if (socket.selected_plug) addOption(socket.selected_plug, true, false);
       for (const plug of socket.reusable_plugs.filter(isInstanceReusablePlug)) {
-        addOption(plug, plug.selected || plug.hash === socket.selected_plug?.hash, canSwitchReusablePlug(plug));
+        addOption(plug, plug.hash === socket.selected_plug?.hash, canSwitchReusablePlug(plug));
       }
 
       const options = [...optionsByHash.values()].sort((left, right) => (

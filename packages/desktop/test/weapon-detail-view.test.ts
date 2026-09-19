@@ -197,7 +197,6 @@ function socket(socketIndex: number, selected: ItemPlugSummary) {
 function reusablePlug(value: ItemPlugSummary): AccountItemReusablePlugSummary {
   return {
     ...value,
-    selected: true,
     can_insert: true,
     enabled: true,
     insert_fail_indexes: [],
@@ -238,10 +237,9 @@ function rollPlug(
   hash: number,
   name: string,
   category: string,
-  itemType: string,
-  selected = false
+  itemType: string
 ) {
-  return { hash, name, description: "", category_identifier: category, item_type: itemType, selected };
+  return { hash, name, description: "", category_identifier: category, item_type: itemType };
 }
 
 /**
@@ -249,10 +247,10 @@ function rollPlug(
  * （`buildPreviewSocketsFromWeaponRoll`），插槽可用性那几项是占位值，不是游戏返回的事实。
  */
 function previewedWeapon(): SelectedItemDetail {
-  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣", true);
+  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣");
   const ownedMagazine = rollPlug(201, "轻质弹匣", "v400.weapon.magazine", "弹匣");
-  const currentBarrel = rollPlug(100, "箭头制退器", "v400.weapon.barrel", "枪管", true);
-  const trait = rollPlug(300, "快速命中", "frames", "特性", true);
+  const currentBarrel = rollPlug(100, "箭头制退器", "v400.weapon.barrel", "枪管");
+  const trait = rollPlug(300, "快速命中", "frames", "特性");
   const summary = {
     hash: 970034755,
     name: "赐予者的祝福",
@@ -313,7 +311,7 @@ function previewedWeapon(): SelectedItemDetail {
 /** 完整 Roll 读完之后的状态：`sockets` 换成游戏返回的真值，`detail_loaded.instance` 转真。 */
 function verifiedWeapon(socketEnabled: boolean): SelectedItemDetail {
   const base = previewedWeapon();
-  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣", true);
+  const currentMagazine = rollPlug(200, "精确弹药", "v400.weapon.magazine", "弹匣");
   const ownedMagazine = rollPlug(201, "轻质弹匣", "v400.weapon.magazine", "弹匣");
   return {
     ...base,
@@ -326,7 +324,7 @@ function verifiedWeapon(socketEnabled: boolean): SelectedItemDetail {
       selected_plug: currentMagazine as AccountItemPlugSummary,
       reusable_plugs: [
         reusablePlug(currentMagazine),
-        { ...reusablePlug(ownedMagazine), selected: false }
+        reusablePlug(ownedMagazine)
       ]
     }]
   };

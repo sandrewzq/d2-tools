@@ -9,6 +9,7 @@ import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import { accountEquipmentBucketHashes, bucketLabels } from "@d2-tools/core/items/classification";
 import { buildCharacterPowerView, type CharacterPowerView } from "./accountPower.js";
 import { buildAccountPowerRoute, type AccountPowerRouteView } from "./accountPowerRoute.js";
+import { buildAccountCharacterTabs, type AccountCharacterTab } from "./characterTabs.js";
 
 export type AccountOpenItemPayload = {
   item: AccountItemSummary;
@@ -53,14 +54,8 @@ export type AccountReadonlyGroupView = {
   defaultOpen?: boolean;
 };
 
-export type AccountCharacterTabView = {
-  key: string;
-  className: string;
-  lightLabel: string;
-  power: CharacterPowerView;
-  emblemUrl?: string;
-  isSelected: boolean;
-};
+/** 页面视图用的角色页签名，和账号 / 仓库共用的那一份 builder 输出是同一个类型。 */
+export type AccountCharacterTabView = AccountCharacterTab;
 
 export type AccountSlotComparisonViewRow = {
   key: string;
@@ -276,16 +271,6 @@ export type AccountPageWorkspace = {
   selectedCharacterLoadoutMatchCount: number;
   postmasterPreviewItems: AccountPostmasterPreviewItem[];
   selectedCharacterSummary: string;
-};
-
-export type AccountCharacterTab = {
-  key: string;
-  character: AccountSummary["characters"][number];
-  className: string;
-  lightLabel: string;
-  power: CharacterPowerView;
-  emblemUrl?: string;
-  isSelected: boolean;
 };
 
 export type AccountMaterialRow = {
@@ -509,14 +494,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       }
       : null,
     navigation: accountPageNavigation(),
-    characterTabs: workspace.characterTabs.map((tab) => ({
-      key: tab.key,
-      className: tab.className,
-      lightLabel: tab.lightLabel,
-      power: tab.power,
-      emblemUrl: tab.emblemUrl,
-      isSelected: tab.isSelected
-    })),
+    characterTabs: workspace.characterTabs,
     selectedCharacter: selectedCharacter
       ? {
         characterId: selectedCharacter.character_id,
@@ -1032,18 +1010,6 @@ function toAccountItemView(input: {
       is_postmaster_item: input.isPostmasterItem
     }
   };
-}
-
-export function buildAccountCharacterTabs(account: AccountSummary, selectedCharacterId: string): AccountCharacterTab[] {
-  return account.characters.map((character) => ({
-    key: character.character_id,
-    character,
-    className: character.class_name,
-    lightLabel: `光等 ${character.light ?? "-"}`,
-    power: buildCharacterPowerView(account, character),
-    emblemUrl: character.emblem_url,
-    isSelected: character.character_id === selectedCharacterId
-  }));
 }
 
 export function getCharacterCombinedItems(character: AccountSummary["characters"][number]): AccountItemSummary[] {

@@ -74,7 +74,7 @@ function buildEquipmentArmorRecommendations(
       reason: target.planner_context
         ? `${target.source.label}；这里仅核对基础属性门槛，${formatPlannerIdentity(target.planner_context)}仍需回到 Armor Planner 复核。`
         : `${target.source.label}；只提供待刷目标证据，不会伪造装备 Hash 或自动修改装备。`,
-      source_label: "我的推荐" as const,
+      source_label: target.source.label,
       match: !targetStats
         ? undefined
         : satisfiedCount === conditionCount
@@ -123,7 +123,7 @@ function buildArmorRecommendations(
       title: rule.name,
       value: rule.conditions.map((condition) => `${armorStatLabels[condition.stat]} ${condition.min}+`).join(" · "),
       reason: "来自你保存的护甲属性目标，不会自动修改装备。",
-      source_label: "我的推荐" as const,
+      source_label: "本地目标规则",
       match: !stats
         ? undefined
         : matchedCount === rule.conditions.length

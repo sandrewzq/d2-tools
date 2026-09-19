@@ -1624,7 +1624,7 @@ function RecommendationSourceSlotRow(props: {
         return {
           ...visual,
           hit: recommendationPerkMatches(model, visual, sourceCandidates),
-          active: recommendationPerkMatches(model, visual, slot.current_enabled) || visual.selected === true,
+          active: recommendationPerkMatches(model, visual, slot.current_enabled),
           // 「已经装着的那一项」不是可切换项，这一条在模型里判（can_apply），这里不重判一次。
           canApply: stage?.perk.can_apply === true,
           pending: stage?.perk.pending === true,
@@ -1838,7 +1838,8 @@ function recommendationOwnedPerk(
     name: visual?.name ?? plug.name,
     description: plug.description ?? visual?.description,
     icon: plug.icon ?? visual?.icon,
-    selected: plug.selected
+    // 「当前启用」由 `current_enabled` 匹配判定（见上面的 `active`），不再从副本布尔取（T79）。
+    selected: false
   };
 }
 

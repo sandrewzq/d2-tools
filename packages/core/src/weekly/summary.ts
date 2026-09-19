@@ -100,6 +100,11 @@ export type WeeklyActivityEntry = {
   related_hashes?: number[];
   rewards?: WeeklyActivityReward[];
   loot_pool?: WeeklyActivityReward[];
+  /**
+   * 掉落池定义这一次没读到。与「受控数据集没覆盖这个活动」不是一回事：
+   * 前者可以重试，后者要等数据补齐，界面上必须分得开（T82）。
+   */
+  loot_pool_read_failed?: boolean;
   characters?: WeeklyActivityCharacterState[];
 };
 

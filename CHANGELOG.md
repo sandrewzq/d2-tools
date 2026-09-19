@@ -2,6 +2,36 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.28 - 2026-09-19
+
+### 中文
+
+#### 改进
+
+- 仓库页顶部新增当前角色切换器：三个角色的徽标、职业与光等并排显示，点一下就地换人，不用再回账号页。位置筛选里的「当前背包 / 当前已装备 / 当前邮政官 / 其他角色」和卡片上的「取出」目标都跟着新角色算，键盘操作与账号页一致。
+- 账号页的角色切换改用与仓库页同一份实现，两处的长相与键盘操作保持一致。
+- 护甲详情的「目标匹配」从三个页签改成一张平铺列表——原来其中两个页签一直是空的，不会再有永远点不出东西的入口；每张卡显示数据里真实的来源名（例如「用户手动创建」），不再一律写「我的推荐」。
+
+#### 修复
+
+- 首页轮换突袭 / 轮换地牢卡片的掉落池定义这次没读到，不再把整份首页带崩：只有那几张卡降级，标题写「掉落池读取失败」，并提示刷新首页可以重试；数据集本来就没覆盖的活动仍写「掉落池待核对」，两种情况分得开。
+- 资料库查询里换一个展开的 Perk，不再沿用上一个 Perk 上选的筛选条件：位置、属性、弹药类型、框架四个维度都清回默认，新 Perk 的关联武器不会因为一个看不见的旧条件而少掉一批；收起再展开同一个 Perk，已选条件保留。
+- 冷启动和 macOS 关窗后从 Dock 重开不再先看到一块纯色底：窗口等页面渲染出内容才显示，页面加载失败也会把窗口放出来；亮色模式下启动提示与窗口底色不再是深色。
+
+### English
+
+#### Improved
+
+- The vault page header now has a current-character switcher: all three characters with their emblem, class and power, one click to switch without going back to the account page. The position filter (Current inventory / Currently equipped / Current postmaster / Other characters) and the Take out target follow the newly selected character, with the same keyboard handling as the account page.
+- The account page character switcher now uses the same shared implementation as the vault page, so both look and behave alike.
+- Armor detail's target matching is now one flat list instead of three tabs — two of those tabs were always empty, so there is no longer an entry that never shows anything; each card shows its real source name (for example "User-created") instead of always saying "My recommendations".
+
+#### Fixed
+
+- A failed loot pool definition read on the home page no longer takes down the whole briefing: only those rotation raid / dungeon cards degrade, titled "Loot pool read failed" with a hint that refreshing retries it; activities outside the dataset still say the rotation is confirmed but the loot mapping is not yet verified, and you can tell the two apart.
+- Switching to another expanded perk in library search no longer keeps the filters you set on the previous perk: position, element, ammo type and frame all reset, so the new perk's related weapons are not silently cut down by a hidden old filter; collapsing and reopening the same perk keeps your selections.
+- Cold starting, and reopening from the Dock on macOS, no longer flashes a solid color: the window appears once the page has rendered, and is still shown if the page fails to load; in light mode the startup message and window background are no longer dark.
+
 ## 0.0.27 - 2026-09-19
 
 ### 中文

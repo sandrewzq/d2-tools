@@ -1,8 +1,11 @@
 # T62 护甲详情目标来源去分叉
 
+> 状态：✅ 已通过实窗验收（2026-09-19）
+> 口径：2026-09-19 用户拍板按 **A（纯去分叉）** 执行；B（再拆区）、C（只删页签）均不采纳。
+
 护甲详情的「目标匹配」区按**硬编码的来源身份**分成三个页签，其中两个页签全仓没有生产点、恒空。这是 T56 在武器侧已经拆掉的那条分叉的同构残留（T56 L3-4b），口径应一致。本任务只做护甲侧，**不改推荐模型本身**。
 
-## 现状（代码证据）
+## 现状（代码证据，改动前）
 
 | 位置 | 内容 |
 |---|---|
@@ -36,15 +39,20 @@
 
 武器侧删掉 `personal` 页签时，装备目标另有「目标命中」区块承接逐件命中展示。护甲侧没有这个承接区——「目标匹配」区就是本地护甲属性目标/装备目标的**唯一**逐件命中展示出口。所以护甲不能只删不搬，必须先定处置口径。
 
-## 待拍板（三选一，执行前需用户确认）
+## 拍板结果（2026-09-19）
 
-- **A（建议）**：删掉 `配装与攻略`、`社区来源` 两个死页签与整套 `ArmorTargetSource` / tablist / 键盘导航，`个人目标` 变成不带页签的一张平铺列表；同时把 `ArmorRecommendation.source_label` 改为取数据（装备目标走 `target.source.label`，本地属性目标规则用其规则名，不再压成「我的推荐」）。
-- **B（对齐武器侧）**：在 A 之上再拆区——装备目标/本地属性目标移出「目标匹配」，另设独立区块（对应武器侧「目标命中」）；「目标匹配」只留真正的来源事实。
-- **C（最小）**：只删两个死页签，`source_label` 硬编码暂不动。
+**选 A（纯去分叉）**：删掉 `配装与攻略`、`社区来源` 两个死页签与整套 `ArmorTargetSource` / tablist / 键盘导航，`个人目标` 变成不带页签的一张平铺列表；同时把 `ArmorRecommendation.source_label` 改为取数据。
 
-B 会改动「目标匹配」区的信息架构，需要单独确认；A 是纯去分叉，不新增区块。
+B（在 A 之上再拆区）不采纳：护甲侧的「目标匹配」是本地护甲属性目标/装备目标的唯一逐件命中出口，拆区会改信息架构，但没有新增事实可放。C（只删页签）不采纳：`source_label` 那处硬编码留着，去分叉只做一半，装备目标自带的 `target.source.label` 仍被丢弃。
 
-## 改动清单（确认口径后执行）
+来源名的取名口径（生产侧取名，消费侧不认身份）：
+
+| 来源 | `source_label` 取什么 |
+|---|---|
+| 装备目标（`equipmentTargetStore`） | `target.source.label`，即数据里已有的来源名（`用户手动创建` / `Armor Planner 待刷缺口` / 旧本地目标规则 / 愿望单标题） |
+| 本地目标规则（`localTargetRules.armor`） | 规则存储名「本地目标规则」；规则没有来源字段，规则名本身已经是卡面标题，再压成同一句话会重复 |
+
+## 改动清单
 
 1. `ArmorDetailContent.tsx`：删 `ArmorTargetSource`、三路 filter、`sourceOrder`、`handleSourceKeyDown`、tablist/tab 结构与角标；按定案口径渲染。
 2. `armorDetail.ts`：`source_label` 类型随之放宽或改为来源名直取。
@@ -55,13 +63,33 @@ B 会改动「目标匹配」区的信息架构，需要单独确认；A 是纯�
 ## 判据
 
 - `pnpm typecheck` 7 包；`pnpm test:behavior`；`pnpm test:architecture`（0 违例，且**不往白名单加文件**）；`pnpm docs:check`。
-- 全仓 grep `ArmorTargetSource`、`"应用推荐"`、`"在线补充推荐"` → 0 处。
+- 护甲侧 grep `ArmorTargetSource`、`"应用推荐"`、`"在线补充推荐"` → 0 处。（原始判据写的「全仓 0 处」不成立也不必要：`packages/core/src/ai/chat.ts:278/334/348` 与 `docs/player-facing-language.md:81-82` 里的「应用推荐 / 在线补充推荐」是 **built-in / external knowledge** 这套 AI 推荐来源术语，与护甲页签无关，照 `docs/player-facing-language.md` 的口径保留。）
 - 护甲详情在「账号实例 / 商人售卖 / 定义」三种上下文下都能显示装备目标与本地属性目标命中；无目标时给单一空态。
+
+## 实现记录（2026-09-19）
+
+| 文件 | 改动 |
+|---|---|
+| `packages/ui/src/item-detail/armor/ArmorDetailContent.tsx` | 删 `ArmorTargetSource`、三路 filter、`sourceOrder`、`handleSourceKeyDown`、tablist/tab/角标与面板 `id`/`role="tabpanel"` 接线；`TargetSection` 直接渲染 `model.recommendations` 平铺列表。区 description 改为「装备目标与本地目标规则分别匹配，不合并排序，不生成保留或购买结论。」；空态改为「当前没有可匹配的护甲目标；不会从其他来源补齐。」 |
+| `packages/app/src/workspaces/armorDetail.ts` | `ArmorRecommendation.source_label` 从字面量联合放宽为 `string`，并注明消费侧不得按来源身份分叉 |
+| `packages/desktop/src/renderer/shared/components/item-detail/buildArmorDetailView.ts` | `:77` 装备目标 → `source_label: target.source.label`；`:126` 本地目标规则 → `source_label: "本地目标规则"` |
+| `packages/ui/src/styles/components/10-armor-detail.css` | 删除 `.armor-detail-target-tabs` 的 6 条规则（删前已核：全仓仅剩自身定义与被删的 JSX 引用），并删掉窄屏 media query 里那句已失效的 `overflow: visible` 覆盖 |
+| `docs/work/references/ui-specs/equipment-details.md:131` | 合同从「使用个人目标、配装与攻略、社区来源三个独立来源」改为「按数据源各出一张卡平铺展示，不设来源页签」，并写明来源名取数口径 |
+
+卡片正面 `{recommendation.source_label} · 独立来源` 一行没改：`source_label` 现在已经是真实来源名，直接渲染即可，不需要在这里按来源身份分叉。
+
+**路径漂移**：本文件「现状」表里写的 `packages/desktop/.../item-detail/buildArmorDetailView.ts` 现已移到 `packages/desktop/src/renderer/shared/components/item-detail/buildArmorDetailView.ts`，实现按新路径做的。
+
+2026-09-19 实窗验收通过：目标匹配区已是平铺卡片、无页签；卡片来源名为真实来源名；无目标时为单一空态。
+
+### 未跑本地自动化验证
+
+本地未跑 typecheck / 构建 / 测试，由 CI 与 Release 负责。
 
 ## 备注
 
 - **当前没有测试覆盖这三个页签**。`packages/core/test/communityPerks.test.ts:326` 的「社区来源」是推荐服务夹具名，与护甲页签无关。
-- 护甲侧 CSS 只按 `aria-selected` 变色，**没有**按来源类型分支（对照武器侧曾存在的 `.weapon-detail-recommendation-combo[data-recommendation-source="dim"]` 真违例），这条不用改。
+- 护甲侧 CSS 原先只按 `aria-selected` 变色，**没有**按来源类型分支（对照武器侧曾存在的 `.weapon-detail-recommendation-combo[data-recommendation-source="dim"]` 真违例），所以删页签时没有对应的违例要清；`aria-selected` 随页签一起消失。
 
 ## 不在本任务范围
 

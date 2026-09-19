@@ -271,8 +271,8 @@ describe("community perk recommendations", () => {
             socket_index: 3,
             slot: "perk1",
             label: "Perk 1",
-            current_plug: { hash: 99, name: "其他 Perk", selected: true },
-            owned_plugs: [{ hash: 99, name: "其他 Perk", selected: true }],
+            current_plug: { hash: 99, name: "其他 Perk" },
+            owned_plugs: [{ hash: 99, name: "其他 Perk" }],
             complete: true,
             incomplete_reasons: []
           },
@@ -280,8 +280,8 @@ describe("community perk recommendations", () => {
             socket_index: 4,
             slot: "perk2",
             label: "Perk 2",
-            current_plug: { hash: 22, name: "DIM Perk", selected: true },
-            owned_plugs: [{ hash: 22, name: "DIM Perk", selected: true }],
+            current_plug: { hash: 22, name: "DIM Perk" },
+            owned_plugs: [{ hash: 22, name: "DIM Perk" }],
             complete: true,
             incomplete_reasons: []
           }

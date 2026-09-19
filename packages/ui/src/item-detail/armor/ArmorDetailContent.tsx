@@ -32,8 +32,6 @@ export type ArmorDetailContentProps = {
   className?: string;
 };
 
-type ArmorTargetSource = "personal" | "loadout" | "community";
-
 const sectionLabels: Array<{ key: ArmorDetailSection; label: string }> = [
   { key: "overview", label: "属性与获取" },
   { key: "configuration", label: "护甲配置" },
@@ -757,55 +755,19 @@ function ArmorSetBonus(props: { armorSet: NonNullable<ArmorDetailViewModel["iden
   );
 }
 
+/**
+ * 目标匹配：装备目标与本地目标规则各出一张卡，来源名直接读 `recommendation.source_label`
+ * （生产侧按数据取名），这里不按来源身份分叉，也不做跨来源合并或排序（T62）。
+ */
 function TargetSection({ model }: { model: ArmorDetailViewModel }) {
-  const [source, setSource] = useState<ArmorTargetSource>("personal");
-  const panelId = useId();
-  const recommendationsBySource: Record<ArmorTargetSource, ArmorRecommendation[]> = {
-    personal: model.recommendations.filter((recommendation) => recommendation.source_label === "我的推荐"),
-    loadout: model.recommendations.filter((recommendation) => recommendation.source_label === "应用推荐"),
-    community: model.recommendations.filter((recommendation) => recommendation.source_label === "在线补充推荐")
-  };
-  const sourceOrder: ArmorTargetSource[] = ["personal", "loadout", "community"];
-  const targets = recommendationsBySource[source];
-  const handleSourceKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-    const currentIndex = sourceOrder.indexOf(source);
-    const nextIndex = event.key === "Home"
-      ? 0
-      : event.key === "End"
-        ? sourceOrder.length - 1
-        : (currentIndex + (event.key === "ArrowRight" ? 1 : -1) + sourceOrder.length) % sourceOrder.length;
-    const nextSource = sourceOrder[nextIndex];
-    event.preventDefault();
-    setSource(nextSource);
-    requestAnimationFrame(() => document.getElementById(`${panelId}-${nextSource}`)?.focus());
-  };
+  const targets = model.recommendations;
   return (
     <>
-      <SectionHeading eyebrow="目标匹配" title="独立数据源条件匹配" description="个人目标、配装与攻略要求、社区来源分别匹配，不合并排序，不生成保留或购买结论。" />
-      <div className="armor-detail-target-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="选择护甲目标数据源">
-        {([[
-          "personal", "个人目标"
-        ], [
-          "loadout", "配装与攻略"
-        ], [
-          "community", "社区来源"
-        ]] as const).map(([key, label]) => (
-          <button
-            key={key}
-            id={`${panelId}-${key}`}
-            type="button"
-            role="tab"
-            aria-controls={`${panelId}-panel`}
-            aria-selected={source === key}
-            tabIndex={source === key ? 0 : -1}
-            onClick={() => setSource(key)}
-            onKeyDown={handleSourceKeyDown}
-          >{label}<span>{recommendationsBySource[key].length}</span></button>
-        ))}
-      </div>
-      <div id={`${panelId}-panel`} className="armor-detail-target-list" role="tabpanel" aria-labelledby={`${panelId}-${source}`}>
-        {targets.length ? targets.map((recommendation) => <RecommendationCard key={recommendation.id} model={model} recommendation={recommendation} />) : <EmptyState text="当前来源没有护甲目标；不会从其他来源补齐。" />}
+      <SectionHeading eyebrow="目标匹配" title="独立数据源条件匹配" description="装备目标与本地目标规则分别匹配，不合并排序，不生成保留或购买结论。" />
+      <div className="armor-detail-target-list">
+        {targets.length
+          ? targets.map((recommendation) => <RecommendationCard key={recommendation.id} model={model} recommendation={recommendation} />)
+          : <EmptyState text="当前没有可匹配的护甲目标；不会从其他来源补齐。" />}
       </div>
     </>
   );

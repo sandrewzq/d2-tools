@@ -23,7 +23,6 @@ export type {
 } from "./workspaces/accountDerived.js";
 export { loadAccountDerivedWorkspace, loadFullAccountWorkspace } from "./workspaces/accountDerived.js";
 export type {
-  AccountCharacterTab,
   AccountCapacityMetricView,
   AccountCapacityRiskLevel,
   AccountCapacitySectionView,
@@ -60,7 +59,6 @@ export type {
   AccountTasksSectionView
 } from "./workspaces/accountPage.js";
 export {
-  buildAccountCharacterTabs,
   buildAccountLoadoutSlotRows,
   buildAccountMaterialRows,
   buildAccountSlotComparisonRows,
@@ -76,3 +74,5 @@ export {
   groupAccountItemsBySlot,
   selectAccountPageModel
 } from "./workspaces/accountPage.js";
+export type { AccountCharacterTab, AccountCharacterTabSource } from "./workspaces/characterTabs.js";
+export { buildAccountCharacterTabs } from "./workspaces/characterTabs.js";

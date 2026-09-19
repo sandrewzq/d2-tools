@@ -16,6 +16,7 @@ import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
+import { ContextSwitcher } from "../control/ContextSwitcher.js";
 import { RefreshControlButton } from "../control/RefreshControlButton.js";
 import { formatClockTime, formatCompactDateTime } from "../time/formatTime.js";
 import type { VaultRecommendationSummaryIndex } from "../recommendationMatchView.js";
@@ -182,7 +183,6 @@ function AccountPageWorkspace(props: {
   const [mode, setMode] = useState<AccountMode>(() => accountModeForSection(props.section));
   const modeRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const characterRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const directoryTabsRef = useRef<HTMLDivElement | null>(null);
   const powerTriggerRef = useRef<HTMLButtonElement | null>(null);
   const equipHighestPowerTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -369,21 +369,6 @@ function AccountPageWorkspace(props: {
   }, [isPowerPanelOpen]);
 
 
-  function handleCharacterKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
-    let nextIndex = index;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") nextIndex = (index + 1) % props.viewModel.characterTabs.length;
-    else if (event.key === "ArrowLeft" || event.key === "ArrowUp") nextIndex = (index - 1 + props.viewModel.characterTabs.length) % props.viewModel.characterTabs.length;
-    else if (event.key === "Home") nextIndex = 0;
-    else if (event.key === "End") nextIndex = props.viewModel.characterTabs.length - 1;
-    else return;
-
-    event.preventDefault();
-    const nextCharacter = props.viewModel.characterTabs[nextIndex];
-    props.actions.selectCharacter(nextCharacter.key);
-    setIsPowerPanelOpen(false);
-    characterRefs.current[nextIndex]?.focus();
-  }
-
   const connectionState = props.viewModel.connection.dataState;
   const connectionLabel = connectionState === "refreshing"
     ? accountText(props.copy, "正在同步账号数据")
@@ -492,43 +477,27 @@ function AccountPageWorkspace(props: {
           </div>
           {operationStatus}
           {mode === "role_state" ? <>
-          <div className="account-character-switcher" data-ui-kind="context-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
-            {props.viewModel.characterTabs.map((tab, index) => {
+          <ContextSwitcher
+            variant="full"
+            label={accountText(props.copy, "当前角色")}
+            items={props.viewModel.characterTabs.map((tab) => {
               const characterCapacity = props.viewModel.capacity.characters.find((character) => character.characterId === tab.key);
-              return <button
-                type="button"
-                aria-pressed={tab.isSelected}
-                tabIndex={tab.isSelected ? 0 : -1}
-                key={tab.key}
-                ref={(element) => { characterRefs.current[index] = element; }}
-                title={`${accountText(props.copy, "切换到")}${tab.className}`}
-                onClick={() => {
-                  props.actions.selectCharacter(tab.key);
-                  setIsPowerPanelOpen(false);
-                }}
-                onKeyDown={(event) => handleCharacterKeyDown(event, index)}
-              >
-                <GameAssetImage
-                  className="account-character-emblem"
-                  src={tab.emblemUrl}
-                  alt=""
-                  loading="eager"
-                  fallback={<b aria-hidden="true">{tab.className.slice(0, 1)}</b>}
-                />
-                <span>
-                  <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{tab.className}</strong>
-                  <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-                    {accountText(props.copy, "当前")} {tab.power.currentLabel} · {accountText(props.copy, "可装备最高光等")} {tab.power.maxEquippable.label}
-                  </small>
-                  {characterCapacity ? (
-                    <small className="account-character-capacity" data-risk={characterCapacity.overallRisk}>
-                      {formatCharacterCapacitySummary(characterCapacity, props.copy)}
-                    </small>
-                  ) : null}
-                </span>
-              </button>;
+              return {
+                key: tab.key,
+                className: tab.className,
+                emblemUrl: tab.emblemUrl,
+                isSelected: tab.isSelected,
+                title: `${accountText(props.copy, "切换到")}${tab.className}`,
+                detail: `${accountText(props.copy, "当前")} ${tab.power.currentLabel} · ${accountText(props.copy, "可装备最高光等")} ${tab.power.maxEquippable.label}`,
+                capacity: characterCapacity ? {
+                  label: formatCharacterCapacitySummary(characterCapacity, props.copy),
+                  risk: characterCapacity.overallRisk
+                } : undefined
+              };
             })}
-          </div>
+            onSelect={props.actions.selectCharacter}
+            onAfterSelect={() => setIsPowerPanelOpen(false)}
+          />
           <AccountCapacityOverview copy={props.copy} viewModel={props.viewModel}>
             <div className="account-actions">
               <button

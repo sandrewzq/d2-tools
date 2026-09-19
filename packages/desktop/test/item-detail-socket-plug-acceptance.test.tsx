@@ -67,19 +67,10 @@ describe("换 Perk 受理后的详情状态", () => {
       { socket_index: 1, plug_hash: 300, plug_name: "新 Perk" }
     ]));
 
-    // 四份并行视图必须一起动，否则同一屏的不同区域会互相打架。
+    // 真源只有一处：其余视图（socket_plugs、weapon_roll 当前项）都由它派生。
     expect(result.current.selectedItem?.sockets?.[0]?.selected_plug?.hash).toBe(300);
-    // 槽内至多一条选中：漏了这份，界面上就是「新旧两项同时显示当前启用」。
-    expect(plugStates(result.current.selectedItem?.sockets?.[0]?.reusable_plugs)).toEqual([
-      [200, false],
-      [300, true]
-    ]);
     expect(result.current.selectedItem?.socket_plugs[0]).toMatchObject({ hash: 300, name: "新 Perk" });
     expect(result.current.selectedItem?.weapon_roll?.sockets[0]?.current_plug?.hash).toBe(300);
-    expect(plugStates(result.current.selectedItem?.weapon_roll?.sockets[0]?.owned_plugs)).toEqual([
-      [200, false],
-      [300, true]
-    ]);
   });
 
   it("关掉详情再打开：受理状态还在，仍然显示新 Perk", async () => {
@@ -358,11 +349,6 @@ describe("写响应体与写入意图对账", () => {
   });
 });
 
-/** `[hash, selected]` 的扁平视图：直接比对整槽的选中分布，才看得出「是不是两条都选中了」。 */
-function plugStates(plugs?: readonly { hash: number; selected?: boolean }[]): [number, boolean][] {
-  return (plugs ?? []).map((plug) => [plug.hash, plug.selected === true]);
-}
-
 function workspaceInput(detailCacheScopeKey: string) {
   return {
     accountSummary: accountSummary(),
@@ -403,10 +389,10 @@ function staleAccountDetail(): AccountItemDetail {
         socket_index: 1,
         slot: "perk1",
         label: "槽位 1",
-        current_plug: { hash: 200, name: "旧 Perk 200", selected: true },
+        current_plug: { hash: 200, name: "旧 Perk 200" },
         owned_plugs: [
-          { hash: 200, name: "旧 Perk 200", selected: true },
-          { hash: 300, name: "新 Perk", selected: false }
+          { hash: 200, name: "旧 Perk 200" },
+          { hash: 300, name: "新 Perk" }
         ],
         complete: true,
         incomplete_reasons: []
@@ -423,18 +409,17 @@ function socket(index: number, hash: number): AccountItemSocketSummary {
     enable_fail_indexes: [],
     selected_plug: { hash, socket_index: index, name: `旧 Perk ${hash}` },
     reusable_plugs: [
-      reusablePlug(index, 200, true),
-      reusablePlug(index, 300, false)
+      reusablePlug(index, 200),
+      reusablePlug(index, 300)
     ]
   };
 }
 
-function reusablePlug(index: number, hash: number, selected: boolean): AccountItemPlugSummary {
+function reusablePlug(index: number, hash: number): AccountItemPlugSummary {
   return {
     hash,
     socket_index: index,
     name: hash === 200 ? "旧 Perk 200" : "新 Perk",
-    selected,
     insert_fail_indexes: [],
     enable_fail_indexes: [],
     sources: ["instance"]

@@ -115,8 +115,7 @@ function buildWeaponSlotCatalog(itemHash: number, options: SourceOptions): SlotC
       hash: plug.hash,
       name: plug.name,
       ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
-      ...(plug.item_type ? { item_type: plug.item_type } : {}),
-      selected: false
+      ...(plug.item_type ? { item_type: plug.item_type } : {})
     })));
     const slot: DimWishlistDiagnosticSlot = role === "trait"
       ? (++traitIndex === 1 ? "perk1" : traitIndex === 2 ? "perk2" : "special")

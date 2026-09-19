@@ -1,5 +1,6 @@
 import { useCallback, useDeferredValue, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import type { AccountCharacterTab } from "@d2-tools/app/account";
 import type { ArmorSetCatalogItem } from "@d2-tools/core/items/equipableItemSet";
 import type { RecommendationCardSummary, VaultItemInstanceMatchInfo } from "@d2-tools/core/community-perks";
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
@@ -65,6 +66,7 @@ import type { VaultCleanupActions } from "./useVaultBatchActions.js";
 import { useVaultBatchActions } from "./useVaultBatchActions.js";
 import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import { ContextSwitcher, type ContextSwitcherItem } from "../control/ContextSwitcher.js";
 import {
   buildVaultRecommendationFilterFactIndex,
   buildVaultRecommendationSourceOptions,
@@ -104,6 +106,9 @@ const emptyCleanupProtection = new Map<string, string[]>();
 export function VaultPageContentView(props: {
   items: AccountItemSummary[];
   currentCharacterId?: string;
+  /** 当前角色条目，由 @d2-tools/app 的共享 builder 生成，与账号页同源。 */
+  characterTabs?: readonly AccountCharacterTab[];
+  onSelectCharacter?: (characterId: string) => void;
   armorSetCatalog: ArmorSetCatalogItem[];
   armorSetCatalogStatus: VaultArmorSetCatalogStatus;
   accountResourceStatus?: VaultAccountResourceStatus;
@@ -507,6 +512,17 @@ export function VaultPageContentView(props: {
     const candidates = queryIndexedItems({ group: "weapons", location: "all" }, recommendationAllowedItemKeys);
     return buildVaultLocationFilters(candidates, props.currentCharacterId);
   }, [props.currentCharacterId, queryIndexedItems, recommendationAllowedItemKeys]);
+  const characterSwitcherItems = useMemo<ContextSwitcherItem[]>(
+    () => (props.characterTabs ?? []).map((tab) => ({
+      key: tab.key,
+      className: tab.className,
+      emblemUrl: tab.emblemUrl,
+      isSelected: tab.isSelected,
+      title: `切换到${tab.className}`,
+      meta: tab.power.currentLabel
+    })),
+    [props.characterTabs]
+  );
   const availableFrameFilters = useMemo(() => {
     const candidates = queryIndexedItems({ frame: "all" }, recommendationAllowedItemKeys);
     return buildVaultFrameFilters(candidates);
@@ -791,6 +807,14 @@ export function VaultPageContentView(props: {
               </button>
             ))}
           </div>
+          {props.onSelectCharacter && characterSwitcherItems.length > 0 ? (
+            <ContextSwitcher
+              variant="compact"
+              label="当前角色"
+              items={characterSwitcherItems}
+              onSelect={props.onSelectCharacter}
+            />
+          ) : null}
           <div className="vault-workflow-meta">
             {props.accountResourceStatus && props.accountResourceStatus !== "ready" ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
             <button type="button" className={`ui-badge vault-recommendation-status-link status-${recommendationWorkflowStatus.tone}`} data-ui-kind="status-chip" data-status={recommendationWorkflowStatus.tone} onClick={() => switchVaultTab("recommendations")}>{recommendationWorkflowStatus.label}</button>

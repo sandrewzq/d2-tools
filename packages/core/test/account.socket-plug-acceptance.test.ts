@@ -9,14 +9,15 @@ import {
 } from "../src/account/summary.js";
 
 /**
- * 换 Perk 受理后本地落地的核心规则（T77 / T78）。
+ * 换 Perk 受理后本地落地的核心规则（T77 / T78 / T79）。
  *
- * 详情里的插槽状态有**四份**并行表示，任何一份漏改都会让同一屏的不同区域互相打架；
- * 这里钉的就是「一次改，四份一起动」。漏掉 `reusable_plugs[].selected` 那一份，
- * 界面上就会出现「新旧两项同时显示当前启用」。
+ * 「这个槽位现在装着谁」只认一处真源：`sockets[].selected_plug`。`socket_plugs` 与
+ * `weapon_roll` 的当前项都由它派生，候选列表不再另存 `selected` 副本 —— 这里钉的是
+ * 「写入点只有一个」。副本漂移导致「新旧两项同时显示当前启用」（T78）
+ * 在结构上不再可能。
  */
 describe("applyAcceptedSocketPlugs", () => {
-  it("一次受理让 sockets / reusable_plugs / socket_plugs / weapon_roll 四份视图同源更新", () => {
+  it("一次受理只写 selected_plug，socket_plugs 与 weapon_roll 当前项由它派生", () => {
     const current = accountDetail();
 
     const patch = applyAcceptedSocketPlugs(current, [
@@ -25,18 +26,12 @@ describe("applyAcceptedSocketPlugs", () => {
 
     expect(patch).not.toBeNull();
     expect(patch?.sockets[1]?.selected_plug).toMatchObject({ hash: 300, name: "新 Perk" });
-    // 槽内至多一条选中，且必然是新的这一条 —— 否则与本件的 selected_plug 说的不是一件事。
-    expect(patch?.sockets[1]?.reusable_plugs.map((plug) => [plug.hash, plug.selected])).toEqual([
-      [200, false],
-      [300, true]
-    ]);
+    // 候选列表不再另存副本：还是原来那一份，读侧拿 hash 与 selected_plug 比。
+    expect(patch?.sockets[1]?.reusable_plugs).toBe(current.sockets[1]?.reusable_plugs);
     expect(patch?.socket_plugs.map((plug) => plug.hash)).toEqual([100, 300]);
     expect(patch?.weapon_roll?.sockets[1]?.current_plug).toMatchObject({ hash: 300, name: "新 Perk" });
-    // 推荐对照区的「当前启用」读的是 owned_plugs[].selected，与 current_plug 是同一条事实。
-    expect(patch?.weapon_roll?.sockets[1]?.owned_plugs.map((plug) => [plug.hash, plug.selected])).toEqual([
-      [200, false],
-      [300, true]
-    ]);
+    // 推荐对照区的「当前启用」靠 current_plug 匹配判定，owned_plugs 同样不再带副本。
+    expect(patch?.weapon_roll?.sockets[1]?.owned_plugs).toBe(current.weapon_roll?.sockets[1]?.owned_plugs);
     // 指纹是 Roll 缓存键，不重算就会继续命中旧配置的缓存。
     expect(patch?.weapon_roll?.fingerprint).not.toBe(current.weapon_roll?.fingerprint);
   });
@@ -207,7 +202,6 @@ function socket(input: {
       hash: plug.hash,
       socket_index: input.index,
       name: plug.name,
-      selected: plug.hash === input.selectedHash,
       insert_fail_indexes: [],
       enable_fail_indexes: [],
       sources: ["instance"],
@@ -238,12 +232,11 @@ function weaponRoll(
         slot: entry.socket_index === 0 ? "barrel" : "perk1",
         label: `槽位 ${entry.socket_index}`,
         ...(entry.selected_plug
-          ? { current_plug: { hash: entry.selected_plug.hash, name: entry.selected_plug.name, selected: true } }
+          ? { current_plug: { hash: entry.selected_plug.hash, name: entry.selected_plug.name } }
           : {}),
         owned_plugs: entry.reusable_plugs.map((plug) => ({
           hash: plug.hash,
-          name: plug.name,
-          selected: plug.selected
+          name: plug.name
         })),
         complete: true,
         incomplete_reasons: []

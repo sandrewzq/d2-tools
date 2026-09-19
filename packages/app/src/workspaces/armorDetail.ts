@@ -96,7 +96,11 @@ export type ArmorRecommendation = {
   title: string;
   value: string;
   reason: string;
-  source_label: "我的推荐" | "应用推荐" | "在线补充推荐";
+  /**
+   * 目标来自哪个数据源，由生产侧按数据取名：装备目标取 `target.source.label`，
+   * 本地目标规则取规则存储名。消费侧不得按来源身份分叉（T62）。
+   */
+  source_label: string;
   match?: "full" | "partial" | "none";
 };
 

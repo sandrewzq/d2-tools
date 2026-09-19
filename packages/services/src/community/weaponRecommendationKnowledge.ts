@@ -629,8 +629,7 @@ function toRollPlugSummary(plug: ItemPlugSummary): AccountWeaponRollPlugSummary 
     hash: plug.hash,
     name: plug.name,
     ...(plug.category_identifier ? { category_identifier: plug.category_identifier } : {}),
-    ...(plug.item_type ? { item_type: plug.item_type } : {}),
-    selected: false
+    ...(plug.item_type ? { item_type: plug.item_type } : {})
   };
 }
 

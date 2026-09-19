@@ -37,7 +37,7 @@
 
 :where(.app-shell) .vault-workflow-bar {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto auto minmax(0, 1fr);
   align-items: center;
   gap: 8px 16px;
   min-height: 43px;
@@ -366,6 +366,8 @@
 :where(.app-shell) .vault-workflow-meta {
   display: flex;
   align-items: center;
+  /* 钉在末列：中间那列放了当前角色切换器，没放时状态徽标也要留在右侧。 */
+  grid-column: -2 / -1;
   min-width: 0;
 }
 

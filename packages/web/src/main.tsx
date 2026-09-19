@@ -503,6 +503,8 @@ function WebApp() {
             <VaultPageContentView
               items={vaultModel.vaultItems}
               currentCharacterId={vaultModel.currentCharacterId}
+              characterTabs={vaultModel.characterTabs}
+              onSelectCharacter={setSelectedAccountCharacterId}
               armorSetCatalog={fixture.armorSetCatalog}
               armorSetCatalogStatus="ready"
               vaultItemCount={vaultModel.vaultItemCount}

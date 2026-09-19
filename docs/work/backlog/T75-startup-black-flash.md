@@ -1,6 +1,6 @@
 # T75：启动黑屏（窗口先显示 + 页面底色在 shell 之外仍是深色）
 
-> 状态：📝 **已完成诊断，候选修法待拍板**，尚未动代码
+> 状态：✅ 已通过实窗验收（2026-09-19）
 > 来源：2026-09-18 用户实窗截图「为什么每次打开都要黑屏呢？你先分析一下」。
 > 关联：无直接前置任务；与 T70 的「打开白屏」是两回事（那条是详情补读置了整份加载态，已修）。
 
@@ -98,8 +98,26 @@ A 与 B/C 正交：A 管「什么时候显示窗口」，B/C 管「显示出来�
 - `light` 模式下启动回退屏（`正在启动 d2-tools...` / `加载中...`）不再是深色底；
 - `设置 → 诊断` 的 `startup.window-load` 不因本次改动变差（基准 p95 1500ms）。
 
-## 九、等拍板
+## 九、拍板结果（2026-09-19）
 
-- 选 A / B / C，或 A+（B 或 C）。
-- 若做 B：`data-theme` 与 `.app-shell[data-color-mode]` 的唯一真源定在哪一侧。
-- 第六节那个「真实会话时长」要不要补测（需要临时占用数据目录，或让用户自查诊断页报数）。
+- 选 **A + B**；**C 不做**——B 落地后它就是第二套口径。
+- 「谁是唯一真源」：**`config.json` 的 `features.color_mode`**。`<html data-theme>` 与 `.app-shell[data-color-mode]` 都是它的投影，只是管的 DOM 范围不同（壳外 / 壳内），所以不算两套口径。
+- 第六节那个「真实会话时长」**仍不补测**，理由不变（会写用户正在使用的数据目录）。用户可自查诊断页的 `startup.window-load`。
+
+## 十、实现记录（2026-09-19）
+
+| 文件 | 改动 |
+|---|---|
+| `packages/desktop/src/main/main.ts` | `show: !isVisualCapture` → `show: false`，加 `once("ready-to-show")` 显示，`did-fail-load`（限主框架）兜底显示，`revealed` 保证只放一次；`webPreferences.additionalArguments` 加 `--d2-color-mode=<初始模式>` |
+| `packages/desktop/src/preload/preload.ts` | 从 `process.argv` 读 `--d2-color-mode=`，立即写 `document.documentElement.dataset.theme`，`DOMContentLoaded` 再补一次兜底 |
+| `packages/ui/src/shell/AppShell.tsx` | 新增 effect：`colorMode` 变化时同步写 `<html data-theme>`，与已有的 `platformActions.setColorMode` 同一个 effect 位置 |
+
+CSS 侧**一行没改**：`00-tokens.css:210` 与 `03-surface-contract.css:24` 的 `html[data-theme="light"]` 早就写好了，只是全仓没有任何一处设置 `data-theme`，一直没生效——B 的改动就是把它接上。
+
+2026-09-19 实窗验收通过（§八 三项判据）。
+
+仍未测：真实会话里的精确时长（第六节）。判据是「看不到整块纯色底」，与这段时长无关。
+
+### 未跑本地自动化验证
+
+本地未跑 typecheck / 构建 / 测试，由 CI 与 Release 负责。

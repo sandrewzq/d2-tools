@@ -461,8 +461,9 @@ function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "pe
 function isReusablePlugSummary(
   plug: AccountItemPlugSummary | AccountItemReusablePlugSummary
 ): plug is AccountItemReusablePlugSummary {
-  return "selected" in plug
-    && typeof plug.selected === "boolean"
+  // 只用 `AccountItemReusablePlugSummary` 独有的字段判别种类：`selected` 已随 T79 删除，
+  // 不能再拿它当判别依据。`in` 检查同时把联合类型收窄，后面才读得到那两个数组字段。
+  return "insert_fail_indexes" in plug
     && Array.isArray(plug.insert_fail_indexes)
     && Array.isArray(plug.enable_fail_indexes);
 }
@@ -557,7 +558,7 @@ function buildSelectionColumns(
             description: plug.description ?? "",
             icon: plug.icon,
             enhanced_of_hash: isEnhancedWeaponPerk(plug) ? findBasePerkHash(plug.name, pool?.candidates) : undefined,
-            selected: reusablePlug?.selected === true || isCurrentPlug,
+            selected: isCurrentPlug,
             can_apply: !isCurrentPlug && (socketStateVerified
               ? socket?.is_enabled === true
                 && reusablePlug?.can_insert === true
@@ -679,7 +680,7 @@ function buildPendingWeaponStats(
   for (const [socketValue, pendingHash] of Object.entries(pendingPerks)) {
     const socket = item.sockets.find((candidate) => candidate.socket_index === Number(socketValue));
     const pending = socket?.reusable_plugs.find((plug) => plug.hash === pendingHash);
-    if (!socket || !pending || pending.selected) continue;
+    if (!socket || !pending || pending.hash === socket.selected_plug?.hash) continue;
     for (const key of weaponStatKeys) {
       const delta = (pending.stat_modifiers?.[key] ?? 0) - (socket.selected_plug?.stat_modifiers?.[key] ?? 0);
       if (delta !== 0) result[key] = (result[key] ?? 0) + delta;
@@ -714,7 +715,7 @@ function buildPendingWeaponStatModifiers(
   for (const [socketValue, pendingHash] of Object.entries(pendingPerks)) {
     const socket = item.sockets.find((candidate) => candidate.socket_index === Number(socketValue));
     const pending = socket?.reusable_plugs.find((plug) => plug.hash === pendingHash);
-    if (!socket || !pending || pending.selected) continue;
+    if (!socket || !pending || pending.hash === socket.selected_plug?.hash) continue;
     for (const key of weaponStatKeys) {
       const amount = (pending.stat_modifiers?.[key] ?? 0) - (socket.selected_plug?.stat_modifiers?.[key] ?? 0);
       if (!amount) continue;

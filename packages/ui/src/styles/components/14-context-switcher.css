@@ -1,0 +1,160 @@
+/* 当前角色 / 上下文切换器（ContextSwitcher）。
+   full 变体：账号页角色卡，徽标 + 职业名 + 双行光等 + 容量提示。
+   compact 变体：仓库工作流栏，单行「徽标 + 职业名 + 光等」，高度对齐 --control-h。
+   规则原先在 styles/menus/account/03-workspace.css，抽取共享组件时整体搬到这里，
+   选择器与声明保持不变，只把 account-character-* 换成 context-switcher-*。 */
+
+:where(.app-shell) .context-switcher {
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-control);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .context-switcher button {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  flex: 1 1 148px;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  min-height: 68px;
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-muted);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+:where(.app-shell) .context-switcher button + button {
+  border-left: 1px solid var(--border-subtle);
+}
+
+:where(.app-shell) .context-switcher button:hover:not([aria-pressed="true"]) {
+  color: var(--text-title);
+  background: var(--surface-interactive);
+}
+
+:where(.app-shell) .context-switcher button:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+:where(.app-shell) .context-switcher b {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  color: var(--accent-primary);
+  font-size: var(--font-caption);
+  font-weight: 700;
+  line-height: normal;
+}
+
+:where(.app-shell) .context-switcher .context-switcher-emblem {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: var(--radius-control);
+  background: var(--surface-interactive);
+}
+
+:where(.app-shell) .context-switcher span,
+:where(.app-shell) .context-switcher strong,
+:where(.app-shell) .context-switcher small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+:where(.app-shell) .context-switcher strong {
+  color: var(--text-title);
+  font-size: var(--priority-context);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+:where(.app-shell) .context-switcher small {
+  margin-top: 2px;
+  color: var(--text-body);
+  font-size: var(--priority-support);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+:where(.app-shell) .context-switcher .context-switcher-capacity {
+  margin-top: 1px;
+  color: var(--text-muted);
+  font-size: var(--priority-trace);
+  font-weight: 600;
+}
+
+:where(.app-shell) .context-switcher .context-switcher-capacity[data-risk="warning"] {
+  color: var(--status-warning-text);
+}
+
+:where(.app-shell) .context-switcher .context-switcher-capacity[data-risk="danger"] {
+  color: var(--status-error);
+}
+
+/* compact：单行三格「徽标 / 职业名 / 光等」，高度与仓库页签同档。 */
+:where(.app-shell) .context-switcher[data-variant="compact"] {
+  flex-wrap: nowrap;
+  min-width: 0;
+}
+
+:where(.app-shell) .context-switcher[data-variant="compact"] button {
+  grid-template-columns: 20px minmax(0, auto) minmax(0, auto);
+  flex: 1 1 auto;
+  gap: 6px;
+  min-height: var(--control-h);
+  padding: 0 8px;
+}
+
+:where(.app-shell) .context-switcher[data-variant="compact"] b {
+  width: 19px;
+  height: 19px;
+}
+
+:where(.app-shell) .context-switcher[data-variant="compact"] .context-switcher-emblem {
+  width: 20px;
+  height: 20px;
+}
+
+:where(.app-shell) .context-switcher[data-variant="compact"] strong {
+  font-size: var(--priority-support);
+}
+
+:where(.app-shell) .context-switcher[data-variant="compact"] small {
+  margin-top: 0;
+  color: var(--text-muted);
+  font-size: var(--priority-trace);
+}
+
+@container product-workspace (max-width: 700px) {
+  :where(.app-shell) .context-switcher[data-variant="full"] {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+  }
+
+  :where(.app-shell) .context-switcher[data-variant="full"] button {
+    flex: 0 0 min(220px, 72vw);
+  }
+}
+
+@container product-workspace (max-width: 420px) {
+  :where(.app-shell) .context-switcher[data-variant="full"] button {
+    flex-basis: min(210px, 78vw);
+  }
+}

@@ -129,6 +129,9 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   // 这块状态只服务左栏，不进模型；Perk 换掉或搜索换掉后它在结果里找不到对应行，自动回到未展开。
   const [expandedPerkKey, setExpandedPerkKey] = useState<string | null>(null);
   const [openFacetGroups, setOpenFacetGroups] = useState<Record<string, boolean>>({});
+  // 关联筛选是按某个 Perk 的关联武器算出来的，条件只对它有意义。记住上一次展开的 Perk，
+  // 展开别的 Perk 时先把条件清掉，免得新 Perk 的结果被一个看不见的旧条件过滤（T88）。
+  const relatedFilterPerkKeyRef = useRef<string | null>(null);
   const perkFilters = model.queryPanel.perkFilters;
   const relatedFilter = perkFilters.related;
   const expandedPerkRow = useMemo(
@@ -145,6 +148,15 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
       next[key] = value;
     }
     actions.onPerkFiltersChange({ related: next });
+  }
+
+  /** 换展开的 Perk 时把关联筛选清回默认；收起再展开同一个 Perk 保留条件。 */
+  function handlePerkExpand(perkKey: string, open: boolean) {
+    if (open && relatedFilterPerkKeyRef.current !== perkKey) {
+      actions.onPerkFiltersChange({ related: { ...defaultLibraryPerkRelatedFilter } });
+      relatedFilterPerkKeyRef.current = perkKey;
+    }
+    setExpandedPerkKey(open ? perkKey : null);
   }
 
   function selectMode(mode: LibraryViewMode) {
@@ -353,7 +365,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                   actions.onOpenRelatedItem,
                   actions.onAddFavorite,
                   actions.onRemoveFavorite,
-                  (open) => setExpandedPerkKey(open ? perk.perk.key : null),
+                  (open) => handlePerkExpand(perk.perk.key, open),
                   copy
                 ))}
               </div>

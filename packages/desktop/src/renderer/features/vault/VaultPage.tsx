@@ -33,6 +33,7 @@ export function VaultPage(props: {
   cleanupProtectedItemKeys?: LoadoutTemplateLookup | null;
   activeLoadoutName?: string;
   selectedCharacterId: string;
+  onSelectCharacter: (characterId: string) => void;
   tags: VaultTags;
   openingItemKey: string;
   locateRequest?: { hash: number; name: string; requestId: number } | null;
@@ -197,6 +198,8 @@ export function VaultPage(props: {
     <VaultPageContentView
       items={model.vaultItems}
       currentCharacterId={model.currentCharacterId}
+      characterTabs={model.characterTabs}
+      onSelectCharacter={props.onSelectCharacter}
       armorSetCatalog={armorSetCatalog}
       armorSetCatalogStatus={armorSetCatalogStatus}
       accountResourceStatus={props.isLoadingAccount

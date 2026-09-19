@@ -49,6 +49,7 @@ export function VaultMenuProvider() {
       cleanupProtectedItemKeys={cleanupProtectedItemKeys}
       activeLoadoutName={session.loadouts.activeTemplate?.name}
       selectedCharacterId={account.selectedCharacterId}
+      onSelectCharacter={account.setSelectedCharacterId}
       tags={account.vaultTags}
       openingItemKey=""
       locateRequest={session.vaultLocateRequest}
