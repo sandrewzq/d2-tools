@@ -17,8 +17,25 @@ const hasStagedChanges = () => {
   }
 };
 
+/**
+ * 提交前门禁：跑一遍 pnpm test，没过就中止提交。
+ * 这一步在 `git add -A` 之后，所以检查的正是将要提交的内容；中止也不会丢改动（已在暂存区）。
+ */
+const runCommitGate = () => {
+  try {
+    run("node", ["scripts/git-commit-gate.mjs", ...process.argv.slice(2)]);
+  } catch (error) {
+    if (typeof error?.status === "number") {
+      console.error("\n提交已中止，改动仍在暂存区。");
+      process.exit(1);
+    }
+    throw error;
+  }
+};
+
 if (process.argv.includes("--help")) {
-  console.log("Mac Git 提交推送：暂存全部改动，创建默认提交并推送当前分支。不会创建 release tag。");
+  console.log("Mac Git 提交推送：暂存全部改动，跑一遍提交前检查，创建默认提交并推送当前分支。不会创建 release tag。");
+  console.log("  --skip-check  跳过提交前检查（CI 仍会跑这些检查）");
   process.exit(0);
 }
 
@@ -33,7 +50,14 @@ try {
   run("git", ["add", "-A"]);
 
   if (hasStagedChanges()) {
-    console.log("创建提交...");
+    // 全量暂存会把工作区里所有东西一起带走，包括别的会话改到一半的文件。
+    // 先把清单打出来，一眼能看出有没有夹带。
+    console.log("\n待提交文件：");
+    console.log(run("git", ["status", "--short", "--untracked-files=no"], { capture: true }).trimEnd());
+
+    runCommitGate();
+
+    console.log("\n创建提交...");
     run("git", ["commit", "-m", "chore: sync local changes"]);
   } else {
     console.log("没有 staged 改动，跳过提交。");

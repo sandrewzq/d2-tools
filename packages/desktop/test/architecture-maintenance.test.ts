@@ -514,7 +514,6 @@ describe("architecture maintenance guardrails", () => {
 
     const ruleLayer = bodyOf("DefinitionRecommendationSources");
     const sourceCard = bodyOf("DefinitionRecommendationSourceCard");
-    const evidence = bodyOf("RecommendationSourceEvidenceCard");
 
     // 规则层不许出现第二列的任何形式：没有本件拥有项、没有命中 / 当前启用标记、没有两列对照。
     for (const forbidden of [
@@ -552,6 +551,47 @@ describe("architecture maintenance guardrails", () => {
     for (const forbidden of ["RecommendationSlotComparison", "RecommendationSourceSlotRow"]) {
       expect(ruleLayer, `规则层引用了事实层的两列对照：${forbidden}`).not.toContain(forbidden);
     }
+  });
+
+  it("keeps the perk entry's two marks on their own channels instead of letting the row verdict repaint the card", () => {
+    // T84：「本件装着来源没要的」这件事原来还挂着一道「这一栏 state === "different"」，
+    // 于是同一个事实在「符合」栏里静默、在「不符」栏里又变红又打叉——用户看到的就是
+    // 「当前启用」有两种样子。现在判据只读卡片自己的事实（`!hit && active`），
+    // 环只表示「当前启用」、不跟着染红；颜色只是加强，形状（叉）才是那条不许丢的通道。
+    const detail = readFileSync(join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"), "utf8");
+    const mismatch = detail.match(/mismatch=\{[^}]*\}/g) ?? [];
+    expect(mismatch, "事实层不再判定「本件装着来源没要的」").toHaveLength(1);
+    expect(mismatch[0], "判据不再只看卡片自己的事实").toContain("candidate.hit !== true && candidate.active === true");
+    expect(mismatch[0], "「本件装着来源没要的」又被该栏的符合 / 不符结论门控了").not.toContain("state");
+
+    // 两列表头各有一句图例，两处必须说同一句话：一处改了另一处没改，读到的规则就取决于屏幕多宽。
+    expect(detail.match(/环＝当前启用，叉＝来源没要/g)?.length ?? 0, "两列表头图例只剩一处，或者两处说了两套话").toBe(2);
+    expect(detail, "图例又把环说成了对错信号").not.toContain("红环");
+
+    // 「当前启用」那枚环只有一支颜色：任何一条着色规则都不许在 data-mismatch 上把它染成错误色。
+    const perkCss = readFileSync(join(repoRoot, "packages", "ui", "src", "styles", "components", "09-weapon-detail.css"), "utf8");
+    const mismatchRules = [...perkCss.matchAll(/[^{}]*\[data-mismatch="true"\][^{}]*\{[^}]*\}/g)].map((match) => match[0]);
+    expect(mismatchRules, "找不到任何一条 mismatch 规则，后面几句会白过").not.toHaveLength(0);
+    for (const rule of mismatchRules) {
+      expect(rule, "环跟着 mismatch 染了红，「当前启用」又变回两种样子").not.toContain("weapon-detail-perk-entry-active");
+      expect(rule, "mismatch 不再只是把状态词变红").toContain("--status-error");
+    }
+  });
+
+  it("keeps the perk popover above the source card's sticky column head and under the section tabs", () => {
+    // T85：说明浮层是从卡片**往上**开的，第一行卡片的浮层必然跨过来源卡顶部那条吸附栏头。
+    // 条目原来和栏头同层（条目 9 < 栏头 10），不透明的栏头就把浮层从中间切掉——实窗看到的是
+    // 浮层被切成上下两截、中间横穿一条图例。现在三层分家：页签 > 悬停卡片与浮层 > 栏头 > 静态内容。
+    const css = readFileSync(join(repoRoot, "packages", "ui", "src", "styles", "components", "09-weapon-detail.css"), "utf8");
+    const zIndexOf = (selector: string) => {
+      const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const value = css.match(new RegExp(`(?:^|\\n)${escaped}\\s*\\{[^}]*?z-index:\\s*([^;]+);`))?.[1]?.trim() ?? "";
+      expect(value, `找不到 ${selector} 的 z-index，后面几句会白过`).not.toBe("");
+      return value;
+    };
+    expect(zIndexOf(".weapon-detail-nav"), "章节页签不再是最高一层").toBe("calc(var(--layer-sticky) + 1)");
+    expect(zIndexOf('.weapon-detail-perk-entry[data-open="true"]'), "悬停 / 打开的条目不再抬到栏头之上，浮层会被栏头切掉").toBe("calc(var(--layer-sticky) - 1)");
+    expect(zIndexOf(".weapon-detail-source-slot-columns"), "吸附栏头又回到了悬停条目那一层").toBe("calc(var(--layer-sticky) - 2)");
   });
 
   it("keeps the source row's two scopes written by one shared sentence", () => {

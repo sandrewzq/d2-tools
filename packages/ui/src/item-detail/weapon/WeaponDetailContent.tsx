@@ -1449,7 +1449,7 @@ function RecommendationSourceEvidenceCard(props: {
                 <div className="weapon-detail-source-slot-columns">
                   <span>栏位</span>
                   <span>来源要求<em>多候选满足其一即可</em></span>
-                  <span>本件拥有<em>环＝当前启用，红环＝来源没要</em></span>
+                  <span>本件拥有<em>环＝当前启用，叉＝来源没要</em></span>
                 </div>
                 {specifiedSlots.map((slot) => (
                   <RecommendationSourceSlotRow
@@ -1535,7 +1535,7 @@ function RecommendationSlotComparison(props: {
           ) : <p>{props.sourceCandidateFallback}</p>}
         </section>
         <section>
-          <header><span>本件拥有</span><small>环＝当前启用，红环＝来源没要</small></header>
+          <header><span>本件拥有</span><small>环＝当前启用，叉＝来源没要</small></header>
           {instanceOwned.length ? (
             <div className="weapon-detail-perk-entries" role="group" aria-label={`${label}本件拥有`}>
               {instanceOwned.map((candidate) => {
@@ -1555,9 +1555,10 @@ function RecommendationSlotComparison(props: {
                     hit={candidate.hit === true}
                     selected={candidate.active === true}
                     pending={staged}
-                    // 「不符」栏的直接原因：本件当前装着它、而来源没要它（判定条件见 WeaponPerkEntry 的 mismatch）。
-                    // 来源要求列不标——那一列在「不符」栏里每张卡都长这样，标了等于把这四个字重复 N 遍。
-                    mismatch={state === "different" && candidate.hit !== true && candidate.active === true}
+                    // 本件当前装着它、而来源没要它（判定条件见 WeaponPerkEntry 的 mismatch）。
+                    // 这条只看卡片自己的事实，不看这一栏符不符合（T84 拍板 A）：同一张卡落在「符合」栏里
+                    // 也该是同一枚叉——「符合」说的是你**拥有**来源要的那项（哪怕没装），不等于你装的就是它。
+                    mismatch={candidate.hit !== true && candidate.active === true}
                     muted={state === "match" && candidate.hit !== true}
                     contextLabel="本件拥有"
                     statusLabel={staged ? perkStatusWord.pending : ownedStatus(candidate)}

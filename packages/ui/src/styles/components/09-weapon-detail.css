@@ -449,9 +449,11 @@
 .weapon-detail-perk-entries > .weapon-detail-perk-entry { min-width: 0; }
 .weapon-detail-perk-entry { display: block; position: relative; z-index: 0; width: 100%; }
 /* 抬这一下只为「说明浮层不被邻卡压住」：兄弟条目都停在 0，所以只要比 0 高就够了。
-   原来抬到 --layer-popover(20)，比章节页签和吸附栏头(都 --layer-sticky=10)还高，
-   鼠标停在卡片上时那张卡片会连浮层一起盖到页签上面——同一类「层级没分家」。
-   收到吸附头之下：仍然赢过所有兄弟，但永远盖不住吸附的页面构件。
+   原来抬到 --layer-popover(20)，鼠标停在卡片上时那张卡片会连浮层一起盖到章节页签上面——同一类
+   「层级没分家」。现在这条停在 --layer-sticky - 1：赢过所有兄弟，也赢过来源卡顶部的吸附栏头
+   （--layer-sticky - 2），但仍然低于章节页签（--layer-sticky + 1）——页签是窗口构件，谁都不许盖。
+   浮层是从卡片**往上**开的，第一行卡片的浮层必然跨过栏头那条带子；条目如果压在栏头之下，
+   不透明的栏头就会把浮层从中间切掉（实窗看到的是浮层被切成上下两截、中间横穿一条图例，T85）。
    （浮层的 z-index 只在本条目的层叠上下文里生效，所以改条目这一层就等于改浮层那一层。） */
 .weapon-detail-perk-entry:focus-within,
 .weapon-detail-perk-entry:hover,
@@ -520,15 +522,14 @@
 /* 本件 Roll / 固有能力 / 完整掉落池（emphasis="selected"）的标记沿用原来的小实心点：那里已经有三路蓝色
    结构信号，标记只作为第四路点缀，不跟着推荐对照区放大。 */
 .weapon-detail-perk-entry[data-emphasis="selected"] .weapon-detail-perk-entry-active { position: absolute; bottom: 4px; left: 32px; width: 10px; height: 10px; border: 2px solid var(--surface-panel); border-radius: 50%; background: var(--selected-border); box-shadow: 0 0 0 1px color-mix(in srgb, var(--selected-border) 55%, transparent); }
-/* 「不匹配」那一路：状态词与环一起变红（T73 拍板「染红，连图例一起改」）。
-   两处的特异性都得写满，否则被上面那两条盖掉、这一档和没标一模一样——
-   上一版原型就栽在这里（[data-ring-demo] .weapon-detail-perk-entry-active 只有 0,2,0，
-   被 :not([data-emphasis="selected"]) 那条 0,3,0 吃掉，两档对照像素级相同却没人发现）：
-   状态词要压过 `[data-active="true"] …small`（0,3,0），环要压过那条 0,3,0 的环规则。
-   环染红之后列头图例必须跟着改——那句「蓝环表示当前启用」在两处
-   （WeaponDetailContent.tsx:1283 栏头、:1369 窄屏半区表头），已改成「环＝当前启用，红环＝来源没要」。 */
+/* 「不匹配」那一路的着色（T73 加、T84 改判据）：状态词变红，**环不跟着变**。
+   判据现在只看卡片自己的事实（`!hit && active`，见 `WeaponPerkEntry.tsx` 的 mismatch），所以「符合」栏里
+   也会出现这一路；环一旦跟着红，「当前启用」这个词就会有一蓝一红两种样子——而环说的是
+   「这件当前装着它」，跟来源要不要它是两件事，一支通道背两个意思正是这一路要拆掉的东西。
+   红字与叉同一个事实说两遍（一遍形状、一遍颜色），颜色只是加强，形状才是那条不许丢的通道。
+   特异性仍要压过上面那条 `[data-active="true"] …small`（0,3,0）。
+   列头图例两处（`WeaponDetailContent.tsx` 栏头与窄屏半区表头）随之写成「环＝当前启用，叉＝来源没要」。 */
 .weapon-detail-perk-entry[data-mismatch="true"][data-active="true"] .weapon-detail-perk-entry-copy small { color: var(--status-error); }
-.weapon-detail-perk-entry:not([data-emphasis="selected"])[data-mismatch="true"] .weapon-detail-perk-entry-active { border-color: var(--status-error); }
 .weapon-detail-perk-entry-popover { display: grid; position: absolute; z-index: var(--layer-popover); bottom: calc(100% + 10px); left: 50%; width: min(304px, calc(100vw - 32px)); gap: 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--border-control) 78%, var(--accent-primary)); border-radius: var(--radius-object); color: var(--text-body); background: var(--chrome); box-shadow: 0 16px 36px rgb(0 0 0 / 34%); opacity: 0; pointer-events: none; transform: translate(-50%, 5px); transition: opacity 100ms ease, transform 100ms ease; visibility: hidden; }
 .weapon-detail-perk-entry:hover > .weapon-detail-perk-entry-popover,
 .weapon-detail-perk-entry:focus-within > .weapon-detail-perk-entry-popover,
@@ -604,10 +605,13 @@
 .weapon-detail-source-slot-comparison { display: contents; }
 /* 栏头（T72 方案 B）：逐行表头收成来源卡顶部一条，列模板与槽位行逐像素相同（列线对得上），
    吸附时不靠记忆读列名；被自己的来源卡推出边界时正常让位。
-   吸附在**章节页签下面**，不是滚动口顶边：页签已经占了 top: 0，这条跟它同层（都 --layer-sticky）、
-   又不透明，两边都写 0 就是逐像素重合，而平局按 DOM 顺序裁决——栏头在来源卡里、DOM 更靠后，
-   于是它盖住页签（T72-B 落地时的「飘到最上层」bug）。让开页签高度即互不重叠，z-index 平不平就不重要了。 */
-.weapon-detail-source-slot-columns { display: grid; position: sticky; z-index: var(--layer-sticky); top: var(--weapon-detail-nav-height); grid-template-columns: minmax(96px, 112px) repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--section-divider); background: var(--surface-panel); }
+   吸附在**章节页签下面**，不是滚动口顶边：页签已经占了 top: 0，又不透明，两边都写 0 就是逐像素重合，
+   而平局按 DOM 顺序裁决——栏头在来源卡里、DOM 更靠后，于是它盖住页签（T72-B 落地时的「飘到最上层」bug）。
+   让开页签高度即互不重叠，那时 z-index 平不平并不重要。
+   T85 把这条的层级从 --layer-sticky 降到 --layer-sticky - 2：栏头只有一个职责，压住从它下面滚过去的
+   静态内容（那些卡片停在 0）；它不透明，一旦和悬停的卡片同层，就会把往上开的说明浮层从中间切掉。
+   分家之后的顺序是 页签(+1) > 悬停卡片与浮层(-1) > 栏头(-2) > 内容(0)。 */
+.weapon-detail-source-slot-columns { display: grid; position: sticky; z-index: calc(var(--layer-sticky) - 2); top: var(--weapon-detail-nav-height); grid-template-columns: minmax(96px, 112px) repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--section-divider); background: var(--surface-panel); }
 .weapon-detail-source-slot-columns > span { padding: 8px 10px; color: var(--text-body); font-size: var(--font-meta); font-weight: 700; }
 .weapon-detail-source-slot-columns > span:first-child { padding-left: 13px; }
 .weapon-detail-source-slot-columns em { display: block; color: var(--text-muted); font-style: normal; font-weight: 400; font-size: var(--font-caption); }

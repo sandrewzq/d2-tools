@@ -39,6 +39,24 @@ if errorlevel 1 (
 
 git diff --cached --quiet
 if errorlevel 1 (
+  echo.
+  echo Files to commit:
+  git status --short --untracked-files=no
+
+  echo.
+  echo Running pre-commit checks...
+  where node >nul 2>nul
+  if errorlevel 1 (
+    echo WARNING: node not found on PATH. Skipping pre-commit checks.
+  ) else (
+    node "scripts\git-commit-gate.mjs" %*
+    if errorlevel 1 (
+      echo.
+      echo Pre-commit checks failed. Commit aborted. Your changes are still staged.
+      exit /b 1
+    )
+  )
+
   echo Creating commit...
   git commit -m "%COMMIT_MESSAGE%"
   if errorlevel 1 (
@@ -75,6 +93,8 @@ echo.
 echo Behavior:
 echo   - Runs from the repository root.
 echo   - Stages all changes with git add -A.
+echo   - Runs pnpm test before committing, and aborts the commit if it fails.
+echo   - Pass --skip-check to skip that check.
 echo   - Commits if there are staged changes.
 echo   - Skips commit if there are no staged changes.
 echo   - Pushes the current branch to its upstream.

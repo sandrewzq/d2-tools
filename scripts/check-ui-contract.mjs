@@ -15,7 +15,9 @@ const forbiddenPatterns = [
   { label: "选中态不得使用底部方向线", pattern: /box-shadow:\s*inset\s+0\s+-\d+(?:\.\d+)?px/ }
 ];
 
-const allowedFontWeights = new Set(["400", "600", "700"]);
+// 400 / 600 / 700 是文字的字重层级。900 只留给图标字形：装备详情那四枚标记（命中勾、待应用方块、
+// 当前环、不匹配叉）是 15-19px 的单个字形，笔画要够粗才能在 16px 方块里认得出，正文里不该出现 900。
+const allowedFontWeights = new Set(["400", "600", "700", "900"]);
 const allowedSurfaceValues = new Set([
   "page",
   "section",
