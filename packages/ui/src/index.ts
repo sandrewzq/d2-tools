@@ -71,6 +71,9 @@ export type {
   LibraryDropAccessKey,
   LibraryEquipmentFilter,
   LibraryPerkFilter,
+  LibraryPerkRelatedFacet,
+  LibraryPerkRelatedFacetKey,
+  LibraryPerkRelatedFilter,
   LibraryViewMode
 } from "./library/libraryFilters.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";

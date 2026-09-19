@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type {
   ItemSearchResult,
   LibraryDropAccessKey,
@@ -8,13 +8,17 @@ import type {
   LibraryOwnershipEntry,
   LibraryPageModel,
   LibraryPerkFilter,
+  LibraryPerkRelatedFacet,
+  LibraryPerkRelatedFacetKey,
+  LibraryPerkRelatedFilter,
+  LibraryPerkResultView,
   LibraryWeeklyFarmingItemView,
   LibraryViewMode,
   LiveItemAvailabilityEntry,
   PerkSearchResult,
   VaultItemMatchInfo
 } from "@d2-tools/app/library";
-import { formatLibraryVersion } from "@d2-tools/app/library";
+import { defaultLibraryPerkRelatedFilter, formatLibraryVersion } from "@d2-tools/app/library";
 import {
   classifyWeaponSocketPlugs,
   isWeaponSystemPlug,
@@ -24,7 +28,7 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
-import { GameCombatIcon, type GameDamageTypeKey } from "../media/GameCombatIcon.js";
+import { GameCombatIcon, gameDamageTypeKeyFromLabel, gameWeaponSlotTypeFromLabel } from "../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../time/formatTime.js";
 import { SystemUpdateProgress, systemUpdateToneForStatus, type SystemUpdateTone } from "../update/SystemUpdateProgress.js";
 import {
@@ -87,8 +91,6 @@ function libraryText(copy: LibraryCopy, key: string): string {
 export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").library;
   const { model, actions } = props;
-  const libraryEquipmentFilter = model.queryPanel.equipmentFilters;
-  const equipmentFilterOptions = model.queryPanel.equipmentFilterOptions;
   const perkGroupOptions = model.queryPanel.perkGroupOptions;
   const hitCount = model.results.hitCount;
   const isManifestBlocked = model.queryPanel.isManifestBlocked;
@@ -123,6 +125,27 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
       : model.weeklyFarming.itemCount;
   const hasVisibleResults = visibleResultCount > 0;
   const searchInputRef = useRef<HTMLInputElement>(null);
+  // 左栏的高级筛选作用于「当前展开的那个 Perk 的关联武器」，而展开是结果区的事。
+  // 这块状态只服务左栏，不进模型；Perk 换掉或搜索换掉后它在结果里找不到对应行，自动回到未展开。
+  const [expandedPerkKey, setExpandedPerkKey] = useState<string | null>(null);
+  const [openFacetGroups, setOpenFacetGroups] = useState<Record<string, boolean>>({});
+  const perkFilters = model.queryPanel.perkFilters;
+  const relatedFilter = perkFilters.related;
+  const expandedPerkRow = useMemo(
+    () => model.results.perks.find((row) => row.perk.key === expandedPerkKey) ?? null,
+    [model.results.perks, expandedPerkKey]
+  );
+
+  /** 点同一个取值等于取消它——取值上不会有「全部」这一档占位。 */
+  function selectRelatedFacet(key: LibraryPerkRelatedFacetKey, value: string) {
+    const next = { ...relatedFilter };
+    if (key === "ammo") {
+      next.ammo = value as LibraryPerkRelatedFilter["ammo"];
+    } else {
+      next[key] = value;
+    }
+    actions.onPerkFiltersChange({ related: next });
+  }
 
   function selectMode(mode: LibraryViewMode) {
     actions.onViewModeChange(mode);
@@ -207,36 +230,64 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                 <input ref={searchInputRef} autoFocus aria-label={libraryText(copy, "资料库主搜索")} value={model.queryPanel.primaryQuery} disabled={isManifestBlocked} onChange={(event) => isEquipmentMode ? actions.onEquipmentFiltersChange({ query: event.target.value }) : actions.onPerkFiltersChange({ query: event.target.value })} placeholder={isEquipmentMode ? libraryText(copy, "输入装备名称，例如加时交锋") : libraryText(copy, "输入特性或框架名称")} />
                 <button type="submit" data-ui-kind="button" data-control-variant="primary" disabled={model.status.isSearching || isManifestBlocked}>{model.status.isSearching ? libraryText(copy, "搜索中...") : libraryText(copy, "搜索")}</button>
               </form>
-              <button type="button" className="library-clear-button" data-ui-kind="button" data-control-variant="quiet" onClick={actions.onClearFilters}>{libraryText(copy, "清空查询与筛选")}</button>
+              <button type="button" className="library-clear-button" data-ui-kind="button" data-control-variant="quiet" onClick={actions.onClearFilters}>{isEquipmentMode ? libraryText(copy, "清空查询") : libraryText(copy, "清空查询与筛选")}</button>
             </> : null}
           </div>
 
-          {!isWeeklyFarmingMode ? <div className="library-filter-stack">
-            {isEquipmentMode ? (
-              <>
-                <label>{libraryText(copy, "分类")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.group} onChange={(event) => actions.onEquipmentFiltersChange({ group: event.target.value as LibraryEquipmentFilter["group"] })}>{equipmentFilterOptions.groups.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>{libraryText(copy, "账号持有")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ownership ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ ownership: event.target.value as LibraryEquipmentFilter["ownership"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="owned">{libraryText(copy, "当前账号持有")}</option><option value="definition">{libraryText(copy, "仅资料库定义")}</option></select></label>
-                <details className="library-advanced-filters">
-                  <summary>{libraryText(copy, "高级筛选")}</summary>
-                  <div className="library-filter-stack library-nested-filter-stack">
-                    <label>{libraryText(copy, "稀有度")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.tier} onChange={(event) => actions.onEquipmentFiltersChange({ tier: event.target.value })}>{equipmentFilterOptions.tiers.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                    <label>{libraryText(copy, "位置")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.bucket} onChange={(event) => actions.onEquipmentFiltersChange({ bucket: event.target.value })}>{equipmentFilterOptions.buckets.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                    <label>{libraryText(copy, "弹药")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.ammo} onChange={(event) => actions.onEquipmentFiltersChange({ ammo: event.target.value as LibraryEquipmentFilter["ammo"] })}>{equipmentFilterOptions.ammo.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                    <label>{libraryText(copy, "获取状态")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.dropAccess} onChange={(event) => actions.onEquipmentFiltersChange({ dropAccess: event.target.value as LibraryEquipmentFilter["dropAccess"] })}><option value="all">{libraryText(copy, "全部状态")}</option><option value="available">{libraryText(copy, "来源可确认")}</option><option value="rotation">{libraryText(copy, "轮换或限时")}</option><option value="archived">{libraryText(copy, "历史来源")}</option><option value="unknown">{libraryText(copy, "来源未确认")}</option></select></label>
-                    <label>{libraryText(copy, "Perk 池")}<input disabled={isManifestBlocked} value={libraryEquipmentFilter.perkQuery} onChange={(event) => actions.onEquipmentFiltersChange({ perkQuery: event.target.value })} placeholder={libraryText(copy, "在当前结果中筛选 Perk")} /></label>
-                    <label>{libraryText(copy, "框架")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.frame[0] ?? "all"} onChange={(event) => actions.onEquipmentFiltersChange({ frame: event.target.value === "all" ? [] : [event.target.value] })}>{equipmentFilterOptions.frames.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                    <label>{libraryText(copy, "来源状态")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.sourceStatus} onChange={(event) => actions.onEquipmentFiltersChange({ sourceStatus: event.target.value as LibraryEquipmentFilter["sourceStatus"] })}><option value="all">{libraryText(copy, "全部来源状态")}</option><option value="ready">{libraryText(copy, "可确认")}</option><option value="missing">{libraryText(copy, "待补充")}</option></select></label>
-                    <label>{libraryText(copy, "Perk 池状态")}<select disabled={isManifestBlocked} value={libraryEquipmentFilter.perkPool} onChange={(event) => actions.onEquipmentFiltersChange({ perkPool: event.target.value as LibraryEquipmentFilter["perkPool"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="yes">{libraryText(copy, "有 Perk 池")}</option><option value="no">{libraryText(copy, "无 Perk 池")}</option></select></label>
+          {isWeeklyFarmingMode ? renderWeeklyFarmingSideRail(model, actions) : isPerkMode ? <div className="library-filter-stack">
+            <label>{libraryText(copy, "关联分类")}<select disabled={isManifestBlocked} value={perkFilters.relatedGroup} onChange={(event) => actions.onPerkFiltersChange({ relatedGroup: event.target.value as LibraryPerkFilter["relatedGroup"] })}>{perkGroupOptions.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
+            <label>{libraryText(copy, "关联装备")}<select disabled={isManifestBlocked} value={perkFilters.hasRelatedItems} onChange={(event) => actions.onPerkFiltersChange({ hasRelatedItems: event.target.value as LibraryPerkFilter["hasRelatedItems"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="yes">{libraryText(copy, "有")}</option><option value="no">{libraryText(copy, "无")}</option></select></label>
+            <section className="library-related-filters" aria-label={libraryText(copy, "关联武器筛选")}>
+              <div className="library-related-filter-scope">
+                <strong>{libraryText(copy, "筛选关联武器")}</strong>
+                <span>{formatRelatedFilterScope(expandedPerkRow, copy)}</span>
+              </div>
+              {expandedPerkRow?.areRelatedItemsLoaded ? expandedPerkRow.relatedFacets.map((facet) => {
+                const selected = relatedFilter[facet.key];
+                const isOpen = openFacetGroups[facet.key] ?? facet.options.length <= relatedFacetCollapseThreshold;
+                const options = (
+                  <div className="library-filter-options">
+                    {facet.options.map((option) => {
+                      const icon = relatedFacetIcon(facet.key, option.value);
+                      const tone = relatedFacetTone(facet.key, option.value);
+                      return <button
+                        type="button"
+                        key={option.value}
+                        className={icon ? "library-filter-option has-icon" : "library-filter-option"}
+                        data-tone={tone || undefined}
+                        aria-pressed={selected === option.value}
+                        disabled={option.disabled}
+                        onClick={() => selectRelatedFacet(facet.key, selected === option.value ? "all" : option.value)}
+                      >
+                        {icon}<span>{option.label}</span><small>{option.count}</small>
+                      </button>;
+                    })}
                   </div>
-                </details>
-              </>
-            ) : (
-              <>
-                <label>{libraryText(copy, "关联分类")}<select disabled={isManifestBlocked} value={model.queryPanel.perkFilters.relatedGroup} onChange={(event) => actions.onPerkFiltersChange({ relatedGroup: event.target.value as LibraryPerkFilter["relatedGroup"] })}>{perkGroupOptions.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
-                <label>{libraryText(copy, "关联装备")}<select disabled={isManifestBlocked} value={model.queryPanel.perkFilters.hasRelatedItems} onChange={(event) => actions.onPerkFiltersChange({ hasRelatedItems: event.target.value as LibraryPerkFilter["hasRelatedItems"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="yes">{libraryText(copy, "有")}</option><option value="no">{libraryText(copy, "无")}</option></select></label>
-              </>
-            )}
-          </div> : renderWeeklyFarmingSideRail(model, actions)}
+                );
+                // 组头在收起时得能说清「这组还剩什么」，所以显示已选取值；没选才退回项数。
+                return <details
+                  className="library-advanced-filters"
+                  key={facet.key}
+                  data-facet={facet.key}
+                  open={isOpen}
+                  onToggle={(event) => {
+                    const nextOpen = event.currentTarget.open;
+                    setOpenFacetGroups((current) => ({ ...current, [facet.key]: nextOpen }));
+                  }}
+                >
+                  <summary><strong>{libraryText(copy, facet.label)}</strong><small>{formatRelatedFacetHead(facet, selected)}</small></summary>
+                  {options}
+                </details>;
+              }) : <p className="library-related-filter-hint">{expandedPerkRow
+                ? libraryText(copy, "正在读取这个 Perk 的全部关联武器，读完才有准确的件数。")
+                : libraryText(copy, "展开任意 Perk 的「关联装备」后，这里筛的就是那批武器。")}</p>}
+              {expandedPerkRow?.areRelatedItemsLoaded && expandedPerkRow.activeRelatedFilterCount ? (
+                <button type="button" className="library-related-filter-reset" data-ui-kind="button" data-control-variant="quiet" onClick={() => actions.onPerkFiltersChange({ related: { ...defaultLibraryPerkRelatedFilter } })}>
+                  {libraryText(copy, "清除关联武器筛选")} {expandedPerkRow.activeRelatedFilterCount}
+                </button>
+              ) : null}
+            </section>
+          </div> : null}
 
           {!isWeeklyFarmingMode ? <details className="library-search-support">
             <summary><strong>{libraryText(copy, "搜索辅助")}</strong><span>{recentItems.length} {libraryText(copy, "条最近查询")} · {model.aliasPanel.history.favorites.length} {libraryText(copy, "个收藏")}</span></summary>
@@ -271,7 +322,9 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
         <ProductWorkspaceContentStack element="section" className="library-results" ariaLabel={libraryText(copy, "搜索结果")}>
           {isWeeklyFarmingMode ? renderWeeklyFarmingContent(model, actions, tabPanelId, activeTabId) : <div id={tabPanelId} role="tabpanel" aria-labelledby={activeTabId} aria-busy={model.status.isSearching}>
             <div className="library-results-head"><div><h3>{model.results.searchTouched ? (isEquipmentMode ? libraryText(copy, "装备搜索结果") : libraryText(copy, "Perk 与框架搜索结果")) : libraryText(copy, "等待查询")}</h3><span>{isEquipmentMode ? libraryText(copy, "当前资料库 + 实时来源 + 账号快照") : libraryText(copy, "当前资料库")}</span></div><span className="app-chip status-pending" role="status" aria-live="polite">{model.status.isSearching ? libraryText(copy, "更新中") : `${model.results.searchTouched ? hitCount : 0} ${libraryText(copy, "条")}`}</span></div>
-            <p className="library-result-note">{libraryText(copy, "筛选只作用于当前搜索结果；缺失的来源、分类和关联项保持缺失状态。")}</p>
+            <p className="library-result-note">{isEquipmentMode
+              ? libraryText(copy, "装备查询按名称匹配，结果不多，不设筛选条件；缺失的来源、分类和关联项保持缺失状态。")
+              : libraryText(copy, "筛选作用于展开的那个 Perk 的全部关联武器；缺失的来源、分类和关联项保持缺失状态。")}</p>
             {model.status.isSearching && hasVisibleResults ? <p className="status-message status-pending" role="status">{libraryText(copy, "正在更新结果，以下暂时保留上一次可见内容。")}</p> : null}
             {model.status.isLoadingLiveAvailability && isEquipmentMode ? <p className="status-message status-pending" role="status">{libraryText(copy, "正在复查实时商人和公共活动来源。")}</p> : null}
             {model.status.liveAvailabilityError && isEquipmentMode ? <p className="status-message status-warning" role="status">{libraryText(copy, "实时来源读取失败：")}{model.status.liveAvailabilityError}{libraryText(copy, "。资料库搜索结果仍可使用。")}</p> : null}
@@ -300,6 +353,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                   actions.onOpenRelatedItem,
                   actions.onAddFavorite,
                   actions.onRemoveFavorite,
+                  (open) => setExpandedPerkKey(open ? perk.perk.key : null),
                   copy
                 ))}
               </div>
@@ -692,6 +746,7 @@ function renderPerkResult(
   onOpenRelatedItem: LibraryPageActions["onOpenRelatedItem"],
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void,
   onRemoveFavorite: (hash: number) => void,
+  onExpandRelated: (open: boolean) => void,
   copy: LibraryCopy
 ) {
   const perk = row.perk;
@@ -703,6 +758,7 @@ function renderPerkResult(
   const relatedCountLabel = row.isRelatedCountExact
     ? `${row.relatedCount} ${libraryText(copy, "件关联装备")}`
     : libraryText(copy, "关联数量需重启确认");
+  const isRelatedFiltered = row.activeRelatedFilterCount > 0;
   return (
     <article className="library-result-row library-perk-result-row" key={perk.key} role="listitem">
       <GameAssetImage className="game-definition-icon" alt="" loading="eager" src={perk.icon} fallback={<span className="library-result-icon-placeholder" aria-hidden="true" />} />
@@ -735,14 +791,16 @@ function renderPerkResult(
           <details
             className="library-perk-related-items"
             onToggle={(event) => {
-              if (event.currentTarget.open && !row.areRelatedItemsLoaded && !row.isRelatedItemsLoading) {
+              const open = event.currentTarget.open;
+              onExpandRelated(open);
+              if (open && !row.areRelatedItemsLoaded && !row.isRelatedItemsLoading) {
                 onLoadPerkRelatedEquipment(perk);
               }
             }}
           >
             <summary>
               <strong>{libraryText(copy, "关联装备")}</strong>
-              <span>{row.isRelatedCountExact ? `${row.relatedCount} ${libraryText(copy, "件关联装备，可按版本查看详情")}` : relatedCountLabel}</span>
+              <span>{formatRelatedSummary(row, copy)}</span>
             </summary>
             {row.isRelatedItemsLoading && !row.relatedItems.length ? (
               <p className="library-perk-related-status" aria-live="polite">{libraryText(copy, "正在读取关联装备...")}</p>
@@ -758,7 +816,9 @@ function renderPerkResult(
               </div>
             ) : null}
             {row.areRelatedItemsLoaded && !row.relatedItems.length && !row.relatedItemsError ? (
-              <p className="library-perk-related-status">{libraryText(copy, "资料库关系存在，但当前版本没有可展示的装备定义。")}</p>
+              <p className="library-perk-related-status">{isRelatedFiltered
+                ? libraryText(copy, "当前筛选条件下没有关联武器；清掉左栏的筛选即可看到全部。")
+                : libraryText(copy, "资料库关系存在，但当前版本没有可展示的装备定义。")}</p>
             ) : null}
             {row.relatedItems.length ? (
               <div className="library-perk-related-list">
@@ -777,7 +837,7 @@ function renderPerkResult(
                 >
                   {row.isRelatedItemsLoading ? libraryText(copy, "加载中...") : libraryText(copy, "加载更多")}
                 </button>
-                <span>{libraryText(copy, "已显示")} {row.relatedItems.length} / {row.relatedCount}</span>
+                {isRelatedFiltered ? null : <span>{libraryText(copy, "已显示")} {row.relatedItems.length} / {row.relatedCount}</span>}
               </div>
             ) : null}
           </details>
@@ -856,6 +916,72 @@ function renderPerkRelatedEquipment(
       </span>
     </button>
   );
+}
+
+/**
+ * 关联武器的筛选取值只带回中文标签，不带键；图标和配色靠既有战斗图标语言回推，
+ * 不另立一份映射。框架没有对应字形，只显示文字。
+ */
+function relatedFacetIcon(facetKey: LibraryPerkRelatedFacetKey, value: string): ReactNode {
+  if (facetKey === "bucket") {
+    const slot = gameWeaponSlotTypeFromLabel(value);
+    return slot ? <GameCombatIcon kind="slot" type={slot} size="compact" /> : null;
+  }
+  if (facetKey === "damage") {
+    const damage = gameDamageTypeKeyFromLabel(value);
+    return damage ? <GameCombatIcon kind="damage" type={damage} size="compact" /> : null;
+  }
+  if (facetKey === "ammo") {
+    return <GameCombatIcon kind="ammo" type={value} size="compact" />;
+  }
+  return null;
+}
+
+function relatedFacetTone(facetKey: LibraryPerkRelatedFacetKey, value: string): string {
+  if (facetKey === "bucket") {
+    const slot = gameWeaponSlotTypeFromLabel(value);
+    return slot ? `slot-${slot}` : "";
+  }
+  if (facetKey === "damage") {
+    const damage = gameDamageTypeKeyFromLabel(value);
+    return damage ? `damage-${damage}` : "";
+  }
+  if (facetKey === "ammo") {
+    return `ammo-${value}`;
+  }
+  return "";
+}
+
+/** 取值超过这个数就默认收起——四个维度全摊开会把侧栏首屏全占满。 */
+const relatedFacetCollapseThreshold = 6;
+
+function formatRelatedFacetHead(facet: LibraryPerkRelatedFacet, selected: string): string {
+  if (selected === "all") return `${facet.options.length} 项`;
+  return facet.options.find((option) => option.value === selected)?.label ?? selected;
+}
+
+/** 收起时这一行是唯一能看出「筛过没有」的地方，所以筛过就一定要报出筛剩多少。 */
+function formatRelatedSummary(row: LibraryPerkResultView, copy: LibraryCopy): string {
+  if (!row.isRelatedCountExact) return libraryText(copy, "关联数量需重启确认");
+  if (!row.activeRelatedFilterCount) {
+    return `${row.relatedCount} ${libraryText(copy, "件关联装备，可按版本查看详情")}`;
+  }
+  return `${libraryText(copy, "筛出")} ${row.relatedItems.length} / ${row.relatedCount} ${libraryText(copy, "件，可按版本查看详情")}`;
+}
+
+/**
+ * 面板顶部说清现在筛的是哪一批。没有这一行，同一块面板在两种模式下长得一样，
+ * 只能靠猜——四百件关联武器和十几条搜索结果不是一个量级。
+ */
+function formatRelatedFilterScope(row: LibraryPerkResultView | null, copy: LibraryCopy): string {
+  if (!row) return libraryText(copy, "尚未展开任何 Perk，先展开一个再看这里的筛选。");
+  if (!row.areRelatedItemsLoaded) {
+    return `${libraryText(copy, "正在读取")}「${row.perk.name}」${libraryText(copy, "的全部关联武器。")}`;
+  }
+  if (!row.activeRelatedFilterCount) {
+    return `${libraryText(copy, "作用于")}「${row.perk.name}」${libraryText(copy, "的")} ${row.relatedCount} ${libraryText(copy, "件关联武器。")}`;
+  }
+  return `${libraryText(copy, "作用于")}「${row.perk.name}」${libraryText(copy, "的")} ${row.relatedItems.length} ${libraryText(copy, "件关联武器（共")} ${row.relatedCount} ${libraryText(copy, "件）。")}`;
 }
 
 function formatEnhancedPerkDescription(baseDescription: string, enhancedDescription: string): string {
@@ -1270,15 +1396,7 @@ function toLibraryEquipmentTag(label: string | undefined): LibraryEquipmentTag |
 }
 
 function toLibraryElementTag(damageType: string | undefined): LibraryEquipmentTag | undefined {
-  const keyByDamageType: Record<string, GameDamageTypeKey> = {
-    "动能伤害": "kinetic",
-    "电弧伤害": "arc",
-    "烈日伤害": "solar",
-    "虚空伤害": "void",
-    "冰影伤害": "stasis",
-    "缚丝伤害": "strand"
-  };
-  const key = damageType ? keyByDamageType[damageType] : undefined;
+  const key = gameDamageTypeKeyFromLabel(damageType);
   return key && damageType ? {
     label: damageType,
     className: `library-element-tag library-element-${key}`,

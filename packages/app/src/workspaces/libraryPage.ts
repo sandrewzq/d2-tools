@@ -118,6 +118,25 @@ export type LibraryPerkRelatedEquipmentState = {
   isBlocked?: boolean;
 };
 
+/**
+ * 作用于「当前展开的 Perk 的关联武器」的四个维度。
+ * 只有这四种：Perk 反查是唯一会一次回来几百件的场景，再多的维度没人会去用。
+ */
+export type LibraryPerkRelatedFilter = {
+  bucket: string;
+  damage: string;
+  ammo: AmmoTypeKey | "all";
+  frame: string;
+};
+
+export type LibraryPerkRelatedFacetKey = keyof LibraryPerkRelatedFilter;
+
+export type LibraryPerkRelatedFacet = {
+  key: LibraryPerkRelatedFacetKey;
+  label: string;
+  options: Array<LibraryFilterOption & { count: number; disabled: boolean }>;
+};
+
 export type NormalizedLibraryPerkSearchPayload = {
   perks: PerkSearchResult[];
   legacyRelatedEquipment: Record<string, LibraryPerkRelatedEquipmentState>;
@@ -228,6 +247,8 @@ export type LibraryPerkFilter = {
   query: string;
   relatedGroup: LibraryEquipmentGroupFilter;
   hasRelatedItems: LibraryRelatedItemsFilter;
+  /** 只作用于展开的那个 Perk 的关联武器，不影响 Perk 列表本身。 */
+  related: LibraryPerkRelatedFilter;
 };
 
 export type LibraryFilterOption = {
@@ -337,6 +358,8 @@ export type LibraryPerkResultView = {
   areRelatedItemsLoaded: boolean;
   relatedItemsError: string;
   isRelatedItemsBlocked: boolean;
+  relatedFacets: LibraryPerkRelatedFacet[];
+  activeRelatedFilterCount: number;
 };
 
 export type LibraryPageModel = {
@@ -439,11 +462,111 @@ export const defaultLibraryEquipmentFilter: LibraryEquipmentFilter = {
   perkQuery: ""
 };
 
+export const defaultLibraryPerkRelatedFilter: LibraryPerkRelatedFilter = {
+  bucket: "all",
+  damage: "all",
+  ammo: "all",
+  frame: "all"
+};
+
 export const defaultLibraryPerkFilter: LibraryPerkFilter = {
   query: "",
   relatedGroup: "all",
-  hasRelatedItems: "all"
+  hasRelatedItems: "all",
+  related: { ...defaultLibraryPerkRelatedFilter }
 };
+
+const perkRelatedFacetOrder: LibraryPerkRelatedFacetKey[] = ["bucket", "damage", "ammo", "frame"];
+
+const perkRelatedFacetLabels: Record<LibraryPerkRelatedFacetKey, string> = {
+  bucket: "位置",
+  damage: "属性",
+  ammo: "弹药类型",
+  frame: "框架"
+};
+
+function perkRelatedFacetValue(item: LibraryPerkRelatedEquipmentItem, key: LibraryPerkRelatedFacetKey): string {
+  switch (key) {
+    case "bucket":
+      return item.bucket_name ?? "";
+    case "damage":
+      return item.damage_type ?? "";
+    case "ammo":
+      return item.ammo_type ?? "";
+    case "frame":
+      return item.weapon_frame?.key ?? "";
+  }
+}
+
+function perkRelatedFacetLabel(item: LibraryPerkRelatedEquipmentItem, key: LibraryPerkRelatedFacetKey): string {
+  switch (key) {
+    case "bucket":
+      return item.bucket_name ?? "";
+    case "damage":
+      return item.damage_type ?? "";
+    case "ammo":
+      return item.ammo_type ? ammoLabels[item.ammo_type] : "";
+    case "frame":
+      return item.weapon_frame?.name ?? "";
+  }
+}
+
+function matchesPerkRelatedFacet(
+  item: LibraryPerkRelatedEquipmentItem,
+  key: LibraryPerkRelatedFacetKey,
+  selected: string
+): boolean {
+  return selected === "all" || perkRelatedFacetValue(item, key) === selected;
+}
+
+export function filterLibraryPerkRelatedItems(
+  items: LibraryPerkRelatedEquipmentItem[],
+  filter: LibraryPerkRelatedFilter
+): LibraryPerkRelatedEquipmentItem[] {
+  return items.filter((item) => perkRelatedFacetOrder.every((key) => matchesPerkRelatedFacet(item, key, filter[key])));
+}
+
+export function countLibraryPerkRelatedFilters(filter: LibraryPerkRelatedFilter): number {
+  return perkRelatedFacetOrder.filter((key) => filter[key] !== "all").length;
+}
+
+export function buildLibraryPerkRelatedFacets(
+  items: LibraryPerkRelatedEquipmentItem[],
+  filter: LibraryPerkRelatedFilter
+): LibraryPerkRelatedFacet[] {
+  return perkRelatedFacetOrder.map((key) => {
+    // 取值清单取自全量关联武器，不取自筛选后的那批：否则筛着筛着别的取值会消失，
+    // 只剩「有货的」几个，人就不知道自己还漏了什么。
+    const labels = new Map<string, string>();
+    for (const item of items) {
+      const value = perkRelatedFacetValue(item, key);
+      if (value && !labels.has(value)) labels.set(value, perkRelatedFacetLabel(item, key));
+    }
+    // 换了 Perk 之后已选取值可能整个不在新的一批里；它照样要露出来，否则取消不掉。
+    const selected = filter[key];
+    if (selected !== "all" && !labels.has(selected)) labels.set(selected, selected);
+
+    // 算这一维的件数时把它自己摘掉，数字才等于「再选上它会剩几件」。
+    // 带着自己的条件算，选完一项后同维其余取值全变 0，再也切不回去。
+    const others = items.filter((item) =>
+      perkRelatedFacetOrder.every((other) => other === key || matchesPerkRelatedFacet(item, other, filter[other]))
+    );
+    const counts = new Map<string, number>();
+    for (const item of others) {
+      const value = perkRelatedFacetValue(item, key);
+      if (value) counts.set(value, (counts.get(value) ?? 0) + 1);
+    }
+
+    return {
+      key,
+      label: perkRelatedFacetLabels[key],
+      options: [...labels].map(([value, label]) => {
+        const count = counts.get(value) ?? 0;
+        return { value, label, count, disabled: count === 0 && selected !== value };
+      }).sort((left, right) => right.count - left.count || left.label.localeCompare(right.label, "zh-CN"))
+    };
+  });
+}
 
 export function normalizeLibraryPerkSearchPayload(value: unknown): NormalizedLibraryPerkSearchPayload {
   if (!Array.isArray(value)) {
@@ -674,7 +797,8 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       perks: visiblePerks.map((perk) => createPerkResultView(
         perk,
         cache.perkRelatedEquipment[perk.key],
-        state.itemDetailLoadingKey
+        state.itemDetailLoadingKey,
+        state.perkFilters.related
       ))
     },
     stats: {
@@ -1016,9 +1140,11 @@ function addOwnedItems(
 function createPerkResultView(
   perk: PerkSearchResult,
   relatedState: LibraryPerkRelatedEquipmentState | undefined,
-  itemDetailLoadingKey: string
+  itemDetailLoadingKey: string,
+  relatedFilter: LibraryPerkRelatedFilter
 ): LibraryPerkResultView {
-  const relatedItems = relatedState?.items ?? [];
+  const allRelatedItems = relatedState?.items ?? [];
+  const relatedItems = filterLibraryPerkRelatedItems(allRelatedItems, relatedFilter);
   const relatedCount = relatedState?.total ?? finiteNumber(perk.related_count) ?? 0;
   return {
     perk,
@@ -1034,7 +1160,9 @@ function createPerkResultView(
     isRelatedItemsLoading: relatedState?.isLoading ?? false,
     areRelatedItemsLoaded: relatedState?.isLoaded ?? false,
     relatedItemsError: relatedState?.error ?? "",
-    isRelatedItemsBlocked: relatedState?.isBlocked ?? false
+    isRelatedItemsBlocked: relatedState?.isBlocked ?? false,
+    relatedFacets: buildLibraryPerkRelatedFacets(allRelatedItems, relatedFilter),
+    activeRelatedFilterCount: countLibraryPerkRelatedFilters(relatedFilter)
   };
 }
 

@@ -71,7 +71,8 @@ function WindowedWeaponGrid(props: GridProps) {
   const metricsRef = useRef<GridMetrics>({
     columns: 1,
     rowGap: 0,
-    rowStride: 251,
+    // 首次渲染、还没量到第一格之前的估计值：标准密度卡片 184 + 行距 10。量到真值即被覆盖。
+    rowStride: 194,
     gridTop: 0,
     viewportHeight: 720
   });

@@ -5123,19 +5123,37 @@
   }
 }
 
-/* 武器结果使用固定几何结构，护甲与混合视图继续沿用既有布局。 */
+/* 武器结果使用固定几何结构，护甲与混合视图继续沿用既有布局。
+   卡片宽度固定、左对齐：一行排几张只由结果列宽度（窗口宽减左侧菜单栏）决定，
+   窄了自然降列，不再被 1fr 拉伸去填满行宽——同宽卡片才谈得上等比对齐。 */
 :where(.app-shell) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
-  grid-template-columns: repeat(auto-fill, minmax(min(264px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, 260px);
+  justify-content: start;
   gap: 10px;
   padding: 12px;
 }
 
+/* 卡片高度是算出来的，不是手感：2 边框 + 14 内边距 + 主区（44 身份 + 20 事实 + 3×2 行距
+   + 来源面板）+ 30 底部行（26 按钮 + 4 上边距）= 184。身份行与事实行用 minmax 下限，
+   名字换行或事实变宽时由来源面板让位，卡片整体高度不变——二维虚拟网格只量第一格算行距，
+   同档必须等高。内边距、主区行距和事实行下限各收 1~2px（16→14、4→3、22→20）是为长名字
+   让出来的：名字折两行时身份行从 44 长到 52，来源面板要跟着让 8px，不回收这 6px 面板就会
+   把第二条来源的字底裁掉。
+   改成两行网格（主区 1fr + 底部行 auto）是为了让主区吃掉剩余高度：卡片固定高度而来源行数会变
+   （0~2 行），单行 auto 排版时主区只按内容长，余量堆在按钮下面，同排卡片的按钮不在同一条线上。
+   主区拉伸后按钮落在同一个 y，余量留在主区里当卡片底色（见下面主区第三行的 max-content）。
+   行距归零是因为基类 .vault-item-card 的 10px 间距在这个高度预算里没算进去，底部间距由底部行
+   自己的 4px 上边距给。改高度要同步 contain-intrinsic-size（本文件底部）与
+   application-workspaces.md 合同。 */
 :where(.app-shell) .vault-results-column .vault-item-card.vault-item-weapons {
-  --item-thumb: 52px;
+  --item-thumb: 44px;
   box-sizing: border-box;
-  height: 233px;
-  min-height: 233px;
-  padding: 8px 10px;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: 0;
+  height: 184px;
+  min-height: 184px;
+  padding: 7px 9px;
   border-color: var(--object-border);
   background: var(--card-bg);
   box-shadow: none;
@@ -5158,9 +5176,12 @@
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-main {
   display: grid;
+  /* 主区第三行是来源面板：min 0 保证名字换两行时面板让位（面板自己有 overflow: hidden，
+     缩小不会溢出到按钮），max-content 保证面板不多占——来源行数少时余量留成卡片底色，
+     不摊成一条空的面板底色。 */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 52px 22px 79px 18px;
-  gap: 4px;
+  grid-template-rows: minmax(44px, auto) minmax(20px, auto) minmax(0, max-content);
+  gap: 3px;
   width: 100%;
   min-height: 0;
   height: auto;
@@ -5174,15 +5195,25 @@
   outline: 0;
 }
 
+/* 身份行第三列是光等（auto：按内容宽贴右缘）。原来光等在事实行里跟另外三项等分宽度，
+   勇士词条被挤成「反势不可…」；搬到身份行后它落在名字右边那块一直空着的横条上，
+   事实行只剩三项，每项都够宽。 */
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-identity {
-  grid-template-columns: var(--item-thumb) minmax(0, 1fr);
+  grid-template-columns: var(--item-thumb) minmax(0, 1fr) auto;
   gap: 10px;
-  align-items: start;
+  align-items: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-power {
+  align-self: center;
+  padding-left: 8px;
 }
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-copy {
   display: grid;
-  grid-template-rows: minmax(32px, auto) 16px;
+  /* 名字按一行起排（最多两行），不再无条件预留两行的高度：多数武器名一行就够，
+     预留的那一行下面是空的，而这 15px 正好是卡片想省掉的。 */
+  grid-template-rows: minmax(17px, auto) 16px;
   gap: 2px;
   min-height: var(--item-thumb);
   align-content: start;
@@ -5209,24 +5240,26 @@
   white-space: nowrap;
 }
 
+/* 三列：弹药 | 属性 | 勇士。「反势不可挡」这类勇士词条可有可无，所以末列是 auto——
+   没有它时这一列宽度为 0，前两项各占一半，不会因为空轨道把内容挤偏。
+   间距用子项 margin 而不是 grid gap：空列照样占一个 gap，会把末项推离右边缘 10px。 */
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact-row {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  column-gap: 0;
   padding: 0;
   border-top: 0;
   min-width: 0;
 }
 
-@container product-workspace (max-width: 1020px) {
-  :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    row-gap: 4px;
-  }
-
-  :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-power {
-    justify-content: flex-start;
-  }
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact-row > * + * {
+  margin-left: 10px;
 }
+
+/* 这里原来按工作区容器宽度（≤1020px）把事实行拆成两列。触发条件是窗户外层，跟卡片自己的宽度
+   无关：工作区窄到 1020 时卡片仍有 264px 起步，四项事实一行放得下，拆成两列反而让内容涨到 34px，
+   而事实行轨道是定高的 22px——实测 scrollHeight 34 / clientHeight 22，第二行事实会压在来源面板上。
+   真正窄的是卡片本身时，事实行轨道是 minmax(22px, auto)，会自动长高并由来源面板让位；
+   项内文字本来就有省略号，不会硬撑。 */
 
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-fact > span:last-child,
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-power small {
@@ -5358,6 +5391,26 @@
   border-top: 0;
 }
 
+/* 底部一行：左边状态、右边按钮。状态占满按钮之外的宽度，不再各自占一行留出两条空白。 */
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-quick-actions-weapon {
+  justify-content: space-between;
+  gap: 8px;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-quick-actions-weapon .vault-weapon-status {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  align-items: center;
+}
+
+:where(.app-shell) .vault-results-column .vault-item-weapons .vault-card-quick-action-buttons {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+}
+
 :where(.app-shell) .vault-results-column .vault-item-weapons .vault-weapon-location-state {
   display: flex;
   align-items: center;
@@ -5404,37 +5457,41 @@
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
-  grid-template-columns: repeat(auto-fill, minmax(min(224px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, 224px);
+  justify-content: start;
   gap: 7px;
   padding: 9px 10px;
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-card.vault-item-weapons {
-  --item-thumb: 48px;
-  height: 225px;
-  min-height: 225px;
-  padding: 7px 8px;
+  --item-thumb: 40px;
+  /* 178 而不是 172：光等搬到身份行后长名字（224 宽的卡只剩约 118px 给名字）必折两行，
+     身份行要从 40 长到 51，不预留这 6px 来源面板就会把第二条来源的字底裁掉。 */
+  height: 178px;
+  min-height: 178px;
+  padding: 6px 8px;
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-item-weapons .vault-card-main {
-  grid-template-rows: 48px 20px 77px 18px;
-  gap: 3px;
+  grid-template-rows: minmax(40px, auto) minmax(18px, auto) minmax(0, max-content);
+  gap: 2px;
 }
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-card-grid.vault-card-grid-weapons {
-  grid-template-columns: repeat(auto-fill, minmax(min(296px, 100%), 1fr));
+  grid-template-columns: repeat(auto-fill, 296px);
+  justify-content: start;
   gap: 12px;
 }
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-card.vault-item-weapons {
-  --item-thumb: 58px;
-  height: 239px;
-  min-height: 239px;
+  --item-thumb: 52px;
+  height: 196px;
+  min-height: 196px;
   padding: 9px 11px;
 }
 
 :where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-item-weapons .vault-card-main {
-  grid-template-rows: 58px 22px 77px 18px;
+  grid-template-rows: minmax(52px, auto) minmax(22px, auto) minmax(0, max-content);
   gap: 4px;
 }
 
@@ -5442,9 +5499,11 @@
   min-width: 0;
 }
 
+/* 原生网格（≤200 件）靠这个占位高度跳过视口外的卡片，数值必须等于卡片实际高度；
+   窗口化网格自己量第一格，不读这里。 */
 :where(.app-shell) .vault-results-column .vault-native-weapon-grid .vault-virtual-cell {
   content-visibility: auto;
-  contain-intrinsic-size: auto 239px;
+  contain-intrinsic-size: auto 184px;
 }
 
 :where(.app-shell) .vault-results-column .vault-virtual-cell > .vault-item-card {
@@ -5458,7 +5517,11 @@
 }
 
 :where(.app-shell[data-density="compact"]) .vault-results-column .vault-native-weapon-grid .vault-virtual-cell {
-  contain-intrinsic-size: auto 225px;
+  contain-intrinsic-size: auto 178px;
+}
+
+:where(.app-shell[data-density="comfortable"]) .vault-results-column .vault-native-weapon-grid .vault-virtual-cell {
+  contain-intrinsic-size: auto 196px;
 }
 
 /* 命中区行首前缀：与按钮同处一个分段控件内，不再单独占一行。 */

@@ -111,9 +111,9 @@ d2-tools-setup-<version>.exe
 - [常见问题](docs/faq.md)
 - [安全说明](docs/security.md)
 - [隐私说明](docs/privacy.md)
-- [支持与反馈](SUPPORT.md)
+- [支持与反馈](.github/SUPPORT.md)
 
-如果你遇到使用问题，建议先看 FAQ、Bungie 配置指南和支持文档；如果涉及敏感信息、凭据或安全边界，请改看 [安全策略](SECURITY.md)。
+如果你遇到使用问题，建议先看 FAQ、Bungie 配置指南和支持文档；如果涉及敏感信息、凭据或安全边界，请改看 [安全策略](.github/SECURITY.md)。
 
 项目状态：
 
@@ -124,8 +124,8 @@ d2-tools-setup-<version>.exe
 
 - [开发说明](docs/development.md)
 - [玩家文案字典](docs/player-facing-language.md)
-- [贡献指南](CONTRIBUTING.md)
-- [安全策略](SECURITY.md)
+- [贡献指南](.github/CONTRIBUTING.md)
+- [安全策略](.github/SECURITY.md)
 
 ## 安全边界
 

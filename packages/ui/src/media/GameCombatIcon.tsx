@@ -74,6 +74,31 @@ export function gameDamageTypeKey(value: number | undefined): GameDamageTypeKey 
   return value === undefined ? undefined : damageTypeKeys[value];
 }
 
+/**
+ * 按界面文案反推战斗图标键。资料库搜索结果只带回中文标签，不带 enumValue，
+ * 所以要按同一套中文口径回推，而不是另立一份映射。
+ */
+const damageTypeKeyByLabel: Record<string, GameDamageTypeKey> = {
+  "动能伤害": "kinetic",
+  "电弧伤害": "arc",
+  "烈日伤害": "solar",
+  "虚空伤害": "void",
+  "冰影伤害": "stasis",
+  "缚丝伤害": "strand"
+};
+
+export function gameDamageTypeKeyFromLabel(label: string | undefined): GameDamageTypeKey | undefined {
+  return label ? damageTypeKeyByLabel[label] : undefined;
+}
+
+export function gameWeaponSlotTypeFromLabel(label: string | undefined): GameWeaponSlotTypeKey | undefined {
+  if (!label) return undefined;
+  if (label.includes("动能")) return "kinetic";
+  if (label.includes("能量")) return "energy";
+  if (label.includes("威能")) return "power";
+  return undefined;
+}
+
 function damageIconUrl(type: GameDamageTypeKey): string {
   return `https://www.bungie.net/common/destiny2_content/icons/${damageIconPaths[type]}`;
 }

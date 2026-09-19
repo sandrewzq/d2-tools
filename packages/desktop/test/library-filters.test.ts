@@ -5,6 +5,7 @@ import {
   classifyLibraryDropAccess,
   defaultLibraryEquipmentFilter,
   defaultLibraryPerkFilter,
+  defaultLibraryPerkRelatedFilter,
   filterLibraryEquipmentItems,
   filterLibraryPerks,
   groupLibraryDropQueryItems,
@@ -169,7 +170,8 @@ describe("library filters", () => {
     const filter: LibraryPerkFilter = {
       query: "volt",
       relatedGroup: "weapons",
-      hasRelatedItems: "yes"
+      hasRelatedItems: "yes",
+      related: defaultLibraryPerkRelatedFilter
     };
 
     expect(filterLibraryPerks(perks, filter).map((perk) => perk.name)).toEqual(["Voltshot"]);
@@ -196,7 +198,13 @@ describe("library filters", () => {
     expect(defaultLibraryPerkFilter).toEqual({
       query: "",
       relatedGroup: "all",
-      hasRelatedItems: "all"
+      hasRelatedItems: "all",
+      related: {
+        bucket: "all",
+        damage: "all",
+        ammo: "all",
+        frame: "all"
+      }
     });
   });
 });

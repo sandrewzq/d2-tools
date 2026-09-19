@@ -101,6 +101,56 @@ export function VaultListItem(props: VaultListItemProps) {
     ? activeQuickAction
     : undefined;
   const activeLockQuickActionLabel = activeLockQuickAction === "unlock" ? "解锁" : "加锁";
+  // 武器的位置、锻造与标记跟快捷操作合成卡片底部一行：左边是状态，右边是按钮。
+  // 单独占一行时那条横向空白没人用（位置十几像素、右侧几百像素全空），并进来正好填掉。
+  const weaponStatus = (
+    <div className="vault-weapon-status">
+      <span className="vault-weapon-location-state">
+        <span className="vault-weapon-location">{getVaultItemLocationLabel(props.item)}</span>
+        {crafting ? (
+          <span
+            className="vault-weapon-crafting"
+            data-crafting-kind={crafting.kind}
+            title={craftingLabel(crafting.kind, true)}
+          >
+            {craftingLabel(crafting.kind)}
+          </span>
+        ) : null}
+        {disposition === "none"
+          ? props.isOrganizing ? <span className="vault-weapon-unmarked">未整理</span> : null
+          : <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>}
+      </span>
+      {stateFlags}
+    </div>
+  );
+  const quickActionButtons = <>
+    <button
+      type="button"
+      data-ui-kind="button"
+      data-control-variant="quiet"
+      data-vault-action="lock"
+      disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
+      aria-busy={Boolean(activeLockQuickAction)}
+      title={`一键${lockQuickActionLabel}：${props.item.name}`}
+      onClick={() => void props.onQuickAction?.(props.item, lockQuickAction)}
+    >
+      {activeLockQuickAction ? `${activeLockQuickActionLabel}中` : lockQuickActionLabel}
+    </button>
+    {canTransfer ? (
+      <button
+        type="button"
+        data-ui-kind="button"
+        data-control-variant="secondary"
+        data-vault-action="transfer"
+        disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
+        aria-busy={activeQuickAction === "transfer"}
+        title={`取出到当前角色${props.currentCharacterLabel ? `（${props.currentCharacterLabel}）` : ""}`}
+        onClick={() => void props.onQuickAction?.(props.item, "transfer")}
+      >
+        {activeQuickAction === "transfer" ? "取出中" : "取出"}
+      </button>
+    ) : null}
+  </>;
   const cardContent = isWeapon ? <>
       <div className="vault-weapon-identity">
         {visual}
@@ -110,6 +160,11 @@ export function VaultListItem(props: VaultListItemProps) {
             {[formatWeaponSlot(props.item), props.item.item_type || "武器"].filter(Boolean).join(" · ")}
           </span>
         </div>
+        {/* 光等放身份行右缘：事实行四等分时它挤掉别人的宽度，勇士词条会被截成「反势不可…」；
+            搬到身份行后事实行只剩三项，每项都够宽，身份行右侧那块空白也有了用处。 */}
+        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
+          <small>光</small><strong>{props.item.power ?? "—"}</strong>
+        </span>
       </div>
       <div className="vault-weapon-fact-row">
         <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? ammoFilterLabels[props.item.ammo_type] : "弹药类型未知"}>
@@ -129,9 +184,6 @@ export function VaultListItem(props: VaultListItemProps) {
             <span>{championTypeLabels[championType]}</span>
           </span>
         ) : null}
-        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
-          <small>光</small><strong>{props.item.power ?? "—"}</strong>
-        </span>
       </div>
       <div
         className="vault-weapon-source-summary"
@@ -159,24 +211,6 @@ export function VaultListItem(props: VaultListItemProps) {
           ))}
           {!sourceSummaries.length ? <span className="vault-weapon-source-empty">暂无推荐来源</span> : null}
         </span>
-      </div>
-      <div className="vault-weapon-status">
-        <span className="vault-weapon-location-state">
-          <span className="vault-weapon-location">{getVaultItemLocationLabel(props.item)}</span>
-          {crafting ? (
-            <span
-              className="vault-weapon-crafting"
-              data-crafting-kind={crafting.kind}
-              title={craftingLabel(crafting.kind, true)}
-            >
-              {craftingLabel(crafting.kind)}
-            </span>
-          ) : null}
-          {disposition === "none"
-            ? props.isOrganizing ? <span className="vault-weapon-unmarked">未整理</span> : null
-            : <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>}
-        </span>
-        {stateFlags}
       </div>
     </> : isArmor ? <>
       <div className="vault-armor-identity">
@@ -255,34 +289,24 @@ export function VaultListItem(props: VaultListItemProps) {
           {cardContent}
         </button>
       ) : <div className="vault-card-main is-readonly" tabIndex={-1}>{cardContent}</div>}
-      {!props.isOrganizing && canUseQuickActions ? (
-        <div className="vault-card-quick-actions" aria-label={`${props.item.name}快捷操作`}>
-          <button
-            type="button"
-            data-ui-kind="button"
-            data-control-variant="quiet"
-            data-vault-action="lock"
-            disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
-            aria-busy={Boolean(activeLockQuickAction)}
-            title={`一键${lockQuickActionLabel}：${props.item.name}`}
-            onClick={() => void props.onQuickAction?.(props.item, lockQuickAction)}
-          >
-            {activeLockQuickAction ? `${activeLockQuickActionLabel}中` : lockQuickActionLabel}
-          </button>
-          {canTransfer ? (
-            <button
-              type="button"
-              data-ui-kind="button"
-              data-control-variant="secondary"
-              data-vault-action="transfer"
-              disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
-              aria-busy={activeQuickAction === "transfer"}
-              title={`取出到当前角色${props.currentCharacterLabel ? `（${props.currentCharacterLabel}）` : ""}`}
-              onClick={() => void props.onQuickAction?.(props.item, "transfer")}
+      {isWeapon ? (
+        // 武器卡底部一行始终渲染（状态是卡片自己的事实，跟有没有快捷操作无关）。
+        <div className="vault-card-quick-actions vault-card-quick-actions-weapon">
+          {weaponStatus}
+          {!props.isOrganizing && canUseQuickActions ? (
+            // 名称挂在按钮组上而不是整行：整行加 aria-label 会把左边的状态文字一起盖掉。
+            <span
+              className="vault-card-quick-action-buttons"
+              role="group"
+              aria-label={`${props.item.name}快捷操作`}
             >
-              {activeQuickAction === "transfer" ? "取出中" : "取出"}
-            </button>
+              {quickActionButtons}
+            </span>
           ) : null}
+        </div>
+      ) : !props.isOrganizing && canUseQuickActions ? (
+        <div className="vault-card-quick-actions" aria-label={`${props.item.name}快捷操作`}>
+          {quickActionButtons}
         </div>
       ) : null}
     </article>

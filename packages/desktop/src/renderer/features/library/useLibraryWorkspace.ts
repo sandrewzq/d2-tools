@@ -28,6 +28,12 @@ import {
   type LibraryViewMode
 } from "../../utils/libraryFilters";
 
+/**
+ * 主进程 `items:perks:related` 单次最多返回 100 条（`readerCatalog` 里卡的），
+ * 所以「一次读完全部关联武器」是按这个上限一页页要出来的。
+ */
+const relatedEquipmentPageLimit = 100;
+
 export function useLibraryWorkspace(input: {
   vendorSourcePaths?: Map<number, string[]>;
   weeklySummary?: WeeklySummary | null;
@@ -273,6 +279,12 @@ export function useLibraryWorkspace(input: {
     void searchItems({ mode: "equipment", query });
   }
 
+  /**
+   * 展开「关联装备」时一次读完全部关联武器。
+   *
+   * 左栏的分面要给每个取值标「再选上它会剩几件」，只取回一部分就会把数字算小，
+   * 所以这里不留「加载更多」那种先给 20 条的路径。主进程单次上限 100 条，只能一页页要。
+   */
   async function loadPerkRelatedEquipment(perk: PerkSearchResult, loadMore = false) {
     const current = perkRelatedEquipment[perk.key];
     if (current?.isLoading || (loadMore && !current?.hasMore) || (!loadMore && current?.isLoaded)) {
@@ -309,15 +321,30 @@ export function useLibraryWorkspace(input: {
     }));
 
     try {
-      const page = await api.getPerkRelatedEquipment({
+      let page = await api.getPerkRelatedEquipment({
         perk_hashes: perk.hashes,
         offset,
-        limit: 20
+        limit: relatedEquipmentPageLimit
       });
       if (generation !== relatedRequestGeneration.current) return;
+      const collected = [...page.items];
+      // 主进程一次最多给 100 条，所以「读完」可能是好几轮；空页也当读完，免得空转。
+      for (;;) {
+        if (!page.has_more || !page.items.length) break;
+        const nextPage = await api.getPerkRelatedEquipment({
+          perk_hashes: perk.hashes,
+          offset: offset + collected.length,
+          limit: relatedEquipmentPageLimit
+        });
+        if (generation !== relatedRequestGeneration.current) return;
+        page = nextPage;
+        collected.push(...nextPage.items);
+      }
+      const total = page.total;
+      const hasMore = page.has_more;
       setPerkRelatedEquipment((states) => {
         const previousItems = loadMore ? states[perk.key]?.items ?? [] : [];
-        const nextItems = page.items.map((entry) => ({
+        const nextItems = collected.map((entry) => ({
           ...entry.item,
           matchedPerkHashes: entry.matched_perk_hashes,
           matchedPerkVariants: entry.matched_variants
@@ -329,8 +356,8 @@ export function useLibraryWorkspace(input: {
           ...states,
           [perk.key]: {
             items,
-            total: page.total,
-            hasMore: page.has_more,
+            total,
+            hasMore,
             isLoading: false,
             isLoaded: true,
             error: ""

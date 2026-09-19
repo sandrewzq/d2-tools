@@ -11,6 +11,9 @@ export type {
   LibraryFilterOption,
   LibraryPerkFilter,
   LibraryPerkPoolFilter,
+  LibraryPerkRelatedFacet,
+  LibraryPerkRelatedFacetKey,
+  LibraryPerkRelatedFilter,
   LibraryRelatedItemsFilter,
   LibrarySourceStatusFilter,
   LibraryViewMode,
@@ -20,10 +23,14 @@ export type {
 export {
   buildLibraryEquipmentFilterOptions,
   buildLibraryPerkGroupOptions,
+  buildLibraryPerkRelatedFacets,
   classifyLibraryDropAccess,
+  countLibraryPerkRelatedFilters,
   defaultLibraryEquipmentFilter,
   defaultLibraryPerkFilter,
+  defaultLibraryPerkRelatedFilter,
   filterLibraryEquipmentItems,
+  filterLibraryPerkRelatedItems,
   filterLibraryPerks,
   groupLibraryDropQueryItems
 } from "@d2-tools/app/library";

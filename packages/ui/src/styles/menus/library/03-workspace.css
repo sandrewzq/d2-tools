@@ -103,9 +103,10 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* 查询模式只有装备和 Perk 两个。原来写死三列，第三列是空的，还把「Perk 与框架」挤成两行。 */
 :where(.app-shell) .library-mode-tabs {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   overflow: hidden;
   border: 1px solid var(--border-control);
   border-radius: var(--radius-control);
@@ -203,6 +204,176 @@
 :where(.app-shell) .library-advanced-filters > summary::marker,
 :where(.app-shell) .library-search-support > summary::marker {
   color: var(--text-muted);
+}
+
+/* 关联武器筛选：一块面板服务「当前展开的那个 Perk」。装备模式没有筛选，
+   所以区块壳沿用高级筛选那套（36px 行高 + 细分隔线），只在 Perk 模式出现。 */
+:where(.app-shell) .library-related-filters {
+  margin: 2px -12px -10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* 作用域行是这块面板的立足点：不写清筛的是哪一批，两块模式的面板看起来一模一样。 */
+:where(.app-shell) .library-related-filter-scope {
+  display: grid;
+  gap: 2px;
+  padding: 9px 12px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--surface-subtle);
+}
+
+:where(.app-shell) .library-related-filter-scope strong {
+  color: var(--text-title);
+  font-size: var(--font-content);
+}
+
+:where(.app-shell) .library-related-filter-scope span {
+  overflow-wrap: anywhere;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+:where(.app-shell) .library-related-filter-hint {
+  margin: 0;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  line-height: 1.45;
+}
+
+/* 分面组已经是整块面板里的一层，不再从父级 padding 里往外顶。 */
+:where(.app-shell) .library-related-filters .library-advanced-filters {
+  margin: 0;
+}
+
+:where(.app-shell) .library-related-filters .library-advanced-filters > summary small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-weight: 400;
+}
+
+:where(.app-shell) .library-filter-options {
+  display: grid;
+  background: var(--surface-panel);
+}
+
+:where(.app-shell) .library-filter-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--border-subtle);
+  border-radius: 0;
+  color: var(--text-body);
+  background: transparent;
+  text-align: left;
+  font-size: var(--font-caption);
+}
+
+:where(.app-shell) .library-filter-option:last-child {
+  border-bottom: 0;
+}
+
+/* 带图标的取值多一列，标签仍然紧贴图标起排，件数始终贴右缘。 */
+:where(.app-shell) .library-filter-option.has-icon {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 7px;
+}
+
+:where(.app-shell) .library-filter-option > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+:where(.app-shell) .library-filter-option > small {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+:where(.app-shell) .library-filter-option:not(:disabled):hover {
+  background: var(--item-bg-hover);
+}
+
+:where(.app-shell) .library-filter-option:focus-visible {
+  outline: 2px solid var(--status-pending);
+  outline-offset: -2px;
+}
+
+/* 取值配色照抄仓库筛选那套：同一个 --element-* token 组，同一批取值名，
+   只换个前缀。图标自己的颜色由共享战斗图标样式给，这里只管标签文字。 */
+:where(.app-shell) .library-filter-option[data-tone] > span {
+  color: var(--library-filter-tone-text, var(--text-body));
+}
+
+:where(.app-shell) .library-filter-option[data-tone="slot-kinetic"],
+:where(.app-shell) .library-filter-option[data-tone="damage-kinetic"],
+:where(.app-shell) .library-filter-option[data-tone="ammo-primary"] {
+  --library-filter-tone-text: var(--element-kinetic-text);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="slot-energy"],
+:where(.app-shell) .library-filter-option[data-tone="ammo-special"] {
+  --library-filter-tone-text: var(--status-ready);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="slot-power"],
+:where(.app-shell) .library-filter-option[data-tone="ammo-heavy"] {
+  --library-filter-tone-text: var(--violet);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="damage-arc"] {
+  --library-filter-tone-text: var(--element-arc-text);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="damage-solar"] {
+  --library-filter-tone-text: var(--element-solar-text);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="damage-void"] {
+  --library-filter-tone-text: var(--element-void-text);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="damage-stasis"] {
+  --library-filter-tone-text: var(--element-stasis-text);
+}
+
+:where(.app-shell) .library-filter-option[data-tone="damage-strand"] {
+  --library-filter-tone-text: var(--element-strand-text);
+}
+
+/* 件数为 0 且没被选中的取值禁用：点它只会得到空结果，不如直接说不行。
+   已选中的零值取值必须留着可点，否则取消不掉。 */
+:where(.app-shell) .library-filter-option:disabled {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+:where(.app-shell) .library-filter-option:disabled > span {
+  color: var(--text-muted);
+}
+
+/* 选中压过元素色：选中是比元素色更强的信号，色档只留给标签文字以外的地方。 */
+:where(.app-shell) .library-filter-option[aria-pressed="true"] {
+  color: var(--selected-fg);
+  background: var(--state-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--state-selected-border);
+  font-weight: 700;
+}
+
+:where(.app-shell) .library-filter-option[aria-pressed="true"] > span {
+  color: var(--selected-fg);
+}
+
+:where(.app-shell) .library-related-filter-reset {
+  width: 100%;
+  min-height: 34px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 :where(.app-shell) .library-search-support > summary span {
