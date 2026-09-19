@@ -62,7 +62,6 @@ export type {
   WeaponPerkSelectionColumn,
   WeaponSocketPlugLike,
   WeaponRecommendation,
-  WeaponRecommendationMatch,
   WeaponRecommendationPerkCandidate,
   WeaponSourceEntry,
   WeaponStatTrack,

@@ -11,7 +11,6 @@ import type {
   WeaponPerkPoolColumn,
   WeaponPerkSelectionColumn,
   WeaponRecommendation,
-  WeaponRecommendationPerkCandidate,
   WeaponSourceEntry,
   WeaponStatTrack
 } from "@d2-tools/app/items";
@@ -261,7 +260,8 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               className={section === item.key ? "is-active" : undefined}
               onClick={() => changeSection(item.key)}
             >
-              {item.key === "recommendations" && model.context.kind === "definition" ? "推荐资料" : item.label}
+              {/* 章节名跟推荐区一致：有账号实例事实时叫「推荐 Roll」，资料库定义 / 商人售卖只有来源规则，叫「推荐资料」。 */}
+              {item.key === "recommendations" && model.context.kind !== "account_instance" ? "推荐资料" : item.label}
             </button>
           ))}
         </div>
@@ -1171,12 +1171,17 @@ function PerkColumn(props: {
 }
 
 /**
- * 推荐 Roll 区只有一条路径：**渲染推荐来源**。
+ * 推荐区只有两条路径，分叉点是**对象身份**，不是「字段有没有值」：
  *
- * 这里原来有 `攻略推荐 / 我的推荐` 两个页签，把推荐事实按来源身份劈成两栏。但「所有来源同级、
- * 不按来源类型排权重」是已定口径——来源的身份是用户给它起的名字，不是它的格式或出身，页签本身
- * 就是那个被拆掉的分叉。现在：账号实例渲染事实层的来源事实（每条来源一张卡片），定义与商人没有
- * 实例事实可核对，渲染来源规则本身。两种都不按来源类型分叉。
+ * - `account_instance`：事实层。每条来源一张证据卡，逐栏对照「来源要求 ｜ 本件拥有」，
+ *   命中与启用状态由 `matchVaultItems` 给出，这里是 `InstanceRecommendationEvidence`。
+ * - `definition` / `vendor_offer`：规则层。只画来源规则本身——来源要求了哪些栏位、每栏有哪些候选，
+ *   这里是 `DefinitionRecommendationSources`。没有本件，就没有「命中 / 完整度 / 本件拥有」可言，
+ *   那些格子不是空的，是不该存在。
+ *
+ * 这里原来只有一条路径，靠 `requirement_state` / `instance_owned` 有没有值来猜自己拿到了哪一层，
+ * 于是规则层对象也被画成了对照表：第三列结构上恒空、状态恒「不符」、「本件没有这个推荐项」出现在
+ * 根本没有本件的资料库对象上。T81 把两个渲染器分开，判据换成 `context.kind`。
  */
 function RecommendationSection(props: {
   model: WeaponDetailViewModel;
@@ -1185,16 +1190,48 @@ function RecommendationSection(props: {
   configurationWriteFeedback?: WeaponDetailContentProps["configurationWriteFeedback"];
 }) {
   const { model } = props;
+  const isAccountInstance = model.context.kind === "account_instance";
   const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
-  const isDefinition = model.context.kind === "definition";
-  const panelId = useId();
   // 推荐区换 Perk（T73）：可远程切换时，本件拥有条目在浮层里「选择 / 取消选择」，与本件 Roll 同一批提交。
-  // 写入进行中的那一刻不开新入口（与本件 Roll 的格子同一条闸门）。
+  // 写入进行中的那一刻不开新入口（与本件 Roll 的格子同一条闸门）。规则层没有本件，用不到这条闸门。
   const stagePerk = props.actions?.stagePerk;
   const canStagePerks = Boolean(stagePerk)
     && (props.configurationWriteFeedback?.status ?? "idle") === "idle"
     && canStageWeaponPerks(model);
-  const evidence = model.context.kind === "account_instance" ? props.evidence : undefined;
+  return (
+    <>
+      <SectionHeading
+        eyebrow={isAccountInstance ? "推荐判断" : "推荐资料"}
+        title={isAccountInstance ? "这件武器的推荐 Roll" : "这把武器的来源推荐"}
+        description={isAccountInstance
+          ? isFixedExotic
+            ? "固定异域不进行随机 Roll 核对；推荐来源只保留拥有状态、催化剂进度与使用建议。"
+            : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。"
+          : "按数据源原始形式展示：只列出来源要求的栏位与候选，不核对本件是否拥有。"}
+      />
+      {isAccountInstance ? (
+        <InstanceRecommendationEvidence
+          model={model}
+          evidence={props.evidence}
+          canStagePerks={canStagePerks}
+          onStagePerk={stagePerk}
+        />
+      ) : (
+        <DefinitionRecommendationSources model={model} />
+      )}
+    </>
+  );
+}
+
+/** 事实层：账号实例的推荐来源证据卡。命中与启用状态来自事实层，这里不自行判定。 */
+function InstanceRecommendationEvidence(props: {
+  model: WeaponDetailViewModel;
+  evidence?: WeaponDetailContentProps["recommendationEvidence"];
+  canStagePerks: boolean;
+  onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
+}) {
+  const panelId = useId();
+  const evidence = props.evidence;
   const sourceMatches = evidence
     ? evidence.sourceMatches.slice().sort((left, right) => (
         recommendationMatchRank(right) - recommendationMatchRank(left)
@@ -1204,46 +1241,130 @@ function RecommendationSection(props: {
         )
       ))
     : [];
-  const targets = model.recommendations;
+  if (!sourceMatches.length) {
+    return <EmptyState text={evidence?.status === "loading"
+      ? "正在读取这把武器的推荐 Roll。"
+      : "这把武器暂时没有可核对的推荐 Roll。"} />;
+  }
   return (
-    <>
-      <SectionHeading
-        eyebrow={isDefinition ? "推荐资料" : "推荐判断"}
-        title={isDefinition ? "这把武器的来源推荐" : "这件武器的推荐 Roll"}
-        description={isDefinition
-          ? "按数据源原始形式展示：完整组合保持组合，分栏候选保持 Perk 池；这里不进行玩家 Roll 命中核对。"
-          : isFixedExotic
-            ? "固定异域不进行随机 Roll 核对；推荐来源只保留拥有状态、催化剂进度与使用建议。"
-            : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。"}
-      />
-      {evidence ? (
-        sourceMatches.length ? (
-          <div
-            id={`${panelId}-panel`}
-            className="weapon-detail-recommendations"
-            aria-busy={evidence.status === "loading"}
-          >
-            {evidence.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
-            {sourceMatches.map((sourceMatch) => (
-              <RecommendationSourceEvidenceCard
-                key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
-                model={model}
-                sourceMatch={sourceMatch}
-                canStagePerks={canStagePerks}
-                onStagePerk={stagePerk}
-              />
-            ))}
-          </div>
-        ) : <EmptyState text={isDefinition
-          ? "这把武器暂时没有来源推荐资料。"
-          : evidence.status === "loading" ? "正在读取这把武器的推荐 Roll。" : "这把武器暂时没有可核对的推荐 Roll。"} />
-      ) : targets.length ? (
-        <div id={`${panelId}-panel`} className="weapon-detail-recommendations">
-          {targets.map((target) => <RecommendationCard key={target.id} model={model} recommendation={target} />)}
-        </div>
-      ) : <EmptyState text={isDefinition ? "这把武器暂时没有来源推荐资料。" : "这把武器暂时没有可核对的推荐 Roll。"} />}
-    </>
+    <div
+      id={`${panelId}-panel`}
+      className="weapon-detail-recommendations"
+      aria-busy={evidence?.status === "loading"}
+    >
+      {evidence?.message ? <p className={`status-message status-${evidence.status === "error" ? "error" : evidence.status === "partial" ? "warning" : "pending"}`} role="status">{evidence.message}</p> : null}
+      {sourceMatches.map((sourceMatch) => (
+        <RecommendationSourceEvidenceCard
+          key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
+          model={props.model}
+          sourceMatch={sourceMatch}
+          canStagePerks={props.canStagePerks}
+          onStagePerk={props.onStagePerk}
+        />
+      ))}
+    </div>
   );
+}
+
+/**
+ * 规则层：资料库定义与商人售卖。这两种对象没有账号实例，推荐区只画来源规则本身。
+ *
+ * 免责声明属于整份推荐集（「这些推荐从哪来、能信到什么程度」），在区域顶部说一次；
+ * 每张来源卡只说来源自己写的那句说明（`reason`）。两者不互相兜底——原来把免责声明塞进
+ * 每条来源的 `reason` 里当 fallback，同一句话就在每张卡上重复了一遍。
+ */
+function DefinitionRecommendationSources(props: { model: WeaponDetailViewModel }) {
+  const { model } = props;
+  const targets = model.recommendations;
+  if (!targets.length) return <EmptyState text="这把武器暂时没有来源推荐资料。" />;
+  return (
+    <div className="weapon-detail-recommendations">
+      {model.recommendation_disclaimer ? (
+        <p className="weapon-detail-recommendation-disclaimer" data-ui-kind="callout" data-callout-tone="info">{model.recommendation_disclaimer}</p>
+      ) : null}
+      {targets.map((target) => (
+        <DefinitionRecommendationSourceCard key={target.id} model={model} recommendation={target} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * 一条来源一张卡，卡内一栏一张小卡：栏位名 + 候选池角标 + 该栏候选。
+ *
+ * 一栏一卡与「来源要求 ｜ 本件拥有」两列对照的几何差别不是样式偏好：后者是给有本件的对象
+ * 做逐栏核对用的，规则层没有第二列可填。这里复用 `WeaponPerkEntry` 与既有的等宽列网格，
+ * 不引入新的条目形态。
+ */
+function DefinitionRecommendationSourceCard(props: {
+  model: WeaponDetailViewModel;
+  recommendation: WeaponRecommendation;
+}) {
+  const { model, recommendation } = props;
+  const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
+  const sourcePurposeLabel = (recommendation.purposes?.length ? recommendation.purposes : [recommendation.mode])
+    .map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : "通用")
+    .filter((mode, index, values) => values.indexOf(mode) === index)
+    .join(" / ");
+  return (
+    <article className="weapon-detail-definition-source">
+      <header>
+        <div>
+          <h4>{recommendation.title}</h4>
+          <p>{recommendation.source_label} · {sourcePurposeLabel}{recommendation.updated_at ? ` · ${formatUpdatedAt(recommendation.updated_at)}` : ""}</p>
+        </div>
+        <div className="weapon-detail-definition-source-meta">
+          <span className="ui-badge status-neutral" data-ui-kind="status-chip">
+            {recommendation.presentation === "perk_pool" ? "候选池" : "完整组合"}
+          </span>
+          {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
+        </div>
+      </header>
+      {recommendation.reason ? (
+        <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{recommendation.reason}</p>
+      ) : null}
+      {recommendation.perk_options.length ? (
+        <div className="weapon-detail-definition-columns">
+          {recommendation.perk_options.map((option) => (
+            <section key={option.column_key} className="weapon-detail-definition-column">
+              <header>
+                <strong>{option.column_key}</strong>
+                <span>{option.names.length > 1 ? `${option.names.length} 个候选` : "指定"}</span>
+              </header>
+              <div className="weapon-detail-perk-entries" role="group" aria-label={`${option.column_key}来源候选`}>
+                {/* 候选带图标就画图标；只解析出名字的来源（`candidates` 为空）退化成纯名字条目，
+                    与「这条来源到底给了什么」保持一致——这里不替来源补它没给的东西。 */}
+                {sourceCandidateEntries(option).map((candidate) => (
+                  <WeaponPerkEntry
+                    key={`${option.column_key}:${candidate.name}`}
+                    name={candidate.name}
+                    englishName={candidate.englishName}
+                    description={candidate.description}
+                    icon={candidate.icon}
+                    unknown={!candidate.icon}
+                    contextLabel="来源候选"
+                    statusDetail="数据源对这一栏给出的候选；资料库对象没有本件，因此不核对是否拥有。"
+                    ariaLabel={`${candidate.name}，来源候选，${option.column_key}`}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <p className="weapon-detail-match-empty">{isFixedExotic
+          ? "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。"
+          : "该来源没有指定随机 Perk 目标。"}</p>
+      )}
+    </article>
+  );
+}
+
+/** 这一栏要画的条目：来源给了带图标的候选就用它，只给出名字的来源退化成纯名字条目。 */
+function sourceCandidateEntries(
+  option: WeaponRecommendation["perk_options"][number]
+): Array<{ name: string; englishName?: string; description?: string; icon?: string }> {
+  return option.candidates?.length ? option.candidates : option.names.map((name) => ({ name }));
 }
 
 function RecommendationSourceEvidenceCard(props: {
@@ -1354,7 +1475,7 @@ function RecommendationSourceEvidenceCard(props: {
   );
 }
 
-// 来源卡与 DIM 候选池共用的「来源要求 ｜ 本件拥有」两列对照。
+// 来源证据卡专用的「来源要求 ｜ 本件拥有」两列对照：只有账号实例这一条路径有第二列可填。
 function RecommendationSlotComparison(props: {
   label: string;
   state: RecommendationSourceSlotMatch["state"];
@@ -1540,158 +1661,6 @@ function recommendationMatchRank(source: RecommendationSourceMatch): number {
   return 0;
 }
 
-function RecommendationCard(props: { model: WeaponDetailViewModel; recommendation: WeaponRecommendation }) {
-  const { model, recommendation } = props;
-  const isDefinition = model.context.kind === "definition";
-  const hasObject = !isDefinition;
-  // 有事实层结果时直接消费，界面不再自行比较插件 Hash 或名称。
-  // 候选池里同一栏可能给出多个候选，只有事实层认定的那一个才算命中，其余是普通候选。
-  const perkMatches = recommendation.perk_options.map((option) => {
-    const fromFacts = option.requirement_state !== undefined;
-    const factHit = (name: string, hashes: number[] | undefined): boolean => {
-      if (option.requirement_state !== "match") return false;
-      if (option.matched_hash !== undefined && hashes?.length) return hashes.includes(option.matched_hash);
-      if (option.matched_name) return sameLabel(name, option.matched_name);
-      return true;
-    };
-    const candidates = option.candidates?.length
-      ? option.candidates.map((candidate) => {
-        const visual = recommendationTargetPerk(model, option.column_key, candidate.name, candidate);
-        if (!fromFacts) return visual;
-        const hit = factHit(candidate.name, candidate.hashes?.length ? candidate.hashes : candidate.hash !== undefined ? [candidate.hash] : undefined);
-        return { ...visual, hit, active: hit && option.matched_current === true };
-      })
-      : option.names.map((name): RecommendationPerkVisual => {
-        if (!fromFacts) return recommendationTargetPerk(model, option.column_key, name);
-        const hit = factHit(name, undefined);
-        return { key: `${option.column_key}:${name}`, name, hit, active: hit && option.matched_current === true };
-      });
-    return {
-      ...option,
-      candidates,
-      owned: hasObject && (fromFacts ? option.requirement_state === "match" : candidates.some((candidate) => candidate.hit)),
-      active: hasObject && (fromFacts
-        ? option.requirement_state === "match" && option.matched_current === true
-        : candidates.some((candidate) => candidate.active))
-    };
-  });
-  const masterworkMatch = hasObject && recommendation.masterwork_names.some((name) => sameLabel(name, model.upgrades.masterwork?.name));
-  const modMatch = hasObject && recommendation.mod_names.some((name) => sameLabel(name, model.upgrades.mod?.name));
-  const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
-  const sourcePurposeLabel = (recommendation.purposes?.length ? recommendation.purposes : [recommendation.mode])
-    .map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : "通用")
-    .filter((mode, index, values) => values.indexOf(mode) === index)
-    .join(" / ");
-  const presentationLabel = recommendation.presentation === "perk_pool" ? "Perk 池" : "完整组合";
-  return (
-    <article className="weapon-detail-recommendation">
-      <header>
-        <div>
-          <h4>{recommendation.title}</h4>
-          <p>{recommendation.source_label} · {sourcePurposeLabel}{recommendation.updated_at ? ` · ${formatUpdatedAt(recommendation.updated_at)}` : ""}</p>
-        </div>
-        <div className="weapon-detail-recommendation-heading-status">
-          {isDefinition ? (
-            <span className="ui-badge status-neutral" data-ui-kind="status-chip">{presentationLabel}</span>
-          ) : !isFixedExotic && perkMatches.length ? (
-            <span className={`ui-badge ${recommendationMatchBadgeClass(recommendation.match)}`} data-ui-kind="status-chip">
-              {recommendation.match === "full"
-                ? "完整符合"
-                : recommendation.match === "partial"
-                  ? `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length}`
-                  : recommendation.match === "none" ? "不符" : recommendation.match === "uncheckable" ? "无法判断" : "不作核对"}
-            </span>
-          ) : null}
-          {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
-        </div>
-      </header>
-      {recommendation.reason ? <p className="weapon-detail-source-quote is-single-line" data-ui-kind="callout" data-callout-tone="info" title={recommendation.reason}>{recommendation.reason}</p> : null}
-      {perkMatches.length ? (
-        <div className="weapon-detail-recommendation-combo">
-          {perkMatches.map((option) => recommendation.presentation === "perk_pool" ? (
-            // 候选池：与人工来源证据卡用同一个「来源要求 ｜ 本件拥有」两列对照。
-            <RecommendationSlotComparison
-              key={option.column_key}
-              label={option.column_key}
-              state={isDefinition ? "source_not_specified" : option.requirement_state ?? (option.owned ? "match" : "different")}
-              stateLabel={isDefinition ? "候选池" : option.requirement_state === "uncheckable" ? "无法判断" : option.owned ? "符合" : "不符"}
-              stateTone={option.requirement_state === "uncheckable" ? "pending" : option.owned ? "success" : "error"}
-              sourceCandidates={(option.candidates ?? []).map((candidate) => ({
-                ...candidate,
-                hit: hasObject && candidate.hit,
-                active: hasObject && candidate.active
-              }))}
-              sourceCandidateFallback="要求名称未返回"
-              instanceOwned={(option.instance_owned ?? []).map((plug) => {
-                const visual = recommendationTargetPerk(model, option.column_key, plug.name);
-                const inCandidates = option.names.some((name) => sameLabel(name, plug.name))
-                  || (option.candidates ?? []).some((candidate) => candidate.hash === plug.hash);
-                return { ...visual, hit: hasObject && inCandidates, active: hasObject && plug.current };
-              })}
-              instanceOwnedFallback={isDefinition ? "资料库对象没有账号实例" : "这件武器还没有这一栏的数据"}
-            />
-          ) : (
-            <section key={option.column_key} data-match-state={isDefinition ? undefined : option.owned ? "match" : "different"}>
-              <header>
-                <strong>{option.column_key}</strong>
-                <span>{isDefinition
-                  ? "组合要求"
-                  : option.requirement_state === "uncheckable" ? "无法判断" : option.owned ? "符合" : "不符"}</span>
-              </header>
-              <div className="weapon-detail-perk-entries" role="group" aria-label={`${option.column_key}推荐候选`}>
-                {(option.candidates ?? []).map((candidate) => {
-                  const hit = hasObject && candidate.hit;
-                  const active = hasObject && candidate.active;
-                  const statusDetail = isDefinition
-                    ? "数据源明确给出的完整组合项"
-                    : candidate.hit
-                      ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
-                      : "本件没有这个推荐项";
-                  return (
-                    <WeaponPerkEntry
-                      key={candidate.key}
-                      name={candidate.name}
-                      englishName={candidate.englishName}
-                      description={candidate.description}
-                      icon={candidate.icon}
-                      hit={hit}
-                      selected={active}
-                      muted={hasObject && option.owned && !candidate.hit}
-                      unknown={!candidate.icon}
-                      contextLabel="完整组合要求"
-                      statusLabel={isDefinition
-                        ? "组合要求"
-                        : candidate.hit
-                          ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
-                          : perkStatusWord.missed}
-                      statusDetail={statusDetail}
-                      ariaLabel={recommendationPerkAriaLabel({ name: candidate.name, hit, active }, "完整组合要求", statusDetail)}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          ))}
-        </div>
-      ) : <p className="weapon-detail-match-empty">{isFixedExotic ? "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。" : "该来源没有指定随机 Perk 目标。"}</p>}
-      {!isDefinition ? <div className="weapon-detail-match-summary">
-        {isFixedExotic ? (
-          <>
-            <span>配置：固定 Perk · 不执行 Roll 命中</span>
-            {model.upgrades.catalyst ? <span>催化剂：{catalystStateLabel(model)}</span> : null}
-            <span>当前查看：{weaponObjectLabel(model.context.kind)}</span>
-          </>
-        ) : (
-          <>
-            <span>Perk：{!perkMatches.length ? "未指定" : !hasObject ? "未选择账号装备" : `${perkMatches.filter((option) => option.owned).length}/${perkMatches.length} 命中 · ${perkMatches.filter((option) => option.active).length}/${perkMatches.length} 当前启用`}</span>
-            <span>大师杰作：{recommendation.masterwork_names.length ? matchFactLabel(hasObject, masterworkMatch) : "未指定"}</span>
-            <span>武器模组：{recommendation.mod_names.length ? matchFactLabel(hasObject, modMatch) : "未指定"}</span>
-          </>
-        )}
-      </div> : null}
-    </article>
-  );
-}
 
 type RecommendationPerkVisual = {
   key: string;
@@ -1720,13 +1689,6 @@ function recommendationPerkAriaLabel(
   statusDetail: string
 ): string {
   return [perk.name, contextLabel, perk.hit ? "命中推荐" : undefined, perk.active ? "当前启用" : undefined, statusDetail].filter(Boolean).join("，");
-}
-
-function recommendationMatchBadgeClass(match: WeaponRecommendation["match"]): string {
-  if (match === "full") return "status-ready";
-  if (match === "partial") return "status-warning";
-  if (match === "none") return "status-error";
-  return "status-neutral";
 }
 
 function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
@@ -1879,39 +1841,6 @@ function recommendationOwnedPerk(
   };
 }
 
-function recommendationTargetPerk(
-  model: WeaponDetailViewModel,
-  columnKey: string,
-  targetName: string,
-  sourceCandidate?: WeaponRecommendationPerkCandidate
-): RecommendationPerkVisual {
-  const matchedColumn = model.configuration.selection_columns.find((column) => (
-    sameLabel(column.key, columnKey) || sameLabel(column.label, columnKey)
-  ));
-  const selectionCandidates = matchedColumn?.candidates
-    ?? model.configuration.selection_columns.flatMap((column) => column.candidates);
-  const sourceHashes = new Set([
-    ...(sourceCandidate?.hashes ?? []),
-    sourceCandidate?.hash
-  ].filter((hash): hash is number => Boolean(hash)));
-  const ownedMatches = selectionCandidates.filter((candidate) => (
-    sourceHashes.has(candidate.hash) || weaponPerkMatchesTarget(model, candidate, targetName)
-  ));
-  const visual = findWeaponPerkVisual(model, undefined, targetName) ?? ownedMatches[0];
-  return {
-    key: `target:${normalizedLabel(columnKey)}:${normalizedLabel(targetName)}:${[...sourceHashes].join(",")}`,
-    hash: sourceCandidate?.hash ?? visual?.hash,
-    hashes: sourceCandidate?.hashes,
-    name: sourceCandidate?.name ?? visual?.name ?? targetName,
-    englishName: sourceCandidate?.englishName,
-    description: sourceCandidate?.description ?? visual?.description,
-    icon: sourceCandidate?.icon ?? visual?.icon,
-    unresolved: sourceCandidate?.unresolved,
-    hit: ownedMatches.length > 0,
-    active: ownedMatches.some((candidate) => candidate.selected)
-  };
-}
-
 function recommendationPerkMatches(
   model: WeaponDetailViewModel,
   candidate: Pick<RecommendationPerkVisual, "hash" | "hashes" | "name">,
@@ -1970,17 +1899,6 @@ function allWeaponPerkCandidates(model: WeaponDetailViewModel): WeaponPerkCandid
   ];
 }
 
-function weaponPerkMatchesTarget(
-  model: WeaponDetailViewModel,
-  candidate: WeaponPerkCandidate,
-  targetName: string
-): boolean {
-  if (sameLabel(candidate.name, targetName)) return true;
-  if (!candidate.enhanced_of_hash) return false;
-  const baseCandidate = allWeaponPerkCandidates(model).find((entry) => entry.hash === candidate.enhanced_of_hash);
-  return sameLabel(baseCandidate?.name, targetName);
-}
-
 function normalizedLabel(value?: string): string {
   return (value ?? "").trim().toLocaleLowerCase();
 }
@@ -1988,8 +1906,4 @@ function normalizedLabel(value?: string): string {
 function sameLabel(left?: string, right?: string): boolean {
   const normalizedLeft = normalizedLabel(left);
   return Boolean(normalizedLeft) && normalizedLeft === normalizedLabel(right);
-}
-
-function matchFactLabel(hasObject: boolean, matched: boolean): string {
-  return hasObject ? matched ? "命中" : "未命中" : "未选择实际对象";
 }

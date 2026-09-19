@@ -213,7 +213,8 @@ function ItemDetailReadyContent(
   const weaponModel = useMemo(() => weaponBaseModel ? {
     ...weaponBaseModel,
     recommendations: weaponRecommendations,
-  } : null, [weaponBaseModel, weaponRecommendations]);
+    recommendation_disclaimer: props.communityRecommendations?.disclaimer
+  } : null, [weaponBaseModel, weaponRecommendations, props.communityRecommendations?.disclaimer]);
   const armorSources = useMemo(
     () => buildArmorSources(selectedItem, props.itemAvailability),
     [props.itemAvailability, selectedItem]

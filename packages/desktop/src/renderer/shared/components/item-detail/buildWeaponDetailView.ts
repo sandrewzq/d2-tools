@@ -22,12 +22,10 @@ import type {
   WeaponStatSummary
 } from "@d2-tools/core/account/summary";
 import type {
-  PerkCombo,
   PerkRef,
   RecommendationSourceRequirement,
   WeaponRecommendation as CommunityWeaponRecommendation
 } from "@d2-tools/core/community-perks";
-import { ownedPlugIdentity, requirementIsSatisfied } from "@d2-tools/core/community-perks";
 import type { AccountWeaponRollSlot } from "@d2-tools/core/account/summary";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
@@ -39,6 +37,7 @@ export type BuildDesktopWeaponDetailInput = {
   accountSummary?: AccountSummary | null;
   sameNameItems?: SameNameItemSummary[];
   recommendations?: WeaponDetailViewModel["recommendations"];
+  recommendation_disclaimer?: WeaponDetailViewModel["recommendation_disclaimer"];
   context?: Partial<WeaponDetailObjectContext>;
   sources?: WeaponDetailSources;
   selectionNames?: string[];
@@ -180,6 +179,7 @@ export function buildWeaponDetailView(
     sources: withManifestSourceStatus(input.sources, item),
     upgrades,
     recommendations: input.recommendations,
+    recommendation_disclaimer: input.recommendation_disclaimer,
     same_hash_instances: input.sameNameItems,
     instance_metadata: buildInstanceMetadata(input, upgrades)
   });
@@ -342,37 +342,29 @@ function buildRollSelectionColumns(item: SelectedItemDetail): WeaponPerkSelectio
     }));
 }
 
+// 这一层只把来源规则翻译成视图：来源给了哪些栏位、每栏有哪些候选。
+//
+// 它**不判定「本件有没有命中」**，也不再为了判定去拼本件的插件身份（`ownedPlugIdentity` /
+// `requirementIsSatisfied` 的调用点随 `match` / `requirement_state` 一起删除）。账号实例是否命中由
+// 事实层（`matchVaultItems` 的 `source_matches`）给出，走 `RecommendationSourceEvidenceCard` 那条
+// 渲染路径；资料库定义与商人售卖没有账号实例，只画规则本身。混在一起的后果是规则层对象也被画成
+// 「有无命中」的对照表，「不符 / 本件没有这个推荐项」会出现在根本没有本件的对象上。
 export function buildWeaponRecommendationViews(
   recommendation: CommunityWeaponRecommendation | null,
   item: SelectedItemDetail
 ): WeaponDetailViewModel["recommendations"] {
   const classification = classifyWeaponConfiguration(item);
   const isFixedExotic = classification.isExotic && classification.kind === "fixed";
-  const owned = ownedPlugIdentity({
-    hash: item.hash,
-    socket_plugs: [
-      ...(item.socket_plugs ?? []).map((plug) => ({ hash: plug.hash, name: plug.name })),
-      ...(item.sockets ?? []).flatMap((socket) => socket.reusable_plugs.map((plug) => ({ hash: plug.hash, name: plug.name })))
-    ]
-  });
   const sourceRecords = (recommendation?.source_records ?? [])
     .filter((record) => Boolean(record.rule_stable_id))
     .map((record) => {
       const requirements = record.requirements.filter((requirement) => requirement.candidate_names.length > 0);
-      const matched = requirements.filter((requirement) => requirementIsSatisfied(
-        owned,
-        requirement.candidates.map((candidate) => candidate.hash),
-        [...requirement.candidate_names, ...requirement.candidates.map((candidate) => candidate.name)]
-      )).length;
       const perkOptions = requirements
         .map((requirement) => ({
           column_key: requirement.label,
           names: requirement.candidate_names,
           candidates: buildSourceRequirementCandidates(requirement)
         }));
-      const masterworkNames = requirements
-        .filter((requirement) => requirement.slot === "masterwork")
-        .flatMap((requirement) => requirement.candidate_names);
       const purposeLabel = recommendationPurposeSummary(record.purposes);
       return {
         id: `source:${record.rule_stable_id}`,
@@ -380,19 +372,13 @@ export function buildWeaponRecommendationViews(
         purposes: record.purposes,
         presentation: "perk_pool" as const,
         title: requirements.length ? `${purposeLabel} Perk 池` : `${purposeLabel} 武器推荐`,
-        reason: record.note || recommendation?.disclaimer || "按来源原始栏位展示推荐候选。",
+        // 只有来源自己写的说明。整份推荐集的免责声明由区域顶部说一次（`recommendation.disclaimer`），
+        // 不在这里逐卡兜底——那样每张卡都会重复同一句，用户读到的是「相同的话说了 N 遍」。
+        reason: record.note ?? "",
         source_label: record.source_label,
         ...(record.page_updated_at ? { updated_at: record.page_updated_at } : {}),
         ...(record.source_url ? { external_url: record.source_url } : {}),
-        perk_options: isFixedExotic ? [] : perkOptions,
-        masterwork_names: isFixedExotic ? [] : masterworkNames,
-        mod_names: [],
-        match: item.instance_id && !isFixedExotic
-          ? matchRecommendation(item, matched, requirements.length)
-          : "not_applicable" as const,
-        match_notes: item.instance_id && !isFixedExotic
-          ? recommendationMatchNotes(item, matched, requirements.length)
-          : []
+        perk_options: isFixedExotic ? [] : perkOptions
       };
     });
   // 组合（`combos`）这条路径已经消失：两个适配器都写死空数组，匹配事实统一成「来源事实」
@@ -456,16 +442,7 @@ function normalizeRecommendationCandidateName(value: string | undefined): string
 }
 
 
-// 归约后的来源只画一块「每栏任选其一」候选池：判定与文案都来自事实层。
-
-// 逐栏结果直接来自事实层；界面只补图标等展示字段，不再自行判定。
-// 事实层缺少逐栏数据（例如旧缓存）时按「无法判断」展示，不退回界面自算。
-
-
-// 排序：完全符合优先，其次按命中比例与命中数，保证最相关的组合排在各来源分组的前面。
-
-// 没有实例事实时的原始展示：只列出来源给出的组合，明确标注不做核对。
-
+// 归约后的来源只画一块「每栏任选其一」候选池。
 
 function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "perks">): WeaponConfigurationClassification {
   const allColumns = perkGroupsToPoolColumns(item.perks ?? []);
@@ -479,22 +456,6 @@ function classifyWeaponConfiguration(item: Pick<SelectedItemDetail, "tier" | "pe
     kind: classification.kind,
     poolKind: classification.pool_kind
   };
-}
-
-function matchRecommendation(
-  item: SelectedItemDetail,
-  matched: number,
-  total: number
-): WeaponDetailViewModel["recommendations"][number]["match"] {
-  if (!item.instance_id && !item.socket_plugs?.length) return "not_applicable";
-  if (matched === total && matched > 0) return "full";
-  return matched > 0 ? "partial" : "none";
-}
-
-function recommendationMatchNotes(item: SelectedItemDetail, matched: number, total: number): string[] {
-  return item.instance_id || item.socket_plugs?.length
-    ? [`当前 Roll 符合 ${matched}/${total} 项推荐。`]
-    : ["当前对象没有账号实例 Roll，暂时无法核对推荐项。"];
 }
 
 function isReusablePlugSummary(

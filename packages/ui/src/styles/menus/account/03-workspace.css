@@ -410,9 +410,9 @@
 
 :where(.app-shell) .account-capacity-heading {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
 }
 
 :where(.app-shell) .account-capacity-heading h3,
@@ -472,17 +472,14 @@
 
 :where(.app-shell) .account-capacity-primary-card {
   display: grid;
-  align-content: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 2px 8px;
   min-width: 0;
+  padding: 6px 9px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-frame);
   background: var(--surface-panel);
-}
-
-:where(.app-shell) .account-capacity-primary-card {
-  gap: 3px;
-  min-height: 82px;
-  padding: 8px 9px;
 }
 
 :where(.app-shell) .account-capacity-primary-card > span {
@@ -508,6 +505,11 @@
   line-height: 1.4;
 }
 
+/* 没有进度条的格子（当前角色携带）只有三个子元素，说明文字会落进左侧的 auto 窄列被挤成竖条，让它跨满整行。 */
+:where(.app-shell) .account-capacity-primary-card > small:last-child {
+  grid-column: 1 / -1;
+}
+
 :where(.app-shell) .account-capacity-primary-card[data-risk="warning"] > strong {
   color: var(--status-warning-text);
 }
@@ -517,10 +519,8 @@
 }
 
 :where(.app-shell) .account-capacity-progress {
-  align-self: end;
   width: 100%;
   height: 4px;
-  margin-top: 3px;
   overflow: hidden;
   border-radius: var(--radius-indicator);
   background: var(--surface-interactive);
@@ -547,6 +547,8 @@
   align-items: center;
   justify-content: flex-start;
   gap: 6px;
+  /* 贴到标题行右端，吃掉标题与徽章之间那段横向空白。 */
+  margin-left: auto;
 }
 
 :where(.app-shell) .account-actions button {
@@ -2209,6 +2211,7 @@
 
   .app-shell .account-actions {
     justify-content: flex-start;
+    margin-left: 0;
   }
 
   :where(.app-shell) .account-column-head {

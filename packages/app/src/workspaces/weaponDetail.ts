@@ -258,8 +258,6 @@ export type WeaponDetailInstanceMetadata = {
 
 export type WeaponRecommendationMode = "pve" | "pvp" | "general";
 
-export type WeaponRecommendationMatch = "full" | "partial" | "none" | "uncheckable" | "not_applicable";
-
 // 推荐项**不再带来源身份字段**。
 //
 // 这里原来有 `WeaponRecommendationSource = "user" | "builtin" | "external" | "dim"`，详情推荐区
@@ -278,6 +276,15 @@ export type WeaponRecommendationPerkCandidate = {
   unresolved?: boolean;
 };
 
+// 推荐项只承载**来源规则本身**（来源给了哪些栏位、每栏有哪些候选），不再承载「本件命中」结果。
+//
+// 这里原来有一批「本件是否命中」的字段：`match` / `match_notes` / `masterwork_names` / `mod_names`，
+// 以及 `perk_options[].requirement_state` / `matched_name` / `matched_hash` / `matched_current` /
+// `instance_owned`。它们只在账号实例上有意义，而账号实例走的是另一条渲染路径（推荐来源证据卡，
+// 事实由 `matchVaultItems` 给出），这一条路径的生产点从不填它们：`instance_owned` 恒为空数组、
+// `requirement_state` 恒为 undefined。留着的后果是消费方要靠「这个字段有没有值」猜自己拿到的是
+// 哪一层，于是把规则层的对象（资料库定义、商人售卖）也画成了「有无命中」的对照表。删掉之后，
+// 这一层只有一个含义：来源要求了什么。
 export type WeaponRecommendation = {
   id: string;
   mode: WeaponRecommendationMode;
@@ -292,18 +299,7 @@ export type WeaponRecommendation = {
     column_key: string;
     names: string[];
     candidates?: WeaponRecommendationPerkCandidate[];
-    // 事实层结果：命中与否由匹配结果给出，界面不再自行比较插件 Hash 或名称。
-    requirement_state?: "match" | "different" | "uncheckable";
-    matched_name?: string;
-    matched_hash?: number;
-    matched_current?: boolean;
-    // 本件在该栏拥有的插件，用于渲染「本件拥有」一列。
-    instance_owned?: Array<{ hash: number; name: string; current: boolean }>;
   }>;
-  masterwork_names: string[];
-  mod_names: string[];
-  match: WeaponRecommendationMatch;
-  match_notes: string[];
 };
 
 export type WeaponDetailInstance = {
@@ -340,6 +336,9 @@ export type WeaponDetailViewModel = {
   sources: WeaponDetailSources;
   upgrades: WeaponDetailUpgrades;
   recommendations: WeaponRecommendation[];
+  // 整份推荐集的免责声明。它说的是「这些推荐整体从哪来、能信到什么程度」，属于区域级信息，
+  // 由推荐区顶部说一次；逐条来源自己的说明走 `recommendations[].reason`，两者不互相兜底。
+  recommendation_disclaimer?: string;
   same_hash_instances: WeaponDetailInstance[];
   loading: boolean;
   loading_state: {
@@ -421,6 +420,7 @@ export type BuildWeaponDetailViewModelInput = {
   sources?: WeaponDetailSources;
   upgrades?: WeaponDetailUpgrades;
   recommendations?: WeaponRecommendation[];
+  recommendation_disclaimer?: string;
   same_hash_instances?: WeaponDetailInstanceLike[];
   instance_metadata?: Record<string, WeaponDetailInstanceMetadata>;
   versions_loading?: boolean;
@@ -527,6 +527,7 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
     sources: input.sources ?? sourceSummaryToSources(item.source),
     upgrades: input.upgrades ?? { enhanced: false },
     recommendations: input.recommendations ?? [],
+    ...(input.recommendation_disclaimer ? { recommendation_disclaimer: input.recommendation_disclaimer } : {}),
     same_hash_instances: (input.same_hash_instances ?? [])
       .filter((instance): instance is WeaponDetailInstanceLike & { instance_id: string } => (
         instance.hash === item.hash && Boolean(instance.instance_id)

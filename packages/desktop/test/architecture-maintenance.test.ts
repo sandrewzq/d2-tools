@@ -494,6 +494,66 @@ describe("architecture maintenance guardrails", () => {
     expect(perkCss, "完整掉落池还自带一条内部分隔线").not.toMatch(/\.weapon-detail-full-pool\s*\{[^}]*border-top/);
   });
 
+  it("keeps the recommendation region split by object identity instead of by which fields carry a value", () => {
+    // T81：资料库定义和商人 Offer 根本没有「本件」，但旧的单条渲染路径靠 `requirement_state` /
+    // `instance_owned` 有没有值来猜自己拿到了哪一层，于是给没有本件的东西画了「来源要求 ｜ 本件拥有」
+    // 对照表：第二列结构性为空，还写出「本件没有这个推荐项」。现在按对象身份分流，规则层只剩
+    // 「来源自己给了什么」。这条守卫钉的就是「不许再退回按字段猜」。
+    const detail = readFileSync(join(repoRoot, "packages", "ui", "src", "item-detail", "weapon", "WeaponDetailContent.tsx"), "utf8");
+    const bodyOf = (name: string) => {
+      const body = detail.match(new RegExp(`function ${name}\\([\\s\\S]*?\\n\\}\\n`))?.[0] ?? "";
+      expect(body, `详情页里找不到 ${name}，后面几句会白过`).not.toBe("");
+      return body;
+    };
+
+    // 分流依据只能是对象身份：账号实例一条路，资料库定义 / 商人 Offer 另一条。
+    expect(detail, "推荐区没按对象身份分流").toContain(
+      'const isAccountInstance = model.context.kind === "account_instance";'
+    );
+    expect(detail, "按字段有没有值猜层次的旧判断又回来了").not.toMatch(/\bisDefinition\b/);
+
+    const ruleLayer = bodyOf("DefinitionRecommendationSources");
+    const sourceCard = bodyOf("DefinitionRecommendationSourceCard");
+    const evidence = bodyOf("RecommendationSourceEvidenceCard");
+
+    // 规则层不许出现第二列的任何形式：没有本件拥有项、没有命中 / 当前启用标记、没有两列对照。
+    for (const forbidden of [
+      "instance_owned",
+      "RecommendationSlotComparison",
+      "recommendationPerkMatches",
+      "requirement_state",
+      "hit=",
+      "active="
+    ]) {
+      expect(sourceCard, `规则层来源卡又长出了本件对照：${forbidden}`).not.toContain(forbidden);
+    }
+    // 它画的仍然是来源自己给的栏位与候选，且复用同一种 Perk 条目，不另起一套。
+    expect(sourceCard, "规则层没画来源栏位").toContain("weapon-detail-definition-columns");
+    expect(sourceCard, "规则层换了另一套 Perk 条目").toContain("<WeaponPerkEntry");
+
+    // 免责声明说一次就够：区域顶部一句，卡内不重复，否则同一句话会读 N 遍。
+    const disclaimerAt = ruleLayer.indexOf("recommendation_disclaimer");
+    const firstCardAt = ruleLayer.indexOf("<DefinitionRecommendationSourceCard");
+    expect(disclaimerAt, "推荐区顶部没有免责声明").toBeGreaterThan(-1);
+    expect(firstCardAt, "推荐区没画来源卡，后面一句会白过").toBeGreaterThan(-1);
+    expect(disclaimerAt, "免责声明没排在来源卡前面").toBeLessThan(firstCardAt);
+    expect(detail.match(/weapon-detail-recommendation-disclaimer/g)?.length ?? 0, "免责声明被逐卡重复渲染").toBe(1);
+
+    // 「来源要求 ｜ 本件拥有」两列对照只属于事实层：事实层链路是
+    // RecommendationSourceEvidenceCard → RecommendationSourceSlotRow → RecommendationSlotComparison，
+    // 规则层从壳到卡都不许提到这条链上的任何一个。
+    const evidence = bodyOf("RecommendationSourceEvidenceCard");
+    const slotRow = bodyOf("RecommendationSourceSlotRow");
+    expect(detail.match(/<RecommendationSlotComparison/g)?.length ?? 0, "推荐对照组件被用在了事实层以外").toBe(1);
+    expect(detail.match(/<RecommendationSourceSlotRow/g)?.length ?? 0, "逐栏对照挂到了事实层卡片以外").toBe(1);
+    expect(evidence, "事实层不再画逐栏对照").toContain("<RecommendationSourceSlotRow");
+    expect(slotRow, "事实层不再消费本件拥有项").toContain("instance_owned");
+    expect(slotRow, "事实层不再画两列对照").toContain("<RecommendationSlotComparison");
+    for (const forbidden of ["RecommendationSlotComparison", "RecommendationSourceSlotRow"]) {
+      expect(ruleLayer, `规则层引用了事实层的两列对照：${forbidden}`).not.toContain(forbidden);
+    }
+  });
+
   it("keeps the source row's two scopes written by one shared sentence", () => {
     // Bug #98：来源行原来并排摆着「1679 条规则 / 422 把武器 · 当前账号影响 305 件」，
     // 加上左侧清单那个仓库口径的数字，四个数字四种口径、页面上一个字都没解释。

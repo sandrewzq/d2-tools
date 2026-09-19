@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type RefObject } from "react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import type {
   AccountItemView,
@@ -518,43 +518,44 @@ function AccountPageWorkspace(props: {
               </button>;
             })}
           </div>
-          <AccountCapacityOverview copy={props.copy} viewModel={props.viewModel} />
-          <div className="account-actions">
-            <button
-              type="button"
-              ref={powerTriggerRef}
-              className="account-power-trigger"
-              data-ui-kind="button"
-              data-control-variant="quiet"
-              aria-expanded={isPowerPanelOpen}
-              aria-controls="account-power-panel"
-              onClick={() => setIsPowerPanelOpen((current) => !current)}
-            >
-              <span>{accountText(props.copy, "光等详情")}</span>
-              <PowerFractionValue value={props.selectedCharacter.power.dropBaseline} />
-            </button>
-            {props.actions.equipHighestPower ? <button
-              type="button"
-              ref={equipHighestPowerTriggerRef}
-              data-ui-kind="button"
-              data-control-variant="secondary"
-              disabled={props.viewModel.loadout.isRunningItemAction || isHighestPowerVerificationActive}
-              onClick={() => {
-                setIsPowerPanelOpen(false);
-                if (highestPowerChanges.length) {
-                  setIsHighestPowerConfirmationOpen(true);
-                } else {
-                  props.actions.equipHighestPower?.(props.selectedCharacter.characterId);
-                }
-              }}
-            >
-              {props.viewModel.loadout.isRunningItemAction
-                ? props.copy.actions.running
-                : isHighestPowerVerificationActive
-                  ? accountText(props.copy, "同步中")
-                  : props.copy.actions.equipHighestPower}
-            </button> : null}
-          </div>
+          <AccountCapacityOverview copy={props.copy} viewModel={props.viewModel}>
+            <div className="account-actions">
+              <button
+                type="button"
+                ref={powerTriggerRef}
+                className="account-power-trigger"
+                data-ui-kind="button"
+                data-control-variant="quiet"
+                aria-expanded={isPowerPanelOpen}
+                aria-controls="account-power-panel"
+                onClick={() => setIsPowerPanelOpen((current) => !current)}
+              >
+                <span>{accountText(props.copy, "光等详情")}</span>
+                <PowerFractionValue value={props.selectedCharacter.power.dropBaseline} />
+              </button>
+              {props.actions.equipHighestPower ? <button
+                type="button"
+                ref={equipHighestPowerTriggerRef}
+                data-ui-kind="button"
+                data-control-variant="secondary"
+                disabled={props.viewModel.loadout.isRunningItemAction || isHighestPowerVerificationActive}
+                onClick={() => {
+                  setIsPowerPanelOpen(false);
+                  if (highestPowerChanges.length) {
+                    setIsHighestPowerConfirmationOpen(true);
+                  } else {
+                    props.actions.equipHighestPower?.(props.selectedCharacter.characterId);
+                  }
+                }}
+              >
+                {props.viewModel.loadout.isRunningItemAction
+                  ? props.copy.actions.running
+                  : isHighestPowerVerificationActive
+                    ? accountText(props.copy, "同步中")
+                    : props.copy.actions.equipHighestPower}
+              </button> : null}
+            </div>
+          </AccountCapacityOverview>
           </> : mode === "weekly_action" ? (
             <div className="account-mode-summary" data-ui-kind="summary-frame">
               <div>
@@ -940,7 +941,12 @@ function AccountPowerRouteItem(props: {
   );
 }
 
-function AccountCapacityOverview(props: { copy: AccountCopy; viewModel: AccountPageViewModel }) {
+function AccountCapacityOverview(props: {
+  copy: AccountCopy;
+  viewModel: AccountPageViewModel;
+  /** 角色动作（光等详情 / 一键装备最高光等）。放进标题行右端后，它不必在卡片外单独占一行、右侧再空一大片。 */
+  children?: ReactNode;
+}) {
   const selected = props.viewModel.capacity.selectedCharacter;
   if (!selected) return null;
 
@@ -954,7 +960,8 @@ function AccountCapacityOverview(props: { copy: AccountCopy; viewModel: AccountP
       ? "正在同步，暂时保留上一次容量结果"
       : props.viewModel.connection.dataState === "cached"
         ? "当前显示缓存快照"
-        : "基于最近一次已确认账号快照";
+        // 正常态下「基于最近一次已确认账号快照」恒定成立、没有增量信息，不再常驻占一行。
+        : null;
   const riskLabel = capacityRiskLabel(props.viewModel.capacity.overallRisk);
   const unknownBucketCount = selected.inventoryBuckets.filter((bucket) => bucket.risk === "unknown").length;
   const carriedSummary = selected.fullBucketCount > 0
@@ -970,11 +977,12 @@ function AccountCapacityOverview(props: { copy: AccountCopy; viewModel: AccountP
       <div className="account-capacity-heading">
         <div>
           <h3>{accountText(props.copy, "容量与风险")}</h3>
-          <p>{accountText(props.copy, stateText)}</p>
+          {stateText ? <p>{accountText(props.copy, stateText)}</p> : null}
         </div>
         <span className="account-capacity-risk-label" data-risk={props.viewModel.capacity.overallRisk}>
           {accountText(props.copy, riskLabel)}
         </span>
+        {props.children}
       </div>
       <div className="account-capacity-primary-grid">
         <AccountCapacityMetric copy={props.copy} metric={selected.postmaster} />

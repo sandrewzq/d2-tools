@@ -76,6 +76,7 @@ export function HomePageItemDetailModal(props: {
         vendorDefinitionState.recommendations ?? null,
         vendorSelectedItem
       ),
+      recommendation_disclaimer: vendorDefinitionState.recommendations?.disclaimer
     });
     if (vendorWeaponModel) {
       return (
