@@ -46,6 +46,7 @@ export function AccountMenuProvider() {
       weeklyFarmingInstanceRecommendationReady={session.account.vaultRecommendationScan.phase === "complete"}
       weeklyFarmingError={session.library.weeklyFarmingError}
       weeklyFarmingRecommendationError={session.library.weeklyFarmingRecommendationError}
+      weeklyFarmingLocateRequest={session.weeklyFarmingLocateRequest ?? undefined}
       isLoadingWeeklyFarming={session.library.isLoadingWeeklyFarming}
       isRefreshingWeeklyRotation={session.daily.isLoadingDaily}
       weeklyRotationError={session.daily.dailyError}

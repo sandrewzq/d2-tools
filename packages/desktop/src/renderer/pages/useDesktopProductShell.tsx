@@ -77,6 +77,10 @@ export function useDesktopProductShell(props: {
     candidateId: string;
     requestId: number;
   } | null>(null);
+  const [weeklyFarmingLocateRequest, setWeeklyFarmingLocateRequest] = useState<{
+    activityKey: string;
+    requestId: number;
+  } | null>(null);
   const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
   const daily = useDailySummary();
   const diagnostics = useDiagnosticsSettings({
@@ -238,6 +242,14 @@ export function useDesktopProductShell(props: {
       requestId: (current?.requestId ?? 0) + 1
     }));
     setActivePage("vault");
+  }
+
+  function locateWeeklyFarmingActivity(activityKey: string) {
+    setWeeklyFarmingLocateRequest((current) => ({
+      activityKey,
+      requestId: (current?.requestId ?? 0) + 1
+    }));
+    setActivePage("account");
   }
 
   function locateArmorResultReference(reference: { resultId: string; candidateId: string }) {
@@ -406,6 +418,8 @@ export function useDesktopProductShell(props: {
     locateVaultItem,
     vaultTargetLocateRequest,
     locateVaultTarget,
+    weeklyFarmingLocateRequest,
+    locateWeeklyFarmingActivity,
     armorResultTraceRequest,
     locateArmorResultReference,
     dismissArmorResultTrace: () => setArmorResultTraceRequest(null),

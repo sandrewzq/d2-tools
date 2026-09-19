@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
+import { weeklyFarmingActivityKey } from "@d2-tools/core/weekly/farming";
 import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
@@ -165,6 +166,7 @@ export type HomePageContentViewProps = {
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
   onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
+  onOpenWeeklyFarmingActivity?: (activityKey: string) => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 };
 function homeText(copy: HomeCopy, key: string): string {
@@ -201,6 +203,7 @@ export function HomePageContentView(props: HomePageContentViewProps) {
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
       onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}
+      onOpenWeeklyFarmingActivity={props.onOpenWeeklyFarmingActivity}
       onOpenXurOffer={props.onOpenXurOffer}
     />
   );
@@ -224,6 +227,7 @@ function HomePageContent(props: {
   onNavigate?: (page: ShellPageKey) => void;
   onRefreshDaily?: () => void;
   onOpenWeeklyActivityReward?: (reward: HomeWeeklyActivityReward) => void;
+  onOpenWeeklyFarmingActivity?: (activityKey: string) => void;
   onOpenXurOffer?: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const priorities = props.weeklySummary?.priorities;
@@ -301,6 +305,7 @@ function HomePageContent(props: {
               featured={activity.kind === "nightfall"}
               copy={props.copy}
               onOpenReward={props.onOpenWeeklyActivityReward}
+              onOpenWeeklyFarming={props.onOpenWeeklyFarmingActivity}
             />
           ))}
         </div>
@@ -503,6 +508,7 @@ function HomeActivityCard(props: {
   featured: boolean;
   copy: HomeCopy;
   onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
+  onOpenWeeklyFarming?: (activityKey: string) => void;
 }) {
   const entries = homePriorityEntries(props.priority);
   const status = entries.length ? "success" : "pending";
@@ -520,9 +526,11 @@ function HomeActivityCard(props: {
             <HomeActivityEntry
               key={`${props.kind}-${entry.title}`}
               entry={entry}
+              kind={props.kind}
               featured={props.featured}
               copy={props.copy}
               onOpenReward={props.onOpenReward}
+              onOpenWeeklyFarming={props.onOpenWeeklyFarming}
             />
           ))}
         </div>
@@ -533,12 +541,24 @@ function HomeActivityCard(props: {
 
 function HomeActivityEntry(props: {
   entry: HomeWeeklyActivityEntry;
+  kind: "nightfall" | "raid" | "dungeon";
   featured: boolean;
   copy: HomeCopy;
   onOpenReward?: (reward: HomeWeeklyActivityReward) => void;
+  onOpenWeeklyFarming?: (activityKey: string) => void;
 }) {
   const lootPool = props.entry.loot_pool?.filter((reward) => reward.name.trim())
     ?? (props.entry.rewards ?? []).filter((reward) => reward.name.trim() && isHomeWeaponReward(reward));
+  const activityHash = props.entry.related_hashes?.[0];
+  // 只有掉落池确有内容（即数据集覆盖了该活动）才给入口：未覆盖的活动在本周刷取里用的是
+  // `uncovered:<kind>:<名称>` 形式的 key，拼不出来，跳过去会定位不到。
+  const farmingActivityKey = props.onOpenWeeklyFarming
+    && lootPool.length > 0
+    && props.kind !== "nightfall"
+    && typeof activityHash === "number"
+    && Number.isFinite(activityHash)
+    ? weeklyFarmingActivityKey(props.kind, activityHash)
+    : undefined;
   return (
     <div className={props.featured ? "weekly-activity-entry is-featured" : "weekly-activity-entry"}>
       <div className="weekly-activity-copy">
@@ -546,15 +566,26 @@ function HomeActivityEntry(props: {
         {props.entry.detail ? <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.entry.detail}</p> : null}
       </div>
       <div className="weekly-activity-reward-panel">
-        <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "掉落池")}</span>
+        <div className="weekly-activity-reward-head">
+          <span data-ui-part="label" data-info-priority="support" data-text-tone="meta">{homeText(props.copy, "掉落池")}</span>
+          {farmingActivityKey ? (
+            <button
+              type="button"
+              className="weekly-activity-farming-link"
+              data-ui-kind="button"
+              data-control-variant="quiet"
+              onClick={() => props.onOpenWeeklyFarming?.(farmingActivityKey)}
+            >{homeText(props.copy, "查看本周刷取")}</button>
+          ) : null}
+        </div>
         <div className="weekly-activity-reward-list">
           {lootPool.length ? lootPool.map((reward) => (
             <HomeActivityReward key={reward.hash} reward={reward} onOpen={props.onOpenReward} />
           )) : (
             <div className="weekly-activity-reward is-pending">
               <div>
-                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{homeText(props.copy, "掉落池待确认")}</strong>
-                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{homeText(props.copy, "公开接口尚未返回可读奖励。")}</small>
+                <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{homeText(props.copy, "掉落池待核对")}</strong>
+                <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{homeText(props.copy, "轮换已确认，掉落关系尚未核对。")}</small>
               </div>
             </div>
           )}

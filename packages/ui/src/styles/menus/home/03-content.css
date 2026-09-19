@@ -126,7 +126,7 @@
 
 :where(.app-shell) .weekly-activity-grid {
   grid-template-columns: minmax(0, 1.1fr) repeat(2, minmax(0, 1.05fr));
-  gap: 8px;
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -162,7 +162,7 @@
 
 :where(.app-shell) .weekly-activity-list {
   display: grid;
-  grid-auto-rows: minmax(98px, auto);
+  grid-auto-rows: minmax(0, auto);
   align-content: center;
   min-width: 0;
 }
@@ -187,6 +187,11 @@
 :where(.app-shell) .weekly-activity-card.is-raid .weekly-activity-entry,
 :where(.app-shell) .weekly-activity-card.is-dungeon .weekly-activity-entry {
   padding-block: 7px;
+}
+
+/* 日落打击卡在网格里占 1.1fr、比轮换那两张宽，同样的列比例会分到更多左列宽度；它的掉落池条目也最多，收窄左列让给掉落池。 */
+:where(.app-shell) .weekly-activity-card.is-nightfall .weekly-activity-entry {
+  grid-template-columns: minmax(0, 0.5fr) minmax(210px, 1.5fr);
 }
 
 :where(.app-shell) .weekly-activity-copy {
@@ -214,9 +219,18 @@
   border-left: 1px solid var(--section-divider);
 }
 
-:where(.app-shell) .weekly-activity-reward-panel > span {
-  display: block;
+:where(.app-shell) .weekly-activity-reward-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
   margin: 0 0 3px;
+}
+
+:where(.app-shell) .weekly-activity-farming-link {
+  flex: none;
+  white-space: nowrap;
 }
 
 :where(.app-shell) .weekly-activity-reward-list {
@@ -297,6 +311,13 @@
   display: block;
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+/* 武器名断行时，行高取该行最高的条目，一个长名字会把整层掉落池抬高；锁单行，完整名字与类型走已有 title。 */
+:where(.app-shell) .weekly-activity-reward strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 :where(.app-shell) .weekly-activity-reward small {

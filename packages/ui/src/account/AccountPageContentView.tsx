@@ -49,6 +49,8 @@ export type AccountPageContentViewProps = {
   actions: AccountPageActions;
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   weeklyFarming?: LibraryWeeklyFarmingView;
+  /** 首页「查看本周刷取」的深链接请求：切到本周刷取分区并滚动到对应活动。requestId 保证同一条目重复点击也生效。 */
+  weeklyFarmingLocateRequest?: { activityKey: string; requestId: number };
 };
 
 type AccountMode = "role_state" | "weekly_action" | "account_data";
@@ -101,6 +103,20 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const activitySummary = viewModel.activity.summary;
   const activityReview = activitySummary ? activitySummary.review : null;
   const [section, setSection] = useState<AccountSection>(initialAccountSection);
+  const weeklyFarmingLocateActivityKey = props.weeklyFarmingLocateRequest?.activityKey;
+  const weeklyFarmingLocateRequestId = props.weeklyFarmingLocateRequest?.requestId;
+
+  useEffect(() => {
+    if (weeklyFarmingLocateRequestId === undefined) return;
+    setSection("weekly_farming");
+  }, [weeklyFarmingLocateRequestId]);
+
+  useEffect(() => {
+    if (!weeklyFarmingLocateActivityKey || section !== "weekly_farming") return;
+    const panel = document.getElementById("account-panel-weekly_farming");
+    const target = panel?.querySelector<HTMLElement>(`[id="library-weekly-${weeklyFarmingLocateActivityKey}"]`);
+    target?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [weeklyFarmingLocateActivityKey, weeklyFarmingLocateRequestId, section]);
 
   if (!profile || !selectedCharacter) {
     return <AccountUnavailableState actions={actions} copy={copy} viewModel={viewModel} />;

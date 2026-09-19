@@ -55,6 +55,7 @@ export function AccountPage(props: {
   isLoadingWeeklyFarming?: boolean;
   isRefreshingWeeklyRotation?: boolean;
   weeklyRotationError?: string;
+  weeklyFarmingLocateRequest?: { activityKey: string; requestId: number };
   onConfigureBungie: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
@@ -207,6 +208,7 @@ export function AccountPage(props: {
         openWeeklyFarmingItem: props.onOpenWeeklyFarmingItem
       }}
       weeklyFarming={weeklyFarming}
+      weeklyFarmingLocateRequest={props.weeklyFarmingLocateRequest}
     />
   );
 }

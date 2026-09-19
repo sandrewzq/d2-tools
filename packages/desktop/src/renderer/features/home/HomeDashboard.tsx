@@ -16,6 +16,7 @@ export function HomeDashboard(props: HomePageModelInput & {
   onNavigate: (page: ShellPageKey) => void;
   onRefreshDaily: () => void;
   onOpenWeeklyActivityReward: HomeDashboardActions["onOpenWeeklyActivityReward"];
+  onOpenWeeklyFarmingActivity: HomeDashboardActions["onOpenWeeklyFarmingActivity"];
   onOpenXurOffer: (item: VendorInventoryItemView, context: VendorOfferContextView) => void;
 }) {
   const model = useMemo(() => selectHomePageModel(props), [
@@ -46,6 +47,7 @@ export function HomeDashboard(props: HomePageModelInput & {
       onNavigate={props.onNavigate}
       onRefreshDaily={props.onRefreshDaily}
       onOpenWeeklyActivityReward={props.onOpenWeeklyActivityReward}
+      onOpenWeeklyFarmingActivity={props.onOpenWeeklyFarmingActivity}
       onOpenXurOffer={props.onOpenXurOffer}
       interfaceLocale={props.interfaceLocale}
     />

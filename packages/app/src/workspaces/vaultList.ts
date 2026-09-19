@@ -402,15 +402,15 @@ export function buildVaultGroups(items: AccountItemSummary[]): VaultGroupSummary
 
 export function buildVaultSlotFilters(items: AccountItemSummary[]): VaultSlotSummary[] {
   const sections = buildVaultSections(items);
+  // 顺序沿用 `buildVaultSections` 的固定槽位次序（`slotRank`），**不按件数排**：
+  // 筛选按钮的位置不该随库存数量变来变去，武器三槽也必须是动能 → 能量 → 威能。
   return [
     { key: "all", label: "全部位置", count: items.length },
-    ...sections
-      .map((section) => ({
-        key: section.key,
-        label: section.label,
-        count: section.count
-      }))
-      .sort((left, right) => right.count - left.count || compareText(left.label, right.label))
+    ...sections.map((section) => ({
+      key: section.key,
+      label: section.label,
+      count: section.count
+    }))
   ];
 }
 

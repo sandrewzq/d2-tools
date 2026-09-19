@@ -1,5 +1,13 @@
 export type WeeklyFarmingActivityKind = "raid" | "dungeon";
 
+/**
+ * 活动级定位键，与 activity-loot 数据集里的 `key` 同一约定（`raid-<活动 hash>` / `dungeon-<活动 hash>`）。
+ * 首页要从活动 hash 定位到本周刷取里的对应活动，规则在这里写一次，不各处自行拼字符串。
+ */
+export function weeklyFarmingActivityKey(kind: WeeklyFarmingActivityKind, activityHash: number): string {
+  return `${kind}-${activityHash}`;
+}
+
 export type WeeklyFarmingRotationActivity = {
   kind: WeeklyFarmingActivityKind;
   title: string;
