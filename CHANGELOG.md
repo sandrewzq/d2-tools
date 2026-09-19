@@ -2,6 +2,84 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.27 - 2026-09-19
+
+### 中文
+
+#### 改进
+
+- 推荐来源的导入收成两条路：选本地文件，或粘贴一个愿望单文本链接；固定的在线来源与粘贴文本框已移除。带链接的来源行新增「同步」按钮，点一下重新拉取，内容没变会提示「已是最新」，变了才让你确认覆盖。
+- 「已导入来源」每行在来源名下方显示格式与状态，例如「推荐表格 · 已启用 · 时间」；数字列上下对齐，不再因为某行多一个按钮而整体偏移，几个动作按钮统一形状，删除改成红描边。
+- 三条导入路都改成在弹框里确认：从链接导入时，预览与来源名在框内确认，关掉等于放弃这次导入；「导入文本文件」也先弹框、在框里选文件，弹框宽窄与另外两条一致。
+- 武器详情里「本件 Roll / 固有能力 / 完整掉落池」的 Perk 与推荐区用同一种小卡片，Perk 说明改成悬停或在卡片上按 Tab 时浮层显示。
+- 武器详情三个区域重新排序：推荐 Roll → 本件 Roll → 查看完整掉落池 → 属性与获取 → 升级与锻造。
+- 推荐对照区两列改成等宽对齐，同一栏的卡片同宽、第一行齐平；「来源要求 / 本件拥有」的表头合并成一条并随滚动吸附。
+- 「当前启用」改用空心蓝环标记，与绿色命中勾同尺寸、靠形状区分；推荐区的 Perk 说明浮层里新增「选择 / 取消选择」，可以直接在推荐区换 Perk，待提交的写面板吸附在详情底部，选完就地提交。
+- 首页轮换突袭与轮换地牢卡片的掉落池新增「查看本周刷取」入口，点一下切到账号页并定位到对应活动。
+- 资料库定义与商人 Offer 的推荐不再显示一列本该空着的「本件拥有」，改成一个来源一张卡、每个栏位一张子卡。
+- 仓库武器卡瘦身，并把光等搬到卡片右缘：来源面板最多列两条（标题仍写全量），状态与快捷操作并成卡片底部一行，图标缩小、卡片高度固定，弹药 / 属性 / 勇士词条不再被截断，同排卡片等宽。
+- 资料库查询：装备模式去掉高级筛选框；Perk 模式展开后在左栏新增位置、属性、弹药类型、框架四个筛选维度，每个选项旁显示再选上它会剩几件。
+- 账号页的操作提示（装备、转移、一键装备最高光等的结果）挪到账号名与同步状态下方，三个数据视图共用同一位置；没有提示时那块位置不再留一片空白。
+
+#### 修复
+
+- 登录状态正常时不再误报「登录可能已失效、请重新登录」，只有登录真的失效才这样提示，其它错误说清是什么问题。
+- 人工推荐表格导入不再一律报「表头不受支持」：现在能直接导入 Excel 表格（.xlsx），也能导回上一版模板导出的文件；表头确实不对时报错会带上文件名和实际读到的表头，旧的 .xls 会提示另存为 .xlsx 或 CSV。
+- 在同一页导入完成后，下方「已导入来源」的来源数与启用数当场更新，不用切页或重启；推荐来源页只剩一份「已导入来源」清单，每份导入也只剩一个删除入口。
+- 在仓库勾选任一推荐来源后件数不再整页变 0，位置 / 槽位 / 类型的计数与来源管理给出的件数能对上。
+- 导入人工推荐表格的弹框里，挤在预览卡右侧的来源名与两个按钮恢复正常排版，来源名按文件名自动填好；来源行的「perk 命中」分段框只包住自己的选项，不再撑满整栏；「从链接同步」弹框里输入框与「读取链接」按钮同排底对齐、说明另起一行，两个导入弹框收窄到同样宽度。
+- 删除、停用、移除规则、清空规则的确认改成正中弹出的弹框，后面的清单不再被顶下去。
+- 「有就行」类型的推荐命中后能说清是哪份来源：这些武器现在能被对应来源筛出来，来源清单上的数字跟着变大；来源行把数字拆成三句——规则数、点名的武器数、「仓库 N 件 / 全账号 M 件」，各带悬停说明，不再让两个数看起来互相矛盾。
+- 再点一次已经生效的「perk 命中」分段，不再顺手清掉同一行的「完整」档；悬停提示里也不会出现两个「命中」。
+- 「DIM 文本」那一行不再有「移除全部来源」按钮，清掉某一份导入改用下方清单里的「删除」。
+- DIM 文本导入不再把「两个栏位都可能出」的 Perk 判成错误丢行，预览里不再报「18 行有问题」，也不再出现整把武器的规则一条不剩；作者按「每栏任选其一」展开写的多余行也不再被报成问题行，预览改说这些行是展开写法的冗余，红框只留给真写错的行。
+- 首页轮换突袭 / 轮换地牢卡片的掉落池不再一律显示「掉落池待确认」，现在列出具体掉落武器名与图标；覆盖不到的活动改说「轮换已确认，掉落关系尚未核对」。
+- 打开武器详情不再整屏白一下又闪：固有能力那一格先占位再填入，读不到时只说一次「固有能力未能读取」就停住；加载中与空态的格子也和 Perk 卡片同高同宽，内容不再跳位。
+- 推荐区里点开一个本件拥有的 Perk 却没有「选择」、换不了 Perk 的问题已修复。
+- 滚动时推荐区吸附的表头不再压住章节切换条，切换条始终点得到。
+- 换 Perk 点「应用」后不再出现红色失败态：新 Perk 立刻显示为当前生效，面板只说「已提交 / 待核对」，关掉详情再打开仍是新 Perk；同一栏里不会新旧两项同时显示成当前启用，正文不再整屏反复变回加载骨架。写入要过几分钟才在服务器生效时不再被当成失败，后台自动核对，界面保持中性、不报错、不回退；面板也不再显示英文原句，角色在活动中时给出中文说明「需回到轨道或退回角色选择界面再试」。
+- 同一栏里「当前启用」不再一蓝一红：红叉只表示来源没要这一项，环的颜色只表示当前启用，两列表头图例同步写成「环＝当前启用，叉＝来源没要」。
+- Perk 的说明浮层不再被滚动吸附的表头横切成上下两截。
+- 仓库的去重 / 清理视图里，推荐来源选项改成按来源名排序，不再走一套写死的优先顺序。
+
+### English
+
+#### Improved
+
+- Recommendation sources now import two ways: pick a local file, or paste a wishlist text link. Fixed online sources and the paste box are gone. Source rows that came from a link get a Sync button that refetches on demand — it tells you when nothing changed, and asks before overwriting when something did.
+- Each row under "Imported sources" now shows its format and status beneath the source name (for example "Curated table · Enabled · time"); the number columns line up, the action buttons share one shape, and Delete is outlined in red.
+- All three import paths confirm inside a dialog: link imports preview the source name in the dialog (closing it cancels the import), and "Import text file" opens the dialog first and picks the file inside, at the same width as the other two.
+- In weapon details, perks in "This roll / Intrinsic / Full drop pool" now use the same small cards as the recommendation area, with descriptions shown in a popover on hover or Tab focus.
+- Weapon detail sections were reordered: Recommended roll → This roll → Full drop pool → Stats and sources → Upgrades and crafting.
+- The recommendation comparison columns are now equal width and top-aligned, with a single "Source requires / This item has" header that sticks while scrolling.
+- "Currently active" is now marked with a hollow blue ring, the same size as the green match check and told apart by shape. The perk popover in the recommendation area gained Select / Deselect so you can swap perks there, with the pending write panel docked at the bottom of the detail view.
+- Rotation raid and dungeon loot pools on the home page link to "View this week's farming", jumping to the account page and scrolling to that activity.
+- Recommendations on library definitions and vendor offers no longer show a "This item has" column that was always empty; instead there is one card per source with one sub-card per slot.
+- Vault weapon cards are slimmer and power moved to the right edge: the source panel lists at most two entries (the title still shows the full count), status and quick actions share one bottom row, icons are smaller, card height is fixed, ammo / element / champion text is no longer truncated, and cards in a row are equal width.
+- Library search: equipment mode drops the advanced filter box, while Perk mode adds position, element, ammo type and frame facets in the left column, each showing how many results remain if you select it.
+- The account page's operation messages (equip, transfer, equip highest power) moved below the account name and sync status and are shared by all three data views; when there is nothing to show, that space no longer sits empty.
+
+#### Fixed
+
+- A healthy login no longer reports that your session may have expired — that message only appears when the session really expired, and other errors say what actually went wrong.
+- Curated recommendation tables no longer always fail with "unsupported header": Excel files (.xlsx) import directly, files exported from the previous template still import, and a genuine header mismatch now reports the file name and the headers actually read (old .xls files are told to save as .xlsx or CSV).
+- After importing on the same page, the source and enabled counts under "Imported sources" update immediately — no page switch or restart needed; the sources page shows a single "Imported sources" list with one delete entry per import.
+- Selecting any recommendation source in the vault no longer drops every count to zero; the position / slot / type counts now agree with the numbers shown in source management.
+- In the curated table import dialog, the source name and two buttons squeezed beside the preview card are laid out properly again and the source name is prefilled from the file name; the "perk hit" segment control no longer stretches across the whole column; and the link sync dialog aligns its input and Read link button on one line with the hint below, at a matching dialog width.
+- Confirming a delete, disable, rule removal or rule clear now opens a centered dialog instead of pushing the list below it down.
+- "Has any" recommendations now name the source that matched: those weapons are filterable by that source and its count goes up. Source rows break their numbers into three labelled parts — rules, named weapons, and "vault N / account M" — each with a tooltip, so the two figures no longer look contradictory.
+- Clicking an already-active "perk hit" segment no longer also clears the "full" tier on the same row, and tooltips no longer show two "hit" labels.
+- The "DIM text" row no longer carries a "Remove all sources" button; clear a single import with Delete in the list below.
+- DIM text import no longer discards perks that can roll in either slot as bad rows — the preview stops reporting "18 rows have problems" and whole weapons no longer lose every rule. Rows authors wrote out per-slot are no longer flagged either; the preview calls them redundant instead, and the red box is reserved for real mistakes.
+- Rotation raid and dungeon loot pools on the home page no longer always show "loot pool pending": they now list concrete weapon names and icons, and activities outside the dataset say the rotation is confirmed but the loot mapping is not yet verified.
+- Opening weapon details no longer flashes a full white screen: the intrinsic ability cell reserves its place first, stops with a single "intrinsic ability unavailable" message when it cannot be read, and loading and empty cells match perk card geometry so nothing shifts.
+- Opening an owned perk in the recommendation area now offers Select, so the perk can actually be swapped.
+- The sticky recommendation header no longer covers the section switcher while scrolling — the switcher stays clickable.
+- Applying a perk change no longer ends in a red failure state: the new perk shows as active immediately, the panel only says submitted / pending verification, and it is still there after closing and reopening. The same slot never shows both the old and new perk as active, and the body no longer keeps collapsing back to a loading skeleton. Writes that take minutes to reach the server are no longer treated as failures — the app verifies in the background and keeps the UI neutral. The panel also stops showing raw English, and when your character is in an activity it explains in Chinese that you need to return to orbit.
+- "Currently active" no longer appears blue in one column and red in another: the red cross only means the source did not ask for that perk, the ring colour only means currently active, and both column headers were updated to match.
+- The perk description popover is no longer sliced in half by the sticky header.
+- Recommendation sources in the vault's duplicate / cleanup view are now ordered by source name instead of a hard-coded priority list.
+
 ## 0.0.26 - 2026-09-15
 
 ### 中文

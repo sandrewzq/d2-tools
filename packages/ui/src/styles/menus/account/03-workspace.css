@@ -1081,17 +1081,6 @@
   margin: 0;
 }
 
-:where(.app-shell) .account-operation-status-slot {
-  display: flex;
-  align-items: flex-start;
-  min-height: 36px;
-}
-
-:where(.app-shell) .account-operation-status-slot > .status-message {
-  width: 100%;
-  margin: 0;
-}
-
 :where(.app-shell) .account-section {
   min-width: 0;
   border: 0;

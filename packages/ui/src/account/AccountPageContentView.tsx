@@ -396,6 +396,16 @@ function AccountPageWorkspace(props: {
     || operationFeedback?.phase === "syncing"
     || operationFeedback?.phase === "delayed"
     || operationFeedback?.phase === "partial";
+  // 操作反馈挂在页头下方：三个数据视图（角色状态 / 本周行动 / 账号资料）都会渲染页头，
+  // 而容量卡片只在角色状态下出现，反馈跟着卡片走会在其余视图里消失。放进页头后也不必再
+  // 预留固定高度的空槽，没有操作时这块位置不占任何空间。
+  const operationStatus = operationFeedback ? (
+    <p className={`status-message status-${operationFeedback.tone === "success" ? "ready" : operationFeedback.tone}`} role={operationFeedback.tone === "error" ? "alert" : "status"}>{operationFeedback.message}</p>
+  ) : props.viewModel.feedback.itemActionMessage ? (
+    <p className="status-message status-pending" role="status">{props.viewModel.feedback.itemActionMessage}</p>
+  ) : props.viewModel.feedback.loadoutMessage ? (
+    <p className="status-message" role="status">{props.viewModel.feedback.loadoutMessage}</p>
+  ) : null;
 
   return (
     <>
@@ -480,6 +490,7 @@ function AccountPageWorkspace(props: {
               {connectionLabel}
             </span>
           </div>
+          {operationStatus}
           {mode === "role_state" ? <>
           <div className="account-character-switcher" data-ui-kind="context-switcher" role="group" aria-label={accountText(props.copy, "当前角色")}>
             {props.viewModel.characterTabs.map((tab, index) => {
@@ -596,15 +607,6 @@ function AccountPageWorkspace(props: {
               powerOverlayHost
             ) : null
           ) : null}
-          <div className="account-operation-status-slot">
-            {operationFeedback ? (
-              <p className={`status-message status-${operationFeedback.tone === "success" ? "ready" : operationFeedback.tone}`} role={operationFeedback.tone === "error" ? "alert" : "status"}>{operationFeedback.message}</p>
-            ) : props.viewModel.feedback.itemActionMessage ? (
-              <p className="status-message status-pending" role="status">{props.viewModel.feedback.itemActionMessage}</p>
-            ) : props.viewModel.feedback.loadoutMessage ? (
-              <p className="status-message" role="status">{props.viewModel.feedback.loadoutMessage}</p>
-            ) : null}
-          </div>
         </section>
 
         <section
