@@ -789,7 +789,7 @@ function formatAppVersion(version: string): string {
 }
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
-  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "vendors" || value === "settings";
+  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "vendors" || value === "directory" || value === "settings";
 }
 
 function isColorMode(value: string | undefined): value is "light" | "dark" {

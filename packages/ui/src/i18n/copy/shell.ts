@@ -60,6 +60,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         loadouts: "配装",
         library: "资料库",
         vendors: "商人",
+        directory: "工具导航",
         settings: "设置"
       },
       tools: {
@@ -133,6 +134,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
         loadouts: "Loadouts",
         library: "Library",
         vendors: "Vendors",
+        directory: "Tool sites",
         settings: "Settings"
       },
       tools: {

@@ -757,6 +757,7 @@ export function createWebAssistantContext(snapshot: WebHomeSnapshot, account: Ac
     loadouts: "配装页",
     library: "资料库",
     vendors: "商人页",
+    directory: "工具导航页",
     settings: "设置页"
   };
   const pageLabel = pageLabels[activePage];

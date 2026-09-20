@@ -25,6 +25,10 @@ const VaultMenuProvider = lazy(async () => {
   const module = await import("./providers/VaultMenuProvider");
   return { default: module.VaultMenuProvider };
 });
+const DirectoryMenuProvider = lazy(async () => {
+  const module = await import("./providers/DirectoryMenuProvider");
+  return { default: module.DirectoryMenuProvider };
+});
 const SettingsMenuProvider = lazy(async () => {
   const module = await import("./providers/SettingsMenuProvider");
   return { default: module.SettingsMenuProvider };
@@ -41,6 +45,7 @@ export function HomePageRoutes(props: {
       {props.activePage === "library" ? <LibraryMenuProvider /> : null}
       {props.activePage === "vendors" ? <VendorsMenuProvider /> : null}
       {props.activePage === "vault" ? <VaultMenuProvider /> : null}
+      {props.activePage === "directory" ? <DirectoryMenuProvider /> : null}
       {props.activePage === "settings" ? <SettingsMenuProvider /> : null}
     </Suspense>
   );

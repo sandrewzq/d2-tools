@@ -9,6 +9,7 @@ const navItemKeys = [
   "loadouts",
   "library",
   "vendors",
+  "directory",
   "settings"
 ] as const;
 

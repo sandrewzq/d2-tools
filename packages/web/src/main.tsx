@@ -9,6 +9,7 @@ import {
   AiAssistantPanelView,
   defaultProductPreferences,
   HomePageContentView,
+  DirectoryPageContentView,
   LibraryPageContentView,
   LoadoutsPageContentView,
   ProductShellHost,
@@ -754,6 +755,12 @@ function WebApp() {
               interfaceLocale={preferences.interfaceLocale}
               model={fixture.vendorsModel}
               actions={{ onOpenItem: openWebVendorDetail }}
+            />
+          ) : null}
+          {activePage === "directory" ? (
+            <DirectoryPageContentView
+              interfaceLocale={preferences.interfaceLocale}
+              onOpenExternal={adapter.openExternal}
             />
           ) : null}
           {activePage === "settings" ? (

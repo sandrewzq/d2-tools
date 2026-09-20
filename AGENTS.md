@@ -84,6 +84,7 @@ Vibecoding 快路径：
   - 配装：`packages/ui/src/loadouts/` + `.loadout-*`
   - 资料库：`packages/ui/src/library/` + `.library-*`
   - 商人：`packages/ui/src/vendors/` + `.vendor-*`
+  - 工具导航：`packages/ui/src/directory/` + `.directory-*`
   - 设置：`packages/ui/src/settings/` + `.settings-*`
 - 菜单 agent 可以改对应菜单目录下的 `*ContentView.tsx`、菜单专属组件、菜单专属 copy、菜单专属 ViewModel props，以及 `packages/ui/src/styles.css` 中对应菜单前缀的内容层规则。
 - Web / Desktop 只允许为该菜单接 adapter、预览数据或真实数据回调；不得在平台壳复制页面结构。

@@ -202,5 +202,6 @@ const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: stri
   loadouts: { eyebrow: "配装", title: "配装工作台", subtitle: "集中处理本地模板和 Bungie 游戏内配装栏的补齐、应用、覆盖与差异。" },
   library: { eyebrow: "资料库", title: "装备与 Perk 查询", subtitle: "使用本地资料库查询装备、版本、Perk 池、获取来源和账号持有实例。" },
   vendors: { eyebrow: "商人", title: "地点与商人库存", subtitle: "先按地点分组定位商人，再查看库存、子库存、任务、声望和等级奖励。" },
+  directory: { eyebrow: "社区工具", title: "工具导航", subtitle: "按用途分类的公开工具站清单，只收录地址和一句话用途，打开后在系统浏览器访问。" },
   settings: { eyebrow: "设置", title: "应用与数据", subtitle: "管理界面语言、账号读取、资料库、Bungie 接口、AI、备份和诊断。" }
 };

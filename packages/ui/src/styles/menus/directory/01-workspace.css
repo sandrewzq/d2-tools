@@ -1,0 +1,244 @@
+/* 工具导航菜单：社区工具站清单。
+   这里只有公开地址和一句话用途，不带站点内容、图标或数据的副本。
+   站点名保留原文，不随界面语言翻译。 */
+
+.directory-page {
+  width: 100%;
+  min-width: 0;
+}
+
+/* 命令条：左边分类和搜索，右边计数和清空。 */
+.directory-command-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.directory-filters {
+  display: flex;
+  flex: 1 1 320px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.directory-category-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.directory-category-strip button {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.directory-search-field {
+  display: flex;
+  flex: 1 1 200px;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 320px;
+}
+
+.directory-search-label {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.directory-search-field input {
+  width: 100%;
+  min-width: 0;
+}
+
+.directory-command-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.directory-reset {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* 内容栈自己不带内边距，页面间距都在这里给。 */
+.directory-content {
+  padding: var(--workspace-section-space) var(--workspace-page-space) var(--workspace-page-space);
+}
+
+.directory-content > * + * {
+  margin-top: var(--workspace-section-space);
+}
+
+.directory-group {
+  min-width: 0;
+}
+
+.directory-group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--section-divider);
+}
+
+.directory-group-head h3 {
+  margin: 0;
+}
+
+/* 卡片网格只负责排列，不画外框。 */
+.directory-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 12px;
+}
+
+/* 卡片是独立对象，用 6px 圆角；动作行贴底，同一行卡片高度对齐。 */
+.directory-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 12px;
+  border: 1px solid var(--object-border);
+  border-radius: var(--radius-object);
+  background: var(--card-bg);
+}
+
+.directory-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.directory-card-head h4 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.directory-card-badge {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border: 1px solid var(--accent-primary);
+  border-radius: var(--radius-indicator);
+  color: var(--accent-primary);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.directory-card-purpose {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.directory-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.directory-card-tags span {
+  padding: 1px 8px;
+  border: 1px solid var(--section-divider);
+  border-radius: var(--radius-indicator);
+  background: var(--section-bg);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.directory-card-note {
+  margin: 0;
+  padding-top: 8px;
+  border-top: 1px solid var(--section-divider);
+  overflow-wrap: anywhere;
+}
+
+.directory-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+/* 动作是外链，按按钮配方画，不能用 <button> 顶替。 */
+.directory-card-actions a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--control-h-compact);
+  padding: 0 10px;
+  border: 1px solid var(--control-secondary-border);
+  border-radius: var(--radius-control);
+  color: var(--control-secondary-text);
+  background: var(--control-secondary-bg);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.directory-card-actions a:hover {
+  background: var(--control-secondary-bg-hover);
+}
+
+.directory-card-actions a[data-control-variant="primary"] {
+  border-color: var(--control-primary-border);
+  color: var(--control-primary-text);
+  background: var(--control-primary-bg);
+}
+
+.directory-card-actions a[data-control-variant="primary"]:hover {
+  background: var(--control-primary-bg-hover);
+}
+
+/* 「仅参考」「已归档」收在折叠区，展开前不占首层位置。 */
+.directory-archived {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--section-divider);
+  border-radius: var(--radius-frame);
+  background: var(--section-bg);
+}
+
+.directory-archived summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.directory-archived > p {
+  margin: 8px 0 0;
+}
+
+.directory-boundary {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* 窗口收窄时，搜索框放开宽度限制，卡片网格收成一列。 */
+@container product-workspace (max-width: 920px) {
+  .directory-search-field {
+    max-width: none;
+  }
+
+  .directory-card-grid {
+    grid-template-columns: 1fr;
+  }
+}

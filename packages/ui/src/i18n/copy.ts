@@ -7,6 +7,7 @@ import { libraryCopy } from "./copy/library.js";
 import { vendorsCopy } from "./copy/vendors.js";
 import { accountCopy } from "./copy/account.js";
 import { settingsCopy } from "./copy/settings.js";
+import { directoryCopy } from "./copy/directory.js";
 
 export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
   "zh-CN": {
@@ -18,6 +19,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
     vendors: vendorsCopy["zh-CN"],
     account: accountCopy["zh-CN"],
     settings: settingsCopy["zh-CN"],
+    directory: directoryCopy["zh-CN"],
   },
   "en-US": {
     shell: shellCopy["en-US"],
@@ -28,6 +30,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
     vendors: vendorsCopy["en-US"],
     account: accountCopy["en-US"],
     settings: settingsCopy["en-US"],
+    directory: directoryCopy["en-US"],
   }
 };
 

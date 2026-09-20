@@ -24,6 +24,7 @@ describe("desktop shell navigation and diagnostics", () => {
       "loadouts",
       "library",
       "vendors",
+      "directory",
       "settings"
     ]);
   });

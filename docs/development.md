@@ -152,6 +152,7 @@ docs/        正式文档
 | 配装 | `packages/ui/src/loadouts/`、必要时 `loadout-*` 内容样式 | 配装列表、方案详情、迁移计划、比较行、执行状态 |
 | 资料库 | `packages/ui/src/library/`、必要时 `library-*` 内容样式 | 搜索、结果列表、来源矩阵、版本状态页内展示 |
 | 商人 | `packages/ui/src/vendors/`、必要时 `vendor-*` 内容样式 | 商人目录、库存卡、推荐判断、商人详情 |
+| 工具导航 | `packages/ui/src/directory/`、必要时 `directory-*` 内容样式 | 工具站清单数据、分类筛选、关键词搜索、卡片与外链动作 |
 | 设置 | `packages/ui/src/settings/`、必要时 `settings-*` 内容样式 | 设置分区、表单、诊断、备份迁移、低频工具区 |
 
 菜单 agent 可以改：

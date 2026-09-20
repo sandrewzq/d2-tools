@@ -1,4 +1,5 @@
 import type { ShellPageKey } from "../shell/types.js";
+import type { ToolAccess, ToolCategory } from "../directory/toolDirectory.js";
 
 export type InterfaceLocale = "zh-CN" | "en-US";
 export type BungieManifestLocale = "zh-chs" | "en";
@@ -86,6 +87,28 @@ export type LocaleCopy = {
   vendors: VendorsCopy;
   account: AccountCopy;
   settings: SettingsCopy;
+  directory: DirectoryCopy;
+};
+
+export type DirectoryCopy = {
+  searchLabel: string;
+  searchPlaceholder: string;
+  categoryLabel: string;
+  categoryAll: string;
+  categories: Record<ToolCategory, string>;
+  accessLabels: Record<ToolAccess, string>;
+  recommendedBadge: string;
+  resultCount: (count: number) => string;
+  open: string;
+  openGithub: string;
+  android: string;
+  ios: string;
+  reset: string;
+  emptyTitle: string;
+  emptyBody: string;
+  developerTitle: string;
+  developerHint: string;
+  boundaryNotice: string;
 };
 
 export type HomeCopy = {

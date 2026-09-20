@@ -10,6 +10,7 @@ describe("shared UI shell model", () => {
       { key: "loadouts", label: "配装" },
       { key: "library", label: "资料库" },
       { key: "vendors", label: "商人" },
+      { key: "directory", label: "工具导航" },
       { key: "settings", label: "设置" }
     ]);
   });

@@ -13,7 +13,7 @@ const shellContractOnly = process.argv.includes("--shell-contract-only");
 const skipBuild = process.env.D2_VISUAL_SKIP_BUILD === "1";
 const pages = shellContractOnly
   ? ["home"]
-  : ["home", "account", "vault", "loadouts", "library", "vendors", "settings"];
+  : ["home", "account", "vault", "loadouts", "library", "vendors", "directory", "settings"];
 const settingsSections = shellContractOnly
   ? []
   : ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"];
@@ -44,6 +44,7 @@ const pageLabels = {
   loadouts: "配装",
   library: "资料库",
   vendors: "商人",
+  directory: "工具导航",
   settings: "设置"
 };
 const settingsSectionLabels = {

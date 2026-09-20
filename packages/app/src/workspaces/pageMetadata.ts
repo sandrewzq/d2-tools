@@ -1,4 +1,4 @@
-export type HomePageKey = "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings";
+export type HomePageKey = "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "directory" | "settings";
 
 export const homePageMetaMap: Record<HomePageKey, { title: string; subtitle: string }> = {
   home: { title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
@@ -7,6 +7,7 @@ export const homePageMetaMap: Record<HomePageKey, { title: string; subtitle: str
   loadouts: { title: "配装", subtitle: "管理本地方案、补齐缺失装备并对比不同配装。" },
   library: { title: "资料库", subtitle: "搜索本地 Manifest 物品定义和 perk。" },
   vendors: { title: "商人", subtitle: "查看可确认商人库存、费用和账号拥有状态。" },
+  directory: { title: "工具导航", subtitle: "按用途分类的社区工具站清单，打开后在系统浏览器访问。" },
   settings: { title: "设置", subtitle: "集中管理配置、更新、诊断和安全操作。" }
 };
 
@@ -17,6 +18,7 @@ export const homePageLabels: Record<HomePageKey, string> = {
   loadouts: "配装",
   library: "资料库",
   vendors: "商人",
+  directory: "工具导航",
   settings: "设置"
 };
 
@@ -27,5 +29,6 @@ export const homePageFocus: Record<HomePageKey, string> = {
   loadouts: "当前正在查看配装页，应优先分析当前配装方案、缺失装备、转移计划和替代方案。",
   library: "当前正在查看资料库页，应优先分析物品定义、perk、最近查看和收藏资料。",
   vendors: "当前正在查看商人页，应优先分析可确认库存、费用、账号拥有状态和购买条件。",
+  directory: "当前正在查看工具导航页，应优先分析社区工具站的分类、用途和外链可用性。",
   settings: "当前正在查看设置页，应优先分析配置状态、AI 设置、更新和诊断信息。"
 };
