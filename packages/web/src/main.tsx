@@ -83,7 +83,6 @@ function WebApp() {
   const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableHomeSnapshot);
   const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
   const [activePage, setActivePage] = useState<ShellPageKey>("home");
-  const [weeklyFarmingLocateRequest, setWeeklyFarmingLocateRequest] = useState<{ activityKey: string; requestId: number } | null>(null);
   const [preferences, setPreferences] = useState<ProductPreferences>({
     ...defaultProductPreferences,
     colorMode: initialTheme
@@ -314,14 +313,6 @@ function WebApp() {
       : { name: target.name, itemType: target.item_type, weapon: buildWeaponDetailViewModel({ item: target }) });
   }
 
-  function openWeeklyFarmingActivity(activityKey: string) {
-    setWeeklyFarmingLocateRequest((current) => ({
-      activityKey,
-      requestId: (current?.requestId ?? 0) + 1
-    }));
-    setActivePage("account");
-  }
-
   function openWebAccountItem(item: AccountItemSummary, entry: "account" | "vault") {
     if (item.group_key !== "weapons" && item.group_key !== "armor") return;
     const entryLabel = entry === "vault" ? "仓库" : "账号";
@@ -499,7 +490,6 @@ function WebApp() {
               {...fixture.createHomePageModel(snapshot)}
               onNavigate={setActivePage}
               onOpenWeeklyActivityReward={openWeeklyReward}
-              onOpenWeeklyFarmingActivity={openWeeklyFarmingActivity}
             />
           ) : null}
           {activePage === "account" ? (
@@ -511,15 +501,9 @@ function WebApp() {
                 loginBungie: () => undefined,
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
-                refreshTasks: () => undefined,
-                requestTodoResources: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
-                openItem: (payload) => openWebAccountItem(payload.item, "account"),
-                refreshWeeklyRotation: () => undefined,
-                refreshWeeklyFarming: () => undefined,
-                openWeeklyFarmingItem: () => undefined
+                openItem: (payload) => openWebAccountItem(payload.item, "account")
               }}
-              weeklyFarmingLocateRequest={weeklyFarmingLocateRequest ?? undefined}
             />
           ) : null}
           {activePage === "vault" ? (

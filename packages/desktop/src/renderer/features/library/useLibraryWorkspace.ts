@@ -1,13 +1,9 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   mergeLibraryVendorSourcePaths,
   normalizeLibraryPerkSearchPayload,
   type LibraryPerkRelatedEquipmentState
 } from "@d2-tools/app/library";
-import type {
-  WeeklyFarmingCatalogResource,
-  WeeklyFarmingRequest
-} from "@d2-tools/core/weekly/farming";
 import {
   api } from "../../api/client";
 import type {
@@ -16,8 +12,7 @@ import type {
   LibraryRuntimeCapabilities,
   LiveItemAvailability,
   PerkSearchResult,
-  VaultItemMatchInfo,
-  WeeklySummary
+  VaultItemMatchInfo
 } from "../../api/types";
 import { useManifestStatus } from "../../shared/hooks/useManifestStatus";
 import {
@@ -36,7 +31,6 @@ const relatedEquipmentPageLimit = 100;
 
 export function useLibraryWorkspace(input: {
   vendorSourcePaths?: Map<number, string[]>;
-  weeklySummary?: WeeklySummary | null;
 } = {}) {
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
@@ -59,93 +53,9 @@ export function useLibraryWorkspace(input: {
   const [liveAvailability, setLiveAvailability] = useState<LiveItemAvailability | null>(null);
   const [liveAvailabilityError, setLiveAvailabilityError] = useState("");
   const [isLoadingLiveAvailability, setIsLoadingLiveAvailability] = useState(false);
-  const [weeklyFarmingCatalog, setWeeklyFarmingCatalog] = useState<WeeklyFarmingCatalogResource | null>(null);
-  const [weeklyFarmingError, setWeeklyFarmingError] = useState("");
-  const [weeklyFarmingRecommendationError, setWeeklyFarmingRecommendationError] = useState("");
-  const [isLoadingWeeklyFarming, setIsLoadingWeeklyFarming] = useState(false);
-  const [weeklyFarmingCommunityMatch, setWeeklyFarmingCommunityMatch] = useState<Map<number, VaultItemMatchInfo>>(new Map());
   const manifestStatusState = useManifestStatus();
   const relatedRequestGeneration = useRef(0);
-  const weeklyFarmingRequestGeneration = useRef(0);
-  /** 已经读到过的活动清单对应的请求键。进「待办」是懒加载入口，不是每次进都重读的入口。 */
-  const weeklyFarmingLoadedKeyRef = useRef("");
   const libraryRuntimeCapabilities = useRef<LibraryRuntimeCapabilities | null>(null);
-  const weeklyFarmingRequestKey = JSON.stringify(buildWeeklyFarmingRequest(input.weeklySummary));
-  const weeklyFarmingRequest = useMemo<WeeklyFarmingRequest>(
-    () => JSON.parse(weeklyFarmingRequestKey) as WeeklyFarmingRequest,
-    [weeklyFarmingRequestKey]
-  );
-
-  const loadWeeklyFarming = useCallback(async (force = false) => {
-    // 同一批活动已经读过就不再读一遍。本周刷取只挂在账号「待办」的行动行展开区，
-    // 进「待办」是按需加载的入口，不是每次都要刷新的入口（T91 第 8 节）。
-    if (!force && weeklyFarmingLoadedKeyRef.current === weeklyFarmingRequestKey) return;
-    const generation = ++weeklyFarmingRequestGeneration.current;
-    if (!weeklyFarmingRequest.activities.length) {
-      setWeeklyFarmingCatalog(null);
-      setWeeklyFarmingCommunityMatch(new Map());
-      setWeeklyFarmingError("");
-      setWeeklyFarmingRecommendationError("");
-      setIsLoadingWeeklyFarming(false);
-      weeklyFarmingLoadedKeyRef.current = weeklyFarmingRequestKey;
-      return;
-    }
-    setIsLoadingWeeklyFarming(true);
-    setWeeklyFarmingError("");
-    setWeeklyFarmingRecommendationError("");
-    try {
-      const catalog = await api.getWeeklyFarmingCatalog({ ...weeklyFarmingRequest, force });
-      if (generation !== weeklyFarmingRequestGeneration.current) return;
-      setWeeklyFarmingCatalog(catalog);
-      weeklyFarmingLoadedKeyRef.current = weeklyFarmingRequestKey;
-      const items = catalog.activities.flatMap((activity) => activity.items);
-      if (!items.length) {
-        setWeeklyFarmingCommunityMatch(new Map());
-        return;
-      }
-      try {
-        const result = await api.matchCommunityVaultItems(
-          items.map((item) => ({ hash: item.hash, item_name: item.name })),
-          { include_evidence: false }
-        );
-        if (generation !== weeklyFarmingRequestGeneration.current) return;
-        const blockingIssue = result.issues.find((issue) => issue.severity === "blocking");
-        if (blockingIssue) {
-          setWeeklyFarmingRecommendationError(blockingIssue.message);
-          return;
-        }
-        setWeeklyFarmingCommunityMatch(new Map((result.card_summaries ?? []).map((match) => [match.hash, {
-          matched: match.matched,
-          available: match.available,
-          modes: match.modes,
-          source_label: match.sources[0]?.source_label
-        }])));
-      } catch (error) {
-        if (generation !== weeklyFarmingRequestGeneration.current) return;
-        setWeeklyFarmingRecommendationError(error instanceof Error ? error.message : "T20 推荐核对失败");
-      }
-    } catch (error) {
-      if (generation !== weeklyFarmingRequestGeneration.current) return;
-      setWeeklyFarmingError(error instanceof Error ? error.message : "本周刷取数据读取失败");
-    } finally {
-      if (generation === weeklyFarmingRequestGeneration.current) {
-        setIsLoadingWeeklyFarming(false);
-      }
-    }
-  }, [weeklyFarmingRequest, weeklyFarmingRequestKey]);
-
-  // Manifest 换版本后掉落清单里的武器定义会过期。已经读过的清单跟着重读一次；没读过的不动——
-  // 玩家没进过「待办」，不该因为一次 Manifest 更新去读整套活动掉落（T91 第 8 节）。
-  // 首次拿到版本号不算换版本，否则进待办那一次会被立刻重读一遍。
-  const observedManifestVersionRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    const version = manifestStatusState.manifestStatus?.version;
-    const previousVersion = observedManifestVersionRef.current;
-    observedManifestVersionRef.current = version;
-    if (!previousVersion || !version || previousVersion === version) return;
-    if (!weeklyFarmingLoadedKeyRef.current) return;
-    void loadWeeklyFarming(true);
-  }, [manifestStatusState.manifestStatus?.version, loadWeeklyFarming]);
 
   useEffect(() => {
     relatedRequestGeneration.current += 1;
@@ -460,11 +370,6 @@ export function useLibraryWorkspace(input: {
     isSearching,
     items,
     libraryCommunityMatch,
-    weeklyFarmingCatalog,
-    weeklyFarmingCommunityMatch,
-    weeklyFarmingError,
-    weeklyFarmingRecommendationError,
-    isLoadingWeeklyFarming,
     libraryHistory,
     libraryViewMode,
     liveAvailability,
@@ -479,7 +384,6 @@ export function useLibraryWorkspace(input: {
     perks,
     perkRelatedEquipment,
     loadPerkRelatedEquipment,
-    loadWeeklyFarming,
     removeFavorite,
     refreshManifestStatus: manifestStatusState.refreshManifestStatus,
     repairManifest: manifestStatusState.repairManifest,
@@ -494,27 +398,6 @@ export function useLibraryWorkspace(input: {
     setLibraryHistory,
     setLibraryViewMode,
     setPerkFilters
-  };
-}
-
-function buildWeeklyFarmingRequest(summary: WeeklySummary | null | undefined): WeeklyFarmingRequest {
-  if (!summary) return { activities: [] };
-  const activities = ([
-    ["raid", summary.priorities?.rotating_raid],
-    ["dungeon", summary.priorities?.rotating_dungeon]
-  ] as const).flatMap(([kind, priority]) => (
-    priority?.status === "ready"
-      ? (priority.entries ?? []).map((entry) => ({
-          kind,
-          title: entry.title,
-          related_hashes: entry.related_hashes,
-          source: entry.source ?? priority.source
-        }))
-      : []
-  ));
-  return {
-    reset_at: summary.weekly_reset.next_reset_iso,
-    activities
   };
 }
 

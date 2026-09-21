@@ -1,18 +1,13 @@
 import { AccountPageContentView, buildVaultRecommendationSummaryIndex, type InterfaceLocale } from "@d2-tools/ui";
 import type {
   AccountItemSummary,
-  AccountPursuitResource,
   AccountSummary,
   ActivityHistorySummary,
   LoadoutTemplate,
-  StartupState,
-  WeeklySummary
+  StartupState
 } from "../../api/types";
 import type { RecommendationCardSummary } from "../../api/types";
 import { selectAccountPageModel, type AccountOpenItemPayload, type AccountOperationFeedbackView } from "@d2-tools/app/account";
-import { buildLibraryWeeklyFarmingView, type LibraryWeeklyFarmingItemView } from "@d2-tools/app/library";
-import type { VaultItemMatchInfo } from "@d2-tools/app/library";
-import type { WeeklyFarmingCatalogResource } from "@d2-tools/core/weekly/farming";
 import {
   matchesLoadoutTemplateItem,
   type LoadoutTemplateLookup
@@ -24,7 +19,6 @@ type AccountItemSource = "equipped" | "inventory" | "postmaster";
 export function AccountPage(props: {
   interfaceLocale?: InterfaceLocale;
   accountSummary: AccountSummary | null;
-  pursuitResource?: AccountPursuitResource | null;
   startupState: StartupState;
   selectedCharacterId: string;
   lastAccountLoadedAt?: Date | null;
@@ -35,9 +29,6 @@ export function AccountPage(props: {
   itemDetailError: string;
   itemDetailLoadingKey: string;
   activitySummary: ActivityHistorySummary | null;
-  weeklySummary: WeeklySummary | null;
-  weeklySummaryStatus: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error";
-  weeklySummaryError: string;
   activityMessage: string;
   activityError: string;
   loadoutMessage: string;
@@ -47,23 +38,10 @@ export function AccountPage(props: {
   activeLoadoutLookup: LoadoutTemplateLookup | null;
   activeLoadoutTemplate: LoadoutTemplate | null;
   recommendationCardSummary: ReadonlyMap<string, RecommendationCardSummary>;
-  weeklyFarmingCatalog?: WeeklyFarmingCatalogResource | null;
-  weeklyFarmingCommunityMatch?: ReadonlyMap<number, VaultItemMatchInfo>;
-  weeklyFarmingInstanceRecommendationReady?: boolean;
-  weeklyFarmingError?: string;
-  weeklyFarmingRecommendationError?: string;
-  isLoadingWeeklyFarming?: boolean;
-  isRefreshingWeeklyRotation?: boolean;
-  weeklyRotationError?: string;
-  weeklyFarmingLocateRequest?: { activityKey: string; requestId: number };
   onConfigureBungie: () => void;
   onLoginBungie: () => void;
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
-  /** 重新拉任务、赏金与活动挑战；待办清单读不到数据时的重试入口。 */
-  onRefreshTasks: () => void;
-  /** 进入「待办」时读任务资源与本周刷取；不动首屏上已有的数据。 */
-  onRequestTodoResources: () => void;
   onSelectCharacter: (characterId: string) => void;
   onEquipHighestPowerItems: (character: AccountSummary["characters"][number]) => void;
   onOpenItem: (
@@ -74,18 +52,13 @@ export function AccountPage(props: {
       is_postmaster_item?: boolean;
     }
   ) => void;
-  onRefreshWeeklyRotation: () => void;
-  onRefreshWeeklyFarming: () => void;
-  onOpenWeeklyFarmingItem: (item: LibraryWeeklyFarmingItemView) => void;
 }) {
   const isBungieConfigured = props.startupState.cards.bungieConfig.status === "ready";
   const isAccountLoggedIn = props.startupState.cards.account.status === "ready";
   const viewModel = useMemo(() => selectAccountPageModel({
     cache: {
       accountSummary: props.accountSummary,
-      pursuitSummary: props.pursuitResource?.data,
-      activitySummary: props.activitySummary,
-      weeklySummary: props.weeklySummary
+      activitySummary: props.activitySummary
     },
     pageState: {
       selectedCharacterId: props.selectedCharacterId,
@@ -95,10 +68,6 @@ export function AccountPage(props: {
       isBungieConfigured,
       isAccountLoggedIn,
       isLoadingAccount: props.isLoadingAccount,
-      pursuitStatus: props.pursuitResource?.status,
-      pursuitError: props.pursuitResource?.error?.message,
-      weeklySummaryStatus: props.weeklySummaryStatus,
-      weeklySummaryError: props.weeklySummaryError,
       isShowingCachedAccount: props.isShowingCachedAccount,
       accountStatusLabel: props.startupState.cards.account.label,
       accountError: props.accountError,
@@ -114,11 +83,7 @@ export function AccountPage(props: {
     }
   }), [
     props.accountSummary,
-    props.pursuitResource,
     props.activitySummary,
-    props.weeklySummary,
-    props.weeklySummaryStatus,
-    props.weeklySummaryError,
     props.selectedCharacterId,
     props.lastAccountLoadedAt,
     props.itemDetailLoadingKey,
@@ -153,29 +118,6 @@ export function AccountPage(props: {
     undefined,
     props.recommendationCardSummary
   ), [props.accountSummary, props.recommendationCardSummary]);
-  const weeklyFarming = useMemo(() => buildLibraryWeeklyFarmingView({
-    resource: props.weeklyFarmingCatalog,
-    accountSummary: props.accountSummary,
-    definitionMatches: props.weeklyFarmingCommunityMatch,
-    instanceMatches: props.recommendationCardSummary,
-    instanceRecommendationReady: props.weeklyFarmingInstanceRecommendationReady,
-    isLoading: props.isLoadingWeeklyFarming,
-    isRefreshingRotation: props.isRefreshingWeeklyRotation,
-    error: props.weeklyFarmingError,
-    rotationError: props.weeklyRotationError,
-    recommendationError: props.weeklyFarmingRecommendationError
-  }), [
-    props.weeklyFarmingCatalog,
-    props.accountSummary,
-    props.weeklyFarmingCommunityMatch,
-    props.recommendationCardSummary,
-    props.weeklyFarmingInstanceRecommendationReady,
-    props.isLoadingWeeklyFarming,
-    props.isRefreshingWeeklyRotation,
-    props.weeklyFarmingError,
-    props.weeklyRotationError,
-    props.weeklyFarmingRecommendationError
-  ]);
 
   function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
     return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;
@@ -199,20 +141,13 @@ export function AccountPage(props: {
         loginBungie: props.onLoginBungie,
         refreshAccount: props.onLoadAccount,
         refreshActivity: props.onRefreshActivity,
-        refreshTasks: props.onRefreshTasks,
-        requestTodoResources: props.onRequestTodoResources,
         selectCharacter: props.onSelectCharacter,
         equipHighestPower: (characterId) => {
           const character = findCharacter(characterId);
           if (character) props.onEquipHighestPowerItems(character);
         },
-        openItem,
-        refreshWeeklyRotation: props.onRefreshWeeklyRotation,
-        refreshWeeklyFarming: props.onRefreshWeeklyFarming,
-        openWeeklyFarmingItem: props.onOpenWeeklyFarmingItem
+        openItem
       }}
-      weeklyFarming={weeklyFarming}
-      weeklyFarmingLocateRequest={props.weeklyFarmingLocateRequest}
     />
   );
 }

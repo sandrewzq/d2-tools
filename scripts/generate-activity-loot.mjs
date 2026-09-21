@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * T74：从本机 Manifest 推导「突袭 / 地牢 → 武器掉落关系」，生成 activity-loot 数据集。
+ * activity-loot 数据集生成（原 T74）：从本机 Manifest 推导「突袭 / 地牢 → 武器掉落关系」。
  *
  * 用法：
  *   node scripts/generate-activity-loot.mjs --sqlite <world.sqlite 路径> [--report]
@@ -13,7 +13,7 @@
  *
  * 关系真源是 Collectible 的 sourceString / sourceHash：从来源串里抽出「名字槽」，
  * 与活动定义名求相等（不是包含），再取该 source 下的武器桶条目。详见
- * docs/work/backlog/T74-rotation-loot-pool-coverage.md。
+ * docs/work/references/activity-loot-dataset.md。
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -29,7 +29,7 @@ const PATTERN_RECORD_TYPE = "武器模式"; // 图样 record 的 recordTypeName
 /**
  * 署名只写真实来源：关系由本脚本从 Bungie Manifest 的 Collectible
  * sourceString / sourceHash 推出，脚本本身就是出处。不要在这里挂 DIM 之类的
- * 第三方链接——脚本没有读过它们的数据，挂上去会把「参考过」写成事实（T91 第 12 节）。
+ * 第三方链接——脚本没有读过它们的数据，挂上去会把「参考过」写成事实。
  */
 const generatorScriptUrl = "https://github.com/sandrewzq/d2-tools/blob/main/scripts/generate-activity-loot.mjs";
 const sourceLicense = "Bungie Manifest";
@@ -346,7 +346,7 @@ function readManifestVersion(databasePath) {  try {
 
 function verifyExpected(derived) {
   const problems = [];
-  // 结构自校验覆盖全量，不只是 EXPECTED 里那 4 个活动（T91 第 12 节）。下面几组检查都
+  // 结构自校验覆盖全量，不只是 EXPECTED 里那 4 个活动。下面几组检查都
   // 不需要猜，任何一条不过都说明推导或 Manifest 版本出了问题，直接拒绝写文件。
   const seenKeys = new Set();
   for (const activity of derived) {

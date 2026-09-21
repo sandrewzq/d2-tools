@@ -271,7 +271,7 @@ async function switchTokenMidFlight(
   const refresh = fixture.session.getSnapshot({ freshness: "refresh" });
   await fixture.membershipRequested;
   fixture.state.value = nextToken;
-  const concurrent = fixture.session.getPursuitSummary({ freshness: "refresh" }).catch(() => undefined);
+  const concurrent = fixture.session.getSnapshot({ freshness: "refresh" }).catch(() => undefined);
   await fixture.secondRead;
   fixture.resolveMembership();
   fixture.resolveProfile();

@@ -214,7 +214,6 @@ export const homeCopy: Record<InterfaceLocale, LocaleCopy["home"]> = {
         "本周八件轮换": "Weekly eight-item rotation",
         "本周奖励": "Weekly rewards",
         "掉落池": "Loot pool",
-        "查看本周刷取": "View weekly farming",
         "掉落池待核对": "Loot pool not yet cross-checked",
         "掉落池读取失败": "Loot pool could not be read",
         "奖励待确认": "Rewards pending confirmation",

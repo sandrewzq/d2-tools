@@ -77,10 +77,6 @@ export function useDesktopProductShell(props: {
     candidateId: string;
     requestId: number;
   } | null>(null);
-  const [weeklyFarmingLocateRequest, setWeeklyFarmingLocateRequest] = useState<{
-    activityKey: string;
-    requestId: number;
-  } | null>(null);
   const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
   const daily = useDailySummary();
   const diagnostics = useDiagnosticsSettings({
@@ -148,8 +144,7 @@ export function useDesktopProductShell(props: {
     diagnostics.manifestStatus?.version
   ]);
   const library = useLibraryWorkspace({
-    vendorSourcePaths,
-    weeklySummary: daily.weeklySummary
+    vendorSourcePaths
   });
   const loadoutLibrary = useLoadoutTemplates();
   const cleanupProtectedItemKeys = useMemo(() => ({
@@ -192,8 +187,14 @@ export function useDesktopProductShell(props: {
     loadoutLibrary
   });
   const accountWriteSyncActivity = writeActions.accountWriteSyncActivity;
+  /**
+   * 账号刷新是一次账号事件，轮换（首页简报）跟着一起重读：待办里的挑战行来自轮换，
+   * 只刷账号会让挑战状态停在上一份读取结果上（T91 第 8 节「账号事件」这一条）。
+   * 两份资源各自记状态，轮换那半失败不影响账号那半。
+   */
   const refreshAccountManually = () => {
     writeActions.clearCompletedWriteFeedback();
+    void daily.loadDailySummary(true);
     return refreshAccountSnapshot("manual");
   };
   const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths, vaultTags });
@@ -242,14 +243,6 @@ export function useDesktopProductShell(props: {
       requestId: (current?.requestId ?? 0) + 1
     }));
     setActivePage("vault");
-  }
-
-  function locateWeeklyFarmingActivity(activityKey: string) {
-    setWeeklyFarmingLocateRequest((current) => ({
-      activityKey,
-      requestId: (current?.requestId ?? 0) + 1
-    }));
-    setActivePage("account");
   }
 
   function locateArmorResultReference(reference: { resultId: string; candidateId: string }) {
@@ -418,8 +411,6 @@ export function useDesktopProductShell(props: {
     locateVaultItem,
     vaultTargetLocateRequest,
     locateVaultTarget,
-    weeklyFarmingLocateRequest,
-    locateWeeklyFarmingActivity,
     armorResultTraceRequest,
     locateArmorResultReference,
     dismissArmorResultTrace: () => setArmorResultTraceRequest(null),

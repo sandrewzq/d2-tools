@@ -141,7 +141,6 @@ export type HomeDashboardActions = {
   onNavigate: (page: "home" | "account" | "vault" | "loadouts" | "library" | "vendors" | "settings") => void;
   onRefreshDaily: () => void;
   onOpenWeeklyActivityReward: (reward: HomeDashboardWeeklyActivityReward) => void;
-  onOpenWeeklyFarmingActivity: (activityKey: string) => void;
 };
 
 export type HomeDashboardItemDetailTarget = {

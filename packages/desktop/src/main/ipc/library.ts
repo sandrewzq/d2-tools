@@ -10,14 +10,6 @@ import {
   type ItemAliasEntry
 } from "@d2-tools/services/items/aliases";
 import { buildLiveItemAvailabilityFromBungie } from "@d2-tools/core/items/liveAvailability";
-import type {
-  WeeklyFarmingCatalogResource,
-  WeeklyFarmingRequest
-} from "@d2-tools/core/weekly/farming";
-import {
-  buildWeeklyFarmingCatalogResource,
-  collectActivityLootItemHashes
-} from "@d2-tools/services/community/activityLoot";
 import {
   addFavoriteItem,
   addRecentItem,
@@ -30,10 +22,8 @@ import {
   type BungieVendorsResponse
 } from "@d2-tools/services/bungie/session";
 import { getArmorSetCatalog, getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
-import { getAccountProfileComponents } from "../runtime/accountSession.js";
 import { getSharedBungieSession } from "../runtime/bungieSession.js";
 import { loadFreshOAuthToken } from "./authSession.js";
-import { getDesktopManifestStatus } from "./manifest.js";
 
 export function registerLibraryIpcHandlers(): void {
   ipcMain.handle("library:capabilities", async () => {
@@ -108,13 +98,6 @@ export function registerLibraryIpcHandlers(): void {
     });
   }, classifyGameDataIpcError));
 
-  ipcMain.handle("library:weekly-farming:get", (_event, rawRequest: WeeklyFarmingRequest) => (
-    encodeDesktopIpcFailure(
-      () => loadWeeklyFarmingCatalog(normalizeWeeklyFarmingRequest(rawRequest)),
-      classifyGameDataIpcError
-    )
-  ));
-
   ipcMain.handle("items:detail", (_event, hash: number) => encodeDesktopIpcFailure(async () => {
     const detail = await getGameDataCatalog().getItemDetail({ hash: Number(hash) });
     if (!detail) {
@@ -153,106 +136,6 @@ export function registerLibraryIpcHandlers(): void {
     const config = loadConfig();
     return removeFavoriteItem(config.data.data_dir, Number(hash));
   });
-}
-
-async function loadWeeklyFarmingCatalog(
-  request: WeeklyFarmingRequest
-): Promise<WeeklyFarmingCatalogResource> {
-  const itemHashes = collectActivityLootItemHashes(request);
-  const [itemDefinitions, recordsResult] = await Promise.all([
-    getDefinitions("DestinyInventoryItemDefinition", itemHashes, { projection: "display-summary" }),
-    // 900 只有账号作用域的 Record，901 才有角色作用域的。图样 record 两种作用域都存在，
-    // 少读一个就会把角色作用域的图样一律报成「没返回」（T91 第 12 节）。
-    getAccountProfileComponents([900, 901], request.force ? "refresh" : "cached")
-      .then((profile) => ({
-        records: profile.profileRecords?.data?.records,
-        characterRecords: flattenCharacterRecords(profile.characterRecords?.data),
-        failed: false
-      }))
-      .catch(() => ({ records: undefined, characterRecords: undefined, failed: true }))
-  ]);
-  return buildWeeklyFarmingCatalogResource({
-    request,
-    manifestVersion: getDesktopManifestStatus().version,
-    itemDefinitions,
-    profileRecords: recordsResult.records,
-    characterRecords: recordsResult.characterRecords,
-    patternReadFailed: recordsResult.failed
-  });
-}
-
-/**
- * 把组件 901 按角色分组的 Record 摊平成一张表。
- *
- * 同一 record 在多个角色下出现时保留**任意一个已完成 / 进度更高**的：图样是账号级解锁，
- * 一个角色打满就等于解锁了，取第一个遇到的角色会把已经做完的图样报成进行中。
- */
-function flattenCharacterRecords(
-  data: Record<string, { records?: Record<string, {
-    state?: number;
-    objectives?: Array<{
-      progress?: number;
-      completionValue?: number;
-      complete?: boolean;
-      visible?: boolean;
-    }>;
-  }> }> | undefined
-) {
-  if (!data) return undefined;
-  const merged: Record<string, {
-    state?: number;
-    objectives?: Array<{
-      progress?: number;
-      completionValue?: number;
-      complete?: boolean;
-      visible?: boolean;
-    }>;
-  }> = {};
-  for (const character of Object.values(data)) {
-    for (const [hash, record] of Object.entries(character.records ?? {})) {
-      const existing = merged[hash];
-      if (!existing || recordProgressScore(record) > recordProgressScore(existing)) {
-        merged[hash] = record;
-      }
-    }
-  }
-  return merged;
-}
-
-function recordProgressScore(record: {
-  state?: number;
-  objectives?: Array<{ progress?: number; completionValue?: number; complete?: boolean }>;
-}): number {
-  const complete = record.objectives?.filter((objective) => objective.complete).length ?? 0;
-  const progress = (record.objectives ?? []).reduce(
-    (sum, objective) => sum + Math.max(0, objective.progress ?? 0),
-    0
-  );
-  // 完成条数优先于进度累加：一个是「已经有目标做完」，另一个只是「打得多」。
-  return complete * 1_000_000 + progress;
-}
-
-function normalizeWeeklyFarmingRequest(value: WeeklyFarmingRequest): WeeklyFarmingRequest {
-  const activities = Array.isArray(value?.activities)
-    ? value.activities.flatMap((activity) => {
-        if (!activity || (activity.kind !== "raid" && activity.kind !== "dungeon")) return [];
-        const title = typeof activity.title === "string" ? activity.title.trim() : "";
-        if (!title) return [];
-        return [{
-          kind: activity.kind,
-          title,
-          related_hashes: Array.isArray(activity.related_hashes)
-            ? activity.related_hashes.map(Number).filter(Number.isFinite)
-            : [],
-          source: typeof activity.source === "string" ? activity.source : undefined
-        }];
-      })
-    : [];
-  return {
-    activities,
-    reset_at: typeof value?.reset_at === "string" ? value.reset_at : undefined,
-    force: value?.force === true
-  };
 }
 
 async function loadAvailabilityDefinitions(

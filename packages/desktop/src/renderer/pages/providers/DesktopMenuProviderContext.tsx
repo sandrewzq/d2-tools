@@ -25,8 +25,6 @@ export type DesktopMenuSession = {
   locateVaultItem: (item: { hash: number; name: string }) => void;
   vaultTargetLocateRequest: { targetId: string; requestId: number } | null;
   locateVaultTarget: (targetId: string) => void;
-  weeklyFarmingLocateRequest: { activityKey: string; requestId: number } | null;
-  locateWeeklyFarmingActivity: (activityKey: string) => void;
   armorResultTraceRequest: { resultId: string; candidateId: string; requestId: number } | null;
   locateArmorResultReference: (reference: { resultId: string; candidateId: string }) => void;
   dismissArmorResultTrace: () => void;

@@ -55,7 +55,9 @@ export function collectPlanInstanceIds(
 
   if (hashOnly.size) {
     for (const item of listAccountItems(account)) {
-      if (hashOnly.has(item.hash)) instanceIds.add(item.instance_id);
+      // 只给了 Hash 的目标靠「账号里同 Hash 的每一件」补实例。没有实例 ID 的项不是实例，
+      // 补进去也拉不到详情（T91 第 12 节）。
+      if (item.instance_id && hashOnly.has(item.hash)) instanceIds.add(item.instance_id);
     }
   }
 
@@ -92,7 +94,8 @@ export function mergeAccountItemDetails(
   const mergeItems = (items: AccountItemSummary[]): AccountItemSummary[] => {
     let changed = false;
     const next = items.map((item) => {
-      const detail = detailsByInstanceId.get(item.instance_id);
+      // 快照里的项可能没有实例 ID（例如只看 Hash 的目标）；没有就没有详情可合，保持原样。
+      const detail = item.instance_id ? detailsByInstanceId.get(item.instance_id) : undefined;
       if (!detail) return item;
       changed = true;
       return detail;

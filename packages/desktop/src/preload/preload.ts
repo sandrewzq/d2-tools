@@ -72,14 +72,9 @@ import type {
 import type { SaveVaultNoteInput, SaveVaultTagInput, VaultTags } from "@d2-tools/core/vault/tags";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
 import type {
-  WeeklyFarmingCatalogResource,
-  WeeklyFarmingRequest
-} from "@d2-tools/core/weekly/farming";
-import type {
   AccountItemDetail,
   AccountItemDetailResource,
   AccountItemDetailRequestOptions,
-  AccountPursuitResource,
   AccountItemSummary,
   AccountSummary,
   AccountSummaryRequestOptions,
@@ -167,7 +162,6 @@ const accountSnapshotChangedChannel: typeof import("../contracts/account.js").ac
 type PreloadCacheDomain =
   | "asset-cache"
   | "account-snapshot"
-  | "account-pursuits"
   | "account-item-details"
   | "home-briefing"
   | "vendor-inventory"
@@ -255,8 +249,6 @@ contextBridge.exposeInMainWorld("d2", {
     invokeDesktopIpc<AccountSnapshotResource>("account:resource:snapshot", options),
   getAccountItemDetailResource: (instanceId: string, options?: AccountResourceRequestOptions) =>
     invokeDesktopIpc<AccountItemDetailResource>("account:resource:item-detail", instanceId, options),
-  getAccountPursuitResource: (options?: AccountResourceRequestOptions) =>
-    invokeDesktopIpc<AccountPursuitResource>("account:resource:pursuits", options),
   planArmor: <Job extends ArmorPlannerWorkspaceJob>(request: ArmorPlannerClientRunRequest<Job>) =>
     invokeDesktopIpc<ArmorPlannerClientRunResult<Job>>("armor:plan", request),
   invalidateArmorPlanner: (scopeId?: string) =>
@@ -299,8 +291,6 @@ contextBridge.exposeInMainWorld("d2", {
   getArmorSetCatalog: () => invokeDesktopIpc<ArmorSetCatalogEntry[]>("items:armor-sets:list"),
   getLiveItemAvailability: (itemHashes: number[]) =>
     invokeDesktopIpc<LiveItemAvailability>("items:live-availability", itemHashes),
-  getWeeklyFarmingCatalog: (input: WeeklyFarmingRequest) =>
-    invokeDesktopIpc<WeeklyFarmingCatalogResource>("library:weekly-farming:get", input),
   getItemAliases: () => ipcRenderer.invoke("aliases:get") as Promise<ItemAliases>,
   saveItemAlias: (input: ItemAliasEntry) => ipcRenderer.invoke("aliases:save", input) as Promise<ItemAliases>,
   getLibraryHistory: () => ipcRenderer.invoke("library:history:get") as Promise<LibraryHistory>,

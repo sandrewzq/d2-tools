@@ -42,7 +42,6 @@ export function HomeMenuProvider() {
           createHomeWeeklyActivityRewardDetailTarget(reward)
         );
       }}
-      onOpenWeeklyFarmingActivity={session.locateWeeklyFarmingActivity}
       onOpenXurOffer={(item, context) => {
         session.itemDetail.closeSelectedItemDetail();
         void session.vendorDefinitionDetail.open(item, context);

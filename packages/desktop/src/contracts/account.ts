@@ -11,7 +11,6 @@ import type {
 import type { AuthLoginResult } from "@d2-tools/core/oauth/login";
 import type { CachedAccountSnapshot } from "@d2-tools/services/account/snapshotStore";
 import type { DataResource } from "@d2-tools/services/account/resource";
-import type { AccountPursuitSummary } from "@d2-tools/core/account/pursuits";
 export type {
   DataResource,
   DataResourceError,
@@ -27,7 +26,6 @@ export type AccountApi = {
   getAccountItemDetail(instanceId: string, options?: AccountItemDetailRequestOptions): Promise<AccountItemDetail>;
   getAccountSnapshotResource(options?: AccountResourceRequestOptions): Promise<AccountSnapshotResource>;
   getAccountItemDetailResource(instanceId: string, options?: AccountResourceRequestOptions): Promise<AccountItemDetailResource>;
-  getAccountPursuitResource(options?: AccountResourceRequestOptions): Promise<AccountPursuitResource>;
 };
 
 export const accountSnapshotChangedChannel = "account:snapshot:changed";
@@ -35,7 +33,6 @@ export const accountSnapshotChangedChannel = "account:snapshot:changed";
 export type AccountResourceRequestOptions = { force?: boolean };
 export type AccountSnapshotResource = DataResource<AccountSnapshot>;
 export type AccountItemDetailResource = DataResource<AccountItemDetail>;
-export type AccountPursuitResource = DataResource<AccountPursuitSummary>;
 
 export type AccountSummaryRequestOptions = {
   force?: boolean;
@@ -51,7 +48,6 @@ export type AccountSummary = CoreAccountSummary;
 export type {
   AccountItemDetail,
   AccountItemSummary,
-  AccountPursuitSummary,
   AccountMaterialSummary,
   AccountSnapshot,
   AuthLoginResult,

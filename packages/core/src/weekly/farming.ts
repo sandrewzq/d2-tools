@@ -1,13 +1,5 @@
 export type WeeklyFarmingActivityKind = "raid" | "dungeon";
 
-/**
- * 活动级定位键，与 activity-loot 数据集里的 `key` 同一约定（`raid-<活动 hash>` / `dungeon-<活动 hash>`）。
- * 首页要从活动 hash 定位到本周刷取里的对应活动，规则在这里写一次，不各处自行拼字符串。
- */
-export function weeklyFarmingActivityKey(kind: WeeklyFarmingActivityKind, activityHash: number): string {
-  return `${kind}-${activityHash}`;
-}
-
 export type WeeklyFarmingRotationActivity = {
   kind: WeeklyFarmingActivityKind;
   title: string;
@@ -54,7 +46,13 @@ export type WeeklyFarmingCatalogItem = {
   icon?: string;
   item_type?: string;
   variant: "normal" | "adept" | "timelost" | "harrowed" | "reprised" | "other";
-  drop_scope: "activity" | "encounter" | "final_chest" | "secret_chest" | "challenge";
+  /**
+   * 掉落定位粒度。数据集只到活动级：生成脚本从 Manifest 的 Collectible 来源推出归属，
+   * 拿不到「哪个遭遇战掉哪把」这种受控关系，所以这里只留一个取值。以前并存的
+   * `encounter` / `final_chest` / `secret_chest` / `challenge` 四个取值没有任何数据，
+   * 界面上的对应分支永远走不到（T91 第 12 节）。
+   */
+  drop_scope: "activity";
   source_hash: number;
   source_label: string;
   source_url: string;

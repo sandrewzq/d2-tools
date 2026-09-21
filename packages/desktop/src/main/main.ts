@@ -100,7 +100,7 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   // 粘滞 cookie（affinitize）在这里装配：Bungie 的写接口只冲掉它命中的那台后端的缓存，
   // 不回带 `set-cookie` 的话，随后的读回可能落到另一台还留着旧副本的后端，看上去就像
-  // 「写成功但详情一直是旧配置」。见 docs/work/backlog/T76-bungie-affinity-cookie.md。
+  // 「写成功但详情一直是旧配置」。见 docs/development.md 的 Bungie 请求亲和性约定。
   //
   // 放在组合根、不放 runtimeCoordinator：那个模块的单测把 loadConfig 打桩成 data_dir
   // "D:/data"，在那里配置会让测试对不存在的盘符做真实文件系统操作。

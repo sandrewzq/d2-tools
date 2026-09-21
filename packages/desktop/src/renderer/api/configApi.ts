@@ -20,7 +20,6 @@ export type ConfigBackupResult = {
 
 export type CacheDomain =
   | "account-snapshot"
-  | "account-pursuits"
   | "account-item-details"
   | "home-briefing"
   | "vendor-inventory"

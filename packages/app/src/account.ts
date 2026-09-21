@@ -9,11 +9,6 @@ export type {
 } from "./workspaces/accountPower.js";
 export { buildCharacterPowerView } from "./workspaces/accountPower.js";
 export type {
-  AccountChallengeStatus,
-  AccountTodoChallenge
-} from "./workspaces/accountTodoChallenges.js";
-export { buildAccountTodoChallenges, isPowerChallenge } from "./workspaces/accountTodoChallenges.js";
-export type {
   AccountDerivedWorkspace,
   FullAccountWorkspace,
   LoadAccountDerivedWorkspaceOptions,
@@ -45,7 +40,6 @@ export type {
   AccountPostmasterSectionView,
   AccountPostmasterPreviewItem,
   AccountProfileView,
-  AccountReadonlyFactView,
   AccountReadonlyGroupView,
   AccountReadonlyItemView,
   SharedDomainCache,
@@ -53,12 +47,7 @@ export type {
   AccountSlotCategoryKey,
   AccountSlotComparisonRow,
   AccountSlotComparisonViewRow,
-  AccountSlotGroup,
-  AccountTodoFactsView,
-  AccountTodoFactView,
-  AccountTodoPanelKey,
-  AccountTodoPanelView,
-  AccountTodoSectionView
+  AccountSlotGroup
 } from "./workspaces/accountPage.js";
 export {
   buildAccountLoadoutSlotRows,

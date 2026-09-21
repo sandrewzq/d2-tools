@@ -43,7 +43,7 @@ docs/        正式文档
   - 负责把网络、存储、鉴权等平台能力收口到服务边界
   - OAuth callback server、OAuth token store / HTTP client、config store、Manifest metadata cache 和 definition component cache 的运行时实现统一放在这里；Desktop 主进程和 worker 通过 services subpath 调用，不从 core 直接取运行环境 adapter
   - action log 等本地 JSON store 的文件读写实现放在 services；core 只持有对应领域类型、筛选和格式化规则
-  - 发往 Bungie Platform 的 JSON 流量必须**粘滞**（affinitize）：`bungie/client.ts` 是所有这类请求的唯一漏斗，它捕获响应下发的 `set-cookie` 并在后续请求回带 `Cookie`；jar 由组合根（`desktop/src/main/main.ts`）装配，值落在 `<dataDir>/bungie-affinity.json`。Bungie 的 `cache-control` 不被遵守（响应恒为 `public, max-age=5`），写操作只冲掉它命中的那台后端的缓存，不回带就可能落到另一台读到写入前的副本。**但它不是「换 Perk 后读回旧配置」那个 bug 的解**（2026-09-18 的留痕已证伪，见 T76 §一）：那次 6 次读回逐条都带 `affinity_cookie: true`，读到的却是同一个旧值，真因是服务端传播延迟（见下一条）。留着它是因为代价只有一个本地 JSON：DIM 跑在浏览器里隐含就有 cookie jar，我们跑在 Node 主进程里不显式做就是没有；Bungie 对单用户应用的指引也是原样回带。第三方地址的读取（`net/publicUrlReader.ts`）必须继续独立发请求，不得拿到这个 cookie；亲和性文件不进便携备份，也不被「清理缓存」清掉
+  - 发往 Bungie Platform 的 JSON 流量必须**粘滞**（affinitize）：`bungie/client.ts` 是所有这类请求的唯一漏斗，它捕获响应下发的 `set-cookie` 并在后续请求回带 `Cookie`；jar 由组合根（`desktop/src/main/main.ts`）装配，值落在 `<dataDir>/bungie-affinity.json`。Bungie 的 `cache-control` 不被遵守（响应恒为 `public, max-age=5`），写操作只冲掉它命中的那台后端的缓存，不回带就可能落到另一台读到写入前的副本。**但它不是「换 Perk 后读回旧配置」那个 bug 的解**（2026-09-18 的留痕已证伪）：那次 6 次读回逐条都带 `affinity_cookie: true`，读到的却是同一个旧值，真因是服务端传播延迟（见下一条）。留着它是因为代价只有一个本地 JSON：DIM 跑在浏览器里隐含就有 cookie jar，我们跑在 Node 主进程里不显式做就是没有；Bungie 对单用户应用的指引也是原样回带。第三方地址的读取（`net/publicUrlReader.ts`）必须继续独立发请求，不得拿到这个 cookie；亲和性文件不进便携备份，也不被「清理缓存」清掉
   - **Bungie 写操作的确认来源是写接口受理（ErrorCode 1），不是写后读回**：写后读回只允许作为**后台静默校对**——不得阻塞用户操作、不得升级为用户可见失败、不得把读到的旧值写回界面。依据是实测：写入被受理后 26 秒读回仍是旧值、2 分 45 秒读到新值，**收敛上界没有测出来**，拿十几秒的预算去判「服务器没跟上」，就会把正常传播定性成失败，用户看到的是「写入成功，详情同步失败」（T77）。所以受理即权威：写接口返回成功时，本地状态直接按**调用点持有的写入意图**落脚（`expectedAccountPatch` 走账号 Store；换 Perk 走 `acceptedSocketChanges`，写入点只有真源本身：`sockets[].selected_plug`（Roll 侧对应 `weapon_roll.sockets[].current_plug`），`socket_plugs[]`、`weapon_roll.sockets[].current_plug` 与 `fingerprint` 都由真源派生，候选列表**不再另存 `selected` 副本**。真源分两条、按架构分工不合并：`sockets[].selected_plug` 归详情区，`weapon_roll.sockets[].current_plug` 归 Roll 区——快照模式下 `item.sockets` 恒为空，Roll 侧派生不出来，必须自持一份；`fingerprint` 是缓存键、只吃 hash。副本落后时**读侧的 `||` 合并会把「新旧两项同时显示当前启用」并集出来**，而不是露出「其中一个错」—— T79 删掉了副本与那四处 `||`，T78 的故障现场就在读侧、不在写侧），界面立刻反映新状态。**换 Perk 的受理状态活得比详情弹框久**（落点 `desktop/src/renderer/shared/stores/acceptedSocketPlugs.ts`，模块级、5 分钟窗口）：关掉详情再打开必须还看得见，只活在弹框里等于没落地。它的覆盖权只此三家——① **单件详情的读取没有覆盖权**，读取出口只把受理状态叠上去（`useItemDetail.loadAccountItemDetailCached`；给后台探针用的 `serverTruth: true` 那条出口不叠加，否则探针会读回自己叠上去的值，永远校不出服务器有没有接受）；② 服务器自己吐出了新值 → 提前退休；③ 窗口耗尽之后的账号同步 → 认账，之后完全以服务器为准（含「服务器仍说旧的」）。**本地乐观状态只允许被「服务端给出新值」或「账号同步」改写，不允许被「写后探针」回退**；探针若必须跑，走 probe：照旧走网络、照旧写缓存，但不合并进界面、不置加载态（置了会让加载提示反复挂载/卸载，整片网格跟着上下跳）。探针耗尽窗口仍读不到期望值时只留痕、不报错，交给下一次账号同步收敛。**面板没有资格替服务器宣布结果**：写入受理后只能说「已提交、当前显示的是本地状态」，用户手动重读只能说「已读取服务器当前配置」——读回旧值同样满足「读到了」，说「已确认 / 已完成」就是在替服务器下断言（T78）。**判据只有一个，就是写接口的受理**，而且这条判据在**每一条**换 Perk 的写入路径上都必须成立：主进程 `desktop/src/main/ipc/actions.ts` 里不许再出现写后读回裁判（历史上那一个预算只有 750ms + 2000ms = 2.75 秒，而实测传播是 3 分 32 秒，**走到就必然误报**），重发用尽不是失败而是第三种结果。**写响应体（`item.sockets.data.sockets[].{socketIndex,plugHash}`）只当旁证，不当权威**：它的用途是逐槽对账——意图与服务器回的不一致就留一条 `socket-plug-response-mismatch`，那是「受理但被静默拒绝」唯一的第一手证据；显示仍按写入意图落地，因为**没有证据说明写响应体比读路径更新，照 DIM 那样直接替换会把用户刚选的 Perk 弹回旧的**。**`ErrorCode 1679`（这件装备还有变更在处理中）是状态，不是失败**：它是分钟级的，只说明这次没提交，界面必须走中性的「待重试」档、保留用户的待应用选择，不得升级成红色错误；同一件装备上一次变更还在飞时再点一次「应用」必然吃 1679，所以**换 Perk 一次只允许一个写操作在飞**（渲染层重入闸 + 主进程逐槽上报 `deferred_socket_indexes`，不是一个计数——渲染层要据此决定哪几条不落地）。写操作的留痕必须钉上 `socket_index` / `plug_hash`：2026-09-18 那次排查里四条 op 写的是哪个槽哪个 Perk 只能靠「期望/读到」两个值反推，而调用点本来就知道这两个值（T80）
   - 社区推荐的本地表和个人知识运行时统一放在 `services/community`；core 只保留 DTO、规范化、注入式 source 和匹配逻辑
 
@@ -238,7 +238,7 @@ Renderer UI 的长期边界只在本节保留，具体视觉数值与菜单合�
 - GameData worker 的 search/detail 请求必须有有限超时和单请求 pending 清理；definition 批量读取可使用更长超时，worker error/exit/close 时必须统一拒绝并清空剩余请求。
 - 资料库更新使用当前语言 SQLite 作为主库，构建装备、Perk、关系和 canonical identity sidecar；非英文界面可离线下载英文 SQLite 构建轻量英文 sidecar，但不得长期保留第二份完整英文主库。
 - JSON Adapter 只用于 SQLite 当前未覆盖的 supplement；不得作为旧主缓存兼容层，也不得重新把大型 JSON 主缓存接回普通请求。
-- 武器推荐遵循“来源格式 → 解析适配 → 来源实例与规则 → 事实 → 消费”的单向链路，跨端传输与查询统一走三层来源模型（`recommendation_documents` / `recommendation_source_instances` / `recommendation_source_rules`），不保留任何按来源格式分开的存储；格式差异（字段映射、清洗、校验、来源实例切分）只允许存在于解析适配层，见「2.7 推荐来源统一模型」。人工来源的武器与推荐项只接受官方 Hash 或规范化后的 Bungie 官方全名完全相同，禁止 `contains`、唯一包含、简称、同义词和大师属性词干归类。导入由 Desktop 完成预览、Manifest 语义校验、内容指纹复核和单事务替换。人工来源的导入文件是**一张表**而不是一种格式：`.csv` 与 Excel 工作簿（`.xlsx`）都要能导入，按文件内容而非扩展名识别，单元格到列的映射与行补齐只存在于解析适配层；表头是格式知识，行宽以该文件自己的表头为准，并兼容上一版模板。旧版二进制 `.xls` 明确提示另存，不做半吊子解析。DIM 不作为内置依赖，也不在启动或后台自动同步，更不替玩家固定任何上游地址：只有玩家主动给出一个愿望单文本链接、或选择本地文件并确认后才写入本机。两条路走同一条流水线（语法解析 → 定义池校验 → 预览 → 命名与确认），链接随来源记下 `source_url`，来源行可再次同步，判据是内容指纹而非上游专有元数据。Renderer 不直接读取 CSV 或 SQLite；第三方再分发许可未确认前公开安装包不得内置人工来源 CSV。v0.0.22 已发布基线见 [T20 完成摘要](work/backlog/T20-weapon-recommendation-vault-cleanup.md)；T21 发布身份扩展与 T22 Renderer 性能收敛已完成验收，待随下一版本发布。
+- 武器推荐遵循“来源格式 → 解析适配 → 来源实例与规则 → 事实 → 消费”的单向链路，跨端传输与查询统一走三层来源模型（`recommendation_documents` / `recommendation_source_instances` / `recommendation_source_rules`），不保留任何按来源格式分开的存储；格式差异（字段映射、清洗、校验、来源实例切分）只允许存在于解析适配层，见「2.7 推荐来源统一模型」。人工来源的武器与推荐项只接受官方 Hash 或规范化后的 Bungie 官方全名完全相同，禁止 `contains`、唯一包含、简称、同义词和大师属性词干归类。导入由 Desktop 完成预览、Manifest 语义校验、内容指纹复核和单事务替换。人工来源的导入文件是**一张表**而不是一种格式：`.csv` 与 Excel 工作簿（`.xlsx`）都要能导入，按文件内容而非扩展名识别，单元格到列的映射与行补齐只存在于解析适配层；表头是格式知识，行宽以该文件自己的表头为准，并兼容上一版模板。旧版二进制 `.xls` 明确提示另存，不做半吊子解析。DIM 不作为内置依赖，也不在启动或后台自动同步，更不替玩家固定任何上游地址：只有玩家主动给出一个愿望单文本链接、或选择本地文件并确认后才写入本机。两条路走同一条流水线（语法解析 → 定义池校验 → 预览 → 命名与确认），链接随来源记下 `source_url`，来源行可再次同步，判据是内容指纹而非上游专有元数据。Renderer 不直接读取 CSV 或 SQLite；第三方再分发许可未确认前公开安装包不得内置人工来源 CSV。v0.0.22 已发布基线见 `CHANGELOG.md`；T21 发布身份扩展与 T22 Renderer 性能收敛已完成验收，待随下一版本发布。
 - 仓库推荐在 Renderer 运行时只维护 `Map<instanceId, RecommendationCardSummary>`；同名版本共享推荐但每个实例使用自身实际 Roll 独立计算。人工来源六项优先级为 `Perk 1 / Perk 2 > 第一列 / 第二列 > 大师 / 起源特性`，内部固定保留“全部符合 / 核心符合 / 接近推荐 / 关键缺失 / 未符合 / 仅推荐这把武器 / 数据不完整”七种状态；玩家摘要先显示实际要求的核心 `Perk x/y`，再显示全部明确要求栏位的 `完整 x/y`，无法核对项单独标记待核对。同栏候选为任选其一、不同栏分别核对。多个来源不得累计分数，同一用途下正反结论冲突或存在无法核对时首层归入“需要比较”；`general` 与 PVE、PVP 均重叠。所有来源同级，不按来源类型排权重：按该来源对当前实例的符合程度排序，平级按来源名。来源的组合集合能无损归约成“每栏任选其一”时归约为逐栏候选，摘要显示 `Perk x/y · 完整 x/y`；不能归约的组合来源显示最佳组合 `x/y`；两种来源格式共用这一套摘要，不再有“符合 n 套 · 最佳组合 x/y”的独立组合摘要。匹配结果按 Roll 指纹、Manifest 版本、统一来源事实 revision 和算法版本缓存；位置、光等、锁定和玩家标签不使 Roll 分析失效。卡片、推荐筛选、账号摘要和清理保护首屏复用轻量实例摘要，禁止在单卡渲染中遍历完整 Wishlist；逐栏候选、图标、说明、链接和 DIM 规则只在详情或显式验收报告中按需读取，不得作为全账号 Map 常驻 Renderer。完整可掉落池只在详情中由玩家展开后按 Manifest 版本加载，实例完整 Roll 只在玩家展开后按 `instanceId + rollFingerprint` 读取和复用。批量操作必须跳过锁定、精确配装引用、手动保留、独特 Roll、来源冲突、数据不完整和未覆盖武器，应用永不自动锁定、解锁或分解。
 - 仓库批量推荐核对由 Desktop 长生命周期推荐 Worker 独占缓存分区、`match_json` 解析、Definition / 发布身份准备、匹配计算、摘要生成和缓存写入；主进程只判断资料库依赖、编排后台任务和路由结果。普通扫描返回 `RecommendationCardSummary[] + changed_instance_ids`，Renderer 只替换变化实例并按返回集合移除已消失实例；详情、当前同名来源对比和显式验收报告才请求完整证据。资料库激活前必须与 GameData Worker 一起关闭推荐 Worker，激活或回滚后统一恢复。
 - 仓库筛选使用菜单私有 `VaultQueryIndex`：按实例维护物品范围、锁定、槽位、位置、弹药、类型、稀有度、阶级、职业、伤害、套装和框架的 ID Set。单件 Patch 只更新变化记录，结果和分面先做 Set 交集，再对缩小后的候选执行搜索、标签、推荐来源条件和护甲阈值等原有精确规则；不得为结果、槽位、位置、框架和类型数量分别重复扫描整账号装备。
@@ -581,10 +581,11 @@ docs/
 
 当前仍有效的 reference 文件：
 
-- `docs/work/references/destiny-tool-reference.md`：竞品能力和信息组织参考。
+- `docs/work/references/data-sources.md`：数据来源、参考项目与鸣谢。
+- `docs/work/references/destiny-tool-reference.md`：社区工具导航，也是「工具导航」菜单的数据源。
 - `docs/work/references/equipment-detail-and-knowledge-analysis.md`：装备详情的功能规则与数据语义参考。
-- `docs/work/references/desktop-framework-comparison.md`：桌面技术方案对比参考。
-- `docs/work/references/2026-06-21-destiny2-weapon-sheet-analysis.md`：社区武器表和数据分析参考。
+- `docs/work/references/activity-loot-dataset.md`：`activity-loot` 数据集的活动 → 武器掉落推导方法、已知边界和重跑口径。
+- `docs/work/references/ui-specs/`：共享 UI 的结构、状态与视觉合同。
 
 ## 7.1 长期方向（简版）
 
@@ -596,6 +597,7 @@ docs/
 - 今日 / 本周信息：优先补齐可确认的商人、遗失区域和轮换线索，保持“只展示可确认数据”。
 - AI 助手：围绕真实账号数据问答、仓库建议、结果结构化和安全边界继续打磨。
 - 活动与桌面体验：逐步补齐基础复盘、安装更新、备份恢复和诊断导出体验。
+- 桌面壳迁移：当前继续用 Electron，包体与内存让位给产品能力。将来若要显著瘦身，迁移目标是 Wails v2 + Go，其次是 Tauri 2 + Rust；前提是 `core` / `http` 的 TypeScript 业务逻辑改写成本可接受，产品功能闭环之前不迁移。
 
 ## 8. 文档维护原则
 

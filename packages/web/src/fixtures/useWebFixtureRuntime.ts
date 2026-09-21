@@ -91,7 +91,9 @@ export const webAccountSummary = createFixtureAccountSummary({
       light: 2018,
       equipped_items: [],
       equipment_groups: [],
-      inventory_items: [webWeaponAccountItem("web-fusion-warlock", 3005, "适配融合步枪", "能量武器", "适配框架", "术士背包")],
+      inventory_items: [
+        webWeaponAccountItem("web-fusion-warlock", 3005, "适配融合步枪", "能量武器", "适配框架", "术士背包")
+      ],
       inventory_groups: [],
       postmaster_items: [],
       loadout_slots: []

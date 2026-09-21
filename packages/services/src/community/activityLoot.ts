@@ -11,7 +11,8 @@ import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/m
 export type ActivityLootDatasetItem = {
   item_hash: number;
   item_variant: "normal" | "adept" | "timelost" | "harrowed" | "reprised" | "other";
-  drop_scope: "activity" | "encounter" | "final_chest" | "secret_chest" | "challenge";
+  /** 与 `WeeklyFarmingCatalogItem` 同一口径：数据集只到活动级（T91 第 12 节）。 */
+  drop_scope: "activity";
   pattern_record_hash?: number;
 };
 
@@ -47,7 +48,8 @@ const sourceLicense = "Bungie Manifest";
 
 /** 与 `WeeklyFarmingCatalogItem` 的联合类型一致，供数据集校验使用。 */
 const itemVariantValues = new Set(["normal", "adept", "timelost", "harrowed", "reprised", "other"]);
-const dropScopeValues = new Set(["activity", "encounter", "final_chest", "secret_chest", "challenge"]);
+/** 掉落定位只到活动级，生成脚本也只产出这一个取值（T91 第 12 节）。 */
+const dropScopeValues = new Set(["activity"]);
 // #region activity-loot-dataset
 // 本区由 scripts/generate-activity-loot.mjs 生成，手工改动会在下次生成时被覆盖。
 const datasetRevision = "2026-09-18.1";

@@ -37,11 +37,6 @@ export type {
   PerkSearchResult,
   VaultItemMatchInfo
 } from "./workspaces/libraryPage.js";
-export type {
-  LibraryWeeklyFarmingActivityView,
-  LibraryWeeklyFarmingItemView,
-  LibraryWeeklyFarmingView
-} from "./workspaces/libraryWeeklyFarming.js";
 export {
   buildLibraryEquipmentFilterOptions,
   buildLibraryDefinitionDetailView,
@@ -64,4 +59,3 @@ export {
   normalizeLibraryPerkSearchPayload,
   selectLibraryPageModel
 } from "./workspaces/libraryPage.js";
-export { buildLibraryWeeklyFarmingView } from "./workspaces/libraryWeeklyFarming.js";

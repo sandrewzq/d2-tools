@@ -3,7 +3,7 @@ import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
-import type { AccountItemActionPatch, AccountPursuitResource, AccountSummary, ActivityHistorySummary, DimWishlist, EquipmentTargetStore, StartupState, RecommendationCardSummary, LocalTargetRules, VaultTags } from "../../api/types";
+import type { AccountItemActionPatch, AccountSummary, ActivityHistorySummary, DimWishlist, EquipmentTargetStore, StartupState, RecommendationCardSummary, LocalTargetRules, VaultTags } from "../../api/types";
 import { createEmptyEquipmentTargetStore } from "@d2-tools/core/targets/equipmentTargets";
 import { services } from "../../api/services";
 import {
@@ -58,19 +58,12 @@ export function useAccountWorkspace(input: {
   const [activitySummary, setActivitySummary] = useState<ActivityHistorySummary | null>(null);
   const [activityMessage, setActivityMessage] = useState("");
   const [activityError, setActivityError] = useState("");
-  const [pursuitResource, setPursuitResource] = useState<AccountPursuitResource | null>(null);
   const [importedWishlist, setImportedWishlist] = useState<DimWishlist | null>(null);
   const [vaultRecommendationCardSummary, setVaultRecommendationCardSummary] = useState<Map<string, RecommendationCardSummary>>(new Map());
   const [isVaultCommunityMatchLoading, setIsVaultCommunityMatchLoading] = useState(false);
   const [vaultRecommendationScan, setVaultRecommendationScan] = useState<VaultRecommendationScanState>(() => createIdleVaultRecommendationScan());
   const accountRequestSequenceRef = useRef(0);
   const derivedRequestSequenceRef = useRef(0);
-  const pursuitRequestSequenceRef = useRef(0);
-  /**
-   * 玩家进过「待办」没有。没进过就不读任务资源，账号刷新也不会顺带跑 202 + 900 +
-   * record 定义这条重链（T91 第 8 节）。
-   */
-  const pursuitRequestedRef = useRef(false);
   const communityRequestSequenceRef = useRef(0);
   const recommendationScanAccountKeyRef = useRef("");
   const accountLoadingSequenceRef = useRef(0);
@@ -92,8 +85,6 @@ export function useAccountWorkspace(input: {
         setLastAccountLoadedAt(Number.isNaN(cachedAt.getTime()) ? null : cachedAt);
         setAccountSyncMessage(`正在显示 ${formatCachedTime(cached.saved_at)} 的本地缓存`);
         setActivityMessage(`正在显示上次装备数据（${formatCachedTime(cached.saved_at)}）；本次同步完成后页面会自动更新`);
-        // 只有玩家已经进过「待办」才顺带读任务资源。
-        if (pursuitRequestedRef.current) void refreshPursuits(false);
       })
       .catch(() => undefined);
     return () => {
@@ -112,8 +103,6 @@ export function useAccountWorkspace(input: {
       if (!acceptedSummary) return;
       setIsShowingCachedAccount(false);
       setLastAccountLoadedAt(new Date());
-      // 玩家已经在「待办」里看着这份清单，账号一变就跟着更新。
-      if (pursuitRequestedRef.current) void refreshPursuits(true);
     });
   }, []);
 
@@ -173,14 +162,12 @@ export function useAccountWorkspace(input: {
       accountRefreshRequestRef.current = null;
       hasLoadedLocalAccountDataRef.current = false;
       derivedRequestSequenceRef.current += 1;
-      pursuitRequestSequenceRef.current += 1;
       communityRequestSequenceRef.current += 1;
       setAccountSummaryState(null);
       setAccountSyncMessage("");
       setIsShowingCachedAccount(false);
       setSelectedCharacterId("");
       setActivitySummary(null);
-      setPursuitResource(null);
       setVaultRecommendationCardSummary(new Map());
       setVaultRecommendationScan(createIdleVaultRecommendationScan());
       recommendationScanAccountKeyRef.current = "";
@@ -325,8 +312,6 @@ export function useAccountWorkspace(input: {
             : "装备数据已同步，最近活动会继续在后台读取");
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
-        // 任务资源按需读取：玩家没进过「待办」就不跑这条重链（T91 第 8 节）。
-        if (pursuitRequestedRef.current) void refreshPursuits(true);
         // 推荐核对只依赖武器实例与 Roll。取出、存入、装备和锁定只改变
         // 位置或状态，不再清空当前结果，也不再触发整账号推荐重算。
         if (shouldRefreshCommunityMatch) {
@@ -383,47 +368,6 @@ export function useAccountWorkspace(input: {
 
     setActivitySummary(null);
     setActivityError(derived.error?.message ?? "最近活动读取失败");
-  }
-
-  async function refreshPursuits(force = false) {
-    const requestSequence = ++pursuitRequestSequenceRef.current;
-    setPursuitResource((current) => {
-      if (!current?.data) return { data: null, status: "loading", source: "local" };
-      return {
-        data: current.data,
-        status: "refreshing",
-        source: current.source,
-        ...(current.fetchedAt ? { fetchedAt: current.fetchedAt } : {})
-      };
-    });
-    try {
-      const resource = await api.getAccountPursuitResource({ force });
-      if (requestSequence !== pursuitRequestSequenceRef.current) return null;
-      setPursuitResource(resource);
-      return resource;
-    } catch (error) {
-      if (requestSequence !== pursuitRequestSequenceRef.current) return null;
-      const message = error instanceof Error ? error.message : "任务数据读取失败";
-      setPursuitResource((current) => ({
-        data: current?.data ?? null,
-        status: "error",
-        source: current?.source ?? "local",
-        fetchedAt: current?.fetchedAt,
-        staleAt: new Date().toISOString(),
-        error: { code: "pursuit_data_unavailable", message }
-      }));
-      return null;
-    }
-  }
-
-  /**
-   * 按需读任务资源：进「待办」时调一次，之后同一轮会话不再重复读，
-   * 更新交给账号刷新事件。重试走 `force`（T91 第 8 节）。
-   */
-  function ensurePursuits(force = false) {
-    if (pursuitRequestedRef.current && !force) return Promise.resolve(null);
-    pursuitRequestedRef.current = true;
-    return refreshPursuits(force);
   }
 
   async function loadVaultCommunityMatch(
@@ -583,7 +527,6 @@ export function useAccountWorkspace(input: {
     activitySummary,
     activityMessage,
     activityError,
-    pursuitResource,
     importedWishlist,
     setImportedWishlist,
     vaultRecommendationCardSummary,
@@ -595,9 +538,7 @@ export function useAccountWorkspace(input: {
     refreshAccountSnapshot,
     loadActivitySummary: refreshAccountDerivedData,
     loadVaultCommunityMatch,
-    refreshAccountDerivedData,
-    refreshPursuits,
-    ensurePursuits
+    refreshAccountDerivedData
   };
 }
 

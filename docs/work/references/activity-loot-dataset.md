@@ -1,8 +1,10 @@
-# T74：首页轮换活动「掉落池」的覆盖与数据来源
+# activity-loot 数据集：轮换活动 → 武器掉落关系
 
-> 状态：✅ 已通过实窗验收（2026-09-19；2026-09-18 拍板做 A）
-> 来源：2026-09-18 用户实窗截图「这个掉落内容怎么不显示了」→ 追问「能显示具体的掉落吗」「B 方案是彻底解决问题吗」。
-> 关联：T45（本周刷取清单）——`activity-loot` 数据集的另一个消费方。
+> 类型：数据源与维护参考。数据集真源是 `packages/services/src/community/activityLoot.ts` 的
+> `#region activity-loot-dataset` 区段，生成与自校验脚本是 `scripts/generate-activity-loot.mjs`；
+> 本文件记录推导方法、已知边界和重跑口径。
+> 本文件原属 T74（2026-09-18 开工，2026-09-19 实窗验收），2026-09-21 由 `backlog/` 转入 `references/`；T74 编号冻结。
+> 关联：`activity-loot` 数据集只服务首页掉落池。它原来的另一个消费方 T45「本周刷取清单」已于 2026-09-21 随 T91 一起删除。
 > **注意区分**：本文说的是**首页核心活动卡**（轮换突袭 / 轮换地牢）右侧的「掉落池」，
 > 不是武器详情页里的「完整掉落池」（后者是武器自己的 Perk 池，另一套东西）。
 
@@ -26,7 +28,6 @@ Bungie CharacterActivities（角色周挑战）
        related_hashes[0] = 活动 hash
   └─ desktop/main/runtime/homeBriefing.ts:179  attachRotatingLootPools → buildLootPool
   └─ services/src/community/activityLoot.ts     lootPoolItemHashesForActivity(activityHash)
-  └─ desktop/main/ipc/library.ts:161,168        T45 本周刷取（同一份数据集）
   └─ ui/src/home/HomePageContentView.tsx:540    两边都空 → is-pending 空态
 ```
 
@@ -87,7 +88,7 @@ node scripts/generate-activity-loot.mjs --sqlite "$HOME/Library/Application Supp
 - **稳定性规则**：同名活动在 Manifest 里有多条时，先沿用当前数据集已记录的 Hash
   （那是被真实轮换验证过的值），重复生成不会抖动。
 
-不碰索引、不碰 worker、不动 T45 契约。`activityLootDatasetV1` 的 `key` 改为
+不碰索引、不碰 worker。`activityLootDatasetV1` 的 `key` 改为
 `raid-<活动 hash>` / `dungeon-<活动 hash>`：中文名无法生成稳定英文 slug，Hash 形式语言无关、天然唯一。
 
 ## 六、结果
@@ -103,7 +104,7 @@ node scripts/generate-activity-loot.mjs --sqlite "$HOME/Library/Application Supp
 二象性 2823159265 → 7 项、晚星之主 300092127 → 5 项。
 
 空态文案同时改准：`掉落池待确认 / 公开接口尚未返回可读奖励。` → `掉落池待核对 / 轮换已确认，掉落关系尚未核对。`
-（与 T45 面板同一句措辞；接口返回了数据，只是不是武器，说「接口未返回」不准确）。
+（接口返回了数据，只是不是武器，说「接口未返回」不准确）。
 
 ## 七、已知边界
 
@@ -130,8 +131,33 @@ node scripts/generate-activity-loot.mjs --sqlite "$HOME/Library/Application Supp
 - 条目数与社区掉落表一致：二象性 7、晚星之主 4 + 破冰者、最后一愿 8、国王的陨落 7 —— 已核对；
 - 轮换变更后不需要人工介入，只需在 Manifest 更新后重跑一次生成脚本。
 
-## 十一、拆出去的独立事项
+## 附录：数据源调研（2026-09-10，原 T91 附录 A）
 
-- **T81**：首页掉落池条目能跳进待办里对应的行动行（原始诉求里的「已持有 / 推荐标记」2026-09-19 确认不做）；与 A/B 选哪个无关。
-- **T82**：`homeBriefing.ts` 的 `getDefinitions` 未包 `try/catch`；且「数据集未覆盖」与
-  「定义读取失败」在 UI 上显示同一个空态、无法区分。
+T91 于 2026-09-21 删除后，这份调研归到本数据集名下。
+
+### A.1 结论
+
+可以用「实时事实 + 静态关系」分层做出来，但不能把「Bungie 当前返回的活动奖励」直接当成完整掉落池。
+
+- 本周轮换、活动身份、挑战进度和奖励等级：可以用 Bungie 实时 Profile / Public Milestones 与当前 Manifest。
+- 武器是否属于某个活动的候选来源：可以用 Manifest `DestinyCollectibleDefinition.sourceHash/sourceString`，并参考 DIM 的 D2AI 来源映射。
+- 某次突袭或地牢的完整武器—遭遇战掉落表：Bungie 没有提供稳定、完整、可直接查询的公开接口，必须使用本项目自己维护的受控数据集。
+
+首版采用「实时事实与静态关系分层」方案，而不是继续寻找一个不存在的单一 API。
+
+### A.2 已核实的数据能力
+
+| 事实 | 可用来源 | 核实结果 | 允许的用途 |
+|---|---|---|---|
+| 当前轮换活动 | Bungie `CharacterActivities`、`Public Milestones`、活动 Manifest | 当前账号样本能返回轮换突袭 / 地牢及角色挑战 | 判断本周活动身份、开放窗口和角色完成状态 |
+| 周挑战奖励等级 | 活动挑战的 `displayRewards[].itemQuantity`，旧定义兼容 `dummyRewards` | 只能读到奖励名原文；本机 Manifest 中带等级占位词的 19 个活动全是「强力装备」且全是地牢，「巅峰装备」为 0 条 | 不作为等级真相，也不用于武器掉落池 |
+| 装备活动来源候选 | Manifest `DestinyCollectibleDefinition.sourceHash/sourceString` | 当前 Manifest 中突袭 / 地牢武器可解析到活动来源；装备定义自身 `sourceData` 当前为空 | 生成活动级候选装备，并作为掉落证据之一 |
+| 图样身份 | Manifest `DestinyRecordDefinition.completionInfo.toastStyle = 8` 与同名武器定义的 `inventory.recipeItemHash` | 当前版本 183 条图样 Record 与 183 个可制作输出能按名称一一对应；仍需保留 Hash 级校验 | 给数据集里的武器标出 `pattern_record_hash` |
+
+### A.3 掉落池数据源评估
+
+**Bungie Manifest / API：权威但不完整。** `DestinyCollectibleDefinition.sourceHash/sourceString` 能回答「这个物品通常来自哪个来源」，但不能回答每个遭遇战具体掉哪些武器、普通宝箱与隐藏宝箱和挑战宝箱的差异、专家与普通和复刻与原版的区别、某个活动当前是否仍能重复获取。`DestinyActivityDefinition.rewards`、挑战 `displayRewards` 也不是完整武器掉落表——`visibleRewards` 与日落的 `displayRewards` 可以是同一份普通掉落，两者都不能复用为掉落池。
+
+**DIM / d2-additional-info：适合作为来源候选和维护参考。** 本地 DIM 的 `source-info-v2.ts` 由 D2AI 构建生成，不应手工修改；DIM 与 `d2-additional-info` 均采用 MIT License。它适合用于活动级来源候选、版本与复刻装备的 Hash 参考、新 Manifest 发布后的差异核对，但不包含完整「遭遇战 → 掉落物」关系，不能单独作为完整掉落池。**实际生成脚本没有读取 DIM。**
+
+**Felicity 等社区项目：有完整表，但不能直接复制。** 本地调研到 Felicity 的 `LootTables.cs`，它采用手工维护的活动、遭遇战和物品 Hash 表，能证明完整遭遇战掉落表需要维护关系数据，而不是从 Bungie 运行时推导。该项目使用 AGPL-3.0，其数据维护与本项目许可、来源链不一致，因此不直接复制代码或表，最多作为人工交叉核对材料。没有明确许可的网页、攻略站和在线表格同样不作为运行时依赖或直接 vendoring 来源。
