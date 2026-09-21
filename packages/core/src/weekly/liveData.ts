@@ -828,53 +828,29 @@ function mapProfileActivities(
       }
     }
 
-    if (objectiveTexts.some(isGrandmasterVanguardAlertObjective)) {
-      const matchingObjectives = challengeObjectives.filter((hash) => isGrandmasterVanguardAlertObjective(objectiveText(definitions.objectives, hash)));
-      const rewards = activityChallengeRewards(activityDefinition, matchingObjectives, definitions.items);
-      items.push({
-        title: activityName,
-        subtitle: "先锋行动 · 宗师先锋警戒",
-        description: undefined,
-        source: "Bungie 角色周挑战 + 当前资料库",
-        weeklyActivityKind: "nightfall",
-        related_hashes: [activityHash, ...challengeObjectives],
-        rewards,
-        loot_pool: weaponRewards(rewards),
-        characters: activityCharacterStates(characterIds, characterActivities, definitions.objectives, isGrandmasterVanguardAlertObjective)
-      });
+    const classification = classifyActivityChallenge(activityDefinition, objectiveTexts);
+    if (!classification) {
       continue;
     }
 
-    if (isRaidActivity(activityDefinition) && objectiveTexts.some(isWeeklyRaidChallengeObjective)) {
-      const matchingObjectives = challengeObjectives.filter((hash) => isWeeklyRaidChallengeObjective(objectiveText(definitions.objectives, hash)));
-      const rewards = activityChallengeRewards(activityDefinition, matchingObjectives, definitions.items);
-      items.push({
-        title: activityName,
-        subtitle: "周常突袭挑战",
-        description: undefined,
-        source: "Bungie 角色周挑战 + 当前资料库",
-        weeklyActivityKind: "rotating_raid",
-        related_hashes: [activityHash, ...challengeObjectives],
-        rewards,
-        characters: activityCharacterStates(characterIds, characterActivities, definitions.objectives, isWeeklyRaidChallengeObjective)
-      });
-      continue;
-    }
-
-    if (isDungeonActivity(activityDefinition) && objectiveTexts.some(isWeeklyDungeonChallengeObjective)) {
-      const matchingObjectives = challengeObjectives.filter((hash) => isWeeklyDungeonChallengeObjective(objectiveText(definitions.objectives, hash)));
-      const rewards = activityChallengeRewards(activityDefinition, matchingObjectives, definitions.items);
-      items.push({
-        title: activityName,
-        subtitle: "周常地牢挑战",
-        description: undefined,
-        source: "Bungie 角色周挑战 + 当前资料库",
-        weeklyActivityKind: "rotating_dungeon",
-        related_hashes: [activityHash, ...challengeObjectives],
-        rewards,
-        characters: activityCharacterStates(characterIds, characterActivities, definitions.objectives, isWeeklyDungeonChallengeObjective)
-      });
-    }
+    const rewards = activityChallengeRewards(activityDefinition, challengeObjectives, definitions.items);
+    items.push({
+      title: activityName,
+      subtitle: classification.subtitle,
+      description: undefined,
+      source: "Bungie 角色周挑战 + 当前资料库",
+      weeklyActivityKind: classification.kind,
+      activity_kind: classification.label,
+      related_hashes: [activityHash, ...challengeObjectives],
+      rewards,
+      ...(classification.kind === "nightfall" ? { loot_pool: weaponRewards(rewards) } : {}),
+      characters: activityCharacterStates(
+        characterIds,
+        characterActivities,
+        definitions.objectives,
+        new Set(challengeObjectives)
+      )
+    });
   }
 
   const orderedSurges = elementalSurgeOrder.flatMap((key) => {
@@ -901,7 +877,7 @@ function activityCharacterStates(
   characterIds: string[],
   entries: Array<{ characterId: string; activity: DestinyAvailableActivity }>,
   objectives: DefinitionComponentData | null | undefined,
-  matchesObjective: (value: string) => boolean
+  objectiveHashes: Set<number>
 ): WeeklyActivityCharacterState[] {
   const activityByCharacter = new Map(entries.map((entry) => [entry.characterId, entry.activity]));
   return characterIds.map((characterId) => {
@@ -910,7 +886,7 @@ function activityCharacterStates(
       .map((challenge) => challenge.objective)
       .find((candidate) => (
         candidate?.objectiveHash !== undefined
-        && matchesObjective(objectiveText(objectives, candidate.objectiveHash))
+        && objectiveHashes.has(candidate.objectiveHash)
       ));
     if (!objective) return { character_id: characterId };
 
@@ -959,8 +935,9 @@ function mergeProfileActivities(activities: DestinyAvailableActivity[]): Destiny
 }
 
 function inferWeeklyActivityKind(value: string): WeeklyPriorityKind | "public_clue" | undefined {
-  if (/试炼|Trials|铁旗|Iron Banner/i.test(value)) return undefined;
   if (/日落|Nightfall/i.test(value)) return "nightfall";
+  // 试炼与铁旗以前被这个函数丢弃，只有本周确实出现时才作为限时活动进「活动挑战」（T91 第 12 节）。
+  if (/试炼|Trials|铁旗|Iron Banner/i.test(value)) return "activity_challenge";
   if (/特殊活动|限时活动|曙光|英灵日|守护者游戏|至日|Event|Festival|Solstice|Guardian Games/i.test(value)) return "special_event";
   if (/守望者尖塔|预言|二象性|贪婪之握|异端深渊|破碎王座|战争领主的废墟|鬼魅深渊|Spire of the Watcher|Prophecy|Duality|Grasp of Avarice|Pit of Heresy|Shattered Throne|Warlord'?s Ruin|Ghosts of the Deep/i.test(value)) {
     return "rotating_dungeon";
@@ -1029,6 +1006,64 @@ function isWeeklyRaidChallengeObjective(value: string): boolean {
 
 function isWeeklyDungeonChallengeObjective(value: string): boolean {
   return /Weekly Dungeon Challenge|周常地牢挑战/i.test(value);
+}
+
+/**
+ * 其余本周轮换活动的类型，按 `activityTypeHash` 认（T91 第 4.4 节，本机 Manifest
+ * `244213.26.06.29` 核实）。日落、突袭、地牢各自还有独立入口和掉落池来源，在下面单独分支。
+ *
+ * 智谋与打击在 Manifest 里几乎不带挑战（智谋 58 个活动 2 个带挑战，打击 202 个活动 1 个），
+ * 列在这里是为了「Bungie 返回了就能分类」，不是承诺它们每周都出现。
+ */
+const rotatingActivityChallengeTypes: Record<number, string> = {
+  4088006058: "熔炉竞技场",
+  2112637710: "奥斯里斯试炼",
+  2371050408: "铁旗",
+  332181804: "梦魇狩猎",
+  263019149: "赛季竞技场",
+  1728319841: "赛季竞技场",
+  2490937569: "智谋",
+  1418469392: "智谋",
+  2889152536: "打击"
+};
+
+/**
+ * 这次返回的活动是不是本周轮换挑战，属于哪一类。
+ *
+ * 判据先认 `activityTypeHash`。日落原先靠挑战目标名「宗师先锋警戒」认出，而该目标在本机
+ * Manifest 全库 0 条命中，日落整类因此不出现。名称正则降为兜底，只应付活动定义缺失或
+ * Hash 表没覆盖的情况。
+ *
+ * 四类都要求活动确实带本周挑战目标：`activityTypeHash` 只说明「它是日落 / 它在地牢下面」，
+ * 不说明「它这周有挑战」。日落类的角色活动里同时挂着不带挑战的「行动」变体（2026-09-21
+ * 真实账号 6 个日落类型活动，5 个没有挑战目标、没有奖励，只有一个带挑战目标是本周日落），
+ * 只按类型放行会让这些可启动但不能在本周追踪的活动占满首页日落卡。
+ */
+function classifyActivityChallenge(
+  activity: DefinitionRecord | undefined,
+  objectiveTexts: string[]
+): { kind: WeeklyPriorityKind; label: string; subtitle: string } | undefined {
+  const typeHash = activity?.activityTypeHash;
+
+  if (typeHash === 575572995 && objectiveTexts.length > 0) {
+    return { kind: "nightfall", label: "日落", subtitle: "日落挑战" };
+  }
+  if (isRaidActivity(activity) && objectiveTexts.some(isWeeklyRaidChallengeObjective)) {
+    return { kind: "rotating_raid", label: "突袭", subtitle: "突袭挑战" };
+  }
+  if (isDungeonActivity(activity) && objectiveTexts.some(isWeeklyDungeonChallengeObjective)) {
+    return { kind: "rotating_dungeon", label: "地牢", subtitle: "地牢挑战" };
+  }
+
+  const label = typeof typeHash === "number" ? rotatingActivityChallengeTypes[typeHash] : undefined;
+  if (label && objectiveTexts.length > 0) {
+    return { kind: "activity_challenge", label, subtitle: `${label}挑战` };
+  }
+
+  if (objectiveTexts.some(isGrandmasterVanguardAlertObjective)) {
+    return { kind: "nightfall", label: "日落", subtitle: "日落挑战" };
+  }
+  return undefined;
 }
 
 function isRaidActivity(activity: DefinitionRecord | undefined): boolean {

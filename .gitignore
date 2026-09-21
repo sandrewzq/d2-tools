@@ -14,6 +14,10 @@ coverage/
 packages/*/src/**/*.js
 packages/*/src/**/*.d.ts
 
+# python bytecode left by maintenance scripts
+__pycache__/
+*.pyc
+
 # local runtime / temp outputs
 .local-data/
 

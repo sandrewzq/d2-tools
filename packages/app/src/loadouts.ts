@@ -84,6 +84,7 @@ export type {
   ApplicationLoadoutScreenFrame,
   ApplicationLoadoutWearState
 } from "./workspaces/applicationLoadoutWorkspace.js";
+export type { CrossSourceLink } from "./workspaces/loadoutCrossSource.js";
 export {
   consumeApplicationLoadoutFocusRequest,
   createApplicationLoadoutNavigationState,

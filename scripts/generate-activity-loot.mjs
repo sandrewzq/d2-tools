@@ -26,6 +26,13 @@ const REGION_END = "// #endregion activity-loot-dataset";
 const RAID_TYPE = 2043403989;
 const DUNGEON_TYPE = 608898761;
 const PATTERN_RECORD_TYPE = "武器模式"; // 图样 record 的 recordTypeName
+/**
+ * 署名只写真实来源：关系由本脚本从 Bungie Manifest 的 Collectible
+ * sourceString / sourceHash 推出，脚本本身就是出处。不要在这里挂 DIM 之类的
+ * 第三方链接——脚本没有读过它们的数据，挂上去会把「参考过」写成事实（T91 第 12 节）。
+ */
+const generatorScriptUrl = "https://github.com/sandrewzq/d2-tools/blob/main/scripts/generate-activity-loot.mjs";
+const sourceLicense = "Bungie Manifest";
 const DIFFICULTY_PREFIX = /^(大师|专家|传说|普通|标准|巅峰|史诗|竞赛|探索者|永恒|最后通牒)/;
 const QUOTE = "[“”\"']";
 
@@ -152,7 +159,7 @@ function deriveActivities(previousHashes) {
       names: [group.activity.baseName],
       source_hash: group.sourceHash,
       source_label: `Bungie Collectible：${group.source.text.replace(/\n/g, " ")}`,
-      source_url: "dimSourceInfoUrl",
+      source_url: "generatorScriptUrl",
       source_license: "sourceLicense",
       evidence_note: `当前 Manifest sourceHash ${group.sourceHash}；仅确认活动级来源。`,
       items: [...group.items.values()]
@@ -339,6 +346,43 @@ function readManifestVersion(databasePath) {  try {
 
 function verifyExpected(derived) {
   const problems = [];
+  // 结构自校验覆盖全量，不只是 EXPECTED 里那 4 个活动（T91 第 12 节）。下面几组检查都
+  // 不需要猜，任何一条不过都说明推导或 Manifest 版本出了问题，直接拒绝写文件。
+  const seenKeys = new Set();
+  for (const activity of derived) {
+    if (seenKeys.has(activity.key)) problems.push(`${activity.key} 重复出现`);
+    seenKeys.add(activity.key);
+    if (!activity.activity_hash) problems.push(`${activity.key} 活动 Hash 为空`);
+    if (!activity.source_hash) problems.push(`${activity.key} source Hash 为空`);
+    if (!activity.items.length) problems.push(`${activity.key} 没有任何武器条目`);
+    const seenItems = new Set();
+    for (const item of activity.items) {
+      if (seenItems.has(item.item_hash)) problems.push(`${activity.key} 重复登记武器 ${item.item_hash}`);
+      seenItems.add(item.item_hash);
+    }
+  }
+  // item_hash 必须能在当前 Manifest 里解析成一把武器；解析不到说明数据集记的武器
+  // 和 Manifest 版本已经对不上，界面会照着一条不存在的定义渲染。
+  for (const activity of derived) {
+    for (const item of activity.items) {
+      if (!readWeapon(item.item_hash)) {
+        problems.push(`${activity.key} 的 ${item.item_hash} 不是当前 Manifest 里的武器`);
+      }
+    }
+  }
+  // 图样映射是按武器名建的反查表。两把武器同名时会一起命中同一条 record，同一个
+  // pattern_record_hash 就挂到了两把武器上，这里必须报出来而不是静默接受。
+  const patternOwners = new Map();
+  for (const activity of derived) {
+    for (const item of activity.items) {
+      if (item.pattern_record_hash === undefined) continue;
+      const owner = patternOwners.get(item.pattern_record_hash);
+      if (owner !== undefined && owner !== item.item_hash) {
+        problems.push(`图样 record ${item.pattern_record_hash} 同时挂在武器 ${owner} 和 ${item.item_hash} 上`);
+      }
+      patternOwners.set(item.pattern_record_hash, item.item_hash);
+    }
+  }
   for (const expected of EXPECTED) {
     const found = derived.find((activity) => activity.key === expected.key);
     if (!found) {
@@ -396,7 +440,7 @@ function writeDataset(outputPath, activities) {
     REGION_START,
     "// 本区由 scripts/generate-activity-loot.mjs 生成，手工改动会在下次生成时被覆盖。",
     `const datasetRevision = "${today}.1";`,
-    `const datasetVerifiedAt = "${today}";`,
+    `const datasetGeneratedAt = "${today}";`,
     "",
     "export const activityLootDatasetV1: ActivityLootDatasetV1 = {",
     '  schema: "activity-loot.v1",',
@@ -427,7 +471,7 @@ function renderActivity(activity) {
     `      source_url: ${activity.source_url},`,
     `      source_license: ${activity.source_license},`,
     `      evidence_note: ${JSON.stringify(activity.evidence_note)},`,
-    "      verified_at: datasetVerifiedAt,",
+    "      generated_at: datasetGeneratedAt,",
     "      items: [",
     items,
     "      ]",

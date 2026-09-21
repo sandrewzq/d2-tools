@@ -460,6 +460,11 @@
   font-size: var(--font-caption);
 }
 
+/* 跨来源标记：只认内容一致，对得上给成功色，其余保持副标题的灰。 */
+.app-shell .loadout-directory-row small[data-status="success"] {
+  color: var(--status-ready-text);
+}
+
 .app-shell .loadout-directory-row em,
 .app-shell .loadout-detail-status,
 .app-shell .loadout-in-game-item-list em {

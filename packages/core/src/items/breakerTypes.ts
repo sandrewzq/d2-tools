@@ -36,6 +36,10 @@ type BreakerIdentity = {
 };
 
 const bungieStaticBaseUrl = "https://www.bungie.net";
+// 键是内在 Perk 的 Hash，值是 Bungie 的 breakerType 枚举（1 屏障 / 2 过载 / 3 势不可挡）。
+// 这三个 Hash 不是手工挑的：在 Manifest 的全量武器定义里按 plug.perks 的引用次数排序，
+// 前三名是 3469621377 / 472686235 / 2917776374，各被引用 159 / 159 / 157 次，
+// 第四名只有 36 次，断层明显，所以认定这前三个就是三系反勇士内在 Perk。
 const hiddenIntrinsicPerkBreakerEnum = new Map<number, number>([
   [3469621377, 1],
   [472686235, 2],

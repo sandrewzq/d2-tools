@@ -8,7 +8,7 @@ d2-tools 是一个给普通玩家使用的、面向 Windows 的 Destiny 2 中文
 - Windows 本地运行，不需要自己部署服务
 - 账号、仓库、资料库、今日 / 本周、AI 一体化
 - 配置、OAuth token、标签和本地数据保存在本机
-- 基于 Bungie 官方授权流程，不走第三方账号中转
+- 基于 Bungie 官方 OAuth 授权流程，不走第三方账号中转
 
 ## 下载与运行
 
@@ -72,7 +72,6 @@ d2-tools-setup-<version>.exe
 
 - DIM Wish List Sources：社区武器推荐 Roll 和 Wishlist 规则
   - GitHub：<https://github.com/48klocs/dim-wish-list-sources>
-  - 默认愿望单：<https://raw.githubusercontent.com/48klocs/dim-wish-list-sources/master/voltron.txt>
 
 ### 参考项目与功能
 
@@ -175,6 +174,14 @@ npx pnpm@9.15.0 package:win  # 仅打包
 Agent 在普通开发过程中默认不新增测试用例，也不自动运行重型验证；用户主动本地测试或打包时仍运行现有测试。
 
 更多开发和发布细节见 [开发说明](docs/development.md)。
+
+## 商标与游戏内容声明
+
+Destiny 2 及相关名称、标识、图像和游戏内容的版权与商标归 Bungie, Inc. 所有。本项目按 Bungie 的 Game Content Usage Rules 使用这些内容，规则见 [Bungie Terms of Use](https://www.bungie.net/7/en/Legal/terms)。按规则要求声明：
+
+> © Bungie, Inc. All rights reserved. Destiny, the Destiny Logo, Bungie and the Bungie logo are among the trademarks of Bungie, Inc.
+
+d2-tools 是非官方社区工具，与 Bungie, Inc. 无从属关系，未获得 Bungie 的赞助或背书。本项目免费提供、不含广告和付费内容。
 
 ## License
 

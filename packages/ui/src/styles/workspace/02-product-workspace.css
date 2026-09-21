@@ -191,6 +191,14 @@
   justify-content: flex-start;
 }
 
+:where(.app-shell) .startup-gate-legal {
+  justify-self: start;
+  max-width: 760px;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-meta);
+}
+
 @container product-workspace (max-width: 700px) {
   :where(.app-shell) .startup-gate-steps {
     grid-template-columns: 1fr;

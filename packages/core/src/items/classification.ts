@@ -40,8 +40,13 @@ export const vaultBucketHash = 138197802;
 
 export const postmasterBucketHash = 215593132;
 
-/** Stable Destiny item/category identifiers used by the pursuit center. */
+/**
+ * 任务槽位所在的 Bucket。`accountCapacityDefinitionBucketHashes` 要用到它，声明顺序必须在
+ * 那个数组之前。
+ */
 export const pursuitBucketHash = 1345459588;
+
+/** Stable Destiny item/category identifiers used by the pursuit center. */
 export const pursuitCategoryHashes = {
   quest: 53,
   questStep: 16,
@@ -50,10 +55,15 @@ export const pursuitCategoryHashes = {
   seasonalArtifact: 1378222069
 } as const;
 
+/**
+ * 账号加载时一定要取到定义的 Bucket 集合。任务 Bucket 也在里面：容量行要报「任务占了多少
+ * 格里的几格」，只数得出占了几格、读不到 63 这个上限，就只能报半条事实（T91 第 7 节）。
+ */
 export const accountCapacityDefinitionBucketHashes = [
   ...accountEquipmentBucketHashes,
   vaultBucketHash,
-  postmasterBucketHash
+  postmasterBucketHash,
+  pursuitBucketHash
 ] as const;
 
 export function isPostmasterBucketHash(bucketHash: number | undefined): boolean {

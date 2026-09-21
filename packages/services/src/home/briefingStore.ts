@@ -10,7 +10,14 @@ import {
 } from "../account/resource.js";
 
 export type CachedHomeBriefing = {
-  version: 9;
+  /**
+   * 缓存结构版本。改动会让缓存作废并重新抓一次。
+   * 10：周报 `priorities` 新增 `activity_challenge`。旧缓存里没有这个键，
+   * 而同一周的缓存不会被周期检查换掉，键缺失会一直带到渲染层。
+   * 11：日落类的行改为要求活动确实带本周挑战目标。同一周的旧缓存里混着不带挑战的
+   * 「行动」变体，不换缓存就会继续显示。
+   */
+  version: 11;
   context_key: string;
   saved_at: string;
   fetched_at: string;
@@ -49,7 +56,7 @@ export async function loadCachedHomeBriefing(
 ): Promise<CachedHomeBriefing | null> {
   try {
     const parsed = JSON.parse(await readFile(cachePath(dataDir), "utf8")) as Partial<CachedHomeBriefing>;
-    if (parsed.version !== 9
+    if (parsed.version !== 11
       || parsed.context_key !== contextKey
       || !parsed.saved_at
       || !parsed.fetched_at

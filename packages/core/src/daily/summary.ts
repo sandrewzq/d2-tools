@@ -134,7 +134,8 @@ function pendingSource(label: string, message: string): DailySummarySource {
   };
 }
 
-function nextDailyResetDate(now: Date): Date {
+/** 下一个每日重置时刻（UTC 17:00）。账号待办的时限分桶也用它，不另算一份。 */
+export function nextDailyResetDate(now: Date): Date {
   const reset = new Date(Date.UTC(
     now.getUTCFullYear(),
     now.getUTCMonth(),
@@ -150,7 +151,8 @@ function nextDailyResetDate(now: Date): Date {
   return reset;
 }
 
-function nextWeeklyResetDate(now: Date): Date {
+/** 下一个每周重置时刻（UTC 周二，与当日日重置同点）。 */
+export function nextWeeklyResetDate(now: Date): Date {
   const daily = nextDailyResetDate(now);
   const daysUntilTuesday = (weeklyResetDayUtc - daily.getUTCDay() + 7) % 7;
   const weekly = new Date(daily);

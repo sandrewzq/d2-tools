@@ -35,6 +35,11 @@ export type { WeaponFrameSummary } from "../items/weaponFrames.js";
 export type AccountItemSummary = {
   hash: number;
   instance_id?: string;
+  /**
+   * Bungie 返回的可堆叠数量。任务物品、赏金和消耗品靠它区分「一件」和「一叠」，
+   * 缺失时按未返回处理，不补 1（T91 第 12 节）。
+   */
+  quantity?: number;
   name: string;
   icon?: string;
   item_type?: string;
@@ -270,6 +275,8 @@ export type CharacterInventoryCapacityLimit = {
 export type CharacterCapacityLimits = {
   inventory_buckets: CharacterInventoryCapacityLimit[];
   postmaster_capacity?: number;
+  /** 任务槽位上限。槽位占用数由角色背包里任务 Bucket 的条数得出，不在这里重复存。 */
+  pursuit_capacity?: number;
 };
 
 export type CharacterSummary = {
@@ -753,6 +760,12 @@ export type DestinyProfileResponse = {
       records?: Record<string, DestinyRecordProgress>;
       trackedRecordHash?: number;
     };
+  };
+  /** 组件 901。角色作用域的 Record 只在这里出现，账号作用域的才在 `profileRecords`。 */
+  characterRecords?: {
+    data?: Record<string, {
+      records?: Record<string, DestinyRecordProgress>;
+    }>;
   };
   itemComponents?: {
     instances?: {
@@ -1448,10 +1461,14 @@ function summarizeCharacterCapacityLimits(
   const postmasterCapacity = positiveCapacity(
     bucketDefinitions[String(postmasterBucketHash)] as DefinitionRecord | undefined
   );
+  const pursuitCapacity = positiveCapacity(
+    bucketDefinitions[String(pursuitBucketHash)] as DefinitionRecord | undefined
+  );
 
   return {
     inventory_buckets: inventoryBuckets,
-    ...(postmasterCapacity ? { postmaster_capacity: postmasterCapacity } : {})
+    ...(postmasterCapacity ? { postmaster_capacity: postmasterCapacity } : {}),
+    ...(pursuitCapacity ? { pursuit_capacity: pursuitCapacity } : {})
   };
 }
 
@@ -1561,6 +1578,7 @@ function summarizeItem(
   const summary: AccountItemSummary = {
     hash: item.itemHash,
     instance_id: instanceId,
+    ...(typeof item.quantity === "number" ? { quantity: item.quantity } : {}),
     name: definition?.displayProperties?.name?.trim() || `Item ${item.itemHash}`,
     icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
     item_type: definition?.itemTypeDisplayName,
@@ -2547,8 +2565,10 @@ function summarizePursuitItem(
   const objectives = instanceId
     ? components?.objectives?.data?.[instanceId]?.objectives ?? []
     : [];
-  const visibleObjectives = objectives.filter((objective) => objective.visible !== false);
-  const complete = visibleObjectives.length > 0 && visibleObjectives.every((objective) => objective.complete);
+  // 完成判据走**全部**目标，不是只看可见的那几条（T91 第 12 节）。被 Bungie 标为不可见的
+  // 目标往往是尚未揭示的条件，只按可见目标全完成判定，会把「还有条件没露出来」判成
+  // 「已完成待处理」，进而在界面上提示玩家去领一个其实没完成的任务。
+  const complete = objectives.length > 0 && objectives.every((objective) => objective.complete);
   // DestinyItemState.Tracked = 2. 64 is not a tracked-item flag and caused
   // real tracked pursuits to be omitted from the attention summary.
   const tracked = typeof item.state === "number" && (item.state & 2) === 2;

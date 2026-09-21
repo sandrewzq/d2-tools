@@ -1,6 +1,8 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
 import { analyzeLoadoutTemplate, type LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";
+import type { LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
+import { selectInGameSlotPlanLink } from "./loadoutCrossSource.js";
 import {
   buildLoadoutCompareRows,
   isMatchingTemplateItem,
@@ -56,6 +58,8 @@ export type LoadoutsPageInput = {
   selectedEntryId?: string;
   compareTemplateId: string;
   showDiffOnly: boolean;
+  /** 应用配装方案库；只用来给游戏内槽位标出它对应哪一套，缺省时不出标记。 */
+  localPlans?: readonly LocalLoadoutPlan[];
 };
 
 export type LoadoutEntry = LoadoutEntryView;
@@ -73,6 +77,8 @@ export type LoadoutEntryView = {
   slotIndex?: number;
   character?: AccountSummary["characters"][number];
   slot?: AccountSummary["characters"][number]["loadout_slots"][number];
+  /** 这个游戏内槽位对得上哪套应用配装；账号未读或对不上时为空。见 `loadoutCrossSource`。 */
+  sourceLink?: { plan_id: string; plan_name: string } | null;
 };
 
 export type LoadoutTemplateItemRowView = {
@@ -180,6 +186,7 @@ export function createLoadoutsPageWorkspace(input: LoadoutsPageInput): LoadoutsP
   const loadoutEntries = buildLoadoutEntries({
     accountSummary: input.accountSummary,
     templates: input.templates,
+    localPlans: input.localPlans ?? [],
     selectedTemplate,
     selectedTemplateMissingCount: missingCount
   });
@@ -403,6 +410,7 @@ function buildLoadoutActionFeedbackKey(
 function buildLoadoutEntries(input: {
   accountSummary: AccountSummary | null;
   templates: LoadoutTemplate[];
+  localPlans: readonly LocalLoadoutPlan[];
   selectedTemplate: LoadoutTemplate | null;
   selectedTemplateMissingCount: number;
 }): LoadoutEntry[] {
@@ -442,7 +450,8 @@ function buildLoadoutEntries(input: {
         characterId: character.character_id,
         slotIndex: slot.index,
         character,
-        slot
+        slot,
+        sourceLink: selectInGameSlotPlanLink(character, slot, input.localPlans, input.accountSummary)
         }))
     ))
     : [];

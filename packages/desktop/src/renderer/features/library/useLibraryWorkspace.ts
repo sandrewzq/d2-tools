@@ -67,6 +67,8 @@ export function useLibraryWorkspace(input: {
   const manifestStatusState = useManifestStatus();
   const relatedRequestGeneration = useRef(0);
   const weeklyFarmingRequestGeneration = useRef(0);
+  /** 已经读到过的活动清单对应的请求键。进「待办」是懒加载入口，不是每次进都重读的入口。 */
+  const weeklyFarmingLoadedKeyRef = useRef("");
   const libraryRuntimeCapabilities = useRef<LibraryRuntimeCapabilities | null>(null);
   const weeklyFarmingRequestKey = JSON.stringify(buildWeeklyFarmingRequest(input.weeklySummary));
   const weeklyFarmingRequest = useMemo<WeeklyFarmingRequest>(
@@ -75,6 +77,9 @@ export function useLibraryWorkspace(input: {
   );
 
   const loadWeeklyFarming = useCallback(async (force = false) => {
+    // 同一批活动已经读过就不再读一遍。本周刷取只挂在账号「待办」的行动行展开区，
+    // 进「待办」是按需加载的入口，不是每次都要刷新的入口（T91 第 8 节）。
+    if (!force && weeklyFarmingLoadedKeyRef.current === weeklyFarmingRequestKey) return;
     const generation = ++weeklyFarmingRequestGeneration.current;
     if (!weeklyFarmingRequest.activities.length) {
       setWeeklyFarmingCatalog(null);
@@ -82,6 +87,7 @@ export function useLibraryWorkspace(input: {
       setWeeklyFarmingError("");
       setWeeklyFarmingRecommendationError("");
       setIsLoadingWeeklyFarming(false);
+      weeklyFarmingLoadedKeyRef.current = weeklyFarmingRequestKey;
       return;
     }
     setIsLoadingWeeklyFarming(true);
@@ -91,6 +97,7 @@ export function useLibraryWorkspace(input: {
       const catalog = await api.getWeeklyFarmingCatalog({ ...weeklyFarmingRequest, force });
       if (generation !== weeklyFarmingRequestGeneration.current) return;
       setWeeklyFarmingCatalog(catalog);
+      weeklyFarmingLoadedKeyRef.current = weeklyFarmingRequestKey;
       const items = catalog.activities.flatMap((activity) => activity.items);
       if (!items.length) {
         setWeeklyFarmingCommunityMatch(new Map());
@@ -125,12 +132,20 @@ export function useLibraryWorkspace(input: {
         setIsLoadingWeeklyFarming(false);
       }
     }
-  }, [weeklyFarmingRequest]);
+  }, [weeklyFarmingRequest, weeklyFarmingRequestKey]);
 
+  // Manifest 换版本后掉落清单里的武器定义会过期。已经读过的清单跟着重读一次；没读过的不动——
+  // 玩家没进过「待办」，不该因为一次 Manifest 更新去读整套活动掉落（T91 第 8 节）。
+  // 首次拿到版本号不算换版本，否则进待办那一次会被立刻重读一遍。
+  const observedManifestVersionRef = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (libraryViewMode !== "weekly_farming") return;
-    void loadWeeklyFarming(false);
-  }, [libraryViewMode, loadWeeklyFarming, manifestStatusState.manifestStatus?.version]);
+    const version = manifestStatusState.manifestStatus?.version;
+    const previousVersion = observedManifestVersionRef.current;
+    observedManifestVersionRef.current = version;
+    if (!previousVersion || !version || previousVersion === version) return;
+    if (!weeklyFarmingLoadedKeyRef.current) return;
+    void loadWeeklyFarming(true);
+  }, [manifestStatusState.manifestStatus?.version, loadWeeklyFarming]);
 
   useEffect(() => {
     relatedRequestGeneration.current += 1;
@@ -209,10 +224,6 @@ export function useLibraryWorkspace(input: {
 
   async function searchItems(input: { mode?: LibraryViewMode; query?: string } = {}) {
     const activeMode = input.mode ?? libraryViewMode;
-    if (activeMode === "weekly_farming") {
-      await loadWeeklyFarming(true);
-      return;
-    }
     setIsSearching(true);
     setSearchError("");
     if (activeMode === "perks") {
@@ -489,10 +500,10 @@ export function useLibraryWorkspace(input: {
 function buildWeeklyFarmingRequest(summary: WeeklySummary | null | undefined): WeeklyFarmingRequest {
   if (!summary) return { activities: [] };
   const activities = ([
-    ["raid", summary.priorities.rotating_raid],
-    ["dungeon", summary.priorities.rotating_dungeon]
+    ["raid", summary.priorities?.rotating_raid],
+    ["dungeon", summary.priorities?.rotating_dungeon]
   ] as const).flatMap(([kind, priority]) => (
-    priority.status === "ready"
+    priority?.status === "ready"
       ? (priority.entries ?? []).map((entry) => ({
           kind,
           title: entry.title,

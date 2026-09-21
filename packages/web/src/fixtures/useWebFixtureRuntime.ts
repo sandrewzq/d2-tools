@@ -647,10 +647,12 @@ export function createWebLoadoutsPageModel(input: {
   selectedEntryId: string;
   compareTemplateId: string;
   showDiffOnly: boolean;
+  localPlans?: readonly LocalLoadoutPlan[];
 }) {
   return selectLoadoutsPageModel({
     accountSummary: webAccountSummary,
     templates: webLoadoutTemplates,
+    localPlans: input.localPlans ?? [],
     selectedTemplateId: input.selectedTemplateId,
     selectedEntryId: input.selectedEntryId,
     compareTemplateId: input.compareTemplateId,

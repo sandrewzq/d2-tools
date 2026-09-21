@@ -10,11 +10,47 @@ const packagedLicensePath = join(repoRoot, "packages", "desktop", "build", "LICE
 const projectLicensePath = join(repoRoot, "LICENSE");
 const checkOnly = process.argv.includes("--check");
 
+// 起点覆盖全部 workspace 包：任何一个包以后新增运行时依赖，都会自动进清单，
+// 不会因为「只扫了两个包」而悄悄漏掉。web 只用于浏览器预览，但它和桌面端共用
+// packages/ui，依赖集也是同一批。
 const applicationPackageDirs = [
-  join(repoRoot, "packages", "services"),
-  join(repoRoot, "packages", "desktop")
-];
+  "app",
+  "core",
+  "desktop",
+  "http",
+  "services",
+  "ui",
+  "web"
+].map((name) => join(repoRoot, "packages", name));
+// 这几个包由打包器内联进产物，不通过 node_modules 解析，单独列出来。
 const bundledDesktopPackages = ["react", "react-dom", "electron"];
+
+// npm 包里没有随附许可证文件的依赖，用包 manifest 里的 author 和 license 补全文，
+// 否则清单只会留下一行 "Package metadata license: MIT"，拿不到许可条款本身。
+const noticeOverrides = new Map([
+  ["lazy-val@1.0.5", `MIT License
+
+Copyright (c) Vladimir Krivosheev
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+`]
+]);
 
 const packages = collectApplicationPackages();
 const notices = renderNotices(packages);
@@ -34,7 +70,7 @@ function collectApplicationPackages() {
   const visited = new Map();
   for (const packageDir of applicationPackageDirs) {
     const manifest = readJson(join(packageDir, "package.json"));
-    for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+    for (const dependency of runtimeDependencies(manifest)) {
       if (!dependency.startsWith("@d2-tools/")) visitPackage(dependency, packageDir, visited);
     }
   }
@@ -59,14 +95,22 @@ function visitPackage(name, fromDir, visited) {
     id,
     license: normalizeLicense(manifest.license),
     homepage: manifest.homepage ?? manifest.repository?.url ?? "",
-    noticeText: noticeFiles.length
-      ? noticeFiles.map(({ name: fileName, text }) => `--- ${fileName} ---\n${text}`).join("\n\n")
-      : `Package metadata license: ${normalizeLicense(manifest.license)}`
+    noticeText: noticeOverrides.get(id)
+      ?? (noticeFiles.length
+        ? noticeFiles.map(({ name: fileName, text }) => `--- ${fileName} ---\n${text}`).join("\n\n")
+        : `Package metadata license: ${normalizeLicense(manifest.license)}`)
   });
 
-  for (const dependency of Object.keys(manifest.dependencies ?? {})) {
+  for (const dependency of runtimeDependencies(manifest)) {
     visitPackage(dependency, packageDir, visited);
   }
+}
+
+function runtimeDependencies(manifest) {
+  return [...new Set([
+    ...Object.keys(manifest.dependencies ?? {}),
+    ...Object.keys(manifest.optionalDependencies ?? {})
+  ])];
 }
 
 function resolvePackageManifest(name, fromDir) {
@@ -129,7 +173,7 @@ function renderNotices(packageList) {
   return normalizeText([
     "d2-tools Third-Party Notices",
     "",
-    "This file covers third-party packages that run with the desktop application or are bundled into its renderer.",
+    "This file covers third-party packages that run with the desktop application or are bundled into its renderer, plus installed optional dependencies of those packages.",
     "Build-only and test-only tools are excluded. Electron distributions also carry Electron/Chromium notice files supplied by Electron.",
     "Package names, versions, license expressions, source links, and bundled license/notice text follow below.",
     "",

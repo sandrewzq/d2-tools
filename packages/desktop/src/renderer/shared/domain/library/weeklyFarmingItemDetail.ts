@@ -18,7 +18,9 @@ export function findWeeklyFarmingAccountItem(
     const best = items.find((item) => item.instance_id === row.bestInstance?.instanceId);
     if (best) return best;
   }
-  return items.find((item) => item.hash === row.item.hash);
+  // 兜底匹配要求这把武器真的以武器身份存在于账号里。只比 hash 时，数据集把某条图样记录指到
+  // 非武器定义上也会命中一条物品，界面就会显示出一个并不存在的「持有」实例（T91 第 12 节）。
+  return items.find((item) => item.hash === row.item.hash && item.group_key === "weapons");
 }
 
 export function toWeeklyFarmingDefinitionItem(row: LibraryWeeklyFarmingItemView): ItemSearchResult {

@@ -1,7 +1,6 @@
 import { LibraryPage } from "../../features/library/LibraryPage";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { useDesktopMenuSession } from "./DesktopMenuProviderContext";
-import { findWeeklyFarmingAccountItem, toWeeklyFarmingDefinitionItem } from "../../shared/domain/library/weeklyFarmingItemDetail";
 
 export function LibraryMenuProvider() {
   const session = useDesktopMenuSession();
@@ -21,16 +20,7 @@ export function LibraryMenuProvider() {
         liveAvailabilityError: library.liveAvailabilityError,
         manifestStatus: library.manifestStatus,
         manifestStatusError: library.manifestStatusError,
-        accountSummary,
-        weeklyFarmingCatalog: library.weeklyFarmingCatalog,
-        weeklyFarmingCommunityMatch: library.weeklyFarmingCommunityMatch,
-        weeklyFarmingInstanceMatches: session.account.vaultRecommendationCardSummary,
-        weeklyFarmingInstanceRecommendationReady: session.account.vaultRecommendationScan.phase === "complete",
-        weeklyFarmingError: library.weeklyFarmingError,
-        weeklyFarmingRecommendationError: library.weeklyFarmingRecommendationError,
-        isLoadingWeeklyFarming: library.isLoadingWeeklyFarming,
-        isRefreshingWeeklyRotation: session.daily.isLoadingDaily,
-        weeklyRotationError: session.daily.dailyError
+        accountSummary
       }}
       state={{
         libraryViewMode: library.libraryViewMode,
@@ -69,12 +59,6 @@ export function LibraryMenuProvider() {
         onOpenItemDetail: (item) => void itemDetail.openItemDetail(item),
         onLoadPerkRelatedEquipment: (perk, loadMore) => void library.loadPerkRelatedEquipment(perk, loadMore),
         onOpenRelatedItem: (item) => void itemDetail.openItemDetail(item),
-        onRefreshWeeklyRotation: () => void session.daily.loadDailySummary(true),
-        onRefreshWeeklyFarming: () => void library.loadWeeklyFarming(true),
-        onOpenWeeklyFarmingItem: (row) => void itemDetail.openItemDetail(
-          findWeeklyFarmingAccountItem(accountSummary, row)
-            ?? toWeeklyFarmingDefinitionItem(row)
-        ),
         onAddFavorite: (item) => void library.addSelectedItemToFavorites(item),
         onRemoveFavorite: (hash) => void library.removeFavorite(hash),
         onLocateOwnedItem: session.locateVaultItem

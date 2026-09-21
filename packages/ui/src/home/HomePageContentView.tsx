@@ -3,7 +3,7 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, HomeCopy } from "../i18n/types.js";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import { weeklyFarmingActivityKey } from "@d2-tools/core/weekly/farming";
-import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
+import type { WeeklyIronBannerSummary, WeeklyPriorityKind } from "@d2-tools/core/weekly/summary";
 import type { ShellPageKey } from "../shell/types.js";
 import type { VendorInventoryItemView, VendorOfferContextView } from "../vendors/VendorsPageContentView.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
@@ -37,7 +37,8 @@ export type HomeDailyItem = {
   vendorLocation?: string;
   items?: HomeDailyItem[];
 };
-export type HomeWeeklyActivityKind = "nightfall" | "rotating_raid" | "rotating_dungeon" | "weekly_surge" | "special_event" | "public_clue";
+/** 时限来源的键集合直接沿用 core，不再另抄一份：抄出来的那份漏过 `activity_challenge`。 */
+export type HomeWeeklyActivityKind = WeeklyPriorityKind | "public_clue";
 export type HomeDailyActivityKind = HomeWeeklyActivityKind | "weekly_bonus";
 export type HomeDailySource = {
   status: HomeTone | "pending";
@@ -63,12 +64,7 @@ export type HomeDailySummary = {
   };
   checklist: string[];
 };
-export type HomeWeeklyPriorityKind =
-  | "nightfall"
-  | "rotating_raid"
-  | "rotating_dungeon"
-  | "weekly_surge"
-  | "special_event";
+export type HomeWeeklyPriorityKind = WeeklyPriorityKind;
 export type HomeWeeklySummary = {
   weekly_reset: {
     label: string;

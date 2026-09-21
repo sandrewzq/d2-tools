@@ -1,14 +1,9 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { RecommendationCardSummary } from "@d2-tools/core/community-perks";
-import type { WeeklyFarmingCatalogResource } from "@d2-tools/core/weekly/farming";
 import type { WeaponBreakerTypeSummary } from "@d2-tools/core/items/breakerTypes";
 import type { EquipableItemSetSummary } from "@d2-tools/core/items/equipableItemSet";
 import type { ItemDefinitionVersionSummary, ItemReleaseSummary } from "@d2-tools/core/items/release";
 import { formatLibraryVersion, matchesAnyKeyword, splitQueryTokens, uniqueInOrder, uniqueSorted } from "./libraryText.js";
-import {
-  buildLibraryWeeklyFarmingView,
-  type LibraryWeeklyFarmingView
-} from "./libraryWeeklyFarming.js";
 
 export type AmmoTypeKey = "primary" | "special" | "heavy";
 export type EquipmentGroupKey = "weapons" | "armor" | "equipment" | "other";
@@ -208,7 +203,11 @@ export type VaultItemMatchInfo = {
   }>;
 };
 
-export type LibraryViewMode = "equipment" | "perks" | "weekly_farming";
+/**
+ * 资料库只保留「装备」和「Perk 与框架」两个查询模式。本周刷取不再是查询模式，
+ * 深链接统一进入账号的「待办」（T91 第 7 节）。
+ */
+export type LibraryViewMode = "equipment" | "perks";
 export type LibraryEquipmentGroupFilter = EquipmentGroupKey | "all";
 export type LibraryRelatedItemsFilter = "all" | "yes" | "no";
 export type LibrarySourceStatusFilter = ItemSearchResult["source"]["status"] | "all";
@@ -282,15 +281,6 @@ export type LibraryPageCache = {
   manifestStatus: ManifestStatus | null;
   manifestStatusError: string;
   accountSummary?: AccountSummary | null;
-  weeklyFarmingCatalog?: WeeklyFarmingCatalogResource | null;
-  weeklyFarmingCommunityMatch?: ReadonlyMap<number, VaultItemMatchInfo>;
-  weeklyFarmingInstanceMatches?: ReadonlyMap<string, RecommendationCardSummary>;
-  weeklyFarmingInstanceRecommendationReady?: boolean;
-  weeklyFarmingError?: string;
-  weeklyFarmingRecommendationError?: string;
-  isLoadingWeeklyFarming?: boolean;
-  isRefreshingWeeklyRotation?: boolean;
-  weeklyRotationError?: string;
 };
 
 export type LibraryPageState = {
@@ -425,7 +415,6 @@ export type LibraryPageModel = {
     manifestTask: LibraryManifestTaskState | null;
     manifestVersionDate?: string;
   };
-  weeklyFarming: LibraryWeeklyFarmingView;
   manifestAlert: LibraryManifestAlertModel | null;
   emptyState: { kind: "not_searched" | "no_results" } | null;
 };
@@ -730,28 +719,12 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
   const visibleItems = filterLibraryEquipmentItems(cache.items, state.equipmentFilters, ownership);
   const visiblePerks = filterLibraryPerks(cache.perks, state.perkFilters);
   const mode = state.libraryViewMode;
-  const weeklyFarming = buildLibraryWeeklyFarmingView({
-    resource: cache.weeklyFarmingCatalog,
-    accountSummary: cache.accountSummary,
-    definitionMatches: cache.weeklyFarmingCommunityMatch,
-    instanceMatches: cache.weeklyFarmingInstanceMatches,
-    instanceRecommendationReady: cache.weeklyFarmingInstanceRecommendationReady,
-    isLoading: cache.isLoadingWeeklyFarming,
-    isRefreshingRotation: cache.isRefreshingWeeklyRotation,
-    error: cache.weeklyFarmingError,
-    rotationError: cache.weeklyRotationError,
-    recommendationError: cache.weeklyFarmingRecommendationError
-  });
   const searchTouched = mode === "equipment"
     ? state.equipmentSearchTouched
-    : mode === "perks"
-      ? state.perkSearchTouched
-      : false;
+    : state.perkSearchTouched;
   const hitCount = mode === "equipment"
     ? visibleItems.length
-    : mode === "perks"
-      ? visiblePerks.length
-      : weeklyFarming.itemCount;
+    : visiblePerks.length;
 
   return {
     manifestSummary: {
@@ -772,9 +745,7 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       viewMode: mode,
       primaryQuery: mode === "equipment"
         ? state.equipmentFilters.query
-        : mode === "perks"
-          ? state.perkFilters.query
-          : "",
+        : state.perkFilters.query,
       isManifestBlocked: isManifestBlocked(cache.manifestStatus),
       equipmentFilters: state.equipmentFilters,
       perkFilters: state.perkFilters,
@@ -828,16 +799,13 @@ export function selectLibraryPageModel(cache: LibraryPageCache, state: LibraryPa
       manifestTask: state.manifestTask,
       manifestVersionDate: formatLibraryVersion(cache.manifestStatus?.version)
     },
-    weeklyFarming,
     manifestAlert: buildManifestAlertModel(
       cache.manifestStatus,
       cache.manifestStatusError,
       state.isLoadingManifestStatus,
       state.manifestTask
     ),
-    emptyState: mode === "weekly_farming"
-      ? null
-      : selectLibraryEmptyState({ searchTouched, isSearching: state.isSearching, searchError: state.searchError, hitCount })
+    emptyState: selectLibraryEmptyState({ searchTouched, isSearching: state.isSearching, searchError: state.searchError, hitCount })
   };
 }
 

@@ -9,12 +9,10 @@ export type {
 } from "./workspaces/accountPower.js";
 export { buildCharacterPowerView } from "./workspaces/accountPower.js";
 export type {
-  AccountPowerRouteItemStatus,
-  AccountPowerRouteItemView,
-  AccountPowerRouteRewardTier,
-  AccountPowerRouteView
-} from "./workspaces/accountPowerRoute.js";
-export { buildAccountPowerRoute } from "./workspaces/accountPowerRoute.js";
+  AccountChallengeStatus,
+  AccountTodoChallenge
+} from "./workspaces/accountTodoChallenges.js";
+export { buildAccountTodoChallenges, isPowerChallenge } from "./workspaces/accountTodoChallenges.js";
 export type {
   AccountDerivedWorkspace,
   FullAccountWorkspace,
@@ -42,12 +40,12 @@ export type {
   AccountOperationFeedbackView,
   AccountPageModelInput,
   AccountPageWorkspace,
-  AccountPageNavItem,
   AccountPageState,
   AccountPageViewModel,
   AccountPostmasterSectionView,
   AccountPostmasterPreviewItem,
   AccountProfileView,
+  AccountReadonlyFactView,
   AccountReadonlyGroupView,
   AccountReadonlyItemView,
   SharedDomainCache,
@@ -56,7 +54,11 @@ export type {
   AccountSlotComparisonRow,
   AccountSlotComparisonViewRow,
   AccountSlotGroup,
-  AccountTasksSectionView
+  AccountTodoFactsView,
+  AccountTodoFactView,
+  AccountTodoPanelKey,
+  AccountTodoPanelView,
+  AccountTodoSectionView
 } from "./workspaces/accountPage.js";
 export {
   buildAccountLoadoutSlotRows,

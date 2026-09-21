@@ -42,6 +42,8 @@ export function StartupGate(props: StartupGateProps) {
         {props.step === "login" ? <ControlButton variant="primary" aria-busy={props.isBusy} disabled={props.isBusy} onClick={props.onLogin}>{props.isBusy ? "正在打开 Bungie 登录..." : "登录 Bungie"}</ControlButton> : null}
         <ControlButton variant="secondary" onClick={props.onOpenSettings}>打开设置</ControlButton>
       </div>
+      <p className="startup-gate-legal">d2-tools 是非官方社区工具，与 Bungie, Inc. 无从属关系，未获得 Bungie 的赞助或背书。</p>
+      <p className="startup-gate-legal">© Bungie, Inc. All rights reserved. Destiny, the Destiny Logo, Bungie and the Bungie logo are among the trademarks of Bungie, Inc.</p>
     </ProductWorkspaceEmptyState>
   );
 }

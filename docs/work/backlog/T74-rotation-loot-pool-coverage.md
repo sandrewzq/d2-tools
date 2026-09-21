@@ -132,6 +132,6 @@ node scripts/generate-activity-loot.mjs --sqlite "$HOME/Library/Application Supp
 
 ## 十一、拆出去的独立事项
 
-- **T81**：首页掉落池条目能跳进本周刷取（原始诉求里的「已持有 / 推荐标记」2026-09-19 确认不做）；与 A/B 选哪个无关。
+- **T81**：首页掉落池条目能跳进待办里对应的行动行（原始诉求里的「已持有 / 推荐标记」2026-09-19 确认不做）；与 A/B 选哪个无关。
 - **T82**：`homeBriefing.ts` 的 `getDefinitions` 未包 `try/catch`；且「数据集未覆盖」与
   「定义读取失败」在 UI 上显示同一个空态、无法区分。

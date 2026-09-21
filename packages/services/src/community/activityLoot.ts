@@ -25,7 +25,7 @@ export type ActivityLootDatasetActivity = {
   source_url: string;
   source_license: string;
   evidence_note: string;
-  verified_at: string;
+  generated_at: string;
   items: ActivityLootDatasetItem[];
 };
 
@@ -36,18 +36,22 @@ export type ActivityLootDatasetV1 = {
   activities: ActivityLootDatasetActivity[];
 };
 
-const dimSourceInfoUrl = "https://github.com/DestinyItemManager/DIM/blob/2a115690fd20717c4a8daa185eccd027226d4832/src/data/d2/source-info-v2.ts";
-const sourceLicense = "Bungie Manifest；DIM 来源索引为 MIT";
-
 /**
- * 覆盖全部突袭 / 地牢。关系来自 Bungie Collectible 的 sourceString / sourceHash，
- * 并用 DIM 的 MIT 来源索引交叉核对。它确认「来自该活动」，不声称具体遭遇战；
+ * 关系由 scripts/generate-activity-loot.mjs 从 Bungie Collectible 的
+ * sourceString / sourceHash 推出。署名只写这条真实来源：生成脚本本身就是出处，
+ * 数据集没有再引用别的第三方索引。它确认「来自该活动」，不声称具体遭遇战；
  * 带（专家）/（失时）这类后缀的变体按武器计一次，只登记基础版本。
  */
+const generatorScriptUrl = "https://github.com/sandrewzq/d2-tools/blob/main/scripts/generate-activity-loot.mjs";
+const sourceLicense = "Bungie Manifest";
+
+/** 与 `WeeklyFarmingCatalogItem` 的联合类型一致，供数据集校验使用。 */
+const itemVariantValues = new Set(["normal", "adept", "timelost", "harrowed", "reprised", "other"]);
+const dropScopeValues = new Set(["activity", "encounter", "final_chest", "secret_chest", "challenge"]);
 // #region activity-loot-dataset
 // 本区由 scripts/generate-activity-loot.mjs 生成，手工改动会在下次生成时被覆盖。
 const datasetRevision = "2026-09-18.1";
-const datasetVerifiedAt = "2026-09-18";
+const datasetGeneratedAt = "2026-09-18";
 
 export const activityLootDatasetV1: ActivityLootDatasetV1 = {
   schema: "activity-loot.v1",
@@ -61,10 +65,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["晚星之主"],
       source_hash: 2463956052,
       source_label: "Bungie Collectible：来源:晚星之主",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2463956052；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1111334348, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 2452936816, item_variant: "normal", drop_scope: "activity" },
@@ -80,10 +84,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["深渊机灵"],
       source_hash: 3288974535,
       source_label: "Bungie Collectible：来源:“深渊机灵”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 3288974535；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1081724548, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 1585307805 },
         { item_hash: 1441805468, item_variant: "normal", drop_scope: "activity" },
@@ -100,10 +104,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["预言"],
       source_hash: 506073192,
       source_label: "Bungie Collectible：来源:“预言”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 506073192；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 140914741, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 507038823, item_variant: "normal", drop_scope: "activity" },
@@ -131,10 +135,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["守望者尖塔"],
       source_hash: 1597738585,
       source_label: "Bungie Collectible：来源:“守望者尖塔”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1597738585；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 355893876, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 408862798, item_variant: "normal", drop_scope: "activity" },
@@ -152,10 +156,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["战争领主的废墟"],
       source_hash: 613435025,
       source_label: "Bungie Collectible：来源:“战争领主的废墟”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 613435025；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1054567917, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 2525261820, item_variant: "normal", drop_scope: "activity" },
@@ -171,10 +175,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["异端深渊"],
       source_hash: 1745960977,
       source_label: "Bungie Collectible：来源:“异端深渊”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1745960977；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 208088207, item_variant: "normal", drop_scope: "activity" }
       ]
@@ -186,10 +190,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["平衡"],
       source_hash: 3247513834,
       source_label: "Bungie Collectible：来源:平衡",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 3247513834；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 71057630, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 954563454, item_variant: "normal", drop_scope: "activity" },
@@ -208,10 +212,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["二象性"],
       source_hash: 1282207663,
       source_label: "Bungie Collectible：来源:地牢“二象性”",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1282207663；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 234411205, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 1400385226, item_variant: "normal", drop_scope: "activity" },
@@ -229,10 +233,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["分离教义"],
       source_hash: 2607970476,
       source_label: "Bungie Collectible：来源:分离教义",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2607970476；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 331231237, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 388390591, item_variant: "normal", drop_scope: "activity" },
@@ -247,10 +251,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["贪婪之握"],
       source_hash: 675740011,
       source_label: "Bungie Collectible：来源:“贪婪之握”地牢",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 675740011；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 386864872, item_variant: "reprised", drop_scope: "activity" },
         { item_hash: 944708986, item_variant: "reprised", drop_scope: "activity" },
@@ -265,10 +269,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["克洛塔的末日"],
       source_hash: 1897187034,
       source_label: "Bungie Collectible：来源:“克洛塔的末日”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1897187034；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 120706239, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 1741156110 },
         { item_hash: 833898322, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 1294327154 },
@@ -288,10 +292,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["利维坦，星之塔"],
       source_hash: 1675483099,
       source_label: "Bungie Collectible：来源:利维坦,星之塔突袭巢穴。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1675483099；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 2084611899, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 4288031461, item_variant: "normal", drop_scope: "activity" }
@@ -304,10 +308,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["往日之苦"],
       source_hash: 4246883461,
       source_label: "Bungie Collectible：来源:在“往日之苦”突袭中获得。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 4246883461；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1664372054, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 1931556011, item_variant: "normal", drop_scope: "activity" },
@@ -322,10 +326,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["深岩墓室"],
       source_hash: 1405897559,
       source_label: "Bungie Collectible：来源:“深岩墓室”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1405897559；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1392919471, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 3370786210 },
         { item_hash: 2399110176, item_variant: "normal", drop_scope: "activity" },
@@ -343,10 +347,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["忧愁王冠"],
       source_hash: 3147603678,
       source_label: "Bungie Collectible：由突袭“忧愁王冠”获得。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 3147603678；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1286686760, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 1496419775, item_variant: "normal", drop_scope: "activity" },
@@ -361,10 +365,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["救赎花园"],
       source_hash: 1491707941,
       source_label: "Bungie Collectible：来源:“救赎花园”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1491707941；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 48643186, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2901344468 },
         { item_hash: 147444292, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2171799573 },
@@ -390,10 +394,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["永恒沙漠"],
       source_hash: 596084342,
       source_label: "Bungie Collectible：来源:“永恒沙漠”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 596084342；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 688593230, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 1090936013, item_variant: "normal", drop_scope: "activity" },
@@ -411,10 +415,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["国王的陨落"],
       source_hash: 160129377,
       source_label: "Bungie Collectible：来源:“国王的陨落”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 160129377；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 431721920, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 437884069 },
         { item_hash: 1321506184, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 750389420 },
@@ -432,10 +436,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["门徒誓约"],
       source_hash: 1007078046,
       source_label: "Bungie Collectible：来源:“门徒誓约”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 1007078046；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 613334176, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 422252754 },
         { item_hash: 768621510, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2896258222 },
@@ -453,10 +457,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["救赎的边缘"],
       source_hash: 2700267533,
       source_label: "Bungie Collectible：来源:“救赎的边缘”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2700267533；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 445197843, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2043998246 },
         { item_hash: 535198113, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 1077926398 },
@@ -474,10 +478,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["最后一愿"],
       source_hash: 2455011338,
       source_label: "Bungie Collectible：来源:最后一愿突袭。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2455011338；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 568515759, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2610512925 },
         { item_hash: 601592879, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 2906615623 },
@@ -496,10 +500,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["梦魇根源"],
       source_hash: 3190710249,
       source_label: "Bungie Collectible：来源:“梦魇根源”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 3190710249；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 135029084, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 700218081 },
         { item_hash: 231031173, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 1164396532 },
@@ -517,10 +521,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["利维坦"],
       source_hash: 2653618435,
       source_label: "Bungie Collectible：来源:利维坦突袭。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2653618435；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 1018072983, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 1128225405, item_variant: "normal", drop_scope: "activity" },
@@ -539,10 +543,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["世界吞噬者，利维坦"],
       source_hash: 2937902448,
       source_label: "Bungie Collectible：来源:世界吞噬者,利维坦突袭巢穴。",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2937902448；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 2707464805, item_variant: "normal", drop_scope: "activity" },
         { item_hash: 3886263130, item_variant: "normal", drop_scope: "activity" }
@@ -555,10 +559,10 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       names: ["玻璃拱顶"],
       source_hash: 2065138144,
       source_label: "Bungie Collectible：来源:“玻璃拱顶”突袭",
-      source_url: dimSourceInfoUrl,
+      source_url: generatorScriptUrl,
       source_license: sourceLicense,
       evidence_note: "当前 Manifest sourceHash 2065138144；仅确认活动级来源。",
-      verified_at: datasetVerifiedAt,
+      generated_at: datasetGeneratedAt,
       items: [
         { item_hash: 471518543, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 274032278 },
         { item_hash: 694500607, item_variant: "normal", drop_scope: "activity", pattern_record_hash: 906267194 },
@@ -616,15 +620,12 @@ export function buildWeeklyFarmingCatalogResource(input: {
   request: WeeklyFarmingRequest;
   manifestVersion?: string;
   itemDefinitions: DefinitionComponentData;
-  profileRecords?: Record<string, {
-    state?: number;
-    objectives?: Array<{
-      progress?: number;
-      completionValue?: number;
-      complete?: boolean;
-      visible?: boolean;
-    }>;
-  }>;
+  profileRecords?: PatternRecordMap;
+  /**
+   * 组件 901 合并后的角色作用域 Record。图样 record 有一部分是角色作用域，
+   * 只读 900 时这些武器会一直显示「没返回」（T91 第 12 节）。
+   */
+  characterRecords?: PatternRecordMap;
   patternReadFailed?: boolean;
   now?: Date;
   dataset?: ActivityLootDatasetV1;
@@ -670,10 +671,11 @@ export function buildWeeklyFarmingCatalogResource(input: {
         source_label: activity.source_label,
         source_url: activity.source_url,
         source_license: activity.source_license,
-        verified_at: activity.verified_at,
+        generated_at: activity.generated_at,
         pattern: buildPatternProgress(
           item.pattern_record_hash,
           input.profileRecords,
+          input.characterRecords,
           input.patternReadFailed === true
         )
       }];
@@ -729,10 +731,14 @@ export function validateActivityLootDataset(dataset: ActivityLootDatasetV1): str
     activityKeys.add(activity.key);
     if (!Number.isFinite(activity.activity_hash)) errors.push(`${activity.key} 缺少有效 activity_hash。`);
     if (!Number.isFinite(activity.source_hash)) errors.push(`${activity.key} 缺少有效 source_hash。`);
+    if (!activity.activity_kind.trim()
+      || (activity.activity_kind !== "raid" && activity.activity_kind !== "dungeon")) {
+      errors.push(`${activity.key} 的 activity_kind 不是受支持的取值。`);
+    }
     if (!activity.names.some((name) => name.trim())) errors.push(`${activity.key} 缺少可匹配的正式名称。`);
     if (!activity.source_url.startsWith("https://")) errors.push(`${activity.key} 缺少可追溯的 HTTPS 来源。`);
     if (!activity.source_license.trim()) errors.push(`${activity.key} 缺少来源许可说明。`);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(activity.verified_at)) errors.push(`${activity.key} 的 verified_at 无效。`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(activity.generated_at)) errors.push(`${activity.key} 的 generated_at 无效。`);
     if (!activity.items.length) errors.push(`${activity.key} 没有任何受控装备关系。`);
     const itemHashes = new Set<number>();
     for (const item of activity.items) {
@@ -740,6 +746,13 @@ export function validateActivityLootDataset(dataset: ActivityLootDatasetV1): str
       if (!hash) errors.push(`${activity.key} 存在无效装备 Hash。`);
       if (itemHashes.has(hash)) errors.push(`${activity.key} 重复登记装备 ${hash}。`);
       itemHashes.add(hash);
+      // 取值是闭集合，数据集又是可手改的生成区，写错一个词界面会静默按未知值渲染。
+      if (!itemVariantValues.has(item.item_variant)) {
+        errors.push(`${activity.key} 的装备 ${hash} 用了未知 item_variant：${item.item_variant}`);
+      }
+      if (!dropScopeValues.has(item.drop_scope)) {
+        errors.push(`${activity.key} 的装备 ${hash} 用了未知 drop_scope：${item.drop_scope}`);
+      }
     }
   }
   return uniqueStrings(errors);
@@ -752,26 +765,44 @@ function assertValidActivityLootDataset(dataset: ActivityLootDatasetV1): void {
   }
 }
 
+/**
+ * 一条 Record 进度。`state` 是 Bungie 的位域，`objectives` 只取图样进度需要的字段。
+ */
+type PatternRecordProgress = {
+  state?: number;
+  objectives?: Array<{
+    progress?: number;
+    completionValue?: number;
+    complete?: boolean;
+    visible?: boolean;
+  }>;
+};
+
+type PatternRecordMap = Record<string, PatternRecordProgress>;
+
 function buildPatternProgress(
   recordHash: number | undefined,
-  records: Record<string, {
-    state?: number;
-    objectives?: Array<{
-      progress?: number;
-      completionValue?: number;
-      complete?: boolean;
-      visible?: boolean;
-    }>;
-  }> | undefined,
+  profileRecords: PatternRecordMap | undefined,
+  characterRecords: PatternRecordMap | undefined,
   readFailed: boolean
 ): WeeklyFarmingPatternProgress {
-  if (recordHash === undefined) return { status: "not_craftable" };
+  // 数据集没给这把武器写图样记录，与「这把武器不可制作」是两回事：前者是缺数据，
+  // 后者是确定的结论，报成后者会把「没查过」说成「不用查」（T91 第 6 节）。
+  if (recordHash === undefined) return { status: "unavailable", reason: "pattern_not_mapped" };
   if (readFailed) return { status: "unavailable", record_hash: recordHash, reason: "read_failed" };
-  const record = records?.[String(toUnsignedHash(recordHash))];
+  // 图样 record 有账号作用域和角色作用域两种，后者只随组件 901 返回。本机 Manifest 里
+  // 183 条武器模式 record 有 32 条是角色作用域，只看 900 会把它们一律报成「没返回」
+  // （T91 第 12 节）。
+  const key = String(toUnsignedHash(recordHash));
+  const record = profileRecords?.[key] ?? characterRecords?.[key];
   if (!record) return { status: "unavailable", record_hash: recordHash, reason: "not_returned" };
   const state = record.state ?? 0;
   if ((state & 32) !== 0) {
     return { status: "unavailable", record_hash: recordHash, reason: "entitlement_unowned" };
+  }
+  // 位 2 是 Bungie 的 RewardUnavailable：记录自己说这一项的奖励当前不可用。
+  if ((state & 2) !== 0) {
+    return { status: "unavailable", record_hash: recordHash, reason: "reward_unavailable" };
   }
   if ((state & 8) !== 0 || (state & 16) !== 0) {
     return { status: "unavailable", record_hash: recordHash, reason: "record_hidden" };
@@ -784,8 +815,12 @@ function buildPatternProgress(
   if (!objective?.completionValue) {
     return { status: "unavailable", record_hash: recordHash, reason: "objective_missing" };
   }
+  // 进度值缺失时不退回 0：`0 / N` 会被读成「一点没打」，实际是这次没读到（T91 第 12 节）。
+  if (typeof objective.progress !== "number") {
+    return { status: "unavailable", record_hash: recordHash, reason: "progress_missing" };
+  }
   const completionValue = Math.max(1, objective.completionValue);
-  const progress = Math.min(completionValue, Math.max(0, objective.progress ?? 0));
+  const progress = Math.min(completionValue, Math.max(0, objective.progress));
   const complete = objective.complete === true || progress >= completionValue;
   return {
     status: complete ? "complete" : "in_progress",
@@ -801,10 +836,10 @@ function activityMatches(
   rotation: WeeklyFarmingRotationActivity
 ): boolean {
   if (candidate.activity_kind !== rotation.kind) return false;
+  // 只认 Hash。名称子串回落会把「名字像」当成「是同一个活动」，进而把数据集没覆盖的
+  // 活动报成已覆盖（T91 第 12 节）。
   const hashes = new Set((rotation.related_hashes ?? []).map(toUnsignedHash));
-  if (hashes.has(toUnsignedHash(candidate.activity_hash))) return true;
-  const title = normalizeActivityName(rotation.title);
-  return candidate.names.some((name) => title.includes(normalizeActivityName(name)));
+  return hashes.has(toUnsignedHash(candidate.activity_hash));
 }
 
 function normalizeActivityName(value: string): string {

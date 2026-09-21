@@ -23,9 +23,6 @@ export type WeeklyFarmingRequest = {
 
 export type WeeklyFarmingPatternProgress =
   | {
-      status: "not_craftable";
-    }
-  | {
       status: "in_progress" | "complete";
       record_hash: number;
       progress: number;
@@ -35,7 +32,20 @@ export type WeeklyFarmingPatternProgress =
   | {
       status: "unavailable";
       record_hash?: number;
-      reason: "not_returned" | "objective_missing" | "record_hidden" | "entitlement_unowned" | "read_failed";
+      /**
+       * 缺失原因。`pattern_not_mapped` 是数据集没给这把武器写图样记录，`progress_missing` 是
+       * Bungie 返回了记录但没给进度值，`reward_unavailable` 是记录自报奖励不可用。三者都与
+       * 「这把武器不可制作」不是一回事，界面上必须分得开（T91 第 6 节）。
+       */
+      reason:
+        | "not_returned"
+        | "objective_missing"
+        | "record_hidden"
+        | "entitlement_unowned"
+        | "read_failed"
+        | "pattern_not_mapped"
+        | "progress_missing"
+        | "reward_unavailable";
     };
 
 export type WeeklyFarmingCatalogItem = {
@@ -49,7 +59,12 @@ export type WeeklyFarmingCatalogItem = {
   source_label: string;
   source_url: string;
   source_license: string;
-  verified_at: string;
+  /**
+   * 这份受控掉落关系的生成日期，不是「核对通过」的日期。数据集由
+   * `scripts/generate-activity-loot.mjs` 从 Manifest 推出，界面按「数据集生成时间」展示
+   * （T91 第 12 节）。
+   */
+  generated_at: string;
   pattern: WeeklyFarmingPatternProgress;
 };
 

@@ -4,6 +4,9 @@ import type {
   AccountItemView,
   AccountOpenItemPayload,
   AccountPageViewModel,
+  AccountTodoPanelKey,
+  AccountTodoPanelView,
+  AccountTodoFactsView,
   CharacterPowerView,
   CharacterPowerValueView,
   AccountReadonlyGroupView,
@@ -35,7 +38,10 @@ export type AccountPageActions = {
   loginBungie: () => void;
   refreshAccount: () => void;
   refreshActivity: () => void;
-  refreshPowerRoute: () => void;
+  /** 重新拉任务、赏金与活动挑战。待办清单读不到数据时用它重试，不用整页刷新。 */
+  refreshTasks: () => void;
+  /** 进入「待办」时读任务资源与本周刷取；这两份不在首屏上，整页加载时不读（T91 第 8 节）。 */
+  requestTodoResources: () => void;
   selectCharacter: (characterId: string) => void;
   equipHighestPower?: (characterId: string) => void;
   openItem: (payload: AccountOpenItemPayload) => void;
@@ -50,12 +56,28 @@ export type AccountPageContentViewProps = {
   actions: AccountPageActions;
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   weeklyFarming?: LibraryWeeklyFarmingView;
-  /** 首页「查看本周刷取」的深链接请求：切到本周刷取分区并滚动到对应活动。requestId 保证同一条目重复点击也生效。 */
-  weeklyFarmingLocateRequest?: { activityKey: string; requestId: number };
+  /** 首页「查看本周刷取」的深链接请求：切到含该活动的时限桶，并展开对应的行动行。requestId 保证同一条目重复点击也生效。 */
+  weeklyFarmingLocateRequest?: AccountTodoLocateRequest;
 };
 
-type AccountMode = "role_state" | "weekly_action" | "account_data";
-type AccountSection = "gear" | "configuration" | "postmaster" | "tasks" | "power_route" | "weekly_farming" | "items" | "activity";
+type AccountMode = "role_state" | "todo" | "account_data";
+/** 二级待办的五个入口，和 `AccountPageViewModel["todo"]["panels"]` 的 key 一一对应。 */
+type AccountTodoSection = `todo_${AccountTodoPanelKey}`;
+type AccountSection = "gear" | "configuration" | "postmaster" | AccountTodoSection | "items" | "activity";
+
+const accountTodoSections: AccountTodoSection[] = ["todo_all", "todo_daily", "todo_weekly", "todo_timeless", "todo_power"];
+
+const accountTodoPanelLabels: Record<AccountTodoPanelKey, string> = {
+  all: "全部",
+  daily: "日常",
+  weekly: "周常",
+  timeless: "不限时",
+  power: "提光"
+};
+
+/** 首页「查看本周刷取」的深链接请求：切到含该活动的时限桶，并展开对应的行动行。 */
+export type AccountTodoLocateRequest = { activityKey: string; requestId: number };
+
 const accountCategoryOrder: AccountSlotComparisonViewRow["category"][] = ["weapons", "armor"];
 const accountCategoryLabels: Record<AccountSlotComparisonViewRow["category"], string> = {
   weapons: "武器",
@@ -73,20 +95,40 @@ function visibleAccountSlotRows(rows: AccountSlotComparisonViewRow[]): AccountSl
 }
 
 function accountModeForSection(section: AccountSection): AccountMode {
-  if (["tasks", "power_route", "weekly_farming"].includes(section)) return "weekly_action";
-  if (["items", "activity"].includes(section)) return "account_data";
+  if (isAccountTodoSection(section)) return "todo";
+  if (section === "items" || section === "activity") return "account_data";
   return "role_state";
+}
+
+function isAccountTodoSection(section: AccountSection): section is AccountTodoSection {
+  return section.startsWith("todo_");
+}
+
+function accountTodoPanelKey(section: AccountTodoSection): AccountTodoPanelKey {
+  return section.slice("todo_".length) as AccountTodoPanelKey;
+}
+
+function accountSectionHash(section: AccountSection): string {
+  return isAccountTodoSection(section)
+    ? `#account-todo-${accountTodoPanelKey(section)}`
+    : `#account-${section}`;
 }
 
 function initialAccountSection(): AccountSection {
   if (typeof window === "undefined") return "gear";
   switch (window.location.hash) {
     case "#account-role-state": return "gear";
-    case "#account-weekly-action": return "tasks";
     case "#account-account-data": return "items";
-    case "#account-tasks": return "tasks";
-    case "#account-power-route": return "power_route";
-    case "#account-weekly-farming": return "weekly_farming";
+    // 旧的三个平级分区已经并进待办清单，老链接落到对应入口，不做 404 式的空白页。
+    case "#account-weekly-action":
+    case "#account-tasks":
+    case "#account-weekly-farming": return "todo_all";
+    case "#account-power-route": return "todo_power";
+    case "#account-todo-all": return "todo_all";
+    case "#account-todo-daily": return "todo_daily";
+    case "#account-todo-weekly": return "todo_weekly";
+    case "#account-todo-timeless": return "todo_timeless";
+    case "#account-todo-power": return "todo_power";
     case "#account-items": return "items";
     case "#account-activity": return "activity";
     case "#account-configuration": return "configuration";
@@ -104,26 +146,21 @@ export function AccountPageContentView(props: AccountPageContentViewProps) {
   const activitySummary = viewModel.activity.summary;
   const activityReview = activitySummary ? activitySummary.review : null;
   const [section, setSection] = useState<AccountSection>(initialAccountSection);
-  const weeklyFarmingLocateActivityKey = props.weeklyFarmingLocateRequest?.activityKey;
   const weeklyFarmingLocateRequestId = props.weeklyFarmingLocateRequest?.requestId;
+  const todoLocateRequest = props.weeklyFarmingLocateRequest;
 
   useEffect(() => {
     if (weeklyFarmingLocateRequestId === undefined) return;
-    setSection("weekly_farming");
+    // 挑战行一律落在「周常」段（时限由活动身份决定），所以直接切到周常入口；
+    // 展开和滚动由行动行自己在挂载/匹配后处理，不依赖这里已经渲染完。
+    setSection("todo_weekly");
   }, [weeklyFarmingLocateRequestId]);
-
-  useEffect(() => {
-    if (!weeklyFarmingLocateActivityKey || section !== "weekly_farming") return;
-    const panel = document.getElementById("account-panel-weekly_farming");
-    const target = panel?.querySelector<HTMLElement>(`[id="library-weekly-${weeklyFarmingLocateActivityKey}"]`);
-    target?.scrollIntoView({ block: "start", behavior: "smooth" });
-  }, [weeklyFarmingLocateActivityKey, weeklyFarmingLocateRequestId, section]);
 
   if (!profile || !selectedCharacter) {
     return <AccountUnavailableState actions={actions} copy={copy} viewModel={viewModel} />;
   }
 
-  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} recommendationSummaryByInstance={props.recommendationSummaryByInstance} section={section} selectedCharacter={selectedCharacter} setSection={setSection} viewModel={viewModel} weeklyFarming={props.weeklyFarming} />;
+  return <AccountPageWorkspace actions={actions} activityReview={activityReview} activitySummary={activitySummary} copy={copy} interfaceLocale={interfaceLocale} recommendationSummaryByInstance={props.recommendationSummaryByInstance} section={section} selectedCharacter={selectedCharacter} setSection={setSection} todoLocateRequest={todoLocateRequest} viewModel={viewModel} weeklyFarming={props.weeklyFarming} />;
 }
 
 function AccountUnavailableState(props: {
@@ -176,6 +213,7 @@ function AccountPageWorkspace(props: {
   section: AccountSection;
   selectedCharacter: NonNullable<AccountPageViewModel["selectedCharacter"]>;
   setSection: (section: AccountSection) => void;
+  todoLocateRequest?: AccountTodoLocateRequest;
   viewModel: AccountPageViewModel;
   weeklyFarming?: LibraryWeeklyFarmingView;
 }) {
@@ -201,21 +239,28 @@ function AccountPageWorkspace(props: {
   const directoryOrientation = useAccountDirectoryOrientation();
   const modeNavigation: Array<{ key: AccountMode; label: string; detail: string }> = [
     { key: "role_state", label: accountText(props.copy, "角色状态"), detail: accountText(props.copy, "当前角色") },
-    { key: "weekly_action", label: accountText(props.copy, "本周行动"), detail: accountText(props.copy, "任务、提光与刷取") },
+    { key: "todo", label: accountText(props.copy, "待办"), detail: accountText(props.copy, "还没做完的事") },
     { key: "account_data", label: accountText(props.copy, "账号资料"), detail: accountText(props.copy, "整个账号") }
   ];
-  const navigation: Array<{ key: AccountSection; label: string; count?: number; scopeLabel: string }> = mode === "role_state"
+  const todoPanels = new Map(props.viewModel.todo.panels.map((panel) => [panel.key, panel]));
+  const navigation: Array<{ key: AccountSection; label: string; count?: number; scopeLabel: string; axis?: "kind" }> = mode === "role_state"
     ? [
         { key: "gear", label: accountText(props.copy, "战斗装备"), scopeLabel: accountText(props.copy, "当前角色") },
         { key: "configuration", label: accountText(props.copy, "角色物品与配置"), scopeLabel: accountText(props.copy, "当前角色") },
         { key: "postmaster", label: accountText(props.copy, "邮政官"), count: props.viewModel.postmaster.totalCount || undefined, scopeLabel: accountText(props.copy, "当前角色") }
       ]
-    : mode === "weekly_action"
-      ? [
-          { key: "tasks", label: accountText(props.copy, "任务与赏金"), scopeLabel: accountText(props.copy, "全部角色") },
-          { key: "power_route", label: accountText(props.copy, "光等提升"), scopeLabel: accountText(props.copy, "当前角色") },
-          { key: "weekly_farming", label: accountText(props.copy, "本周刷取"), scopeLabel: accountText(props.copy, "整个账号") }
-        ]
+    : mode === "todo"
+      ? accountTodoSections.map((section) => {
+          const panelKey = accountTodoPanelKey(section);
+          return {
+            key: section,
+            label: accountText(props.copy, accountTodoPanelLabels[panelKey]),
+            count: todoPanels.get(panelKey)?.count ?? 0,
+            scopeLabel: accountText(props.copy, "全部角色"),
+            // 前四个是按「多急」切的时限桶，提光按奖励口径切，隔一条线分开，不读成第五个时限桶。
+            ...(panelKey === "power" ? { axis: "kind" as const } : {})
+          };
+        })
       : [
           { key: "items", label: accountText(props.copy, "材料与货币"), scopeLabel: accountText(props.copy, "整个账号") },
           { key: "activity", label: accountText(props.copy, "账号战绩"), scopeLabel: accountText(props.copy, "整个账号") }
@@ -248,9 +293,24 @@ function AccountPageWorkspace(props: {
     tabRefs.current[selectedIndex]?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [props.section]);
 
+  // 进「待办」才让平台壳去读任务资源与本周刷取，两份都不在首屏上（T91 第 8 节）。
+  // mode 的初值就来自落点分区，所以从深链接直接进来时挂载即触发；读完之后重复触发是空操作，
+  // 只有「待办」自己的同步状态落定（isSyncing 翻转）才会再要一次——进待办时简报可能还没回来，
+  // 那一次没有活动可读。
+  const requestTodoResources = props.actions.requestTodoResources;
+  const isTodoSyncing = props.viewModel.todo.isSyncing;
+  const requestTodoResourcesRef = useRef(requestTodoResources);
+  useEffect(() => {
+    requestTodoResourcesRef.current = requestTodoResources;
+  }, [requestTodoResources]);
+  useEffect(() => {
+    if (mode !== "todo") return;
+    requestTodoResourcesRef.current();
+  }, [mode, isTodoSyncing]);
+
   function selectMode(nextMode: AccountMode): void {
     setIsPowerPanelOpen(false);
-    const firstSection = nextMode === "role_state" ? "gear" : nextMode === "weekly_action" ? "tasks" : "items";
+    const firstSection: AccountSection = nextMode === "role_state" ? "gear" : nextMode === "todo" ? "todo_all" : "items";
     setMode(nextMode);
     props.setSection(firstSection);
     if (typeof window !== "undefined") window.history.replaceState(null, "", `#account-${nextMode.replace("_", "-")}`);
@@ -259,16 +319,7 @@ function AccountPageWorkspace(props: {
   function selectSection(nextSection: AccountSection): void {
     setIsPowerPanelOpen(false);
     setMode(accountModeForSection(nextSection));
-    if (typeof window !== "undefined") {
-      if (nextSection === "tasks") window.history.replaceState(null, "", "#account-tasks");
-      else if (nextSection === "power_route") window.history.replaceState(null, "", "#account-power-route");
-      else if (nextSection === "weekly_farming") window.history.replaceState(null, "", "#account-weekly-farming");
-      else if (nextSection === "items") window.history.replaceState(null, "", "#account-items");
-      else if (nextSection === "activity") window.history.replaceState(null, "", "#account-activity");
-      else if (nextSection === "configuration") window.history.replaceState(null, "", "#account-configuration");
-      else if (nextSection === "postmaster") window.history.replaceState(null, "", "#account-postmaster");
-      else if (window.location.hash) window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
-    }
+    if (typeof window !== "undefined") window.history.replaceState(null, "", accountSectionHash(nextSection));
     props.setSection(nextSection);
   }
 
@@ -381,7 +432,7 @@ function AccountPageWorkspace(props: {
     || operationFeedback?.phase === "syncing"
     || operationFeedback?.phase === "delayed"
     || operationFeedback?.phase === "partial";
-  // 操作反馈挂在页头下方：三个数据视图（角色状态 / 本周行动 / 账号资料）都会渲染页头，
+  // 操作反馈挂在页头下方：三个数据视图（角色状态 / 待办 / 账号资料）都会渲染页头，
   // 而容量卡片只在角色状态下出现，反馈跟着卡片走会在其余视图里消失。放进页头后也不必再
   // 预留固定高度的空槽，没有操作时这块位置不占任何空间。
   const operationStatus = operationFeedback ? (
@@ -407,6 +458,7 @@ function AccountPageWorkspace(props: {
           {modeNavigation.map((item, index) => (
             <button
               type="button"
+              key={item.key}
               role="tab"
               id={`account-mode-${item.key}`}
               aria-selected={mode === item.key}
@@ -443,6 +495,7 @@ function AccountPageWorkspace(props: {
                 aria-selected={props.section === item.key}
                 tabIndex={props.section === item.key ? 0 : -1}
                 className={props.section === item.key ? "active" : ""}
+                data-axis={item.axis}
                 ref={(element) => { tabRefs.current[index] = element; }}
                 onClick={() => selectSection(item.key)}
                 onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
@@ -458,7 +511,10 @@ function AccountPageWorkspace(props: {
         <section className="account-summary" data-surface="section" aria-busy={props.viewModel.connection.isLoadingAccount}>
           <div className="account-band-heading">
             <div>
-              <h2 data-ui-part="value" data-info-priority="display" data-text-tone="primary">{profile.accountName}</h2>
+              {/* 账号名是三个模式共用的轻量上下文，不跟页面标题抢同一档字号：
+                  挂 display 会命中共享层的 24px，比菜单自己的 `.account-band-heading h2`（18px）更具体，
+                  菜单规则永远不生效。去掉这个属性，让菜单自己的字号接管。 */}
+              <h2 data-ui-part="value" data-text-tone="primary">{profile.accountName}</h2>
               <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">
                 {props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}
                 {profile.snapshotAt ? ` · ${accountText(props.copy, "更新于")} ${formatClockTime(profile.snapshotAt)}` : ""}
@@ -536,13 +592,13 @@ function AccountPageWorkspace(props: {
               </button> : null}
             </div>
           </AccountCapacityOverview>
-          </> : mode === "weekly_action" ? (
+          </> : mode === "todo" ? (
             <div className="account-mode-summary" data-ui-kind="summary-frame">
               <div>
-                <strong>{accountText(props.copy, "本周行动")}</strong>
-                <span>{accountText(props.copy, "任务、提光与刷取")}</span>
+                <strong>{accountText(props.copy, "待办")}</strong>
+                <span>{accountText(props.copy, "还没做完的事")}</span>
               </div>
-              <span>{props.selectedCharacter.className} · {accountText(props.copy, "当前角色可切换")}</span>
+              <span>{accountText(props.copy, "全部角色")} · {accountText(props.copy, "任务、赏金与活动挑战在同一张清单里")}</span>
             </div>
           ) : (
             <div className="account-mode-summary" data-ui-kind="summary-frame">
@@ -610,96 +666,21 @@ function AccountPageWorkspace(props: {
           tabIndex={-1}
           hidden={props.section !== "configuration"}
         >
-          <AccountCharacterItemsPanel copy={props.copy} viewModel={props.viewModel} />
+          <AccountCharacterItemsPanel actions={props.actions} copy={props.copy} viewModel={props.viewModel} />
         </section>
 
-        <section
-          className={`account-section ${props.section === "tasks" ? "active" : ""}`}
-          id="account-panel-tasks"
-          role="tabpanel"
-          aria-labelledby="account-tab-tasks"
-          tabIndex={-1}
-          hidden={props.section !== "tasks"}
-        >
-          <div className="account-column-head">
-            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "账号任务与赏金")}</h3>
-            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-              {props.viewModel.tasks.itemCount} 项 · {accountText(props.copy, "覆盖全部角色")} · {accountText(props.copy, props.viewModel.tasks.statusLabel)}
-              {props.viewModel.tasks.observedAt ? ` · ${accountText(props.copy, "数据时间")} ${formatCompactDateTime(props.viewModel.tasks.observedAt)}` : ""}
-            </span>
-          </div>
-          <AccountStatusMatrix entries={[
-            { label: "已完成待处理", value: props.viewModel.tasks.pendingCount },
-            { label: "24 小时内过期", value: props.viewModel.tasks.expiringCount },
-            { label: "正在追踪", value: props.viewModel.tasks.trackedCount }
-          ]} />
-          {props.viewModel.tasks.isSyncing ? <p className="status-message status-pending" role="status">任务数据同步中，列表保留上次确认结果。</p> : null}
-          {props.viewModel.tasks.errorMessage ? <p className="status-message status-error" role="alert">任务同步失败，继续显示上次确认结果。{props.viewModel.tasks.errorMessage}</p> : null}
-          <div className="account-task-type-summary" aria-label="任务类型数量">
-            <span>任务与步骤 {props.viewModel.tasks.questCount}</span>
-            <span>命令与赏金 {props.viewModel.tasks.orderCount}</span>
-            <span>神器与赛季 {props.viewModel.tasks.seasonalCount}</span>
-          </div>
-          {props.viewModel.tasks.dataState === "partial" ? <p className="status-message status-warning">任务数据部分可用，未返回的任务不会被猜测补齐。</p> : null}
-          {props.viewModel.tasks.itemCount ? (
-            <AccountDataGroups copy={props.copy} groups={props.viewModel.tasks.groups} />
-          ) : (
-            <AccountInlineState
-              title={props.viewModel.tasks.isSyncing
-                ? "正在读取任务数据"
-                : props.viewModel.tasks.errorMessage
-                  ? "任务数据暂时不可用"
-                  : "没有读取到待处理任务"}
-              detail={props.viewModel.tasks.isSyncing
-                ? "装备数据保持可用，任务目标会在独立同步完成后出现。"
-                : props.viewModel.tasks.errorMessage
-                  ? "本次读取失败，不能把空列表解释为账号没有任务。"
-                  : "三个角色的任务物品和角色目标中没有可显示项目。"}
-            />
-          )}
-        </section>
-
-        <section
-          className={`account-section ${props.section === "power_route" ? "active" : ""}`}
-          id="account-panel-power_route"
-          role="tabpanel"
-          aria-labelledby="account-tab-power_route"
-          tabIndex={-1}
-          hidden={props.section !== "power_route"}
-        >
-          <div className="account-column-head">
-            <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "光等提升")}</h3>
-            <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "当前角色")}</span>
-          </div>
-          <AccountPowerRouteOverview
+        {accountTodoSections.map((section) => (
+          <AccountTodoPanelSection
+            actions={props.actions}
             copy={props.copy}
-            characterName={props.selectedCharacter.className}
-            onRefresh={props.actions.refreshPowerRoute}
-            route={props.viewModel.powerRoute}
+            isActive={props.section === section}
+            key={section}
+            locateRequest={props.todoLocateRequest}
+            panel={todoPanels.get(accountTodoPanelKey(section))}
+            viewModel={props.viewModel}
+            weeklyFarming={props.weeklyFarming}
           />
-        </section>
-
-        <section
-          className={`account-section ${props.section === "weekly_farming" ? "active" : ""}`}
-          id="account-panel-weekly_farming"
-          role="tabpanel"
-          aria-labelledby="account-tab-weekly_farming"
-          tabIndex={-1}
-          hidden={props.section !== "weekly_farming"}
-        >
-          {props.weeklyFarming ? (
-            <WeeklyFarmingPanel
-              weekly={props.weeklyFarming}
-              actions={{
-                onRefreshWeeklyRotation: props.actions.refreshWeeklyRotation,
-                onRefreshWeeklyFarming: props.actions.refreshWeeklyFarming,
-                onOpenWeeklyFarmingItem: props.actions.openWeeklyFarmingItem
-              }}
-            />
-          ) : (
-            <AccountInlineState title="本周刷取暂不可用" detail="本周轮换数据加载后会在这里显示活动、推荐装备和账号缺口。" />
-          )}
-        </section>
+        ))}
 
         <section
           className={`account-section ${props.section === "postmaster" ? "active" : ""}`}
@@ -793,122 +774,6 @@ function AccountPageWorkspace(props: {
         </ConfirmationDialog>
       ) : null}
     </>
-  );
-}
-
-function AccountPowerRouteOverview(props: {
-  copy: AccountCopy;
-  characterName: string;
-  onRefresh: () => void;
-  route: AccountPageViewModel["powerRoute"];
-}) {
-  const availableItems = props.route.items.filter((item) => item.status === "available");
-  const primaryItems = availableItems.slice(0, 3);
-  const secondaryItems = [
-    ...availableItems.slice(3),
-    ...props.route.items.filter((item) => item.status !== "available")
-  ];
-  const routeStateLabel = props.route.status === "ready"
-    ? "周奖励状态已确认"
-    : props.route.status === "partial"
-      ? "部分状态待确认"
-      : "周奖励尚未读取";
-
-  const visibleStateLabel = props.route.isRefreshing ? "正在刷新周奖励" : routeStateLabel;
-
-  return (
-    <section className="account-power-route" data-ui-kind="summary-frame" data-state={props.route.status} aria-labelledby="account-power-route-title">
-      <div className="account-power-route-heading">
-        <div>
-          <h3 id="account-power-route-title">{props.characterName}{accountText(props.copy, "提光路线")}</h3>
-          <p>
-            {accountText(props.copy, "当前掉落基准")} {props.route.baselineLabel}
-            {` · ${props.route.availableCount} ${accountText(props.copy, "个已确认奖励可做")}`}
-          </p>
-        </div>
-        <div className="account-power-route-heading-actions">
-          <span className={`ui-badge status-${props.route.status === "ready" && !props.route.isRefreshing ? "ready" : "pending"}`} data-ui-kind="status-chip">
-            {accountText(props.copy, visibleStateLabel)}
-          </span>
-          <RefreshControlButton variant="secondary" refreshing={props.route.isRefreshing} onClick={props.onRefresh}>
-            {accountText(props.copy, props.route.isRefreshing ? "刷新中" : "刷新提光路线")}
-          </RefreshControlButton>
-        </div>
-      </div>
-
-      {props.route.errorMessage ? (
-        <p className="status-message status-warning" role="status">
-          {accountText(props.copy, "周奖励刷新失败，继续显示上次结果。")} {props.route.errorMessage}
-        </p>
-      ) : null}
-
-      {primaryItems.length ? (
-        <div className="account-power-route-list">
-          {primaryItems.map((item, index) => (
-            <AccountPowerRouteItem copy={props.copy} item={item} key={item.key} priority={index + 1} />
-          ))}
-        </div>
-      ) : (
-        <p className="account-power-route-empty">
-          {accountText(
-            props.copy,
-            props.route.status === "unavailable"
-              ? "读取周奖励后，这里会显示当前角色下一步可以做什么。"
-              : "当前没有可执行的已确认提光奖励，不会用普通活动掉落猜测推荐。"
-          )}
-        </p>
-      )}
-
-      {secondaryItems.length ? (
-        <details className="account-power-route-more">
-          <summary>{accountText(props.copy, "查看其余提光项目")}（{secondaryItems.length}）</summary>
-          <div className="account-power-route-list">
-            {secondaryItems.map((item, index) => (
-              <AccountPowerRouteItem copy={props.copy} item={item} key={item.key} priority={primaryItems.length + index + 1} />
-            ))}
-          </div>
-        </details>
-      ) : null}
-
-      <p className="account-power-route-source">
-        {accountText(props.copy, "周期")}：{props.route.sourceLabel} · {accountText(props.copy, "奖励槽位随机，不保证补到最低位置")}
-      </p>
-    </section>
-  );
-}
-
-function AccountPowerRouteItem(props: {
-  copy: AccountCopy;
-  item: AccountPageViewModel["powerRoute"]["items"][number];
-  priority: number;
-}) {
-  const isRecommended = props.item.status === "available" && props.item.rewardTier !== "unknown";
-  const tierLabel = props.item.rewardTier === "pinnacle"
-    ? "巅峰奖励"
-    : props.item.rewardTier === "powerful"
-      ? "强力奖励"
-      : "奖励待确认";
-
-  return (
-    <article className="account-power-route-item" data-status={props.item.status} data-reward-tier={props.item.rewardTier}>
-      <div className="account-power-route-identity">
-        <span>{isRecommended ? `${accountText(props.copy, "优先")} ${props.priority}` : accountText(props.copy, props.item.activityTypeLabel)}</span>
-        <strong>{props.item.activityName}</strong>
-        <small>{accountText(props.copy, props.item.activityTypeLabel)}</small>
-      </div>
-      <div className="account-power-route-state">
-        <span className={`ui-badge status-${props.item.status === "completed" ? "ready" : props.item.status === "available" ? "pending" : "warning"}`}>
-          {accountText(props.copy, props.item.statusLabel)}
-        </span>
-        <strong>{accountText(props.copy, tierLabel)}</strong>
-        <small>{props.item.rewardLabel}{props.item.progressLabel ? ` · ${props.item.progressLabel}` : ""}</small>
-      </div>
-      <div className="account-power-route-value">
-        <strong>{accountText(props.copy, props.item.valueLabel)}</strong>
-        <p>{accountText(props.copy, props.item.reason)}</p>
-        <small>{accountText(props.copy, "来源")}：{props.item.sourceLabel}</small>
-      </div>
-    </article>
   );
 }
 
@@ -1032,7 +897,7 @@ function formatCapacityMetricStatus(
   return `${accountText(copy, "剩余")} ${metric.remaining ?? 0} ${accountText(copy, "格")}`;
 }
 
-function AccountCharacterItemsPanel(props: { copy: AccountCopy; viewModel: AccountPageViewModel }) {
+function AccountCharacterItemsPanel(props: { actions: AccountPageActions; copy: AccountCopy; viewModel: AccountPageViewModel }) {
   const { primaryItems, extraItems } = props.viewModel.configuration;
   return (
     <section className="account-character-config" data-surface="section">
@@ -1068,7 +933,7 @@ function AccountCharacterItemsPanel(props: { copy: AccountCopy; viewModel: Accou
           {props.viewModel.items.carriedCount + props.viewModel.items.collectionCount + props.viewModel.items.unknownCount} 项 · {accountText(props.copy, "当前角色")}
         </span>
       </div>
-      <AccountDataGroups copy={props.copy} groups={props.viewModel.items.groups} />
+      <AccountDataGroups actions={props.actions} copy={props.copy} groups={props.viewModel.items.groups} />
     </section>
   );
 }
@@ -1101,15 +966,191 @@ function AccountStatusMatrix(props: {
   );
 }
 
-function AccountDataGroups(props: { copy: AccountCopy; groups: AccountReadonlyGroupView[] }) {
+function AccountTodoPanelSection(props: {
+  actions: AccountPageActions;
+  copy: AccountCopy;
+  isActive: boolean;
+  locateRequest?: AccountTodoLocateRequest;
+  panel?: AccountTodoPanelView;
+  viewModel: AccountPageViewModel;
+  weeklyFarming?: LibraryWeeklyFarmingView;
+}) {
+  const panel = props.panel;
+  const todo = props.viewModel.todo;
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const section = panel ? `todo_${panel.key}` : "todo_all";
+  const isPowerPanel = panel?.key === "power";
+
+  // 滚动放在这一层：行动行可能挂在还没显示的段里，等这一段真的显示出来再滚才有落点。
+  useEffect(() => {
+    if (!props.isActive || props.locateRequest?.requestId === undefined) return;
+    const target = sectionRef.current?.querySelector<HTMLElement>(
+      `[data-activity-key="${props.locateRequest.activityKey}"]`
+    );
+    target?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [props.isActive, props.locateRequest?.activityKey, props.locateRequest?.requestId]);
+
+  const emptyTitle = todo.isSyncing
+    ? "正在读取待办数据"
+    : todo.errorMessage
+      ? "待办数据暂时不可用"
+      : isPowerPanel
+        ? "这一档没有提光项"
+        : "这一档没有待办";
+  const emptyDetail = todo.isSyncing
+    ? "装备数据保持可用，任务与挑战会在独立同步完成后出现。"
+    : todo.errorMessage
+      ? "本次读取失败，不能把空列表解释为账号没有待办。"
+      : isPowerPanel
+        ? "读到的挑战里，奖励名字和奖励物品的装备阶级都没带等级占位词。这不是筛子写窄了，是游戏没给这几项等级信息。"
+        : "读到的任务、赏金和活动挑战里，没有落在这一档的项。";
+
+  return (
+    <section
+      className={`account-section ${props.isActive ? "active" : ""}`}
+      id={`account-panel-${section}`}
+      ref={sectionRef}
+      role="tabpanel"
+      aria-labelledby={`account-tab-${section}`}
+      tabIndex={-1}
+      hidden={!props.isActive}
+    >
+      <div className="account-column-head">
+        <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">
+          {accountText(props.copy, panel ? accountTodoPanelLabels[panel.key] : "待办")}
+        </h3>
+        <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
+          {panel?.count ?? 0} 项 · {accountText(props.copy, "覆盖全部角色")} · {accountText(props.copy, todo.statusLabel)}
+          {todo.observedAt ? ` · ${accountText(props.copy, "数据时间")} ${formatCompactDateTime(todo.observedAt)}` : ""}
+        </span>
+      </div>
+      {isPowerPanel ? (
+        <p className="status-message" role="status">
+          这里只收官方原文里带等级占位词的挑战奖励：奖励物品的名字，或奖励物品的装备阶级
+          （如「装备阶级5」）。判据是游戏返回的原文，不是本项目的推荐，也不看光等数字。
+        </p>
+      ) : null}
+      <AccountStatusMatrix entries={[
+        { label: "可执行", value: panel?.actionableCount ?? 0 },
+        { label: "已完成待处理", value: panel?.pendingActionCount ?? 0 },
+        { label: "已结束", value: panel?.closedCount ?? 0 },
+        { label: "状态待确认", value: panel?.unknownCount ?? 0 }
+      ]} />
+      {todo.isSyncing ? <p className="status-message status-pending" role="status">待办数据同步中，列表保留上次确认结果。</p> : null}
+      {todo.errorMessage ? (
+        <p className="status-message status-error" role="alert">
+          任务同步失败，继续显示上次确认结果。{todo.errorMessage}
+          <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions.refreshTasks}>
+            {accountText(props.copy, "重试")}
+          </button>
+        </p>
+      ) : null}
+      {todo.dataState === "partial" ? <p className="status-message status-warning">部分资源未返回，没读到的项不会被猜测补齐。</p> : null}
+      {panel && panel.count > 0 ? (
+        <AccountDataGroups
+          actions={props.actions}
+          copy={props.copy}
+          groups={panel.groups}
+          locateRequest={props.locateRequest}
+          weeklyFarming={props.weeklyFarming}
+        />
+      ) : (
+        <AccountInlineState title={emptyTitle} detail={emptyDetail} />
+      )}
+      {/*
+        账号级事实只挂在「全部」末尾。它答的是「账号现在是什么样」，不是「还有什么没做完」，
+        所以不进任何二级入口、不参与分段，清单为空时也照常显示（T91 第 7 节）。
+      */}
+      {!panel ? <AccountTodoFactGroup copy={props.copy} facts={props.viewModel.todo.accountFacts} /> : null}
+    </section>
+  );
+}
+
+/**
+ * 账号级事实三行：光等、邮政官、容量。只读行，没有展开区，也没有可点的动作——
+ * 行的用途是常驻参考，不是待办项（T91 第 7 节）。
+ */
+function AccountTodoFactGroup(props: {
+  copy: AccountCopy;
+  facts: AccountTodoFactsView;
+}) {
+  const [isOpen, setIsOpen] = useState(true);
+  if (!props.facts.items.length) return null;
+  const snapshotLabel = props.facts.observedAt
+    ? `${accountText(props.copy, "账号快照")} ${formatCompactDateTime(props.facts.observedAt)}`
+    : accountText(props.copy, "账号快照");
+  return (
+    <details
+      className="account-data-group"
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
+      <summary>
+        <span>
+          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.facts.label}</strong>
+          <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.facts.description}</small>
+        </span>
+        <b>{props.facts.items.length} 项</b>
+      </summary>
+      <div className="account-readonly-list">
+        {props.facts.items.map((fact) => (
+          <div
+            className="account-readonly-row"
+            data-interactive="false"
+            data-status={fact.statusTone}
+            data-surface="row"
+            key={fact.key}
+          >
+            <span className="item-icon-placeholder" aria-hidden="true" />
+            <span>
+              <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{fact.label}</strong>
+              <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{fact.detail}</small>
+              <span className="account-action-primary">
+                <span>{fact.factLabel}</span>
+                <strong>{fact.factValue}</strong>
+              </span>
+            </span>
+            <span className="account-action-trail">
+              <em data-status={fact.statusTone}>{fact.statusLabel}</em>
+              <small>{snapshotLabel}</small>
+            </span>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function AccountDataGroups(props: {
+  actions: AccountPageActions;
+  copy: AccountCopy;
+  groups: AccountReadonlyGroupView[];
+  locateRequest?: AccountTodoLocateRequest;
+  weeklyFarming?: LibraryWeeklyFarmingView;
+}) {
   return (
     <div className="account-data-groups">
-      {props.groups.map((group) => <AccountDataGroup copy={props.copy} group={group} key={group.key} />)}
+      {props.groups.map((group) => (
+        <AccountDataGroup
+          actions={props.actions}
+          copy={props.copy}
+          group={group}
+          key={group.key}
+          locateRequest={props.locateRequest}
+          weeklyFarming={props.weeklyFarming}
+        />
+      ))}
     </div>
   );
 }
 
-function AccountDataGroup(props: { copy: AccountCopy; group: AccountReadonlyGroupView }) {
+function AccountDataGroup(props: {
+  actions: AccountPageActions;
+  copy: AccountCopy;
+  group: AccountReadonlyGroupView;
+  locateRequest?: AccountTodoLocateRequest;
+  weeklyFarming?: LibraryWeeklyFarmingView;
+}) {
   const [isOpen, setIsOpen] = useState(Boolean(props.group.defaultOpen));
   useEffect(() => {
     if (props.group.defaultOpen) setIsOpen(true);
@@ -1130,8 +1171,94 @@ function AccountDataGroup(props: { copy: AccountCopy; group: AccountReadonlyGrou
       </summary>
       <div className="account-readonly-list">
         {props.group.items.length
-          ? props.group.items.map((item) => <AccountReadonlyRow copy={props.copy} item={item} key={item.key} />)
+          ? props.group.items.map((item) => (
+            item.facts?.length
+              ? (
+                <AccountActionRow
+                  actions={props.actions}
+                  copy={props.copy}
+                  item={item}
+                  key={item.key}
+                  locateRequest={props.locateRequest}
+                  weeklyFarming={props.weeklyFarming}
+                />
+              )
+              : <AccountReadonlyRow copy={props.copy} item={item} key={item.key} />
+          ))
           : <AccountInlineState title="当前没有数据" detail="当前没有可显示的条目。" />}
+      </div>
+    </details>
+  );
+}
+
+/**
+ * 行动行：正面是这一项是什么、现在什么状态，展开后是这条判断的事实来源。
+ * 挑战行的展开区再嵌一块本周刷取，掉落武器、推荐和图样缺口都挂在同一行的这一面里，
+ * 不再各占一个二级入口。
+ */
+function AccountActionRow(props: {
+  actions: AccountPageActions;
+  copy: AccountCopy;
+  item: AccountReadonlyItemView;
+  locateRequest?: AccountTodoLocateRequest;
+  weeklyFarming?: LibraryWeeklyFarmingView;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const stateTone = props.item.statusTone ?? (props.item.isComplete ? "success" : "neutral");
+  const stateLabel = props.item.timeLabel ?? props.item.statusLabel ?? accountText(props.copy, "只读");
+  useEffect(() => {
+    if (!props.locateRequest || props.item.activityKey !== props.locateRequest.activityKey) return;
+    // 依赖里带上 activityKey：深度链接可能早于挑战数据到达，那一刻这一行还不存在。
+    setIsOpen(true);
+  }, [props.locateRequest?.requestId, props.item.activityKey]);
+  return (
+    <details
+      className="account-action-details"
+      data-activity-key={props.item.activityKey}
+      data-power={props.item.isPower ? "true" : undefined}
+      open={isOpen}
+      onToggle={(event) => setIsOpen(event.currentTarget.open)}
+    >
+      <summary className="account-readonly-row" data-surface="row" data-interactive="true" data-status={stateTone}>
+        <AccountReadonlyIcon item={props.item} />
+        <span>
+          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.name}</strong>
+          <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.typeLabel} · {props.item.sourceLabel}</small>
+          {props.item.primaryFactLabel && props.item.primaryFactValue ? (
+            <span className="account-action-primary">
+              <span>{props.item.primaryFactLabel}</span>
+              <strong>{props.item.primaryFactValue}</strong>
+            </span>
+          ) : null}
+        </span>
+        <span className="account-action-trail">
+          <em data-status={stateTone}>{stateLabel}</em>
+          <b className="account-action-disclosure">{accountText(props.copy, "详细数据")}</b>
+        </span>
+      </summary>
+      <div className="account-action-body">
+        <dl className="account-fact-table">
+          {props.item.facts?.map((fact) => (
+            <div key={fact.label}>
+              <dt>{fact.label}</dt>
+              <dd>{fact.value}</dd>
+              <dd className="fact-source">{fact.source}</dd>
+            </div>
+          ))}
+        </dl>
+        {props.item.isPower && props.weeklyFarming && props.item.activityKey ? (
+          <div className="account-action-weekly">
+            <WeeklyFarmingPanel
+              activityKey={props.item.activityKey}
+              actions={{
+                onRefreshWeeklyRotation: props.actions.refreshWeeklyRotation,
+                onRefreshWeeklyFarming: props.actions.refreshWeeklyFarming,
+                onOpenWeeklyFarmingItem: props.actions.openWeeklyFarmingItem
+              }}
+              weekly={props.weeklyFarming}
+            />
+          </div>
+        ) : null}
       </div>
     </details>
   );

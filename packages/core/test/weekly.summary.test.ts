@@ -154,7 +154,7 @@ describe("weekly summary", () => {
     });
     expect(summary.priorities.nightfall).toMatchObject({
       status: "pending",
-      title: "宗师先锋警戒待确认"
+      title: "日落挑战待确认"
     });
     expect(summary.weekly_reset.time_remaining_label).toContain("距离每周重置还有");
   });
@@ -236,7 +236,7 @@ describe("weekly summary", () => {
     const summary = buildWeeklySummary(new Date("2026-07-09T09:00:00.000Z"), liveData, { timeZone: "Asia/Shanghai" });
 
     expect(summary.priorities.nightfall.title).toBe("移民号的坠毁");
-    expect(summary.priorities.nightfall.detail).toBe("先锋行动 · 宗师先锋警戒");
+    expect(summary.priorities.nightfall.detail).toBe("日落挑战");
     expect(summary.priorities.nightfall.entries?.[0]?.loot_pool?.map((reward) => reward.name)).toEqual(["崇拜"]);
     expect(summary.priorities.rotating_raid.entries?.map((entry) => entry.title)).toEqual(["门徒誓约", "救赎的边缘"]);
     expect(summary.priorities.rotating_dungeon.entries?.map((entry) => entry.title)).toEqual(["晚星之主", "二象性"]);
@@ -278,7 +278,7 @@ describe("weekly summary", () => {
     expect(liveData.items).toEqual([
       expect.objectContaining({
         title: "守望者尖塔",
-        subtitle: "周常地牢挑战",
+        subtitle: "地牢挑战",
         weeklyActivityKind: "rotating_dungeon"
       })
     ]);

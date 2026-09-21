@@ -12,7 +12,6 @@ import type {
   LibraryPerkRelatedFacetKey,
   LibraryPerkRelatedFilter,
   LibraryPerkResultView,
-  LibraryWeeklyFarmingItemView,
   LibraryViewMode,
   LiveItemAvailabilityEntry,
   PerkSearchResult,
@@ -37,7 +36,6 @@ import {
   ProductWorkspaceSideRail,
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
-import { WeeklyFarmingPanel } from "../weekly/WeeklyFarmingPanel.js";
 
 type LiveEntry = LiveItemAvailabilityEntry;
 type LibraryPerkGroup = NonNullable<ItemSearchResult["perks"]>[number];
@@ -70,9 +68,6 @@ export type LibraryPageActions = {
   onOpenItemDetail: (item: ItemSearchResult) => void;
   onLoadPerkRelatedEquipment: (perk: PerkSearchResult, loadMore?: boolean) => void;
   onOpenRelatedItem: (item: ItemSearchResult) => void;
-  onRefreshWeeklyRotation: () => void;
-  onRefreshWeeklyFarming: () => void;
-  onOpenWeeklyFarmingItem: (item: LibraryWeeklyFarmingItemView) => void;
   onAddFavorite: (item: ItemSearchResult | PerkSearchResult) => void;
   onRemoveFavorite: (hash: number) => void;
   onLocateOwnedItem?: (item: ItemSearchResult) => void;
@@ -108,21 +103,11 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const tabPanelId = useId();
   const equipmentTabId = `${tabPanelId}-equipment-tab`;
   const perkTabId = `${tabPanelId}-perks-tab`;
-  const weeklyFarmingTabId = `${tabPanelId}-weekly-farming-tab`;
   const isEquipmentMode = model.queryPanel.viewMode === "equipment";
   const isPerkMode = model.queryPanel.viewMode === "perks";
-  const isWeeklyFarmingMode = model.queryPanel.viewMode === "weekly_farming";
-  const activeTabId = isEquipmentMode
-    ? equipmentTabId
-    : isPerkMode
-      ? perkTabId
-      : weeklyFarmingTabId;
+  const activeTabId = isEquipmentMode ? equipmentTabId : perkTabId;
   const recentItems = model.aliasPanel.history.recent.slice(0, 5);
-  const visibleResultCount = isEquipmentMode
-    ? equipmentRows.length
-    : isPerkMode
-      ? model.results.perks.length
-      : model.weeklyFarming.itemCount;
+  const visibleResultCount = isEquipmentMode ? equipmentRows.length : model.results.perks.length;
   const hasVisibleResults = visibleResultCount > 0;
   const searchInputRef = useRef<HTMLInputElement>(null);
   // 左栏的高级筛选作用于「当前展开的那个 Perk 的关联武器」，而展开是结果区的事。
@@ -237,16 +222,16 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
               <button type="button" role="tab" id={equipmentTabId} aria-controls={tabPanelId} aria-selected={isEquipmentMode} tabIndex={isEquipmentMode ? 0 : -1} className={isEquipmentMode ? "active" : ""} onClick={() => selectMode("equipment")} onKeyDown={handleModeKeyDown}>{libraryText(copy, "装备")}</button>
               <button type="button" role="tab" id={perkTabId} aria-controls={tabPanelId} aria-selected={isPerkMode} tabIndex={isPerkMode ? 0 : -1} className={isPerkMode ? "active" : ""} onClick={() => selectMode("perks")} onKeyDown={handleModeKeyDown}>{libraryText(copy, "Perk 与框架")}</button>
             </div>
-            {!isWeeklyFarmingMode ? <>
+            <div>
               <form className="library-search-actions" role="search" onSubmit={(event) => { event.preventDefault(); actions.onSearch(); }}>
                 <input ref={searchInputRef} autoFocus aria-label={libraryText(copy, "资料库主搜索")} value={model.queryPanel.primaryQuery} disabled={isManifestBlocked} onChange={(event) => isEquipmentMode ? actions.onEquipmentFiltersChange({ query: event.target.value }) : actions.onPerkFiltersChange({ query: event.target.value })} placeholder={isEquipmentMode ? libraryText(copy, "输入装备名称，例如加时交锋") : libraryText(copy, "输入特性或框架名称")} />
                 <button type="submit" data-ui-kind="button" data-control-variant="primary" disabled={model.status.isSearching || isManifestBlocked}>{model.status.isSearching ? libraryText(copy, "搜索中...") : libraryText(copy, "搜索")}</button>
               </form>
               <button type="button" className="library-clear-button" data-ui-kind="button" data-control-variant="quiet" onClick={actions.onClearFilters}>{isEquipmentMode ? libraryText(copy, "清空查询") : libraryText(copy, "清空查询与筛选")}</button>
-            </> : null}
+            </div>
           </div>
 
-          {isWeeklyFarmingMode ? renderWeeklyFarmingSideRail(model, actions) : isPerkMode ? <div className="library-filter-stack">
+          {isPerkMode ? <div className="library-filter-stack">
             <label>{libraryText(copy, "关联分类")}<select disabled={isManifestBlocked} value={perkFilters.relatedGroup} onChange={(event) => actions.onPerkFiltersChange({ relatedGroup: event.target.value as LibraryPerkFilter["relatedGroup"] })}>{perkGroupOptions.map((option) => <option key={option.value} value={option.value}>{libraryText(copy, option.label)}</option>)}</select></label>
             <label>{libraryText(copy, "关联装备")}<select disabled={isManifestBlocked} value={perkFilters.hasRelatedItems} onChange={(event) => actions.onPerkFiltersChange({ hasRelatedItems: event.target.value as LibraryPerkFilter["hasRelatedItems"] })}><option value="all">{libraryText(copy, "全部")}</option><option value="yes">{libraryText(copy, "有")}</option><option value="no">{libraryText(copy, "无")}</option></select></label>
             <section className="library-related-filters" aria-label={libraryText(copy, "关联武器筛选")}>
@@ -301,7 +286,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             </section>
           </div> : null}
 
-          {!isWeeklyFarmingMode ? <details className="library-search-support">
+          <details className="library-search-support">
             <summary><strong>{libraryText(copy, "搜索辅助")}</strong><span>{recentItems.length} {libraryText(copy, "条最近查询")} · {model.aliasPanel.history.favorites.length} {libraryText(copy, "个收藏")}</span></summary>
             <div className="library-search-support-body">
               <section aria-label={libraryText(copy, "最近查询")}>
@@ -328,11 +313,11 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                 </div>
               </section>
             </div>
-          </details> : null}
+          </details>
         </ProductWorkspaceSideRail>
 
         <ProductWorkspaceContentStack element="section" className="library-results" ariaLabel={libraryText(copy, "搜索结果")}>
-          {isWeeklyFarmingMode ? renderWeeklyFarmingContent(model, actions, tabPanelId, activeTabId) : <div id={tabPanelId} role="tabpanel" aria-labelledby={activeTabId} aria-busy={model.status.isSearching}>
+          <div id={tabPanelId} role="tabpanel" aria-labelledby={activeTabId} aria-busy={model.status.isSearching}>
             <div className="library-results-head"><div><h3>{model.results.searchTouched ? (isEquipmentMode ? libraryText(copy, "装备搜索结果") : libraryText(copy, "Perk 与框架搜索结果")) : libraryText(copy, "等待查询")}</h3><span>{isEquipmentMode ? libraryText(copy, "当前资料库 + 实时来源 + 账号快照") : libraryText(copy, "当前资料库")}</span></div><span className="app-chip status-pending" role="status" aria-live="polite">{model.status.isSearching ? libraryText(copy, "更新中") : `${model.results.searchTouched ? hitCount : 0} ${libraryText(copy, "条")}`}</span></div>
             <p className="library-result-note">{isEquipmentMode
               ? libraryText(copy, "装备查询按名称匹配，结果不多，不设筛选条件；缺失的来源、分类和关联项保持缺失状态。")
@@ -372,85 +357,10 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
             ) : null}
             {model.status.isSearching && !hasVisibleResults ? <ProductWorkspaceEmptyState className="library-searching-state"><strong>{libraryText(copy, "正在搜索资料库")}</strong><span>{libraryText(copy, "当前筛选和查询条件正在处理。")}</span></ProductWorkspaceEmptyState> : null}
             {model.emptyState && !model.status.isSearching ? <ProductWorkspaceEmptyState className="library-empty-state"><strong>{model.emptyState.kind === "not_searched" ? libraryText(copy, "输入装备名、Perk 或框架后开始搜索。") : libraryText(copy, "未找到匹配结果。")}</strong><span>{model.emptyState.kind === "not_searched" ? libraryText(copy, "结果区会展示来源、实时状态、账号持有和详情入口。") : libraryText(copy, "可以更换中文名、英文名，或先保存一个本地别名。")}</span></ProductWorkspaceEmptyState> : null}
-          </div>}
+          </div>
         </ProductWorkspaceContentStack>
       </ProductWorkspaceSplit>
     </>
-  );
-}
-
-function renderWeeklyFarmingSideRail(
-  model: LibraryPageModel,
-  actions: LibraryPageActions
-): ReactNode {
-  const weekly = model.weeklyFarming;
-  const resetLabel = weekly.resetAt
-    ? formatStandardDateTime(weekly.resetAt)
-    : "等待本周轮换数据";
-  const fetchedLabel = weekly.fetchedAt
-    ? formatStandardDateTime(weekly.fetchedAt)
-    : "尚未读取";
-  return (
-    <div className="library-weekly-sidebar">
-      <section className="library-weekly-summary" aria-label="本周刷取摘要">
-        <div className="library-column-head"><h3>本周判断</h3><span>{weekly.activityCount} 个活动</span></div>
-        <dl>
-          <div><dt>建议继续刷</dt><dd className="status-warning">{weekly.actionableCount}</dd></div>
-          <div><dt>图样有缺口</dt><dd>{weekly.patternGapCount}</dd></div>
-          <div><dt>已有合格结果</dt><dd className="status-ready">{weekly.satisfiedCount}</dd></div>
-          <div><dt>已核对装备</dt><dd>{weekly.itemCount}</dd></div>
-        </dl>
-      </section>
-      <section className="library-weekly-refresh" aria-label="本周刷取数据状态">
-        <strong>{weekly.isRefreshingRotation || weekly.isLoading ? "正在更新本周判断" : "本周数据状态"}</strong>
-        <span>下次周重置：{resetLabel}</span>
-        <span>本次读取：{fetchedLabel}</span>
-        <span>掉落关系：{weekly.revision ?? "尚未载入"}</span>
-        <button
-          type="button"
-          data-ui-kind="button"
-          data-control-variant="secondary"
-          disabled={weekly.isRefreshingRotation}
-          aria-busy={weekly.isRefreshingRotation}
-          onClick={actions.onRefreshWeeklyRotation}
-        >
-          {weekly.isRefreshingRotation ? "轮换更新中..." : "刷新本周轮换"}
-        </button>
-        <button
-          type="button"
-          data-ui-kind="button"
-          data-control-variant="secondary"
-          disabled={weekly.isLoading}
-          aria-busy={weekly.isLoading}
-          onClick={actions.onRefreshWeeklyFarming}
-        >
-          {weekly.isLoading ? "核对中..." : "重新核对图样与推荐"}
-        </button>
-      </section>
-      <p className="library-weekly-source-note">
-        清单合并本周轮换、受控活动来源、T20 推荐、共享账号实例与 Bungie 图样进度。缺少证据时只显示“信息不足”。
-      </p>
-    </div>
-  );
-}
-
-function renderWeeklyFarmingContent(
-  model: LibraryPageModel,
-  actions: LibraryPageActions,
-  panelId: string,
-  activeTabId: string
-): ReactNode {
-  return (
-    <div id={panelId} role="tabpanel" aria-labelledby={activeTabId}>
-      <WeeklyFarmingPanel
-        weekly={model.weeklyFarming}
-        actions={{
-          onRefreshWeeklyRotation: actions.onRefreshWeeklyRotation,
-          onRefreshWeeklyFarming: actions.onRefreshWeeklyFarming,
-          onOpenWeeklyFarmingItem: actions.onOpenWeeklyFarmingItem
-        }}
-      />
-    </div>
   );
 }
 

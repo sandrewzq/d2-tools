@@ -1724,6 +1724,154 @@
   white-space: nowrap;
 }
 
+/* 二级目录里「提光」换了一种切法（按奖励口径，不按时限）。产品这里只有账号页用到混轴目录，
+   用一条分隔线把它和三个时限桶隔开，免得被读成第五个时限桶。 */
+:where(.app-shell) .account-directory-tabs > button[data-axis="kind"] {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+  border-radius: 0 0 var(--radius-control) var(--radius-control);
+}
+
+/* 行动行：整行就是 summary，点行内任意位置都能展开；展开区是这条判断的事实来源。 */
+.app-shell .account-action-details {
+  margin: 0;
+  padding: 0;
+}
+
+.app-shell .account-action-details > summary.account-readonly-row {
+  cursor: pointer;
+  list-style: none;
+}
+
+.app-shell .account-action-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.app-shell .account-action-details > summary:hover {
+  background: var(--surface-interactive);
+}
+
+.app-shell .account-action-details > summary:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+.app-shell .account-action-primary {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  margin-top: 5px;
+  color: var(--text-body);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-action-primary > span {
+  display: inline;
+  flex: 0 0 auto;
+  color: var(--text-muted);
+}
+
+.app-shell .account-action-primary > strong {
+  display: inline;
+  overflow: visible;
+  color: var(--text-title);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  text-overflow: clip;
+  white-space: normal;
+}
+
+.app-shell .account-action-trail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.app-shell .account-action-trail > em {
+  padding: 1px 8px;
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-indicator);
+  color: var(--text-body);
+  background: var(--surface-interactive);
+  font-size: var(--font-caption);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.app-shell .account-action-trail > em[data-status="success"] {
+  color: var(--status-ready);
+}
+
+.app-shell .account-action-trail > em[data-status="pending"] {
+  color: var(--status-pending);
+}
+
+.app-shell .account-action-trail > em[data-status="warning"] {
+  color: var(--status-warning);
+}
+
+.app-shell .account-action-disclosure {
+  color: var(--blue);
+  font-size: var(--font-meta);
+  font-weight: 600;
+}
+
+.app-shell .account-action-disclosure::before {
+  content: "▸ ";
+}
+
+.app-shell .account-action-details[open] .account-action-disclosure::before {
+  content: "▾ ";
+}
+
+.app-shell .account-action-details[open] .account-action-disclosure {
+  color: var(--text-muted);
+}
+
+/* 展开区的事实表：字段名 / 值 / 这条值从哪来。缩进对齐行标题，不跟图标列对齐。 */
+.app-shell .account-fact-table {
+  display: grid;
+  padding: 4px 12px 10px 65px;
+}
+
+.app-shell .account-fact-table > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr) 190px;
+  gap: 10px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: var(--font-caption);
+}
+
+.app-shell .account-fact-table > div:last-child {
+  border-bottom: 0;
+}
+
+.app-shell .account-fact-table dt {
+  color: var(--text-muted);
+}
+
+.app-shell .account-fact-table dd {
+  margin: 0;
+  color: var(--text-title);
+}
+
+.app-shell .account-fact-table .fact-source {
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* 挑战行的展开区里嵌一块本周刷取（掉落武器 + 推荐 + 图样缺口）。
+   那块内容自己的样式归资料库菜单，这里只给它在行动行里的外部留白。 */
+.app-shell .account-action-weekly {
+  padding: 0 12px 10px 65px;
+}
+
 .app-shell .account-material-group {
   margin-top: 10px;
   border-top: 1px solid var(--border-subtle);
@@ -2164,6 +2312,24 @@
 
   .app-shell .account-readonly-progress {
     grid-template-columns: minmax(72px, 120px) minmax(0, 1fr);
+  }
+
+  /* 窄屏放不下「字段名 / 值 / 来源」三列，来源换到下一行，不挤成一列一个字。 */
+  .app-shell .account-fact-table {
+    padding-left: 12px;
+  }
+
+  .app-shell .account-fact-table > div {
+    grid-template-columns: minmax(72px, 92px) minmax(0, 1fr);
+  }
+
+  .app-shell .account-fact-table .fact-source {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .app-shell .account-action-weekly {
+    padding-left: 12px;
   }
 
   .app-shell .account-slot-column + .account-slot-column {

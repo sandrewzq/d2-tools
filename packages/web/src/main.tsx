@@ -170,9 +170,10 @@ function WebApp() {
       selectedTemplateId,
       selectedEntryId: selectedLoadoutEntryId,
       compareTemplateId,
-      showDiffOnly
+      showDiffOnly,
+      localPlans
     }),
-    [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly]
+    [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly, localPlans]
   );
   const localPlanWorkspace = useMemo(() => selectLocalLoadoutPlanWorkbench({
     accountSummary: fixture.accountSummary,
@@ -196,6 +197,10 @@ function WebApp() {
     const savedPlan = localPlans.find((plan) => plan.id === localPlanEditingId);
     return !savedPlan || JSON.stringify(localPlanDraft) !== JSON.stringify(toLocalLoadoutPlanDraft(savedPlan));
   }, [localPlanDraft, localPlanEditingId, localPlans]);
+  const localPlanSavedName = useMemo(
+    () => localPlans.find((plan) => plan.id === localPlanEditingId)?.name ?? null,
+    [localPlanEditingId, localPlans]
+  );
   const localPlanDimExport = useMemo(() => localPlanDraft
     ? createDimLoadoutExport({ plan: localPlanDraft, account: fixture.accountSummary })
     : null, [fixture.accountSummary, localPlanDraft]);
@@ -258,6 +263,22 @@ function WebApp() {
     setLocalPlans((plans) => localPlanEditingId
       ? plans.map((plan) => plan.id === saved.id ? saved : plan)
       : [saved, ...plans]);
+    setSelectedLocalPlanId(saved.id);
+    setLocalPlanEditingId(saved.id);
+    setLocalPlanDraft(toLocalLoadoutPlanDraft(saved));
+  }
+
+  function saveLocalPlanAsNew() {
+    if (!localPlanDraft) return;
+    const now = new Date().toISOString();
+    const name = localPlanDraft.name.trim();
+    const saved: LocalLoadoutPlan = {
+      ...localPlanDraft,
+      name: name.endsWith("副本") ? name : `${name} 副本`,
+      id: `web-local-${Date.now()}`,
+      created_at: now
+    };
+    setLocalPlans((plans) => [saved, ...plans]);
     setSelectedLocalPlanId(saved.id);
     setLocalPlanEditingId(saved.id);
     setLocalPlanDraft(toLocalLoadoutPlanDraft(saved));
@@ -490,7 +511,8 @@ function WebApp() {
                 loginBungie: () => undefined,
                 refreshAccount: () => undefined,
                 refreshActivity: () => undefined,
-                refreshPowerRoute: () => undefined,
+                refreshTasks: () => undefined,
+                requestTodoResources: () => undefined,
                 selectCharacter: setSelectedAccountCharacterId,
                 openItem: (payload) => openWebAccountItem(payload.item, "account"),
                 refreshWeeklyRotation: () => undefined,
@@ -576,6 +598,7 @@ function WebApp() {
                 },
                 localPlanDraftChange: (draft) => setLocalPlanDraft(draft),
                 saveLocalPlan,
+                saveLocalPlanAsNew,
                 closeLocalPlanEditor: () => {
                   setLocalPlanDraft(null);
                   setLocalPlanEditingId(null);
@@ -670,6 +693,7 @@ function WebApp() {
               localPlanDraft={localPlanDraft}
               localPlanIsDirty={localPlanIsDirty}
               localPlanEditingId={localPlanEditingId}
+              localPlanSavedName={localPlanSavedName}
               localPlanIsSaving={false}
               localPlanError=""
               dimPreview={null}
@@ -724,12 +748,6 @@ function WebApp() {
                 onLoadPerkRelatedEquipment: () => undefined,
                 onOpenRelatedItem: (item) => {
                   const definition = fixture.libraryItems.find((candidate) => candidate.hash === item.hash);
-                  if (definition) openWebLibraryDetail(definition);
-                },
-                onRefreshWeeklyRotation: () => undefined,
-                onRefreshWeeklyFarming: () => undefined,
-                onOpenWeeklyFarmingItem: (item) => {
-                  const definition = fixture.libraryItems.find((candidate) => candidate.hash === item.item.hash);
                   if (definition) openWebLibraryDetail(definition);
                 },
                 onAddFavorite: (item) => setLibraryHistory((current) => current.favorites.some((favorite) => favorite.hash === item.hash)

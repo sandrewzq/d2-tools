@@ -1,6 +1,7 @@
 import type {
   WeeklyActivityCharacterState,
-  WeeklyIronBannerSummary
+  WeeklyIronBannerSummary,
+  WeeklyPriorityKind as CoreWeeklyPriorityKind
 } from "@d2-tools/core/weekly/summary";
 
 export type WeeklyApi = {
@@ -9,12 +10,11 @@ export type WeeklyApi = {
 
 export type WeeklySourceStatus = "ready" | "pending";
 
-export type WeeklyPriorityKind =
-  | "nightfall"
-  | "rotating_raid"
-  | "rotating_dungeon"
-  | "weekly_surge"
-  | "special_event";
+/**
+ * 直接沿用 core 的键集合，不再另抄一份：抄出来的那份漏了 `activity_challenge`，
+ * 结果 2026-09-20 打开「待办」直接白屏（T91 第 8 节）。
+ */
+export type WeeklyPriorityKind = CoreWeeklyPriorityKind;
 
 export type WeeklySummaryPriority = {
   status: WeeklySourceStatus;

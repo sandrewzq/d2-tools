@@ -67,6 +67,7 @@ export type LoadoutsPageProps = {
   localPlanDraft: CreateLocalLoadoutPlanInput | null;
   localPlanIsDirty: boolean;
   localPlanEditingId: string | null;
+  localPlanSavedName: string | null;
   localPlanIsSaving: boolean;
   localPlanError: string;
   dimPreview: DimLoadoutImportPreview | null;
@@ -137,6 +138,7 @@ export type LoadoutsPageProps = {
   ) => void;
   onLocalPlanDraftChange: (draft: CreateLocalLoadoutPlanInput) => void;
   onSaveLocalPlan: () => void;
+  onSaveLocalPlanAsNew: () => void;
   onCloseLocalPlanEditor: () => void;
   onDeleteLocalPlan: (id: string) => void;
   onPreviewDimImport: (url: string) => void;
@@ -193,6 +195,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   const model = useMemo(() => selectLoadoutsPageModel({
     accountSummary: props.accountSummary,
     templates: props.templates,
+    localPlans: props.localPlans,
     selectedTemplateId: props.selectedTemplateId,
     selectedEntryId,
     compareTemplateId: props.compareTemplateId,
@@ -200,6 +203,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   }), [
     props.accountSummary,
     props.templates,
+    props.localPlans,
     props.selectedTemplateId,
     selectedEntryId,
     props.compareTemplateId,
@@ -356,6 +360,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     },
     localPlanDraftChange: props.onLocalPlanDraftChange,
     saveLocalPlan: props.onSaveLocalPlan,
+    saveLocalPlanAsNew: props.onSaveLocalPlanAsNew,
     closeLocalPlanEditor: () => {
       armorPlanner.reset();
       props.onCloseLocalPlanEditor();
@@ -445,6 +450,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       localPlanDraft={props.localPlanDraft}
       localPlanIsDirty={props.localPlanIsDirty}
       localPlanEditingId={props.localPlanEditingId}
+      localPlanSavedName={props.localPlanSavedName}
       localPlanIsSaving={props.localPlanIsSaving}
       localPlanError={props.localPlanError}
       dimPreview={props.dimPreview}

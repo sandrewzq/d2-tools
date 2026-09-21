@@ -66,6 +66,11 @@ export function useAccountWorkspace(input: {
   const accountRequestSequenceRef = useRef(0);
   const derivedRequestSequenceRef = useRef(0);
   const pursuitRequestSequenceRef = useRef(0);
+  /**
+   * 玩家进过「待办」没有。没进过就不读任务资源，账号刷新也不会顺带跑 202 + 900 +
+   * record 定义这条重链（T91 第 8 节）。
+   */
+  const pursuitRequestedRef = useRef(false);
   const communityRequestSequenceRef = useRef(0);
   const recommendationScanAccountKeyRef = useRef("");
   const accountLoadingSequenceRef = useRef(0);
@@ -87,7 +92,8 @@ export function useAccountWorkspace(input: {
         setLastAccountLoadedAt(Number.isNaN(cachedAt.getTime()) ? null : cachedAt);
         setAccountSyncMessage(`正在显示 ${formatCachedTime(cached.saved_at)} 的本地缓存`);
         setActivityMessage(`正在显示上次装备数据（${formatCachedTime(cached.saved_at)}）；本次同步完成后页面会自动更新`);
-        void refreshPursuits(false);
+        // 只有玩家已经进过「待办」才顺带读任务资源。
+        if (pursuitRequestedRef.current) void refreshPursuits(false);
       })
       .catch(() => undefined);
     return () => {
@@ -106,7 +112,8 @@ export function useAccountWorkspace(input: {
       if (!acceptedSummary) return;
       setIsShowingCachedAccount(false);
       setLastAccountLoadedAt(new Date());
-      void refreshPursuits(true);
+      // 玩家已经在「待办」里看着这份清单，账号一变就跟着更新。
+      if (pursuitRequestedRef.current) void refreshPursuits(true);
     });
   }, []);
 
@@ -318,7 +325,8 @@ export function useAccountWorkspace(input: {
             : "装备数据已同步，最近活动会继续在后台读取");
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
-        void refreshPursuits(true);
+        // 任务资源按需读取：玩家没进过「待办」就不跑这条重链（T91 第 8 节）。
+        if (pursuitRequestedRef.current) void refreshPursuits(true);
         // 推荐核对只依赖武器实例与 Roll。取出、存入、装备和锁定只改变
         // 位置或状态，不再清空当前结果，也不再触发整账号推荐重算。
         if (shouldRefreshCommunityMatch) {
@@ -406,6 +414,16 @@ export function useAccountWorkspace(input: {
       }));
       return null;
     }
+  }
+
+  /**
+   * 按需读任务资源：进「待办」时调一次，之后同一轮会话不再重复读，
+   * 更新交给账号刷新事件。重试走 `force`（T91 第 8 节）。
+   */
+  function ensurePursuits(force = false) {
+    if (pursuitRequestedRef.current && !force) return Promise.resolve(null);
+    pursuitRequestedRef.current = true;
+    return refreshPursuits(force);
   }
 
   async function loadVaultCommunityMatch(
@@ -578,7 +596,8 @@ export function useAccountWorkspace(input: {
     loadActivitySummary: refreshAccountDerivedData,
     loadVaultCommunityMatch,
     refreshAccountDerivedData,
-    refreshPursuits
+    refreshPursuits,
+    ensurePursuits
   };
 }
 

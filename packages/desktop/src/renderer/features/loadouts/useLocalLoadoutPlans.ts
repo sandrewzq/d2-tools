@@ -6,7 +6,7 @@ import {
   selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "@d2-tools/app/loadouts";
-import type { CharacterSummary } from "@d2-tools/core/account/summary";
+import type { AccountSummary, CharacterSummary } from "@d2-tools/core/account/summary";
 import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import { matchLocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import {
@@ -28,6 +28,7 @@ import type {
 import type { ActionVerificationStatus } from "@d2-tools/core/actions/log";
 import { api } from "../../api/client";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
+import { hydratePlanAccount } from "../../shared/loadouts/hydratePlanAccount";
 
 const legacyGuideTaskContextStorageKey = "d2-tools.assistant.task-context";
 
@@ -73,6 +74,8 @@ export function useLocalLoadoutPlans(input: {
   const [isExecuting, setIsExecuting] = useState(false);
   const [publishReport, setPublishReport] = useState<LocalPlanPublishReport | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
+  /** 账号快照 + 当前草稿涉及实例的插槽详情；见下方补全 effect。 */
+  const [planAccount, setPlanAccount] = useState<AccountSummary | null>(null);
 
   useEffect(() => {
     setExecutionReport(null);
@@ -82,6 +85,47 @@ export function useLocalLoadoutPlans(input: {
   useEffect(() => {
     setPublishReport(null);
   }, [executionReport?.execution_id]);
+
+  /**
+   * 穿戴判据要的是完整实例详情（`sockets` / `armor_energy`），而账号快照按设计不含这些字段
+   * （见 `AccountItemSnapshot`）。这里只给当前草稿涉及的实例按需补齐，其余菜单继续用快照——
+   * 换掉全局账号会波及首页、商人和仓库，也会让整页 memo 白重算。
+   *
+   * 草稿还没选目标角色时不拉详情：那时候连可执行步骤都算不出来。
+   */
+  useEffect(() => {
+    if (!accountSummary) {
+      setPlanAccount(null);
+      return;
+    }
+    if (!draft || !draft.target_character_id) {
+      setPlanAccount(accountSummary);
+      return;
+    }
+    let cancelled = false;
+    setPlanAccount(accountSummary);
+    void hydratePlanAccount(accountSummary, draft).then((hydrated) => {
+      if (!cancelled) setPlanAccount(hydrated);
+    }).catch(() => {
+      // 详情补全失败不在这里报错：缺的那件会保留快照态，由下游的
+      // 「Plug 当前不可用」或「缺少能量或 Socket 数据」提示兜底。
+      if (!cancelled) setPlanAccount(accountSummary);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [accountSummary, draft]);
+
+  /** 执行前后的每一次账号刷新都要带着插槽详情回来，否则复核比对必然判 stale。 */
+  const refreshHydratedAccount = useCallback(async () => {
+    const latest = await input.refreshAccount();
+    if (!latest || !draft) return latest;
+    try {
+      return await hydratePlanAccount(latest, draft);
+    } catch {
+      return latest;
+    }
+  }, [draft, input]);
 
   const applyPlans = useCallback((nextPlans: LocalLoadoutPlan[], preferredId = selectedPlanId) => {
     const selected = nextPlans.find((plan) => plan.id === preferredId) ?? nextPlans[0] ?? null;
@@ -118,17 +162,17 @@ export function useLocalLoadoutPlans(input: {
   }, [draft, editingPlanId, plans]);
 
   const executionPlan = useMemo(() => {
-    if (!draft || !accountSummary || !draft.target_character_id) return null;
+    if (!draft || !planAccount || !draft.target_character_id) return null;
     try {
       return createLocalLoadoutPlanExecutionPlan({
         plan: draft,
-        account: accountSummary,
+        account: planAccount,
         target_character_id: draft.target_character_id
       });
     } catch {
       return null;
     }
-  }, [accountSummary, draft]);
+  }, [planAccount, draft]);
 
   const selectPlan = useCallback((id: string) => {
     const plan = plans.find((candidate) => candidate.id === id);
@@ -397,7 +441,9 @@ export function useLocalLoadoutPlans(input: {
       setError(`方案职业为 ${draft.class_name}，当前目标角色为 ${target.class_name}，不能直接应用。`);
       return;
     }
-    const plan = createLocalLoadoutPlanExecutionPlan({ plan: draft, account: accountSummary, target_character_id: target.character_id });
+    // 插槽详情可能还没落地（首帧），退回快照只会少判、不会误判：缺口会照常提示。
+    const wearAccount = planAccount ?? accountSummary;
+    const plan = createLocalLoadoutPlanExecutionPlan({ plan: draft, account: wearAccount, target_character_id: target.character_id });
     if (!plan.executable_steps.length) {
       setExecutionReport({ plan, completed_steps: [], preflight_verified: false, refresh_verified: false });
       setError(plan.gaps.length ? `没有可执行步骤：${plan.gaps.join("；")}` : "方案没有已确认的可执行实例。");
@@ -412,9 +458,9 @@ export function useLocalLoadoutPlans(input: {
     setIsExecuting(true);
     setPublishReport(null);
     setError("");
-    let executionAccount = accountSummary;
+    let executionAccount = wearAccount;
     try {
-      const latestAccount = await input.refreshAccount();
+      const latestAccount = await refreshHydratedAccount();
       if (!latestAccount) throw new Error("执行前账号刷新没有返回可用快照");
       const observedPlan = createLocalLoadoutPlanExecutionPlan({
         plan: draft,
@@ -484,7 +530,7 @@ export function useLocalLoadoutPlans(input: {
       }
     } finally {
       try {
-        refreshedAccount = await input.refreshAccount();
+        refreshedAccount = await refreshHydratedAccount();
       } catch (refreshError) {
         failure = failure ?? `装备数据同步失败：${refreshError instanceof Error ? refreshError.message : String(refreshError)}`;
       }
@@ -534,7 +580,7 @@ export function useLocalLoadoutPlans(input: {
       }
       setIsExecuting(false);
     }
-  }, [accountSummary, draft, editingPlanId, input, isExecuting]);
+  }, [accountSummary, draft, editingPlanId, isExecuting, planAccount, refreshHydratedAccount, input]);
 
   const publishAppliedPlan = useCallback(async (loadoutIndex: number) => {
     if (!draft || !accountSummary || !editingPlanId || !executionReport?.refresh_verified || isPublishing || isExecuting) return;
@@ -542,7 +588,7 @@ export function useLocalLoadoutPlans(input: {
     try {
       plan = createLocalLoadoutPlanPublishPlan({
         executionPlan: executionReport.plan,
-        account: accountSummary,
+        account: planAccount ?? accountSummary,
         loadoutIndex
       });
     } catch (planError) {
@@ -565,7 +611,7 @@ export function useLocalLoadoutPlans(input: {
 
     let latestAccount: typeof accountSummary | null = null;
     try {
-      latestAccount = await input.refreshAccount();
+      latestAccount = await refreshHydratedAccount();
       if (!latestAccount) throw new Error("保存到游戏内槽位前，账号刷新没有返回可用快照");
     } catch (preflightError) {
       const message = `保存到游戏内槽位前，账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
@@ -617,7 +663,7 @@ export function useLocalLoadoutPlans(input: {
         }
       });
       actionSucceeded = true;
-      refreshedAccount = await input.refreshAccount();
+      refreshedAccount = await refreshHydratedAccount();
     } catch (publishError) {
       failure = publishError instanceof Error ? publishError.message : String(publishError);
     }
@@ -661,7 +707,7 @@ export function useLocalLoadoutPlans(input: {
     });
     setError(errorMessage ?? "");
     setIsPublishing(false);
-  }, [accountSummary, draft, editingPlanId, executionReport, input, isExecuting, isPublishing]);
+  }, [accountSummary, draft, editingPlanId, executionReport, isExecuting, isPublishing, planAccount, refreshHydratedAccount, input]);
 
   const saveDraft = useCallback(async () => {
     if (!draft || isSaving) return null;
@@ -675,7 +721,10 @@ export function useLocalLoadoutPlans(input: {
         : [saved, ...plans];
       applyPlans(nextPlans, saved.id);
       setEditingPlanId(saved.id);
-      setDraft(toLocalLoadoutPlanDraft(saved));
+      const nextDraft = toLocalLoadoutPlanDraft(saved);
+      // 内容没变就不换 draft 引用：报告是按草稿变化作废的（见下方 draft 的 effect），
+      // 「存回原方案」写的就是屏幕上的草稿，换引用会把同一次穿戴的核对结果一起清掉。
+      if (JSON.stringify(nextDraft) !== JSON.stringify(draft)) setDraft(nextDraft);
       setError("");
       return saved;
     } catch (saveError) {
@@ -686,6 +735,40 @@ export function useLocalLoadoutPlans(input: {
       setIsSaving(false);
     }
   }, [applyPlans, draft, editingPlanId, isSaving, plans]);
+
+  /** 正在编辑的那条已保存方案的名字，用来在「存回哪里」里点名覆盖目标。 */
+  const savedPlanName = useMemo(
+    () => plans.find((plan) => plan.id === editingPlanId)?.name ?? null,
+    [editingPlanId, plans]
+  );
+
+  /**
+   * 「改一套」的第二个出口（T58 已确认第 10 条）：把当前草稿存成一条新记录，原来那套不动。
+   * 名字加「副本」后缀，免得方案库里两条同名；玩家仍可在编辑器里改名再点保存。
+   */
+  const saveAsNewPlan = useCallback(async () => {
+    if (!draft || isSaving) return null;
+    setIsSaving(true);
+    try {
+      const name = draft.name.trim();
+      const saved = await api.createLocalLoadoutPlan({
+        ...draft,
+        name: name.endsWith("副本") ? name : `${name} 副本`
+      });
+      const nextPlans = [saved, ...plans];
+      applyPlans(nextPlans, saved.id);
+      setEditingPlanId(saved.id);
+      setDraft(toLocalLoadoutPlanDraft(saved));
+      setError("");
+      return saved;
+    } catch (saveError) {
+      const message = saveError instanceof Error ? saveError.message : String(saveError);
+      setError(`另存应用配装失败：${message}`);
+      return null;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [applyPlans, draft, isSaving, plans]);
 
   const deletePlan = useCallback(async (id: string) => {
     if (isSaving) return;
@@ -708,8 +791,10 @@ export function useLocalLoadoutPlans(input: {
     selectedPlanId,
     workspace,
     draft,
+    planAccount,
     isDraftDirty,
     editingPlanId,
+    savedPlanName,
     isSaving,
     error,
     reload,
@@ -720,6 +805,7 @@ export function useLocalLoadoutPlans(input: {
     startFromInGameLoadout,
     setDraft,
     saveDraft,
+    saveAsNewPlan,
     closeEditor,
     deletePlan,
     dimPreview,

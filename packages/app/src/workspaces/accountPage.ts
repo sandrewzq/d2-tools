@@ -1,14 +1,17 @@
 import type { AccountItemSummary, AccountMaterialSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import {
   buildAccountPursuitSummary,
+  compareStableString,
+  pursuitActionabilityRank,
   type AccountPursuit,
-  type AccountPursuitSummary
+  type AccountPursuitSummary,
+  type AccountPursuitTimeFrame
 } from "@d2-tools/core/account/pursuits";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type { WeeklySummary } from "@d2-tools/core/weekly/summary";
-import { accountEquipmentBucketHashes, bucketLabels } from "@d2-tools/core/items/classification";
+import { accountEquipmentBucketHashes, bucketLabels, pursuitBucketHash } from "@d2-tools/core/items/classification";
 import { buildCharacterPowerView, type CharacterPowerView } from "./accountPower.js";
-import { buildAccountPowerRoute, type AccountPowerRouteView } from "./accountPowerRoute.js";
+import { buildAccountTodoChallenges, type AccountTodoChallenge } from "./accountTodoChallenges.js";
 import { buildAccountCharacterTabs, type AccountCharacterTab } from "./characterTabs.js";
 
 export type AccountOpenItemPayload = {
@@ -43,6 +46,27 @@ export type AccountReadonlyItemView = {
   isComplete?: boolean;
   statusLabel?: string;
   statusTone?: "neutral" | "pending" | "warning" | "success";
+  /** 行正面主事实的字段名，例如「目标」「官方奖励名」。仅行动行有。 */
+  primaryFactLabel?: string;
+  /** 行正面主事实的值。字段名和值要么都有，要么都没有。 */
+  primaryFactValue?: string;
+  /** 行右侧时限提示，例如「14 小时后到期」。没有就退回 `statusLabel`。 */
+  timeLabel?: string;
+  /** 时限桶。行正面和事实表读同一份，不在渲染时重判一次。 */
+  timeFrame?: AccountPursuitTimeFrame;
+  /** 官方原文里带等级占位词（奖励物品名字或奖励物品的装备阶级）。二级「提光」按它收行。 */
+  isPower?: boolean;
+  /** 对应「本周刷取」里的活动键。挑战行有，任务行没有；深链接靠它认行、展开区靠它找掉落。 */
+  activityKey?: string;
+  /** 展开区的事实表。行动行才有；只读行没有可展开的内容。 */
+  facts?: AccountReadonlyFactView[];
+};
+
+/** 行动行展开后的一行事实：字段名 / 值 / 这条值从哪来。 */
+export type AccountReadonlyFactView = {
+  label: string;
+  value: string;
+  source: string;
 };
 
 export type AccountReadonlyGroupView = {
@@ -100,12 +124,6 @@ export type AccountProfileView = {
   snapshotAt?: string | number | Date | null;
 };
 
-export type AccountPageNavItem = {
-  key: "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
-  href: string;
-  labelKey: "gear" | "configuration" | "tasks" | "items" | "postmaster" | "activity";
-};
-
 export type AccountCharacterDetailView = {
   characterId: string;
   className: string;
@@ -135,20 +153,56 @@ export type AccountConfigurationSectionView = {
   extraItems: AccountReadonlyItemView[];
 };
 
-export type AccountTasksSectionView = {
-  itemCount: number;
-  questCount: number;
-  orderCount: number;
-  seasonalCount: number;
-  pendingCount: number;
-  expiringCount: number;
-  trackedCount: number;
+/** 二级待办导航的五个入口。前四个按「多急」切时限，提光按奖励口径切。 */
+export type AccountTodoPanelKey = "all" | "daily" | "weekly" | "timeless" | "power";
+
+export type AccountTodoPanelView = {
+  key: AccountTodoPanelKey;
+  /** 这个面板里的可见行数。二级按钮上的计数直接用它，不另外手写。 */
+  count: number;
+  /**
+   * 按可执行性把这一档的行分成四类，和行内排序第一维用的是同一个键。
+   * 四类相加等于 `count`，是分区不是标签，渲染侧不再按状态文案重判一次。
+   */
+  actionableCount: number;
+  pendingActionCount: number;
+  closedCount: number;
+  unknownCount: number;
+  groups: AccountReadonlyGroupView[];
+};
+
+export type AccountTodoSectionView = {
   dataState: "confirmed" | "partial";
   isSyncing: boolean;
   statusLabel: string;
   errorMessage?: string;
   observedAt?: string;
-  groups: AccountReadonlyGroupView[];
+  /** 「全部」「提光」和三个时限面板共用同一批段，只是各自过滤出自己要显示的行。 */
+  panels: AccountTodoPanelView[];
+  /**
+   * 「全部」末尾的账号级事实：光等、邮政官、容量三行。常驻、只读，不参与分段、过滤和排序——
+   * 它们回答的是「账号现在是什么样」，不是「还有什么没做完」（T91 第 7 节）。
+   */
+  accountFacts: AccountTodoFactsView;
+};
+
+export type AccountTodoFactView = {
+  key: string;
+  label: string;
+  detail: string;
+  /** 行正面主事实的字段名与值，两栏要么都有，要么都没有。 */
+  factLabel: string;
+  factValue: string;
+  statusLabel: string;
+  statusTone: "neutral" | "pending" | "warning" | "success";
+};
+
+export type AccountTodoFactsView = {
+  label: string;
+  description: string;
+  /** 这三行读的是账号快照，时间戳跟着快照走，不跟待办那次任务读取走。 */
+  observedAt?: string;
+  items: AccountTodoFactView[];
 };
 
 export type AccountItemsSectionView = {
@@ -205,18 +259,16 @@ export type AccountPageViewModel = {
   connection: AccountConnectionView;
   feedback: AccountFeedbackView;
   profile: AccountProfileView | null;
-  navigation: AccountPageNavItem[];
   characterTabs: AccountCharacterTabView[];
   selectedCharacter: AccountCharacterDetailView | null;
   loadout: AccountLoadoutSectionView;
   configuration: AccountConfigurationSectionView;
-  tasks: AccountTasksSectionView;
+  todo: AccountTodoSectionView;
   items: AccountItemsSectionView;
   activity: AccountActivitySectionView;
   materials: AccountMaterialsSectionView;
   postmaster: AccountPostmasterSectionView;
   capacity: AccountCapacitySectionView;
-  powerRoute: AccountPowerRouteView;
 };
 
 export type SharedDomainCache = {
@@ -437,29 +489,21 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       : []
   );
   const configuration = buildAccountConfigurationSection(selectedCharacter);
-  const tasks = buildAccountTasksSection(
-    cache.pursuitSummary ?? buildAccountPursuitSummary(cache.accountSummary),
-    pageState.pursuitStatus ?? (pageState.isLoadingAccount ? "refreshing" : "ready"),
-    pageState.pursuitError
-  );
+  const todo = buildAccountTodoSection({
+    account: cache.accountSummary,
+    pursuitSummary: cache.pursuitSummary ?? buildAccountPursuitSummary(cache.accountSummary),
+    weeklySummary: cache.weeklySummary ?? null,
+    characterId: selectedCharacterId,
+    characterIndex: cache.accountSummary?.characters.findIndex((entry) => (
+      entry.character_id === selectedCharacterId
+    )) ?? -1,
+    status: pageState.pursuitStatus ?? (pageState.isLoadingAccount ? "refreshing" : "ready"),
+    errorMessage: pageState.pursuitError,
+    weeklyStatus: pageState.weeklySummaryStatus,
+    weeklyErrorMessage: pageState.weeklySummaryError
+  });
   const items = buildAccountItemsSection(selectedCharacter, workspace.materialRows.length);
   const capacity = buildAccountCapacitySection(cache.accountSummary, selectedCharacterId);
-  const basePowerRoute = selectedCharacter && selectedCharacterPower
-    ? buildAccountPowerRoute({
-      characterId: selectedCharacter.character_id,
-      power: selectedCharacterPower,
-      weeklySummary: cache.weeklySummary ?? null
-    })
-    : buildAccountPowerRoute({
-      characterId: selectedCharacterId,
-      power: selectedCharacterPower ?? emptyCharacterPowerView(),
-      weeklySummary: cache.weeklySummary ?? null
-    });
-  const powerRoute: AccountPowerRouteView = {
-    ...basePowerRoute,
-    isRefreshing: pageState.weeklySummaryStatus === "loading" || pageState.weeklySummaryStatus === "refreshing",
-    errorMessage: pageState.weeklySummaryError || undefined
-  };
 
   return {
     connection: {
@@ -493,7 +537,6 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
         snapshotAt: pageState.lastAccountLoadedAt
       }
       : null,
-    navigation: accountPageNavigation(),
     characterTabs: workspace.characterTabs,
     selectedCharacter: selectedCharacter
       ? {
@@ -534,7 +577,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       }))
     },
     configuration,
-    tasks,
+    todo,
     items,
     activity: {
       summary: cache.activitySummary,
@@ -558,25 +601,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
         : [],
       totalCount: selectedCharacter?.postmaster_items.length ?? 0
     },
-    capacity,
-    powerRoute
-  };
-}
-
-function emptyCharacterPowerView(): CharacterPowerView {
-  const emptyValue = {
-    complete: false,
-    denominator: 8 as const,
-    label: "数据不完整",
-    rows: []
-  };
-  return {
-    currentLabel: "-",
-    maxEquippable: emptyValue,
-    executablePower: emptyValue,
-    dropBaseline: emptyValue,
-    hasExternalSources: false,
-    executableMatchesAccountMaximum: false
+    capacity
   };
 }
 
@@ -711,17 +736,6 @@ function highestCapacityRisk(risks: AccountCapacityRiskLevel[]): AccountCapacity
   return "safe";
 }
 
-function accountPageNavigation(): AccountPageNavItem[] {
-  return [
-    { key: "gear", href: "#account-gear", labelKey: "gear" },
-    { key: "configuration", href: "#account-configuration", labelKey: "configuration" },
-    { key: "tasks", href: "#account-tasks", labelKey: "tasks" },
-    { key: "postmaster", href: "#account-postmaster", labelKey: "postmaster" },
-    { key: "items", href: "#account-items", labelKey: "items" },
-    { key: "activity", href: "#account-activity", labelKey: "activity" }
-  ];
-}
-
 function buildAccountConfigurationSection(
   character: AccountSummary["characters"][number] | null
 ): AccountConfigurationSectionView {
@@ -738,86 +752,328 @@ function buildAccountConfigurationSection(
   };
 }
 
-function buildAccountTasksSection(
-  pursuitSummary: AccountPursuitSummary,
-  status: NonNullable<AccountPageState["pursuitStatus"]>,
-  errorMessage?: string
-): AccountTasksSectionView {
-  type AttentionGroup = "pending" | "expiring" | "tracked" | "active" | "history";
-  const groups: Record<AttentionGroup, AccountPursuit[]> = {
-    pending: [],
-    expiring: [],
-    tracked: [],
-    active: [],
-    history: []
-  };
-  const now = Date.now();
+type TodoBucketKey = "daily" | "weekly" | "timeless";
 
-  for (const pursuit of pursuitSummary.items) {
-    if (pursuit.completion_state === "completed_pending_action") {
-      groups.pending.push(pursuit);
-    } else if (isPursuitExpiring(pursuit, now)) {
-      groups.expiring.push(pursuit);
-    } else if (pursuit.completion_state === "expired" || pursuit.completion_state === "completed_confirmed") {
-      groups.history.push(pursuit);
-    } else if (pursuit.tracked) {
-      groups.tracked.push(pursuit);
-    } else {
-      groups.active.push(pursuit);
-    }
-  }
+const todoBucketOrder: TodoBucketKey[] = ["daily", "weekly", "timeless"];
 
-  const mapGroupItems = (entries: AccountPursuit[]) => entries.map(toReadonlyPursuit);
-  const questCount = pursuitSummary.items.filter((pursuit) => pursuit.kind === "quest" || pursuit.kind === "milestone" || pursuit.kind === "unknown").length;
-  const orderCount = pursuitSummary.items.filter((pursuit) => pursuit.kind === "bounty").length;
-  const seasonalCount = pursuitSummary.items.filter((pursuit) => pursuit.kind === "seasonal").length;
-  const attentionGroups = [
-    toReadonlyGroupViews("pending", "已完成待处理", "已完成但仍需领取、确认或继续处理", mapGroupItems(groups.pending)),
-    toReadonlyGroupViews("expiring", "24 小时内过期", "优先检查即将失效的任务与赏金", mapGroupItems(groups.expiring), groups.expiring.length ? "warning" : "neutral"),
-    toReadonlyGroupViews("tracked", "正在追踪", "游戏中已明确追踪的任务", mapGroupItems(groups.tracked)),
-    toReadonlyGroupViews("active", "其他进行中", "尚未进入优先处理队列的任务与目标", mapGroupItems(groups.active)),
-    toReadonlyGroupViews("history", "已过期或已处理", "保留服务器已确认的结束状态供核对", mapGroupItems(groups.history))
-  ].filter((group) => group.items.length > 0);
-  const firstActionableGroupIndex = attentionGroups.findIndex((group) => group.key !== "history");
+const todoBucketLabels: Record<TodoBucketKey, string> = {
+  daily: "日常",
+  weekly: "周常",
+  timeless: "不限时"
+};
+
+/**
+ * 清单条目。四个排序键先摊平出来再排，任务和挑战共用同一个比较器——
+ * 时限决定它落在哪一段，段内顺序由这四个键决定。
+ */
+type TodoEntry = {
+  id: string;
+  bucket: TodoBucketKey;
+  actionability: number;
+  /** 服务器到期时间；没有到期时间记 Infinity，排在有限时间的后面。 */
+  expiresAt: number;
+  /** 稳定身份：活动 Hash 或任务 Hash；两者都没有记 Infinity，退到 id 比较。 */
+  stableHash: number;
+  characterIndex: number;
+  isPower: boolean;
+  view: AccountReadonlyItemView;
+};
+
+function buildAccountTodoSection(input: {
+  account: AccountSummary | null;
+  pursuitSummary: AccountPursuitSummary;
+  weeklySummary: WeeklySummary | null;
+  characterId: string;
+  characterIndex: number;
+  status: NonNullable<AccountPageState["pursuitStatus"]>;
+  errorMessage?: string;
+  weeklyStatus?: AccountPageState["weeklySummaryStatus"];
+  weeklyErrorMessage?: string;
+}): AccountTodoSectionView {
+  const summary = input.pursuitSummary;
+  const now = snapshotNow(summary);
+  const weeklyReset = input.weeklySummary?.weekly_reset.next_reset_iso;
+  const entries = [
+    ...summary.items.map((pursuit) => toTodoEntryFromPursuit(pursuit, now)),
+    ...buildAccountTodoChallenges({
+      characterId: input.characterId,
+      weeklySummary: input.weeklySummary
+    }).map((challenge) => toTodoEntryFromChallenge({
+      challenge,
+      characterIndex: input.characterIndex,
+      weeklyResetIso: weeklyReset
+    }))
+  ].sort(compareTodoEntries);
+
+  const description = (bucket: TodoBucketKey) => todoBucketDescription({
+    bucket,
+    dailyResetIso: summary.daily_reset_iso,
+    weeklyResetIso: weeklyReset ?? summary.weekly_reset_iso
+  });
+  const powerEntries = entries.filter((entry) => entry.isPower);
 
   return {
-    itemCount: pursuitSummary.items.length,
-    questCount,
-    orderCount,
-    seasonalCount,
-    pendingCount: pursuitSummary.pending_count,
-    expiringCount: pursuitSummary.expiring_count,
-    trackedCount: pursuitSummary.tracked_count,
-    dataState: pursuitSummary.data_state === "partial" || status === "error" || status === "stale"
+    dataState: summary.data_state === "partial"
+      || input.status === "error"
+      || input.status === "stale"
+      || Boolean(input.weeklyErrorMessage)
       ? "partial"
       : "confirmed",
-    isSyncing: status === "loading" || status === "refreshing",
-    statusLabel: status === "loading"
-      ? "首次读取中"
-      : status === "refreshing"
-        ? "同步中"
-        : status === "cached"
-          ? "本地缓存"
-          : status === "stale"
-            ? "等待重新同步"
-            : status === "error"
-              ? "读取失败"
-              : status === "ready"
-                ? "已确认"
-                : "尚未读取",
-    ...(errorMessage ? { errorMessage } : {}),
-    ...(pursuitSummary.observed_at ? { observedAt: pursuitSummary.observed_at } : {}),
-    groups: attentionGroups.map((group, index) => ({
-      ...group,
-      defaultOpen: index === firstActionableGroupIndex
+    isSyncing: input.status === "loading"
+      || input.status === "refreshing"
+      || input.weeklyStatus === "loading"
+      || input.weeklyStatus === "refreshing",
+    statusLabel: todoStatusLabel(input.status, input.weeklyStatus),
+    ...(input.errorMessage ? { errorMessage: input.errorMessage } : {}),
+    ...(summary.observed_at ? { observedAt: summary.observed_at } : {}),
+    panels: [
+      buildTodoPanel({ key: "all", entries, description }),
+      buildTodoPanel({ key: "daily", entries: inBucket(entries, "daily"), description }),
+      buildTodoPanel({ key: "weekly", entries: inBucket(entries, "weekly"), description }),
+      buildTodoPanel({ key: "timeless", entries: inBucket(entries, "timeless"), description }),
+      buildTodoPanel({ key: "power", entries: powerEntries, description })
+    ],
+    accountFacts: buildAccountTodoFacts({
+      account: input.account,
+      characterId: input.characterId
+    })
+  };
+}
+
+/**
+ * 账号级事实三行。每行只在真有事实可报时出现：光等读不到就不报光等，容量上限没返回就只报
+ * 数得到的一半，两半都没有就整行不出现。行不参与第 5 节的排序，也不进任何二级入口。
+ */
+function buildAccountTodoFacts(input: {
+  account: AccountSummary | null;
+  characterId: string;
+}): AccountTodoFactsView {
+  const account = input.account;
+  const character = account?.characters.find((entry) => entry.character_id === input.characterId)
+    ?? account?.characters[0];
+  const items: AccountTodoFactView[] = [];
+
+  const lights = (account?.characters ?? []).flatMap((entry) => (
+    typeof entry.light === "number" ? [`${entry.class_name} ${entry.light}`] : []
+  ));
+  if (lights.length) {
+    items.push({
+      key: "light",
+      label: "光等",
+      detail: "按角色分别列出，不取平均也不取最高",
+      factLabel: `${lights.length} 个角色`,
+      factValue: lights.join(" / "),
+      statusLabel: "只读",
+      statusTone: "neutral"
+    });
+  }
+
+  if (character) {
+    const postmasterCount = character.postmaster_items.length;
+    const postmasterCapacity = character.capacity_limits?.postmaster_capacity;
+    items.push({
+      key: "postmaster",
+      label: "邮政官",
+      detail: "待领取物品，不阻塞其他资源加载",
+      factLabel: "待领取",
+      factValue: `${postmasterCount}${postmasterCapacity ? ` / ${postmasterCapacity}` : ""} 件`,
+      statusLabel: postmasterCount > 0 ? "可领取" : "没有待领取",
+      statusTone: postmasterCount > 0 ? "pending" : "neutral"
+    });
+  }
+
+  const pursuitUsed = character
+    ? character.inventory_items.filter((item) => item.equipment_bucket_hash === pursuitBucketHash).length
+    : undefined;
+  const pursuitCapacity = character?.capacity_limits?.pursuit_capacity;
+  const slots: string[] = [];
+  if (pursuitUsed !== undefined && pursuitCapacity) slots.push(`任务 ${pursuitUsed} / ${pursuitCapacity}`);
+  if (account && account.vault.capacity) slots.push(`仓库 ${account.vault.item_count} / ${account.vault.capacity}`);
+  if (slots.length) {
+    items.push({
+      key: "capacity",
+      label: "容量",
+      detail: "任务槽位按当前角色计，仓库为账号级",
+      factLabel: "占用",
+      factValue: slots.join(" · "),
+      statusLabel: "只读",
+      statusTone: "neutral"
+    });
+  }
+
+  return {
+    label: "账号级事实",
+    description: "常驻显示，不参与「多急」的分段",
+    ...(account?.profile_minted_at ? { observedAt: account.profile_minted_at } : {}),
+    items
+  };
+}
+
+function buildTodoPanel(input: {
+  key: AccountTodoPanelKey;
+  entries: TodoEntry[];
+  description: (bucket: TodoBucketKey) => string;
+}): AccountTodoPanelView {
+  const present = todoBucketOrder.filter((bucket) => (
+    input.entries.some((entry) => entry.bucket === bucket)
+  ));
+  return {
+    key: input.key,
+    count: input.entries.length,
+    actionableCount: countByActionability(input.entries, 0),
+    pendingActionCount: countByActionability(input.entries, 1),
+    closedCount: countByActionability(input.entries, 2),
+    unknownCount: countByActionability(input.entries, 3),
+    groups: present.map((bucket) => ({
+      key: bucket,
+      label: todoBucketLabels[bucket],
+      description: input.description(bucket),
+      items: input.entries.filter((entry) => entry.bucket === bucket).map((entry) => entry.view),
+      status: "neutral" as const,
+      // 段默认展开：清单的全部意义是看得到行，折叠起来等于多一次点击；
+      // 首页深链接也要靠行已经在 DOM 里显示出来才滚得到。
+      defaultOpen: true
     }))
   };
 }
 
-function isPursuitExpiring(pursuit: AccountPursuit, now: number): boolean {
-  if (!pursuit.expiration_date || pursuit.completion_state === "expired") return false;
-  const remaining = Date.parse(pursuit.expiration_date) - now;
-  return Number.isFinite(remaining) && remaining >= 0 && remaining <= 24 * 60 * 60 * 1000;
+function inBucket(entries: TodoEntry[], bucket: TodoBucketKey): TodoEntry[] {
+  return entries.filter((entry) => entry.bucket === bucket);
+}
+
+/**
+ * T91 第 5 节的清单排序，全清单只有这一套：可执行性 → 时间 → 稳定身份 → 角色顺序。
+ * 四个维度都不读本地化名称，同一份 Profile 在两台设备上顺序一致。
+ */
+function compareTodoEntries(left: TodoEntry, right: TodoEntry): number {
+  return compareNumbers(left.actionability, right.actionability)
+    || compareNumbers(left.expiresAt, right.expiresAt)
+    || compareNumbers(left.stableHash, right.stableHash)
+    || compareStableString(left.id, right.id)
+    || compareNumbers(left.characterIndex, right.characterIndex);
+}
+
+/** 不写成相减：Infinity - Infinity 是 NaN，NaN 会一路穿过 `||` 链，结果不可控。 */
+function compareNumbers(left: number, right: number): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
+}
+
+/**
+ * 可选性四档在任务和挑战上是同一套编号：0 可执行、1 已完成待处理、2 已结束、3 状态待确认。
+ * 挑战没有「待处理」这一档，所以那一格在挑战多的档里自然是 0，不是漏算。
+ */
+function countByActionability(entries: TodoEntry[], rank: number): number {
+  return entries.filter((entry) => entry.actionability === rank).length;
+}
+
+function toTodoEntryFromPursuit(pursuit: AccountPursuit, now: number): TodoEntry {
+  return {
+    id: `pursuit:${pursuit.id}`,
+    bucket: todoBucketForTimeFrame(pursuit.time_frame),
+    actionability: pursuitActionabilityRank(pursuit),
+    expiresAt: parseOrInfinity(pursuit.expiration_date),
+    stableHash: pursuit.source_hash ?? pursuit.item_hash ?? Number.POSITIVE_INFINITY,
+    characterIndex: pursuit.character_index,
+    isPower: false,
+    view: toReadonlyPursuit(pursuit, now)
+  };
+}
+
+function toTodoEntryFromChallenge(input: {
+  challenge: AccountTodoChallenge;
+  characterIndex: number;
+  weeklyResetIso?: string;
+}): TodoEntry {
+  return {
+    id: `challenge:${input.challenge.key}`,
+    // 活动挑战的时限由活动身份决定，一律进「周常」段（T91 第 4.4 节）。
+    bucket: "weekly",
+    actionability: challengeActionabilityRank(input.challenge),
+    expiresAt: parseOrInfinity(input.weeklyResetIso),
+    stableHash: input.challenge.activityHash ?? Number.POSITIVE_INFINITY,
+    characterIndex: input.characterIndex < 0 ? Number.MAX_SAFE_INTEGER : input.characterIndex,
+    isPower: input.challenge.isPower,
+    view: toReadonlyChallenge(input.challenge)
+  };
+}
+
+/**
+ * 挑战只有「做 / 没做」两种确定状态，没有任务那种「已完成待领取」的信号，
+ * 所以完成和本周领不到都排在同一档。
+ */
+function challengeActionabilityRank(challenge: AccountTodoChallenge): number {
+  if (challenge.status === "available") return 0;
+  if (challenge.status === "completed" || challenge.status === "unavailable") return 2;
+  return 3;
+}
+
+/** `long` 是「过了下一个每周重置，但仍在限时」——赛季挑战这类，和 `weekly` 同段。 */
+function todoBucketForTimeFrame(timeFrame: AccountPursuitTimeFrame): TodoBucketKey {
+  if (timeFrame === "daily") return "daily";
+  if (timeFrame === "timeless") return "timeless";
+  return "weekly";
+}
+
+function parseOrInfinity(value: string | undefined): number {
+  if (!value) return Number.POSITIVE_INFINITY;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * 时间基准只认这次快照。以前分桶、计数和行上的「还有多久」各用各的 now：
+ * 计数固化在抓取时刻（`packages/core/src/account/pursuits.ts`），分组却在渲染时重算，
+ * 同一个快照放一会儿就会出现「计数说 0 项、列表里有 3 行」。这里统一读快照的观测时刻。
+ */
+function snapshotNow(summary: AccountPursuitSummary): number {
+  const observed = summary.observed_at ? Date.parse(summary.observed_at) : Number.NaN;
+  return Number.isFinite(observed) ? observed : Date.now();
+}
+
+function todoBucketDescription(input: {
+  bucket: TodoBucketKey;
+  dailyResetIso?: string;
+  weeklyResetIso?: string;
+}): string {
+  if (input.bucket === "daily") {
+    const reset = formatResetMoment(input.dailyResetIso);
+    return reset ? `${reset} 重置，不做就没了` : "每日重置后换新，不做就没了";
+  }
+  if (input.bucket === "weekly") {
+    const reset = formatResetMoment(input.weeklyResetIso);
+    return reset
+      ? `${reset} 重置 · 周赏金、周挑战、轮换活动、限时活动`
+      : "每周重置后换新 · 周赏金、周挑战、轮换活动、限时活动";
+  }
+  return "没有到期时间，不随重置消失";
+}
+
+function formatResetMoment(value: string | undefined): string {
+  if (!value) return "";
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp)) return "";
+  const at = new Date(timestamp);
+  return `${pad2(at.getMonth() + 1)}-${pad2(at.getDate())} ${pad2(at.getHours())}:${pad2(at.getMinutes())}`;
+}
+
+function pad2(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function todoStatusLabel(
+  status: NonNullable<AccountPageState["pursuitStatus"]>,
+  weeklyStatus: AccountPageState["weeklySummaryStatus"]
+): string {
+  if (status === "loading") return "首次读取中";
+  if (status === "refreshing") return "同步中";
+  if (status === "cached") return "本地缓存";
+  if (status === "stale") return "等待重新同步";
+  if (status === "error") return "读取失败";
+  if (status === "ready") {
+    return weeklyStatus === "loading" || weeklyStatus === "refreshing" ? "轮换同步中" : "已确认";
+  }
+  return "尚未读取";
 }
 
 function buildAccountItemsSection(
@@ -898,16 +1154,6 @@ function toReadonlyGroup(
   };
 }
 
-function toReadonlyGroupViews(
-  key: string,
-  label: string,
-  description: string,
-  items: AccountReadonlyItemView[],
-  status: AccountReadonlyGroupView["status"] = "neutral"
-): AccountReadonlyGroupView {
-  return { key, label, description, items, status };
-}
-
 function toReadonlyItems(items: AccountItemSummary[], sourceLabel: string): AccountReadonlyItemView[] {
   return items.map((item, index) => {
     const progress = buildReadonlyItemProgress(item);
@@ -922,7 +1168,7 @@ function toReadonlyItems(items: AccountItemSummary[], sourceLabel: string): Acco
   });
 }
 
-function toReadonlyPursuit(pursuit: AccountPursuit): AccountReadonlyItemView {
+function toReadonlyPursuit(pursuit: AccountPursuit, now: number): AccountReadonlyItemView {
   const status = pursuit.completion_state === "completed_pending_action"
     ? { statusLabel: "已完成待处理", statusTone: "success" as const }
     : pursuit.completion_state === "completed_confirmed"
@@ -934,27 +1180,84 @@ function toReadonlyPursuit(pursuit: AccountPursuit): AccountReadonlyItemView {
           : pursuit.completion_state === "in_progress"
             ? { statusLabel: "进行中", statusTone: "neutral" as const }
             : { statusLabel: "状态待确认", statusTone: "warning" as const };
-  const expiration = pursuit.expiration_date
-    ? ` · ${formatPursuitExpiration(pursuit.expiration_date)}`
-    : "";
+  const sourceKind = pursuit.source === "character_milestone"
+    ? "角色目标"
+    : pursuit.source === "record"
+      ? "赛季挑战"
+      : "任务";
+  const bucket = todoBucketForTimeFrame(pursuit.time_frame);
+  const expirationFact = pursuit.expiration_date
+    ? `${formatResetMoment(pursuit.expiration_date)} · 游戏返回的到期字段`
+    : "游戏没有返回到期字段，按不限时处理";
   return {
     key: `pursuit:${pursuit.id}`,
     name: pursuit.name,
     icon: pursuit.icon,
-    typeLabel: pursuit.type_label,
-    sourceLabel: `${pursuit.class_name} · ${pursuit.source === "character_milestone" ? "角色目标" : pursuit.source === "record" ? "赛季挑战" : "任务物品"}${expiration}`,
+    typeLabel: `${pursuit.type_label} · ${pursuit.class_name}`,
+    sourceLabel: sourceKind,
     ...(pursuit.progress_label ? { progressLabel: pursuit.progress_label } : {}),
     ...(pursuit.progress_percent !== undefined ? { progressPercent: pursuit.progress_percent } : {}),
     isComplete: pursuit.completion_state === "completed_pending_action" || pursuit.completion_state === "completed_confirmed",
     statusLabel: status.statusLabel,
-    statusTone: status.statusTone
+    statusTone: status.statusTone,
+    ...(pursuit.progress_label ? { primaryFactLabel: "目标", primaryFactValue: pursuit.progress_label } : {}),
+    ...(pursuit.expiration_date
+      ? { timeLabel: formatPursuitExpiration(pursuit.expiration_date, now) }
+      : {}),
+    timeFrame: pursuit.time_frame,
+    isPower: false,
+    facts: [
+      {
+        label: "任务进度",
+        value: pursuit.progress_label ?? "游戏没有返回可见目标进度",
+        source: "游戏返回"
+      },
+      { label: "到期时间", value: expirationFact, source: "游戏返回" },
+      { label: "时限", value: `${todoBucketLabels[bucket]} · 按到期时间落段，不按名称`, source: "本机分桶规则" }
+    ]
   };
 }
 
-function formatPursuitExpiration(value: string): string {
+function toReadonlyChallenge(challenge: AccountTodoChallenge): AccountReadonlyItemView {
+  const status = challenge.status === "available"
+    ? { statusLabel: "可执行", statusTone: "pending" as const }
+    : challenge.status === "completed"
+      ? { statusLabel: "本周已完成", statusTone: "success" as const }
+      : challenge.status === "unavailable"
+        ? { statusLabel: "当前不可执行", statusTone: "neutral" as const }
+        : { statusLabel: "状态待确认", statusTone: "warning" as const };
+  const rewardFact = challenge.rewardLabel ? `「${challenge.rewardLabel}」` : "游戏没有返回奖励名";
+  const challengeFact = [
+    status.statusLabel,
+    challenge.progressLabel ? `目标 ${challenge.progressLabel}` : ""
+  ].filter(Boolean).join(" · ");
+  return {
+    key: `challenge:${challenge.key}`,
+    name: challenge.activityName,
+    typeLabel: challenge.activityTypeLabel,
+    sourceLabel: challenge.sourceLabel,
+    ...(challenge.progressLabel ? { progressLabel: challenge.progressLabel } : {}),
+    isComplete: challenge.status === "completed",
+    statusLabel: status.statusLabel,
+    statusTone: status.statusTone,
+    primaryFactLabel: "官方奖励名",
+    primaryFactValue: rewardFact,
+    timeFrame: "weekly",
+    isPower: challenge.isPower,
+    ...(challenge.activityKey ? { activityKey: challenge.activityKey } : {}),
+    facts: [
+      { label: "挑战状态", value: challengeFact, source: "游戏返回" },
+      { label: "官方奖励名", value: rewardFact, source: "官方定义" },
+      { label: "时限", value: "周常 · 按活动身份落段，不按名称", source: "本机分桶规则" }
+    ]
+  };
+}
+
+/** 行上的「还有多久」。基准是 `now`（快照观测时刻），不是渲染时刻。 */
+function formatPursuitExpiration(value: string, now: number): string {
   const timestamp = Date.parse(value);
   if (!Number.isFinite(timestamp)) return "到期时间待确认";
-  const remaining = timestamp - Date.now();
+  const remaining = timestamp - now;
   if (remaining <= 0) return "已过期";
   const hours = Math.floor(remaining / (60 * 60 * 1000));
   if (hours < 24) return `${Math.max(1, hours)} 小时后到期`;

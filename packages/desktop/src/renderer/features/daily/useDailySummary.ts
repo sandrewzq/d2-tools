@@ -33,7 +33,7 @@ export function useDailySummary() {
         setClock(new Date());
       })
       .catch((error) => {
-        setDailyError(error instanceof Error ? error.message : "首页情报读取失败");
+        setDailyError(error instanceof Error ? error.message : "情报读取失败");
       });
     let request: Promise<void>;
     request = operation.finally(() => {

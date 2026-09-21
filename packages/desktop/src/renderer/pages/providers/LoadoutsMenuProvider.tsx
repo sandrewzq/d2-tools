@@ -11,7 +11,9 @@ export function LoadoutsMenuProvider() {
 
   return (
     <LoadoutsPage
-      accountSummary={accountSummary}
+      // 配装页用补全过插槽详情的账号：账号快照按设计不含 `sockets` / `armor_energy`，
+      // 拿它判「插槽能不能写」会一律判成不能（Bug #103）。其余菜单仍用 `accountSummary`。
+      accountSummary={localPlans.planAccount ?? accountSummary}
       isLoadingAccount={session.account.isLoadingAccount}
       isShowingCachedAccount={session.account.isShowingCachedAccount}
       accountError={session.account.accountError}
@@ -30,6 +32,7 @@ export function LoadoutsMenuProvider() {
       localPlanDraft={localPlans.draft}
       localPlanIsDirty={localPlans.isDraftDirty}
       localPlanEditingId={localPlans.editingPlanId}
+      localPlanSavedName={localPlans.savedPlanName}
       localPlanIsSaving={localPlans.isSaving}
       localPlanError={localPlans.error}
       dimPreview={localPlans.dimPreview}
@@ -69,6 +72,7 @@ export function LoadoutsMenuProvider() {
       onStartLocalPlanFromInGameLoadout={localPlans.startFromInGameLoadout}
       onLocalPlanDraftChange={(draft) => localPlans.setDraft(draft)}
       onSaveLocalPlan={() => void localPlans.saveDraft()}
+      onSaveLocalPlanAsNew={() => void localPlans.saveAsNewPlan()}
       onCloseLocalPlanEditor={localPlans.closeEditor}
       onDeleteLocalPlan={(id) => void localPlans.deletePlan(id)}
       onPreviewDimImport={(url) => void localPlans.previewDimImport(url)}

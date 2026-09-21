@@ -15,6 +15,7 @@ import {
   type LocalLoadoutPlanItemMatchStatus,
   type LocalLoadoutPlanMatch
 } from "@d2-tools/core/loadouts/plans";
+import { normalizeCompareSlot, selectApplicationLoadoutInGameLink, type CrossSourceLink } from "./loadoutCrossSource.js";
 
 export type ApplicationLoadoutScreen =
   | { kind: "library"; selected_plan_id?: string }
@@ -62,6 +63,8 @@ export type ApplicationLoadoutDirectoryEntryView = {
   has_armor_targets: boolean;
   status_label: string;
   status_tone: "neutral" | "ready" | "warning";
+  /** 这套方案在游戏内槽位上的落点；账号未读时为空。见 `loadoutCrossSource`。 */
+  in_game_link: CrossSourceLink | null;
   selected: boolean;
 };
 
@@ -398,6 +401,7 @@ function buildApplicationLoadoutDirectoryEntry(
       : detail.wear_state === "waiting-account" || detail.wear_state === "empty"
         ? "neutral"
         : "warning",
+    in_game_link: selectApplicationLoadoutInGameLink(plan, accountSummary),
     selected
   };
 }
@@ -785,25 +789,6 @@ function armorSetConstraintFingerprint(
   if (constraint.mode === "none") return "none";
   if (constraint.mode === "single") return `single:${constraint.set_hash}:${constraint.piece_count}`;
   return `split-2-2:${constraint.first_set_hash}:${constraint.second_set_hash}`;
-}
-
-function normalizeCompareSlot(rawSlot: string): { key: string; label: string } {
-  const value = rawSlot.trim().toLocaleLowerCase();
-  const knownSlots: Array<{ key: string; label: string; patterns: RegExp[] }> = [
-    { key: "subclass", label: "子职业", patterns: [/子职业/, /subclass/] },
-    { key: "kinetic", label: "动能武器", patterns: [/动能/, /kinetic/] },
-    { key: "energy", label: "能量武器", patterns: [/能量武器/, /^energy/] },
-    { key: "power", label: "威能武器", patterns: [/威能/, /重武器/, /power weapon/, /heavy/] },
-    { key: "helmet", label: "头盔", patterns: [/头盔/, /helmet/] },
-    { key: "gauntlets", label: "臂铠", patterns: [/臂铠/, /手套/, /gauntlet/] },
-    { key: "chest", label: "胸甲", patterns: [/胸甲/, /chest/] },
-    { key: "legs", label: "腿甲", patterns: [/腿甲/, /leg armor/, /boots/] },
-    { key: "class-item", label: "职业物品", patterns: [/职业物品/, /class item/] }
-  ];
-  const known = knownSlots.find((slot) => slot.patterns.some((pattern) => pattern.test(value)));
-  if (known) return { key: known.key, label: known.label };
-  const key = value.replace(/[^\p{Letter}\p{Number}]+/gu, "-").replace(/^-|-$/g, "") || "unknown-slot";
-  return { key: `custom:${key}`, label: rawSlot || "未命名槽位" };
 }
 
 function compareRowOrder(left: string, right: string): number {

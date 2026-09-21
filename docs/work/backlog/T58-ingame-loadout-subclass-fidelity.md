@@ -1,44 +1,173 @@
-# T58 游戏内配装完整子职业配置
+# T58 新建配装工作流与子职业保真
+
+> **T92「新建配装完整工作流」已于 2026-09-20 并入本任务**，编号冻结保留作追溯，不单独占行。
 
 ## 目标
 
 游戏内配装里的子职业不是普通装备。它携带超能、技能、星象、碎片和模组，Bungie 在 `characterLoadouts[].items[].plugItemHashes` 里按 socket 位置返回，DIM 用 `socketOverrides` 表达同一份数据。
 
-本任务只负责**保真**：读准、存得下、显示对、和 DIM 往返不丢。
+本任务覆盖「从零建一套应用配装，到把它存进游戏内槽位」这条完整路径，分两层。
 
-**不包含「把子职业配置写回游戏」**。那件事单独立项，前提是先验证子职业 socket 的可写能力。
+**主流程：** 入口怎么进、草稿什么时候产生、护甲怎么算、什么时候写 Bungie。范围同时覆盖 `游戏内配装` 与 `应用配装` 两个来源和编辑器内联的护甲规划。
+
+**子职业保真（2026-09-20 重定）：**
+
+1. 读准当前装备的子职业——超能、技能、星象、碎片各是什么。
+2. 算出星象和碎片提供的属性加成，喂给护甲求解器，替掉现在的手工输入。
+3. 显示对：分组、官方图标、空位占位、明细。
+4. 应用配装前校验：这套配装假定的子职业配置和角色当前真实配置是否一致，不一致就拦下。
+
+这四点是主流程里的几步，不单独成流程。
+
+**不做**：把子职业配置写回游戏。星象、碎片、超能、技能一律不写。
+
+## 为什么不做写回
+
+DIM 能写——逐个 socket 调 `InsertSocketPlug`，超能、技能、星象、碎片四项都写。代价也真实：issue #10344 / #8750 记录，星象和碎片在插槽间无谓改动会让玩家在游戏内丢掉全部超能/技能能量；issue #8718 记录同一批碎片换个 socket 顺序会被当成变化、剥离再插一遍。
+
+参考项目 d2-armor-solver 走另一条路：能写，但只写五个护甲槽和护甲模组，绝不碰子职业插槽；同时要求用户填的碎片属性和角色当前真实配置精确一致，对不上就拒绝「装备到游戏」（`src/app.mjs:3178-3190`）。它读当前配置的方式是 `CharacterEquipment` → `ItemSockets` → 查烘焙好的属性表求和（`src/core/bungie-inventory.mjs:515-561`）。
+
+本仓库取后者：不写星象，用「读当前配置 + 校验闸门」代替。
+
+**前置是 `Bug #103`**：穿戴路径今天连护甲模组都写不进去，子职业读完也没有可执行的下游。
+
+## 已确认（2026-09-20）
+
+1. **两个来源分开计数。** 游戏内槽位每个角色只有 10 个，是 Bungie 的硬上限；应用配装只受本地存储限制，能存多少套没有上限。同一套构筑可以两边都有，界面保留两条独立记录，不合并、不互相覆盖，也不因为内容相同藏起一条。
+2. **两个来源靠标记互相引用。** 应用配装一侧标出该方案在游戏内槽位上的状态（与方案一致的槽位 / 当前已装备的槽位 / 当前角色可穿戴的槽位），游戏内槽位一侧标出它对应哪个应用配装。标记只在账号已核对时出现。不通过合并记录实现。
+3. **草稿进编辑器就自动建，保存由玩家点。** 新建、复制当前装备、解析攻略、AI 成果、复制游戏内槽位、DIM 导入六条入口都只落草稿，不落盘。编辑栏显示 `尚未保存` / `有未保存修改` / `已保存`，离开时按未保存修改拦截。
+4. **护甲手动重算，脏标记点名是哪一类设置变了。** 会作废候选的输入分三类：护甲要求（`stat_minimums` 六维最低值）、模组调整（逐部位 `armor_stat_mod_slot_rules` 或 `+5 / +10` 预算）、技能与碎片读数（`fragment_stat_bonuses`）。规划方式、优先顺序、套装要求、装备范围和装备目标改动同样作废。改动后旧候选留在屏幕上并打上 `设置已变化，需要重新计算`，重算按钮成为该区域唯一主操作。这条脏状态同时禁用 `使用这套方案`——按旧设置算出来的护甲不能写进草稿，这是正确性问题，不是提示文案问题。重算失败或离开再回来，脏状态还在。脏标记必须说清是哪一类变了：模组改了装备组合往往不变，六维目标或碎片改了可能整套都要换。
+5. **手动重算的依据是实测耗时。** 389 件术士护甲池、strict 模式、默认 `state_limit` 2000 下，一次计算中位耗时 1.7 秒到 23 秒，随每件护甲的可选装法数量增长。自动重算等于每改一个输入就压上这么多等待。
+6. **搜索截断要露出来。** `search.truncated` 只到 ViewModel，没有任何界面区域消费它；推荐方案区要把它渲染成真实警告，不能让截断结果看起来像完整搜索。
+7. **声明的数量要在画面上数得出。** 推荐方案区写「N 个结果」就画 N 张候选卡；游戏内槽位按每角色 10 个画满，不省掉没内容的槽位。原型第一版只画了 1 张卡配「5 个结果」，读图的人当成漏渲染——数量对不上和漏渲染在玩家眼里是一回事。
+8. **「禁用接受」在护甲要求和碎片这两类上是唯一闸门。** 今天产品是一刀切：`updateDraft()`（`LoadoutsPageContentView.tsx:1143-1146`）默认 `resetArmor = true`，任何设置改动都会 `resetArmorPlanner()` 并把 `armor_plan` 从草稿里剥掉，候选当场消失。改成「保留候选 + 禁用接受」之后，三类的兜底并不一样：
+
+   - **模组调整有兜底。** `validatePlannedArmorAssignments`（`localPlanExecution.ts:213-332`）执行前逐部位核对 `自动 / 不安装 / +5 / +10` 与指定属性（`:291-309`），旧式方案核对 `+5 / +10` 数量（`:324-330`），不一致判缺口，`strictArmorPlan`（`:187-188`）一见缺口就清空执行步骤。报错发生在穿戴那一刻，玩家点下去才知道白填。
+   - **护甲要求没有兜底。** `validatePlannedArmorAssignments` 全文不引用 `stat_minimums`；穿戴状态 `getApplicationLoadoutWearState`（`applicationLoadoutWorkspace.ts:405-415`）只判 `selected_count === item_targets.length`。摘要区会拿候选里保存的六维去比新目标、显示「差 N」（`LoadoutsPageContentView.tsx:1646`），但那只是文字，按钮照样能点。
+   - **碎片读数也没有兜底。** 碎片加成进求解器当起点（`armorSolver.ts:201`，planner `:1182`），改它旧候选就是按旧起点算的，没有任何校验看这个值。
+
+   所以脏状态不是体验优化：护甲要求和碎片这两类今天没有任何东西在拦，禁用接受就是它们唯一的闸门。
+
+9. **入口按玩家的四种动机分，不按功能模块分**（2026-09-20 原型定稿）。四条路共用同一条主干七步：1 定来源 → 2 装武器 → 3 定子职业 → 4 调护甲 → 5 挑候选 → 6 核对能不能穿 → 7 落盘。差别只在第 1 步带进来什么、哪几步是空的：
+
+   - **存下现在这一身**：起点是身上这套，读当前角色的三把武器、五件护甲和子职业，落成草稿。不强制跑护甲规划——身上这身六维没达标也能原样存下来。
+   - **抄一套**：起点是攻略、视频或 DIM 链接，解析结果填进草稿，装备按物品 hash 落位。
+   - **凑一套**：起点是「仓库里有什么」。不读当前装备，一进来就是护甲规划，三把武器先空着，护甲落定后再补。
+   - **改一套**：起点是应用里已存的某套，只动其中一件。
+
+10. **改一套的出口有两个：存回原方案、另存为新配装。** 存回会覆盖原方案，另存会新建一套、原来那套不动。这个选择只在改一套时出现；游戏内槽位那一侧没有对应能力，Bungie 的槽位只能整体覆盖。
+
+## 未定
+
+- 账号刷新或切换角色会不会清空未保存草稿。DIM 的 issue #10761 / #9451 就是这个问题，先定再实现。
+- 护甲耗时基准的 `installation` 是按规则集常数合成补上快照缺口的。等 Bug #103 的按需拉详情走通，用真实数据重跑，把包络换成实测值。
+- 方案库目录行在 224px 轨道里放不下标题：行右侧留了 58px 给对比开关，状态角标又占约 54px，标题只剩 40 多像素，实际显示成两三个字加省略号。原型照产品渲染，没替它修；要不要加宽轨道或收起角标由实窗验收时定。
 
 ## 现状（2026-09-20 复核）
 
-已落地：
+读侧的数据已经有了，缺的是接线：
 
-- 数据链路通了：Bungie component 206（`packages/services/src/account/session.ts:150`）→ 收集 hash（`packages/core/src/account/definitionRequest.ts:69-76`）→ 加载定义（`packages/desktop/src/main/runtime/accountDefinitions.ts:45-168`）→ 解析（`packages/core/src/account/summary.ts:1883-1952`）。
-- 原始 socket 位置保留：`summary.ts:1907` 用 `plugItemHashes` 的数组下标作 `socket_index`。
-- 游戏内槽位复制到应用配装会生成 `subclass_target`（`packages/app/src/workspaces/localLoadoutPlanWorkbench.ts:89-104`）；「子职业当普通装备」的旧行为已在 `524915cb` 修掉。
-- DIM 导入导出保留 `socket_overrides`（`packages/core/src/loadouts/dimImport.ts:249-259`、`:372-393`）。
+- 账号快照保留了 `socket_plugs`（`packages/core/src/account/summary.ts:1597`），当前装备的子职业就在 `equipped_items` 里。
+- 每个 plug 自带 `armor_stat_modifiers`（`summary.ts:2034`），由早就加载的 `investmentStats` 算出（`packages/core/src/manifest/definitions.ts:172`）。
+- 所以「读当前星象/碎片 + 各自加了多少属性」不需要新数据、不用 full 模式。
 
-未落地，本次要解决：
+**原切片「补 `DestinySocketTypeDefinition` 白名单」不再是前置条件。** d2-armor-solver 判定星象/碎片用的就是 `plugCategoryIdentifier` 的后缀 `.aspects` / `.fragments` / `.trinkets`（`src/core/fragment-data.data.mjs:1-15`、`scripts/fetch-fragment-data.mjs:73`），和本仓库 `summary.ts:1948-1949` 已有的判据一样。socket type 定义只影响「按 socket 语义分类」，而新范围只需要星象和碎片。
 
-**1. 分类靠字符串正则，不是 socket 语义。** `summary.ts:1946-1952` 用 `category_identifier + item_type + name` 拼串做正则猜 ability / aspect / fragment，其余落 `other`；而 `localLoadoutPlanWorkbench.ts:100` 把 `other` 当成 `mod_hashes`。后果：棱镜子职业、非中英文名称、名称不含关键词的 plug 全部误分类。
+未落地：
 
-根因是 Manifest 缺定义：白名单（`packages/core/src/manifest/definitions.ts:3-25`、`:218-238`）没有 `DestinySocketTypeDefinition`，`DefinitionRecord.sockets.socketEntries`（`:189-197`）也没声明 `socketTypeHash`。不先补这两处，换不了正式 socket category。
+**1. 星象/碎片的属性加成没进求解器。** 求解器契约早就有这个入口（`packages/core/src/armor/ownedPlanner.ts:43`、`packages/core/src/armor/theoreticalPlanner.ts:61` 的 `fragment_adjustments`），但界面上接的是一个**手工输入框**（`packages/ui/src/loadouts/LoadoutsPageContentView.tsx:1895`，默认 `{}`）：用户得自己数碎片加了多少属性，一个一个敲。这是新方案要替掉的部分。
 
-**2. 未定位实例的子职业整块丢失。** `summary.ts:1921` 要求实例能反查账号物品且 bucket 是 `3284755031`，否则不生成 `subclass_configuration`，UI 只显示「未定位实例」（`:1934`）。测试 fixture `packages/core/test/account.summary.test.ts:195` 的 `itemInstanceId: "0"` 会被 `isValidLoadoutItemInstanceId`（`summary.ts:1954-1958`）过滤，而测试对该路径零断言——这条链的真假只能在真实账号上验。
+**2. 游戏内配装那条链的 plug 没带属性加成。** `summary.ts:1907-1919` 的 plug 投影只有 hash、位置、名字、图标、描述、分类和类型。当前装备那条链有 `armor_stat_modifiers`（`:2034`），游戏内槽位这条没有。
 
-**3. 「从当前装备开始」仍把子职业当普通装备目标。** `packages/core/src/loadouts/plans.ts:242-247` 无过滤地映射 `equipped_items`，`characterEquipment` 前 16 格含子职业（`summary.ts:1302-1314`）。T58 之前只修了「游戏内槽位 → 复制」一条路径。
+**3. 分类的 ability 兜底靠猜。** 星象和碎片那两条正则（`summary.ts:1948-1949`）命中的是 Manifest 自己的 `plugCategoryIdentifier`，可靠。弱的是 ability 那条——拿 `item_type` 和名称做关键词匹配（`:1950`）——以及落进 `other` 的兜底，而 `packages/app/src/workspaces/localLoadoutPlanWorkbench.ts:100` 把 `other` 当成 `mod_hashes` 用。
 
-**4. 执行指纹丢 socket。** `packages/core/src/loadouts/localPlanExecution.ts:600-615` 只序列化 `plug_hashes`，不含 `socket_index`，穿戴核对看不出 socket 级差异。
+**4. 未定位实例的子职业整块丢失。** `summary.ts:1921` 要求实例能反查账号物品且 bucket 是 `3284755031`，否则不生成 `subclass_configuration`，UI 只显示「未定位实例」（`:1934`）。测试 fixture `packages/core/test/account.summary.test.ts:195` 的 `itemInstanceId: "0"` 会被 `isValidLoadoutItemInstanceId`（`summary.ts:1954-1958`）过滤，而测试对该路径零断言——这条链的真假只能在真实账号上验。
 
-**5. 展示层。** 折叠摘要把子职业拍平取前 3 个（`packages/ui/src/loadouts/LoadoutsPageContentView.tsx:674-678`）；图标在上游已有（`summary.ts:1914`）但被丢弃（`:643-646`）；同一份数据渲染两遍（`:688` 与 `:690-700`）；`loadout-in-game-subclass-detail` 这个类名在 `packages/ui/src/styles/menus/loadouts/03-workspace.css` 里没有定义；空组被 `.filter(group => group.rows.length)` 删掉（`:570`）；chip 被 `max-width:150px` 截断（`03-workspace.css:766-779`）；对比表只有计数（`packages/app/src/workspaces/applicationLoadoutWorkspace.ts:751-762`）；`packages/ui/src/i18n/copy/loadouts.ts` 没有任何子职业术语 key，英文界面必然回落中文。
+**5. 「从当前装备开始」仍把子职业当普通装备目标。** `packages/core/src/loadouts/plans.ts:243-249` 无过滤地映射 `equipped_items`，而 `characterEquipment` 前 16 格含子职业（`summary.ts:1302-1314`）。T58 之前只修了「游戏内槽位 → 复制」一条路径。
 
-## 切分
+**6. 没有校验闸门。** 配装不记「当时读到的子职业配置」，应用时也不比对当前配置。d2-armor-solver 的 `fragmentAdjustmentsMatch`（`src/app.mjs:3178-3190`）就是这一步。
 
-1. `实现: 补齐 socket 语义定义` — Manifest 白名单加 `DestinySocketTypeDefinition`，必要时连带 `DestinySocketCategoryDefinition`；`socketEntries` 补 `socketTypeHash`。
-2. `实现: 子职业分类改走 socket category` — 替换 `classifySubclassPlug`，正则降级为兜底。
-3. `实现: 子职业身份保真` — 空槽显式建模、未定位子职业不丢分组、真实账号核对实例 ID 假设。
-4. `整理: 收敛子职业复制入口` — `plans.ts:242-247` 不再产生子职业 `item_target`，所有入口只生成 `subclass_target`。
-5. `实现: 指纹按集合比较` — 计入 `socket_index`，顺序无关。
-6. `整理: 子职业展示` — 分组、官方图标、空位占位、去重复渲染、补 CSS 类、补 i18n key、对比表展开明细。
+**7. 展示层。** 折叠摘要把子职业拍平取前 3 个（`LoadoutsPageContentView.tsx:674-678`）；图标在上游已有（`summary.ts:1915`）但被丢弃（`:643-646`）；同一份数据渲染两遍（`:688` 与 `:690-700`）；`loadout-in-game-subclass-detail` 这个类名在 `packages/ui/src/styles/menus/loadouts/03-workspace.css` 里没有定义；空组被 `.filter(group => group.rows.length)` 删掉（`:570`）；chip 被 `max-width:150px` 截断（`03-workspace.css:766-779`）；对比表只有计数（`packages/app/src/workspaces/applicationLoadoutWorkspace.ts:751-762`）；`packages/ui/src/i18n/copy/loadouts.ts` 没有任何子职业术语 key，英文界面必然回落中文。
+
+## 切分与批次
+
+11 条改动分四批。分批看的是**能不能单独验**，不是原型上那七步——七步是给人读图用的，按它切会把同一条依赖链拆散，同一批投影代码要来回改。
+
+| 批次 | 改动 | 怎么验 | 前置 |
+|---|---|---|---|
+| 1 | 8 护甲脏状态、9 截断警告（2026-09-20 已落地，待实窗验收） | 本地可验，不用账号 | 无 |
+| 2 | 3 分类收敛、4 身份保真、2 游戏内槽位补属性加成、1 属性进求解器、7 子职业展示、5 收敛复制入口 | 真实账号实窗 | 跑一次实窗 |
+| 3 | 6 应用前校验闸门 | 真实账号实窗，穿戴路径 | Bug #103 实窗验收过 |
+| 4 | 11 另存为出口、10 跨来源标记（2026-09-20 已落地，待实窗验收） | 各自独立，不用账号 | 无 |
+
+**第 1 批（2026-09-20 已落地）。** 这一批动的是目前唯一被证实的正确性漏洞：护甲要求和碎片这两类改动今天没有任何东西在拦，禁用接受就是它们唯一的闸门。两处改动都在编辑器护甲区、共用同一批 ViewModel 和文案，改完对照 UI 合同核一遍状态名即可。整批不依赖真实账号。
+
+改动全在 `packages/ui/src/loadouts/LoadoutsPageContentView.tsx`：
+
+- 草稿改动按影响分四档：`keep` / `settings` / `targets` / `reset`。只有 `keep` 保留 `armor_plan`，其余三档照旧把它从草稿剥掉——按旧设置算出的护甲不能进穿戴路径。
+- 新增基线记录（`armorPlanBaseline` 与 `pendingArmorPlanBaseline`）：重算请求发出时记下这次用的设置，只有请求成功返回才把它变成新基线。失败或进行中保留上一次成功的基线，脏标记因此不会被一次失败的请求误清除；求解器复位（换目标角色、重开编辑器）时基线一起清空。
+- 脏标记点名触发源（`armorPlanChangeKinds`）：护甲要求（六维最低值）、模组调整、技能与碎片读数、规划方式、优先顺序、套装与装备范围，以及护甲装备目标。护甲装备目标用显式的 `armorPlanEquipmentChanged` 记，不从草稿的 `item_targets` 反推——`selectArmorCandidate` 接受候选时会重写这五个目标，反推会造成刚接受就变脏的假阳性。
+- 结果区新增两条 warning callout：脏状态一条，说明屏幕上的推荐方案按改动前的设置算出、重算前不能使用；截断一条，消费 `search.truncated` 的 `statesExamined` 与 `statesRetained`，写出已检查多少个组合、只保留多少个。
+- 截断同时把 reachable 时的状态 callout 从 `success` 降为 `warning`，有 issues / warnings 时也降为 `warning`——原来截断被埋在成功色调里。
+- `ArmorCandidateList` 的 `stale` 改由 `armorPlanSettingsChanged || status === "stale"` 驱动，接受按钮禁用；摘要区按新属性 `settingsChanged` 区分「设置已变化」与「结果已过期」两种说法。
+- 删除 `updateDraftClearingArmorPlan`，改由 `updateDraft` 的档位参数统一处理；`updateTarget`、`removeTarget`、`selectItemForStandardSlot` 按槽位是否属于标准护甲槽决定档位。
+
+本批未运行本地自动化验证，由后续本地测试、CI 或实窗验收负责。
+
+**第 2 批必须打包做。** 3、4、2、1、7、5 是一条依赖链：先读准（3 分类收敛、4 身份保真），再把属性加成补进投影（2），才能求和喂给求解器（1），最后才是显示（7）和入口收敛（5）。拆开做等于同一批 `summary.ts` 投影代码来回改五遍。
+
+**第 3 批单独等。** 闸门的判据就是穿戴那一刻的比对。`Bug #103` 没实窗验完，闸门做出来也判不了它是拦对了还是误拦。
+
+**第 4 批是两条独立的小改**，谁有空谁做，不阻塞别的批次。
+
+**第 4 批（2026-09-20 已落地）。** 两条都在修改已保存方案的路径上，一起改完对照 UI 合同核一遍状态名。整批不依赖真实账号。
+
+条目 11「改一套的另存为出口」在发布屏（`LoadoutsPageContentView.tsx` 的 `editorScreen === "publish"`）放两个按钮，只在改已保存方案（`localPlanEditingId` 非空）时出现：
+
+- 「存回」走原来的 `saveLocalPlan`（覆盖原方案），按钮上点名覆盖的是哪条方案（`savedPlanName`，取自 `useLocalLoadoutPlans.ts`）。
+- 「另存为新配装」走新增的 `saveAsNewPlan`：`createLocalLoadoutPlan` 建一条新记录，名字加「副本」后缀（已经以「副本」结尾就不重复加），前插进方案列表，编辑器随即切到新方案上。原名那条一个字不动。玩家想改别的名字，在编辑器里改完再点存回。
+- 这两个出口只在改一套时出现，游戏内槽位那侧没有对应能力；保存按钮不在顶部和底部各来一个。
+
+「另存为」这条链路还带出一个必须处理的副作用：穿戴报告和发布报告是按草稿引用变化作废的（`useLocalLoadoutPlans.ts` 顶部的 `useEffect([draft])`）。存回写的正是屏幕上的草稿，如果把服务端返回的规范化结果原样塞回 `draft`，引用一换，刚做完的穿戴核对就被这次保存清掉了。所以 `saveDraft` 写回后比一次内容（`JSON.stringify` 前后相等就不换引用）。「另存为」不必这样处理——它换了名字，内容确实变了，报告绑的是旧 `plan_id`，作废是对的。
+
+条目 10「跨来源标记」新增 `packages/app/src/workspaces/loadoutCrossSource.ts`，两个来源各存各的，只在展示层互相指认：
+
+- 比对只覆盖装备和子职业两层。护甲约束、优先级、备注这些应用侧独有的设置游戏内根本不返回，一旦参与相等判断，任何一套配装都会被判成「不一致」。
+- 结果是三值 `match` / `different` / `unknown`。`unknown` 和 `different` 是两回事：没返回不等于不一样。
+- 应用侧标在目录行标题块下（`in_game_link`），按「内容一致的槽位 → 角色当前装备就是这一套 → 目标角色身上有可穿戴对应槽位 → 未对应游戏内槽位」取第一条成立的。游戏内侧反过来标在行副标题和详情 callout 上（`sourceLink`），只认内容一致。
+- 账号快照为 null 时两个方向都不出标记。标记全是即时派生值，不写进 `loadout-plans.json`。
+- 原型的「游戏内槽位 02 · 内容不同」这一档没有实现：合同禁止按名称或相似配置猜对应关系，也禁止把匹配结果写回方案文件，而内容不同时说不清是哪一套变了。口径记在 `docs/work/references/ui-specs/application-workspaces.md`。
+
+改动落在新模块和这几处：`packages/app/src/workspaces/applicationLoadoutWorkspace.ts`（应用侧标记）、`loadoutsPage.ts`（游戏内侧标记）、`packages/desktop/src/renderer/pages/providers/LoadoutsMenuProvider.tsx`、`packages/web/src/main.tsx`。`normalizeCompareSlot` 从 `applicationLoadoutWorkspace.ts` 搬进新模块，依赖仍是单向的，没有循环 import。没有新增 IPC，也没有改 services 或类型契约。
+
+本批未运行本地自动化验证，由后续本地测试、CI 或实窗验收负责。
+
+### 开工前先跑一次实窗
+
+第 2 批卡在真实账号读数上，原型里那份示例数据本来也要换成真读数。这一趟一次办三件事：
+
+1. 验 `Bug #103`：穿戴一次，看模组和 Perk 是不是真写进游戏了。验过就能把它从 `docs/todo.md` 删掉。
+2. 抓当前子职业的真实读数：超能 / 技能 / 星象 / 碎片各是什么，各自加了多少属性，跟游戏内六维面板对一遍。
+3. 顺手看 `Bug #104` 修好的那处标题：「保存到游戏内槽位」面板的标题和说明该分行、有底色和底部边框。
+
+### 各条改动
+
+**子职业：**
+
+1. `实现: 星象碎片属性进求解器`（第 2 批）— 从当前装备的子职业读星象和碎片，求和后作为 `fragment_adjustments` 的默认值；手工输入框保留，可以覆盖。
+2. `实现: 游戏内槽位 plug 补属性加成`（第 2 批）— `summary.ts:1907-1919` 补 `armor_stat_modifiers`。
+3. `实现: 分类收敛`（第 2 批）— ability 兜底改走 Manifest 分类，`other` 不再被当成模组。
+4. `实现: 子职业身份保真`（第 2 批）— 空槽显式建模、未定位子职业不丢分组、真实账号核对实例 ID 假设。
+5. `整理: 收敛子职业复制入口`（第 2 批）— `plans.ts:243-249` 不再产生子职业 `item_target`。
+6. `实现: 应用前校验闸门`（第 3 批）— 记当前子职业配置指纹，应用前比对，不一致就提示先切子职业。指纹按**集合**比较，不按序列化顺序：等价配置被判成差异，将来接上写回就等于每次穿戴都清空玩家能量。
+7. `整理: 子职业展示`（第 2 批）— 分组、官方图标、空位占位、去重复渲染、补 CSS 类、补 i18n key、对比表展开明细。
+
+**主流程：**
+
+8. `实现: 护甲脏状态`（第 1 批，2026-09-20 已落地）— 按已确认第 4、8 条改产品代码：`updateDraftClearingArmorPlan` 原来改设置就清空 `armor_plan`，现已改成保留候选 + 脏标记 + 禁用接受，且脏标记记下是哪一类输入变的（护甲要求 / 模组调整 / 碎片读数）。三类都接，没有只接模组那一类——模组即便漏接，执行前那次核对也会兜住；护甲要求和碎片漏接就是真的漏了。
+9. `实现: 截断警告`（第 1 批，2026-09-20 已落地）— 按已确认第 6 条，`searchView()` 的截断已接到推荐方案区，渲染与色调改动见上一节。
+10. `实现: 跨来源标记`（第 4 批，2026-09-20 已落地）— 按已确认第 1、2 条补应用配装与游戏内槽位之间的互相引用，判定口径见上一节。
+11. `实现: 改一套的另存为出口`（第 4 批，2026-09-20 已落地）— 按已确认第 10 条；编辑已保存方案不再只有覆盖原方案一条路。
 
 ## 验收（需要真实账号）
 
@@ -46,15 +175,54 @@
 - 空槽位：未装星象、碎片槽不满、整格为空。
 - 旧版本子职业。
 - 未定位实例的子职业仍显示分组。
-- DIM 导入 → 应用配装 → DIM 导出往返一致，socket 位置不漂。
+- 星象和碎片的属性加成能与游戏内六维面板对上。
+- 在游戏里换一套星象/碎片后，应用前校验能拦住按旧配置做的配装。
 
-## DIM 参考
+## 原型
 
-子职业配置在 DIM 里只有一个载体：`socketOverrides`（socket index → plug hash）。子职业是非实例物品，按 hash 解析，武器护甲按实例 ID 解析。
+两版，各管一件事，都内联产品真实的 `packages/ui/src/styles.css`。
 
-DIM 踩过的两个坑：
+**完整流程原型** `.local-data/tmp/loadout-flow/`：`node build-loadout-flow.mjs && node shoot-loadout-flow.mjs`，出 `loadout-flow.html`、每屏一张 `lf-*.png` 和整页 `lf-all.png`。2026-09-20 定稿。
 
-- issue #8718：同一批碎片换个 socket 顺序，会被当成变化，剥离再插一遍。
-- issue #10344 / #8750：星象和碎片在 socket 间无谓改动，会让玩家在游戏内丢掉全部超能/技能能量。所以 DIM 在保存、草稿、同步、导出到游戏内槽位时统一排序。
+原型按已确认第 9 条的四种入法各铺一条完整的路，加上四条路都会碰到的分岔口、装备抽屉、游戏内配装和方案对比四屏，共 29 屏：存下现在这一身 5 屏、抄一套 8 屏、凑一套 5 屏、改一套 7 屏（第 4 步按模组 / 六维目标 / 碎片读数三类脏状态各一屏）。
 
-对本仓库的直接约束：`applicationLoadoutWorkspace.ts:764` 的 `subclassConfigurationFingerprint` 和 `localPlanExecution.ts` 的指纹必须按集合等价比较，不能按序列化顺序。否则等价配置会被判成差异；一旦将来接上写回，顺序抖动等于每次穿戴都清空玩家能量。
+29 屏按「入法 × 步骤」的矩阵排开：横着读是一条路走完主干，竖着读是同一步在四条路上各长什么样。矩阵里的空格子分两种：这条路故意不走的写「不经过」，原因列在矩阵下面（路径 A 和 D 不走第 5 步——A 不强制跑规划，D 改的是已有方案、候选在设置变动那一刻就作废了）；不属于任何入法的标「—」。「四条路都会碰到」那一行只填第 1 步（分岔口、游戏内配装）和第 2 步（装备抽屉），方案对比单列在支线那一格。不留纯空白——读图的人分不清是设计如此还是漏画。
+
+流程在画面上要看得见：页面顶部是矩阵总览，点任意一屏直接跳过去；屏头带入法徽标和它落在哪几步；导航吸顶，第一层是四条入法（点一下进这条路的第一屏），第二层只显示当前这条路的那排屏；打开时停在页面顶部，不自动滚到某一屏去——之前那版一进来就滚过标题和总览，看到的人只会说「工作流没体现出来」。
+
+原型数据是示例，定的是交互与信息分层；六维数值和真实槽位内容等实窗验收时对。
+
+出图脚本带守卫，跑绿才算数：路由 id 无悬空、屏序号/导航/屏头三处一致、每屏都出现在矩阵某格里且屏头的步骤徽标和矩阵列一致、矩阵上有几格写「不经过」下面就有几条原因、导航第二层只显示当前这条路、打开时不自动滚动且矩阵第一行在首屏内、跳过去后屏头不被吸顶导航盖住、翻到底后导航仍吸在容器顶部、路径 C 的四屏编辑头必须写「未保存草稿」而路径 D 的两屏必须写「已保存方案」、浏览态必须有顶栏和状态条而聚焦态必须都没有、`screen-shared-compare` 必须是支线且是浏览态、三屏待重算的接受按钮必须都禁用、三屏的计算条要点名各自那一类设置变了而结果区标题要互不相同、改了六维最低值后摘要区必须有且只有一格冒「差 8」而按钮仍然禁用、右栏实时摘要和护甲区摘要必须写出同一格缺口和同一个距离目标、碎片那屏必须画出自动求和的非零读数、截断警告必须存在、对照栅格必须两列、「N 个结果」的 N 必须等于候选卡数量、槽位列表必须各 10 条、槽位行的角标不许压住装备信息、存槽位面板的标题必须包在 `<header>` 里且和说明分行。
+
+存槽位那屏原来照产品缺陷渲染：`LocalPlanPublishPanel` 输出裸 `<strong>` + `<small>`，吃不到 `.loadout-slot-picker > header`（`03-workspace.css:858-879`）那组样式，标题和说明挤在一行贴左缘，当时记为 **Bug #104**。产品补上 `<header>` 之后，原型的渲染和守卫一起改成断言修好的形状，Bug #104 的独立记录不再保留。
+
+这一版有两层默认关的注释，勾选后才出现：`显示 T58 注` 是子职业那几处改动叠在工作流上的一层，`显示 T92 注` 是护甲脏状态三类的闸门差别。`T92` 这个开关名沿用并入前的编号，不再改。
+
+**子职业分层原型** `.local-data/tmp/t58-subclass/`：`node build-t58-flow.mjs && node shoot-t58-flow.mjs`，出 `t58-flow.html` 和每步一张 `flow-step-*.png`。这版只回答子职业自己那几个问题：信息分几层、怎么展示、闸门放在哪一步；步骤顺序以完整流程原型为准，还没有定稿。
+
+8 步流程里，子职业那几件事落在第 4、5、7 步：
+
+1. **选入口** —— 五条入口（顶栏三项 + 游戏内槽位复制 + AI 助手），差别只在草稿预填了什么，选定后都进同一个草稿编辑器。
+2. **定目标角色，选起点** —— 草稿工厂产出的字段；改目标角色会清掉 `armor_plan`。
+3. **逐槽位选装备** —— 8 个标准槽位：3 武器 + 5 护甲，子职业单独一格不进这 8 格。
+4. **读准当前子职业** —— 超能 / 技能 / 星象 / 碎片分组显示，空位显式画出，整块只读。
+5. **护甲约束与求解** —— 碎片属性加成从步骤 4 自动求和，替掉手工输入框的默认值；手工框保留可覆盖。
+6. **采用方案，存进草稿** —— 选一套推荐方案写回 5 条护甲目标与 `armor_plan`。
+7. **穿戴核对 + 子职业闸门** —— 比对配装假定的子职业配置与角色此刻配置，不一致零写入。
+8. **保存到游戏内槽位** —— 全流程唯一写 Bungie 的地方，写官方配装槽，不是逐插槽写子职业。
+
+流程之外还有一版三档对照 `t58.html`（`node build-t58.mjs`）：A 现状（手工输入框 / 拍平摘要 / 没有闸门）、B 改完、C 三个子职业（虚空泰坦 / 缚丝术士 / 棱镜猎人，含空槽和长尾巴）。这版是流程原型之前的产物，只回答「信息分几层、怎么展示」，步骤顺序以流程原型为准。
+
+**数据是示例，不是真实账号读取结果**——这版定的是交互与信息分层，六维数值要在实窗验收时对。原型里 `.loadout-in-game-subclass-detail` 那条规则标了「候选」：产品现在没有这个类的定义（见现状第 7 条），定案后搬进产品，别让原型留着反向覆盖。
+
+出图脚本带六条守卫，都是踩过才加的：产物里不许有 `undefined` / `[object Object]` / 漏网的 Markdown 星号；每个步骤条必须撑开；入口卡必须是真两列栅格且「新建配装」浮层不许压住它，页面上报的入口条数必须和实际卡片数对上；「技能与碎片属性变化」的输入行必须是两列（产品那条栅格挂在 `> div:last-child` 上，往里追加兄弟节点会静默塌成单列）；原型覆盖的 `position: static` 必须真的生效（产品里编辑器头部、底部动作条、护甲计算条都是 sticky）；内联样式里不许出现 JS 风格的注释行——CSS 不认，它下面那条规则会整条静默失效。
+
+## 合同
+
+`docs/work/references/ui-specs/application-workspaces.md` 的「配装边界」已按已确认第 1–10 条更新：护甲重算那条写明脏标记要点名触发源，并说明禁用接受在护甲要求与碎片上是唯一闸门；跨来源标记那条补上了实际判定口径——只比装备与子职业两层、三值结果、两侧各自的取序、未读账号不出标记；新增一条记入口的四种动机、主干七步和改一套的两个出口。完整流程原型定稿后状态名与文案已核过一遍；子职业与护甲求解输入那部分，等子职业分层原型定稿后再改。
+
+## 待办
+
+- [ ] 第 1 批待实窗验收：改一类护甲设置后旧候选留在屏幕上并打上脏标记、接受按钮禁用、重算按钮成为该区域唯一主操作；重算失败或离开再回来脏状态还在；搜索真被截断时推荐方案区出现独立警告而不是照常显示成功色调。
+- [ ] 第 4 批待实窗验收：改一套时两个出口都在、按钮点名覆盖的是哪条方案；存回后同一次穿戴的核对结果还在；另存为建出新记录而原来那条没动；账号读完后应用配装目录行和游戏内槽位行互相标出对应关系，没有对应方案的行不出现标记。
+- [ ] 子职业分层原型的示例数据要换成真账号读数（需要 `Bug #103` 修好之后跑一次实窗）。

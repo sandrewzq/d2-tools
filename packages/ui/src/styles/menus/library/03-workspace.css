@@ -997,6 +997,12 @@
   padding: 12px;
 }
 
+/* 只渲染一条活动时嵌进别的页面的行动行展开区（账号页用它挂刷取事实）。
+   嵌进去的是那个页面的行，不是资料库分区，所以外部留白由宿主给。 */
+:where(.app-shell) .library-weekly-panel--embedded .library-weekly-activities {
+  padding: 0;
+}
+
 :where(.app-shell) .library-weekly-activity {
   min-width: 0;
   overflow: hidden;

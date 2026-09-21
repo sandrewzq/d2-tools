@@ -2,7 +2,7 @@ import type { InterfaceLocale, LocaleCopy } from "../types.js";
 
 export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
     "zh-CN": {
-      brandSubtitle: "Destiny 2 本地助手",
+      brandSubtitle: "非官方本地助手",
       statusAriaLabel: "全局状态",
       statusMenuLabel: "状态",
       update: {
@@ -76,7 +76,7 @@ export const shellCopy: Record<InterfaceLocale, LocaleCopy["shell"]> = {
       }
     },
     "en-US": {
-      brandSubtitle: "Destiny 2 local companion",
+      brandSubtitle: "Unofficial local companion",
       statusAriaLabel: "Global status",
       statusMenuLabel: "Status",
       update: {

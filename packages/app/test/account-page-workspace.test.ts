@@ -205,14 +205,16 @@ describe("account page workspace", () => {
       profileLine: "Membership 1 / membership-1",
       inventoryLine: "仓库 2 件"
     });
-    expect(viewModel.navigation.map((item) => item.href)).toEqual([
-      "#account-gear",
-      "#account-configuration",
-      "#account-tasks",
-      "#account-postmaster",
-      "#account-items",
-      "#account-activity"
+    expect(viewModel.todo.panels.map((panel) => panel.key)).toEqual([
+      "all",
+      "daily",
+      "weekly",
+      "timeless",
+      "power"
     ]);
+    // 空段不进面板，空档由面板自己的空状态说明；五个入口都要在。
+    expect(viewModel.todo.panels.map((panel) => panel.count)).toEqual([0, 0, 0, 0, 0]);
+    expect(viewModel.todo.panels.every((panel) => panel.groups.length === 0)).toBe(true);
     expect(viewModel.selectedCharacter?.characterId).toBe("char-1");
     expect(viewModel.loadout.slotComparisonRows[0]?.equippedItems[0]?.openPayload).toMatchObject({
       source_character_id: "char-1",

@@ -81,6 +81,8 @@ export type LoadoutsPageActions = {
   ) => void;
   localPlanDraftChange: (draft: CreateLocalLoadoutPlanInput) => void;
   saveLocalPlan: () => void;
+  /** 「改一套」的第二个出口：新建一套，原来那套不动。 */
+  saveLocalPlanAsNew: () => void;
   closeLocalPlanEditor: () => void;
   deleteLocalPlan: (id: string) => void;
   previewDimImport: (url: string) => void;
@@ -147,6 +149,8 @@ export type LoadoutsPageContentViewProps = {
   localPlanDraft: CreateLocalLoadoutPlanInput | null;
   localPlanIsDirty: boolean;
   localPlanEditingId: string | null;
+  /** 正在编辑的那条已保存方案的名称；草稿可能已被改名，覆盖目标要用记录里的名字点名。 */
+  localPlanSavedName?: string | null;
   localPlanIsSaving: boolean;
   localPlanError: string;
   dimPreview: DimLoadoutImportPreview | null;
@@ -482,7 +486,7 @@ function InGameWorkspace(props: {
             return (
               <button type="button" key={entry.id} aria-pressed={selected} data-status="success" className="loadout-directory-row" onClick={() => props.actions.selectEntry(entry.id)}>
                 <span className="loadout-directory-index">{String((entry.slotIndex ?? 0) + 1).padStart(2, "0")}</span>
-                <span><strong>{entry.title}</strong><small>{entry.slot?.item_count ?? 0} 件保存装备</small></span>
+                <span><strong>{entry.title}</strong><small>{entry.slot?.item_count ?? 0} 件保存装备{entry.sourceLink ? ` · 对得上 ${entry.sourceLink.plan_name}` : ""}</small></span>
                 <em>Bungie</em>
               </button>
             );
@@ -525,7 +529,7 @@ function InGameWorkspace(props: {
       </section>
 
       <aside className="loadout-summary">
-        {detail ? <InGameSummary detail={detail} /> : <LoadoutSummaryEmpty />}
+        {detail ? <InGameSummary detail={detail} sourceLink={props.entries.find((entry) => entry.id === props.model.selectedEntryId)?.sourceLink ?? null} /> : <LoadoutSummaryEmpty />}
       </aside>
     </ProductWorkspaceSplit>
   );
@@ -780,7 +784,10 @@ function InGameSlotPicker(props: {
   );
 }
 
-function InGameSummary(props: { detail: Extract<LoadoutsPageModel["selectedDetail"], { kind: "in-game-slot" }> }) {
+function InGameSummary(props: {
+  detail: Extract<LoadoutsPageModel["selectedDetail"], { kind: "in-game-slot" }>;
+  sourceLink: { plan_id: string; plan_name: string } | null;
+}) {
   const locatedCount = props.detail.itemRows.filter((row) => row.located).length;
   const missingCount = props.detail.itemRows.length - locatedCount;
   const equippedCount = props.detail.itemRows.filter((row) => row.equipped_on_target_character).length;
@@ -788,6 +795,7 @@ function InGameSummary(props: { detail: Extract<LoadoutsPageModel["selectedDetai
   return (
     <>
       <div className="loadout-column-head"><div><strong>装备数据核对</strong><small>当前同步结果</small></div></div>
+      {props.sourceLink ? <p className="loadout-callout" data-ui-kind="callout" data-status="success">{`这个槽位对得上应用配装「${props.sourceLink.plan_name}」，两侧内容一致。`}</p> : null}
       <dl className="loadout-ledger">
         <div><dt>保存装备</dt><dd><b>{props.detail.itemRows.length}</b><small>槽位实际返回的装备记录</small></dd></div>
         <div data-status="success"><dt>已找到</dt><dd><b>{locatedCount}</b><small>当前账号中可以找到具体装备</small></dd></div>
@@ -953,7 +961,7 @@ function LocalWorkspace(props: LoadoutsPageContentViewProps & {
                   onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
                 >
                   <span className="loadout-directory-index">{entry.status_tone === "warning" ? "!" : "A"}</span>
-                  <span><strong>{entry.title}</strong><small>{entry.class_name} · {entry.item_count} 个装备目标</small><small>{entry.source_label}</small></span>
+                  <span><strong>{entry.title}</strong><small>{entry.class_name} · {entry.item_count} 个装备目标</small><small>{entry.source_label}</small>{entry.in_game_link ? <small data-status={entry.in_game_link.tone}>{entry.in_game_link.label}</small> : null}</span>
                   <em data-status={entry.status_tone}>{entry.status_label}</em>
                 </button>
                 <label className="loadout-compare-toggle">
@@ -1131,6 +1139,27 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   const [mobileEditorPane, setMobileEditorPane] = useState<"content" | "summary">("content");
   const [mobileArmorPane, setMobileArmorPane] = useState<"constraints" | "content" | "summary">("constraints");
   const [armorPlannerOpen, setArmorPlannerOpen] = useState(props.editorScreen === "armor");
+  const [armorPlanBaseline, setArmorPlanBaseline] = useState<LoadoutPlanArmorConstraints | null>(null);
+  const [armorPlanEquipmentChanged, setArmorPlanEquipmentChanged] = useState(false);
+  const pendingArmorPlanBaseline = useRef<LoadoutPlanArmorConstraints | null>(null);
+  // 只有重算成功才把基线换成这次请求的设置；失败或进行中都保留上一次成功的基线，
+  // 脏标记因此不会因为一次失败的请求被误清除。求解器被外部复位时（换目标角色、重开编辑器），
+  // 屏幕上不会再有候选，基线一起清掉。
+  useEffect(() => {
+    const state = props.armorPlannerState;
+    if (!state || state.status === "idle") {
+      pendingArmorPlanBaseline.current = null;
+      setArmorPlanBaseline(null);
+      setArmorPlanEquipmentChanged(false);
+      return;
+    }
+    if (state.status !== "ready" && state.status !== "stale") return;
+    const pending = pendingArmorPlanBaseline.current;
+    if (!pending) return;
+    pendingArmorPlanBaseline.current = null;
+    setArmorPlanBaseline(pending);
+    setArmorPlanEquipmentChanged(false);
+  }, [props.armorPlannerState?.revision, props.armorPlannerState?.status]);
   useEffect(() => {
     document.querySelector<HTMLElement>(`.loadout-subpage[data-screen="${props.editorScreen}"] .loadout-subpage-back`)?.focus();
   }, [props.editorScreen]);
@@ -1140,9 +1169,21 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   if (!draft) return null;
   const activeDraft = draft;
 
-  function updateDraft(next: CreateLocalLoadoutPlanInput, resetArmor = true) {
-    if (resetArmor) props.actions.resetArmorPlanner?.();
-    props.actions.localPlanDraftChange(next);
+  // 一次草稿改动对护甲规划的影响分四档：
+  // keep      与护甲无关（方案名、武器槽位），候选和 armor_plan 原样保留；
+  // settings  护甲设置变了，候选留在屏幕上但按旧设置算出，armor_plan 必须从草稿里剥掉；
+  // targets   护甲装备目标变了，同样作废候选，另外记下是哪一类变了；
+  // reset     目标角色或职业变了，整套护甲都不再适用，连候选一起清掉。
+  // armor_plan 一旦作废就必须离开草稿，否则穿戴路径会把按旧设置算出来的护甲当成有效计划。
+  function updateDraft(next: CreateLocalLoadoutPlanInput, armorEffect: DraftArmorEffect = "settings") {
+    if (armorEffect === "reset") {
+      props.actions.resetArmorPlanner?.();
+      pendingArmorPlanBaseline.current = null;
+      setArmorPlanBaseline(null);
+      setArmorPlanEquipmentChanged(false);
+    }
+    if (armorEffect === "targets") setArmorPlanEquipmentChanged(true);
+    props.actions.localPlanDraftChange(armorEffect === "keep" ? next : withoutArmorPlan(next));
   }
 
   const legacyArmorModPlan = Boolean(
@@ -1153,20 +1194,22 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   const armorConstraints = normalizeArmorConstraintsForEditor(activeDraft.armor_constraints);
 
   function updateArmorConstraints(next: LoadoutPlanArmorConstraints) {
-    const { armor_plan: _armorPlan, ...draftWithoutArmorPlan } = activeDraft;
-    updateDraft({ ...draftWithoutArmorPlan, armor_constraints: next });
-  }
-
-  function updateDraftClearingArmorPlan(next: CreateLocalLoadoutPlanInput) {
-    const { armor_plan: _armorPlan, ...draftWithoutArmorPlan } = next;
-    updateDraft(draftWithoutArmorPlan);
+    updateDraft({ ...activeDraft, armor_constraints: next });
   }
 
   function updateTarget(index: number, nextTarget: CreateLocalLoadoutPlanInput["item_targets"][number]) {
-    updateDraftClearingArmorPlan({
+    updateDraft({
       ...activeDraft,
       item_targets: activeDraft.item_targets.map((target, targetIndex) => targetIndex === index ? nextTarget : target)
-    });
+    }, standardArmorSlot(nextTarget.slot) ? "targets" : "keep");
+  }
+
+  function removeTarget(index: number) {
+    const target = activeDraft.item_targets[index];
+    updateDraft({
+      ...activeDraft,
+      item_targets: activeDraft.item_targets.filter((_, targetIndex) => targetIndex !== index)
+    }, target && standardArmorSlot(target.slot) ? "targets" : "keep");
   }
 
   function calculateArmorCandidates() {
@@ -1175,6 +1218,8 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     if (armorClass === "unknown" || !props.actions.planArmor) return;
     if (plannerMode !== "theoretical" && !props.accountSummary) return;
     setComparedArmorCandidateIds([]);
+    // 记下这次请求用的是哪份设置和哪套护甲目标。只有这次请求成功返回，它才成为新的基线。
+    pendingArmorPlanBaseline.current = armorConstraints;
     const slotEnergyPlan = buildArmorSlotEnergyPlan(activeDraft, accountItems);
     const sharedRequest = {
       class: armorClass,
@@ -1286,7 +1331,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
           final_energy: piece.energy.final
         }))
       }
-    }, false);
+    }, "keep");
     closeArmorPlanner();
   }
 
@@ -1317,6 +1362,15 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     armorClass,
     mode: plannerMode
   });
+  // 屏幕上这批候选是按旧设置算的，重算之前不能把其中任何一套写回草稿。
+  // 基线在重算失败或计算中保持不变，脏标记因此不会因为一次失败的请求消失。
+  const armorPlanChanges = armorPlanBaseline
+    ? armorPlanChangeKinds(armorPlanBaseline, armorConstraints, armorPlanEquipmentChanged)
+    : [];
+  const armorPlanSettingsChanged = armorPlanChanges.length > 0;
+  const armorPlanAcceptBlocked = armorPlanSettingsChanged || armorPlannerState?.status === "stale";
+  const armorSearchTruncated = Boolean(armorViewModel?.search?.truncated);
+  const armorStatusDetailCount = armorViewModel ? armorViewModel.issues.length + armorViewModel.warnings.length : 0;
 
   function toggleArmorCandidateComparison(candidateId: string) {
     setComparedArmorCandidateIds((current) => current.includes(candidateId)
@@ -1336,12 +1390,12 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
       plug_hashes: item.socket_plugs.map((plug) => plug.hash)
     };
     const existingIndex = activeDraft.item_targets.findIndex((target) => standardSlotKey(target.slot) === slot);
-    updateDraftClearingArmorPlan({
+    updateDraft({
       ...activeDraft,
       item_targets: existingIndex >= 0
         ? activeDraft.item_targets.map((target, index) => index === existingIndex ? nextTarget : target)
         : [...activeDraft.item_targets, nextTarget]
-    });
+    }, standardArmorSlot(slot) ? "targets" : "keep");
     props.onBack();
   }
 
@@ -1389,18 +1443,20 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
               {plannerMode !== "theoretical" ? <ArmorInventoryConstraintEditor mode={plannerMode} constraints={armorConstraints} armorItems={armorItems} onChange={updateArmorConstraints} /> : null}
             </details>
             </div>
-            <div className="loadout-armor-calculate-bar" data-status={armorModPreflight.status === "warning" ? "warning" : "neutral"}>
-              <span>{armorModPreflight.status === "warning" ? "部分设置无法满足，仍可计算并查看具体原因。" : armorModPreflight.status === "unknown" ? "计算时会再次核对模组兼容性和剩余能量。" : "设置完成，可以查看推荐方案。"}</span>
+            <div className="loadout-armor-calculate-bar" data-status={armorPlanSettingsChanged || armorModPreflight.status === "warning" ? "warning" : "neutral"}>
+              <span>{armorPlanSettingsChanged ? `设置已变化，需要重新计算：${armorPlanChanges.map((kind) => armorPlanChangeLabels[kind]).join("、")}。重算前不能使用推荐方案。` : armorModPreflight.status === "warning" ? "部分设置无法满足，仍可计算并查看具体原因。" : armorModPreflight.status === "unknown" ? "计算时会再次核对模组兼容性和剩余能量。" : "设置完成，可以查看推荐方案。"}</span>
               <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading"}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button>
             </div>
           </aside>
-          <ArmorPlannerDecisionSummary candidate={selectedArmorCandidate} constraints={armorConstraints} stale={armorPlannerState?.status === "stale"} mobileActive={mobileArmorPane === "summary"} />
+          <ArmorPlannerDecisionSummary candidate={selectedArmorCandidate} constraints={armorConstraints} stale={armorPlannerState?.status === "stale"} settingsChanged={armorPlanSettingsChanged} mobileActive={mobileArmorPane === "summary"} />
           <main className="loadout-armor-results-pane" data-mobile-active={mobileArmorPane === "content" || undefined}>
             <div className="loadout-decision-pane-head"><div><strong>推荐方案</strong><small>{armorCandidates.length ? `${armorCandidates.length} 个结果 · 已选 ${comparedArmorCandidates.length}/3 比较` : "先完成设置并运行计算"}</small></div>{comparedArmorCandidates.length ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setComparedArmorCandidateIds([])}>清除比较</button> : null}</div>
-            {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" ? "success" : "warning"}>{armorStatusMessage}</p> : null}
+            {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" && !armorStatusDetailCount && !armorSearchTruncated ? "success" : "warning"}>{armorStatusMessage}</p> : null}
+            {armorPlanSettingsChanged ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`设置已变化，需要重新计算：${armorPlanChanges.map((kind) => armorPlanChangeLabels[kind]).join("、")}。屏幕上的推荐方案按改动前的设置算出，重新计算前不能使用。`}</p> : null}
+            {armorSearchTruncated ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`搜索被截断：已检查 ${armorViewModel?.search?.statesExamined ?? 0} 个组合后到达上限，只保留 ${armorViewModel?.search?.statesRetained ?? 0} 个，屏幕上这批结果不是完整搜索的结果。`}</p> : null}
             {props.armorTargetFeedback ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.armorTargetFeedback.includes("失败") ? "error" : "success"}>{props.armorTargetFeedback}</p> : null}
             {comparedArmorCandidates.length >= 2 ? <ArmorCandidateComparison candidates={comparedArmorCandidates} /> : null}
-            {armorCandidates.length ? <ArmorCandidateList candidates={armorCandidates} stale={armorPlannerState?.status === "stale"} comparedCandidateIds={comparedArmorCandidateIds} onToggleCompare={toggleArmorCandidateComparison} onSelect={selectArmorCandidate} onSaveAcquisitionTargets={props.actions.saveArmorAcquisitionTargets ? (candidate) => props.actions.saveArmorAcquisitionTargets?.(candidate, armorClass) : undefined} isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)} /> : <ProductWorkspaceEmptyState><h3>还没有推荐方案</h3><p>完成左侧设置后运行计算。没有精确结果时会说明距离目标和受限原因。</p></ProductWorkspaceEmptyState>}
+            {armorCandidates.length ? <ArmorCandidateList candidates={armorCandidates} stale={armorPlanAcceptBlocked} comparedCandidateIds={comparedArmorCandidateIds} onToggleCompare={toggleArmorCandidateComparison} onSelect={selectArmorCandidate} onSaveAcquisitionTargets={props.actions.saveArmorAcquisitionTargets ? (candidate) => props.actions.saveArmorAcquisitionTargets?.(candidate, armorClass) : undefined} isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)} /> : <ProductWorkspaceEmptyState><h3>还没有推荐方案</h3><p>完成左侧设置后运行计算。没有精确结果时会说明距离目标和受限原因。</p></ProductWorkspaceEmptyState>}
           </main>
         </section>
       </section>
@@ -1424,6 +1480,16 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
       <>
         <header className="loadout-subpage-head"><button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回穿戴核对</button><div><span className="loadout-eyebrow">{draft.name || "未命名应用配装"}</span><h2>保存到游戏内槽位</h2><p>应用配装已成功穿戴并刷新核对；选择官方槽位后才会执行 Bungie 写入。</p></div></header>
         <LocalPlanExecutionPanel {...props} showPublish />
+        {props.localPlanEditingId ? (
+          <section className="loadout-plan-notes" aria-label="存回哪里">
+            <strong>这一套存回哪里</strong>
+            <p>存回原方案会把它覆盖掉；另存为会新建一套，原来那套原样不动。</p>
+            <div className="loadout-action-stack">
+              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlan}>{props.localPlanIsSaving ? "保存中" : `存回「${props.localPlanSavedName ?? draft.name}」`}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlanAsNew}>另存为新配装</button>
+            </div>
+          </section>
+        ) : null}
       </>
     );
   }
@@ -1436,7 +1502,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     <>
       <header className="loadout-subpage-head loadout-editor-head">
         <button className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回方案库</button>
-        <div className="loadout-editor-title-block"><span className="loadout-eyebrow">{draft.source.label || "应用内创建"} · {props.localPlanEditingId ? "编辑已保存方案" : "未保存草稿"}</span><div className="loadout-editor-title-fields"><label><span>方案名称</span><input value={draft.name} onChange={(event) => updateDraft({ ...draft, name: event.target.value })} aria-label="配装名称" placeholder="未命名方案" /></label><label><span>目标角色</span>{props.accountSummary?.characters.length ? <select value={draft.target_character_id ?? ""} onChange={(event) => { const character = props.accountSummary?.characters.find((item) => item.character_id === event.target.value); updateDraftClearingArmorPlan({ ...draft, target_character_id: character?.character_id, class_name: character?.class_name ?? draft.class_name }); }} aria-label="目标角色"><option value="">仅限定 {draft.class_name || "职业"}</option>{draft.target_character_id && !props.accountSummary.characters.some((character) => character.character_id === draft.target_character_id) ? <option value={draft.target_character_id}>原目标角色未定位</option> : null}{props.accountSummary.characters.map((character) => <option key={character.character_id} value={character.character_id}>{character.class_name} · {character.loadout_slots.length} 个游戏内槽位</option>)}</select> : <input value={draft.class_name} onChange={(event) => updateDraftClearingArmorPlan({ ...draft, class_name: event.target.value })} aria-label="目标职业" placeholder="选择职业" />}</label></div></div>
+        <div className="loadout-editor-title-block"><span className="loadout-eyebrow">{draft.source.label || "应用内创建"} · {props.localPlanEditingId ? "编辑已保存方案" : "未保存草稿"}</span><div className="loadout-editor-title-fields"><label><span>方案名称</span><input value={draft.name} onChange={(event) => updateDraft({ ...draft, name: event.target.value }, "keep")} aria-label="配装名称" placeholder="未命名方案" /></label><label><span>目标角色</span>{props.accountSummary?.characters.length ? <select value={draft.target_character_id ?? ""} onChange={(event) => { const character = props.accountSummary?.characters.find((item) => item.character_id === event.target.value); updateDraft({ ...draft, target_character_id: character?.character_id, class_name: character?.class_name ?? draft.class_name }, "reset"); }} aria-label="目标角色"><option value="">仅限定 {draft.class_name || "职业"}</option>{draft.target_character_id && !props.accountSummary.characters.some((character) => character.character_id === draft.target_character_id) ? <option value={draft.target_character_id}>原目标角色未定位</option> : null}{props.accountSummary.characters.map((character) => <option key={character.character_id} value={character.character_id}>{character.class_name} · {character.loadout_slots.length} 个游戏内槽位</option>)}</select> : <input value={draft.class_name} onChange={(event) => updateDraft({ ...draft, class_name: event.target.value }, "reset")} aria-label="目标职业" placeholder="选择职业" />}</label></div></div>
         <div className="loadout-action-stack">
           <span className="loadout-editor-save-state" data-status={props.localPlanIsSaving ? "pending" : !props.localPlanEditingId || props.localPlanIsDirty ? "warning" : "ready"}>{props.localPlanIsSaving ? "保存中" : !props.localPlanEditingId ? "尚未保存" : props.localPlanIsDirty ? "有未保存修改" : "已保存"}</span>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={props.localPlanIsSaving || !draft.name.trim() || !draft.class_name.trim()} onClick={props.actions.saveLocalPlan}>{props.localPlanIsSaving ? "保存中" : "保存"}</button>
@@ -1453,10 +1519,10 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
             <header className="loadout-local-section-head"><div><strong>子职业构筑</strong><small>优先展示已确认的技能、星相和碎片语义</small></div><div className="loadout-section-head-actions"><span>当前仅记录</span></div></header>
             <article className="loadout-subclass-slot loadout-subclass-slot-static" data-surface="object-card" data-ui-kind="object-card" data-status={draft.subclass_target?.subclass_hash ? "success" : "neutral"}><span className="loadout-slot-index">S</span><div><strong>{draft.subclass_target?.subclass_hash ? "已记录子职业构筑" : "尚未配置子职业"}</strong><small>{draft.subclass_target ? `${draft.subclass_target.ability_hashes.length} 技能 · ${draft.subclass_target.aspect_hashes.length} 星相 · ${draft.subclass_target.fragment_hashes.length} 碎片${draft.subclass_target.subclass_hash ? ` · 定义 ${draft.subclass_target.subclass_hash}` : ""}` : "从当前装备或已确认来源创建时会保留可读取配置；当前版本只展示已确认配置"}</small></div></article>
           </section>
-          <StandardSlotEditorGroup title="武器" description="动能、能量和威能紧凑排列，空槽不占据构筑主视野" group="weapon" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} />
-          <StandardSlotEditorGroup title="护甲与模组" description="五件护甲分别保存调整、属性模组、其他模组与能量占用" group="armor" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} action={<button id={showBuildStart ? undefined : "loadout-open-armor-planner"} type="button" data-ui-kind="button" data-control-variant="primary" aria-expanded={armorPlannerOpen} onClick={armorPlannerOpen ? closeArmorPlanner : openArmorPlanner}>{armorPlannerOpen ? "收起护甲规划" : "按属性目标自动配甲"}</button>} />
+          <StandardSlotEditorGroup title="武器" description="动能、能量和威能紧凑排列，空槽不占据构筑主视野" group="weapon" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={removeTarget} />
+          <StandardSlotEditorGroup title="护甲与模组" description="五件护甲分别保存调整、属性模组、其他模组与能量占用" group="armor" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={removeTarget} action={<button id={showBuildStart ? undefined : "loadout-open-armor-planner"} type="button" data-ui-kind="button" data-control-variant="primary" aria-expanded={armorPlannerOpen} onClick={armorPlannerOpen ? closeArmorPlanner : openArmorPlanner}>{armorPlannerOpen ? "收起护甲规划" : "按属性目标自动配甲"}</button>} />
           {armorPlannerPanel}
-          {otherTargets.length ? <EditorTargetGroup title="其他装备目标" description="无法归入标准武器或护甲槽位的真实目标" targets={otherTargets} matches={matches} draft={draft} onUpdate={updateTarget} onRemove={(index) => updateDraftClearingArmorPlan({ ...draft, item_targets: draft.item_targets.filter((_, targetIndex) => targetIndex !== index) })} /> : null}
+          {otherTargets.length ? <EditorTargetGroup title="其他装备目标" description="无法归入标准武器或护甲槽位的真实目标" targets={otherTargets} matches={matches} draft={draft} onUpdate={updateTarget} onRemove={removeTarget} /> : null}
         </main>
         <EditorDecisionSummary draft={draft} planMatch={planMatch} candidate={acceptedArmorCandidate} accountSummary={props.accountSummary} accountItems={accountItems} mobileActive={mobileEditorPane === "summary"} />
       </section>
@@ -1746,6 +1812,67 @@ function standardArmorSlot(slot: string): ArmorSlot | undefined {
   if (key === "腿甲") return "legs";
   if (key === "职业物品") return "class";
   return undefined;
+}
+
+type DraftArmorEffect = "keep" | "settings" | "targets" | "reset";
+
+type ArmorPlanChangeKind = "stat_minimums" | "mod_rules" | "fragment_bonuses" | "planning_settings" | "equipment_targets";
+
+// 三类会作废候选的输入必须分开点名，因为重算范围不同：模组改了装备组合往往不变，
+// 六维目标或碎片改了可能整套都要换。另外两类是同样作废候选的其余输入。
+const armorPlanChangeLabels: Record<ArmorPlanChangeKind, string> = {
+  stat_minimums: "护甲要求（六维最低值）",
+  mod_rules: "模组调整",
+  fragment_bonuses: "技能与碎片读数",
+  planning_settings: "规划方式、优先顺序、套装与装备范围",
+  equipment_targets: "护甲装备目标"
+};
+
+function withoutArmorPlan(next: CreateLocalLoadoutPlanInput): CreateLocalLoadoutPlanInput {
+  const { armor_plan: _ignored, ...rest } = next;
+  return rest;
+}
+
+function armorPlanChangeKinds(
+  baseline: LoadoutPlanArmorConstraints,
+  current: LoadoutPlanArmorConstraints,
+  equipmentChanged: boolean
+): ArmorPlanChangeKind[] {
+  const kinds: ArmorPlanChangeKind[] = [];
+  if (armorStatProfileKey(baseline.stat_minimums) !== armorStatProfileKey(current.stat_minimums)) kinds.push("stat_minimums");
+  if (armorStatProfileKey(baseline.fragment_stat_bonuses) !== armorStatProfileKey(current.fragment_stat_bonuses)) kinds.push("fragment_bonuses");
+  if (canonicalJson(baseline.armor_stat_mod_slot_rules ?? []) !== canonicalJson(current.armor_stat_mod_slot_rules ?? [])
+    || baseline.five_point_mod_budget !== current.five_point_mod_budget
+    || baseline.ten_point_mod_budget !== current.ten_point_mod_budget) kinds.push("mod_rules");
+  if (canonicalJson(armorPlanningSettings(baseline)) !== canonicalJson(armorPlanningSettings(current))) kinds.push("planning_settings");
+  if (equipmentChanged) kinds.push("equipment_targets");
+  return kinds;
+}
+
+function armorPlanningSettings(constraints: LoadoutPlanArmorConstraints) {
+  return {
+    planner_mode: constraints.planner_mode ?? "owned",
+    priority_stats: constraints.priority_stats,
+    set_constraint: constraints.set_constraint ?? { mode: "none" },
+    allowed_locations: [...constraints.allowed_locations].sort(),
+    exotic_item_hash: constraints.exotic_item_hash ?? 0,
+    exotic_instance_id: constraints.exotic_instance_id ?? "",
+    locked_instance_ids: [...constraints.locked_instance_ids].sort(),
+    excluded_instance_ids: [...constraints.excluded_instance_ids].sort()
+  };
+}
+
+function armorStatProfileKey(values: Partial<Record<LoadoutPlanArmorStatKey, number>>): string {
+  return loadoutPlanArmorStatKeys.map((key) => values[key] ?? 0).join(",");
+}
+
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
 }
 
 function ArmorPlannerModeControl(props: {
@@ -2057,12 +2184,13 @@ function ArmorPlannerDecisionSummary(props: {
   candidate: ArmorPlannerCandidateView | null;
   constraints: LoadoutPlanArmorConstraints;
   stale: boolean;
+  settingsChanged: boolean;
   mobileActive: boolean;
 }) {
   const modSummary = summarizeLoadoutPlanArmorStatModRules(props.constraints);
   return (
     <aside className="loadout-armor-summary-pane" data-mobile-active={props.mobileActive || undefined} aria-label="推荐方案摘要">
-      <div className="loadout-decision-pane-head"><div><strong>方案摘要</strong><small>{props.stale ? "设置已变化，需要重新计算" : "随当前比较选择更新"}</small></div></div>
+      <div className="loadout-decision-pane-head"><div><strong>方案摘要</strong><small>{props.settingsChanged ? "设置已变化，需要重新计算" : props.stale ? "结果已过期，需要重新计算" : "随当前比较选择更新"}</small></div></div>
       {props.candidate ? <>
         <div className="loadout-selected-candidate-title" data-status={props.candidate.summary.hardConstraintsMet ? "ready" : "warning"}><span>{armorCandidateTitle(props.candidate)}</span><strong>{props.candidate.summary.hardConstraintsMet ? "全部要求已满足" : `距离目标 ${props.candidate.summary.totalGap}`}</strong><small>{armorCandidateSummary(props.candidate)}</small></div>
         <dl className="loadout-summary-stat-grid">{props.candidate.summary.stats.map((stat) => <div key={stat.key} data-status={stat.meetsTarget ? "ready" : "warning"}><dt>{armorStatLabel(stat.key)}</dt><dd><strong>{stat.value}</strong><small>{stat.minimum === undefined ? "未设目标" : stat.shortfall ? `差 ${stat.shortfall}` : `目标 ${stat.minimum}`}</small></dd></div>)}</dl>
@@ -2373,8 +2501,7 @@ function LocalPlanPublishPanel(props: {
   if (!character?.loadout_slots.length) return null;
   return (
     <div className="loadout-slot-picker">
-      <strong>保存到游戏内槽位</strong>
-      <small>方案已穿戴并经账号刷新核对。保存前会再次核对当前装备和目标槽位，变化时保持零写入。</small>
+      <header><div><strong>保存到游戏内槽位</strong><small>方案已穿戴并经账号刷新核对。保存前会再次核对当前装备和目标槽位，变化时保持零写入。</small></div></header>
       <div className="loadout-slot-picker-list" data-surface="list">
         {character.loadout_slots.map((slot) => <button type="button" key={slot.index} aria-pressed={slot.index === props.selectedSlotIndex} onClick={() => props.onSelectSlot(slot.index)}><span>{String(slot.index + 1).padStart(2, "0")}</span><span><strong>{slot.name}</strong><small>{slot.item_count ? "覆盖已有槽位" : "空槽"}</small></span></button>)}
       </div>

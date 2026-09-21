@@ -60,7 +60,10 @@ export function AccountPage(props: {
   onLoginBungie: () => void;
   onLoadAccount: () => void;
   onRefreshActivity: () => void;
-  onRefreshPowerRoute: () => void;
+  /** 重新拉任务、赏金与活动挑战；待办清单读不到数据时的重试入口。 */
+  onRefreshTasks: () => void;
+  /** 进入「待办」时读任务资源与本周刷取；不动首屏上已有的数据。 */
+  onRequestTodoResources: () => void;
   onSelectCharacter: (characterId: string) => void;
   onEquipHighestPowerItems: (character: AccountSummary["characters"][number]) => void;
   onOpenItem: (
@@ -196,7 +199,8 @@ export function AccountPage(props: {
         loginBungie: props.onLoginBungie,
         refreshAccount: props.onLoadAccount,
         refreshActivity: props.onRefreshActivity,
-        refreshPowerRoute: props.onRefreshPowerRoute,
+        refreshTasks: props.onRefreshTasks,
+        requestTodoResources: props.onRequestTodoResources,
         selectCharacter: props.onSelectCharacter,
         equipHighestPower: (characterId) => {
           const character = findCharacter(characterId);

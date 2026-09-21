@@ -161,17 +161,75 @@ async function loadWeeklyFarmingCatalog(
   const itemHashes = collectActivityLootItemHashes(request);
   const [itemDefinitions, recordsResult] = await Promise.all([
     getDefinitions("DestinyInventoryItemDefinition", itemHashes, { projection: "display-summary" }),
-    getAccountProfileComponents([900], request.force ? "refresh" : "cached")
-      .then((profile) => ({ records: profile.profileRecords?.data?.records, failed: false }))
-      .catch(() => ({ records: undefined, failed: true }))
+    // 900 只有账号作用域的 Record，901 才有角色作用域的。图样 record 两种作用域都存在，
+    // 少读一个就会把角色作用域的图样一律报成「没返回」（T91 第 12 节）。
+    getAccountProfileComponents([900, 901], request.force ? "refresh" : "cached")
+      .then((profile) => ({
+        records: profile.profileRecords?.data?.records,
+        characterRecords: flattenCharacterRecords(profile.characterRecords?.data),
+        failed: false
+      }))
+      .catch(() => ({ records: undefined, characterRecords: undefined, failed: true }))
   ]);
   return buildWeeklyFarmingCatalogResource({
     request,
     manifestVersion: getDesktopManifestStatus().version,
     itemDefinitions,
     profileRecords: recordsResult.records,
+    characterRecords: recordsResult.characterRecords,
     patternReadFailed: recordsResult.failed
   });
+}
+
+/**
+ * 把组件 901 按角色分组的 Record 摊平成一张表。
+ *
+ * 同一 record 在多个角色下出现时保留**任意一个已完成 / 进度更高**的：图样是账号级解锁，
+ * 一个角色打满就等于解锁了，取第一个遇到的角色会把已经做完的图样报成进行中。
+ */
+function flattenCharacterRecords(
+  data: Record<string, { records?: Record<string, {
+    state?: number;
+    objectives?: Array<{
+      progress?: number;
+      completionValue?: number;
+      complete?: boolean;
+      visible?: boolean;
+    }>;
+  }> }> | undefined
+) {
+  if (!data) return undefined;
+  const merged: Record<string, {
+    state?: number;
+    objectives?: Array<{
+      progress?: number;
+      completionValue?: number;
+      complete?: boolean;
+      visible?: boolean;
+    }>;
+  }> = {};
+  for (const character of Object.values(data)) {
+    for (const [hash, record] of Object.entries(character.records ?? {})) {
+      const existing = merged[hash];
+      if (!existing || recordProgressScore(record) > recordProgressScore(existing)) {
+        merged[hash] = record;
+      }
+    }
+  }
+  return merged;
+}
+
+function recordProgressScore(record: {
+  state?: number;
+  objectives?: Array<{ progress?: number; completionValue?: number; complete?: boolean }>;
+}): number {
+  const complete = record.objectives?.filter((objective) => objective.complete).length ?? 0;
+  const progress = (record.objectives ?? []).reduce(
+    (sum, objective) => sum + Math.max(0, objective.progress ?? 0),
+    0
+  );
+  // 完成条数优先于进度累加：一个是「已经有目标做完」，另一个只是「打得多」。
+  return complete * 1_000_000 + progress;
 }
 
 function normalizeWeeklyFarmingRequest(value: WeeklyFarmingRequest): WeeklyFarmingRequest {

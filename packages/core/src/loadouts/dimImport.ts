@@ -1,4 +1,5 @@
 import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
+import { armorStatKeyByDefinitionHash } from "../armor/statDefinitions.js";
 import {
   createDefaultArmorStatModSlotRules,
   type CreateLocalLoadoutPlanInput,
@@ -392,15 +393,32 @@ function extractSubclass(parameters: Record<string, unknown>, warnings: string[]
   };
 }
 
+// DIM 的链接里会出现旧六维名称（Mobility / Resilience / Recovery），本项目的 key
+// 用的是 Armor 3.0 名称，两边是 Bungie 的固定对应关系，值不变、只换名：
+// Mobility→weapon、Resilience→health、Recovery→class、Discipline→grenade、
+// Intellect→super、Strength→melee。Hash 一律查 armor/statDefinitions 那张表，
+// 不在这里另抄一份，避免两边对不上。
+const dimStatNameKeys: Readonly<Record<string, LoadoutPlanArmorStatKey>> = {
+  weapon: "weapon",
+  mobility: "weapon",
+  health: "health",
+  resilience: "health",
+  class: "class",
+  recovery: "class",
+  grenade: "grenade",
+  discipline: "grenade",
+  super: "super",
+  intellect: "super",
+  melee: "melee",
+  strength: "melee"
+};
+
 function dimStatKey(value: unknown): LoadoutPlanArmorStatKey | undefined {
   const normalized = String(value ?? "").toLowerCase();
-  if (["resilience", "health", "4244567218"].includes(normalized)) return "health";
-  if (["strength", "melee", "392767087"].includes(normalized)) return "melee";
-  if (["discipline", "grenade", "1735777505"].includes(normalized)) return "grenade";
-  if (["intellect", "super", "144602215"].includes(normalized)) return "super";
-  if (["mobility", "class", "1943323491"].includes(normalized)) return "class";
-  if (["recovery", "weapon", "2996146975"].includes(normalized)) return "weapon";
-  return undefined;
+  const byName = dimStatNameKeys[normalized];
+  if (byName) return byName;
+  const hash = Number(normalized);
+  return Number.isFinite(hash) ? armorStatKeyByDefinitionHash[hash] : undefined;
 }
 
 function classNameFromDim(value: unknown): string {

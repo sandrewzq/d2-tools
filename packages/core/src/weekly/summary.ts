@@ -4,6 +4,7 @@ export type WeeklyPriorityKind =
   | "nightfall"
   | "rotating_raid"
   | "rotating_dungeon"
+  | "activity_challenge"
   | "weekly_surge"
   | "special_event";
 
@@ -13,6 +14,11 @@ export type WeeklySummaryItem = {
   description?: string;
   source?: string;
   weeklyActivityKind?: WeeklyPriorityKind | "public_clue";
+  /**
+   * 活动类型的展示标签，按 `activityTypeHash` 得到（T91 第 4.4 节）。只用于行上的「怎么拿到」，
+   * 不参与分桶：活动挑战一律落在「周常」段。
+   */
+  activity_kind?: string;
   related_hashes?: number[];
   rewards?: WeeklyActivityReward[];
   loot_pool?: WeeklyActivityReward[];
@@ -105,6 +111,8 @@ export type WeeklyActivityEntry = {
    * 前者可以重试，后者要等数据补齐，界面上必须分得开（T82）。
    */
   loot_pool_read_failed?: boolean;
+  /** 活动类型的展示标签，按 `activityTypeHash` 得到（T91 第 4.4 节）。 */
+  activity_kind?: string;
   characters?: WeeklyActivityCharacterState[];
 };
 
@@ -143,7 +151,7 @@ const weeklyResetHourUtc = 17;
 
 const priorityLabels: Record<WeeklyPriorityKind, { pendingTitle: string; pendingDetail: string }> = {
   nightfall: {
-    pendingTitle: "宗师先锋警戒待确认",
+    pendingTitle: "日落挑战待确认",
     pendingDetail: "等待 Bungie 角色活动来源接入。"
   },
   rotating_raid: {
@@ -153,6 +161,10 @@ const priorityLabels: Record<WeeklyPriorityKind, { pendingTitle: string; pending
   rotating_dungeon: {
     pendingTitle: "轮换地牢待确认",
     pendingDetail: "确认后展示可刷奖励状态。"
+  },
+  activity_challenge: {
+    pendingTitle: "本周活动挑战待确认",
+    pendingDetail: "登录 Bungie 后读取日落、熔炉、智谋、打击等本周轮换活动的挑战。"
   },
   weekly_surge: {
     pendingTitle: "本周活动激涌待确认",
@@ -183,6 +195,7 @@ export function buildWeeklySummary(
       nightfall: buildPriority("nightfall", items),
       rotating_raid: buildPriority("rotating_raid", items),
       rotating_dungeon: buildPriority("rotating_dungeon", items),
+      activity_challenge: buildPriority("activity_challenge", items),
       weekly_surge: buildPriority("weekly_surge", items),
       special_event: buildPriority("special_event", items)
     },
@@ -241,6 +254,7 @@ function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): We
       related_hashes: candidate.related_hashes,
       rewards: candidate.rewards,
       loot_pool: candidate.loot_pool,
+      activity_kind: candidate.activity_kind,
       characters: candidate.characters
     }))
   };

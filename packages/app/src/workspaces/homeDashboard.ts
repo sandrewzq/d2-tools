@@ -1,4 +1,4 @@
-import type { WeeklyIronBannerSummary } from "@d2-tools/core/weekly/summary";
+import type { WeeklyIronBannerSummary, WeeklyPriorityKind } from "@d2-tools/core/weekly/summary";
 
 export type HomeDashboardDiagnosticRow = {
   label?: string;
@@ -53,12 +53,8 @@ export type HomeDashboardDailySummary = {
   recommendations?: string[];
 };
 
-export type HomeDashboardWeeklyPriorityKind =
-  | "nightfall"
-  | "rotating_raid"
-  | "rotating_dungeon"
-  | "weekly_surge"
-  | "special_event";
+/** 直接沿用 core 的键集合，不再另抄一份：core 补时限来源时这里会跟着变，不会漏键。 */
+export type HomeDashboardWeeklyPriorityKind = WeeklyPriorityKind;
 
 export type HomeDashboardWeeklyActivityReward = {
   hash: number;

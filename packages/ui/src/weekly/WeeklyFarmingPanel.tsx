@@ -1,5 +1,6 @@
 import type { KeyboardEvent, ReactNode } from "react";
 import type {
+  LibraryWeeklyFarmingActivityView,
   LibraryWeeklyFarmingItemView,
   LibraryWeeklyFarmingView
 } from "@d2-tools/app/library";
@@ -17,6 +18,11 @@ export function WeeklyFarmingPanel(props: {
   weekly: LibraryWeeklyFarmingView;
   actions: WeeklyFarmingPanelActions;
   compact?: boolean;
+  /**
+   * 只渲染这一条活动，用于把刷取事实嵌进别的页面的行动行展开区。不传就渲染整块清单。
+   * 嵌进别的页面时不要摘要框和清单头——那是本页作为独立分区时的外壳。
+   */
+  activityKey?: string;
 }): ReactNode {
   const { weekly, actions } = props;
   const resetLabel = weekly.resetAt
@@ -25,6 +31,27 @@ export function WeeklyFarmingPanel(props: {
   const fetchedLabel = weekly.fetchedAt
     ? formatStandardDateTime(weekly.fetchedAt)
     : "尚未读取";
+
+  if (props.activityKey) {
+    const activity = weekly.activities.find((entry) => entry.key === props.activityKey);
+    if (!activity) {
+      return (
+        <div className={`library-weekly-panel${props.compact ? " library-weekly-panel--compact" : ""}`}>
+          <ProductWorkspaceEmptyState className="library-weekly-coverage-empty">
+            <strong>这一项没有对应的刷取记录</strong>
+            <span>本周轮换里没有这条活动，或掉落关系尚未核对完成。下面的挑战事实仍然有效。</span>
+          </ProductWorkspaceEmptyState>
+        </div>
+      );
+    }
+    return (
+      <div className={`library-weekly-panel library-weekly-panel--embedded${props.compact ? " library-weekly-panel--compact" : ""}`}>
+        <div className="library-weekly-activities">
+          {renderWeeklyFarmingActivity(activity, actions)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`library-weekly-panel${props.compact ? " library-weekly-panel--compact" : ""}`}>
@@ -73,36 +100,43 @@ export function WeeklyFarmingPanel(props: {
           </ProductWorkspaceEmptyState>
         ) : (
           <div className="library-weekly-activities">
-            {weekly.activities.map((activity) => (
-              <section className="library-weekly-activity" key={activity.key} aria-labelledby={`library-weekly-${activity.key}`}>
-                <header>
-                  <div>
-                    <span className="library-weekly-kicker">{activity.kind === "raid" ? "轮换突袭" : "轮换地牢"}</span>
-                    <h3 id={`library-weekly-${activity.key}`}>{activity.title}</h3>
-                    <p>{activity.rotationSource} · {activity.coverageNote}</p>
-                  </div>
-                  <div className="library-weekly-activity-counts" aria-label="活动判断摘要">
-                    <span>{activity.itemCount} 件已核对</span>
-                    <strong>{activity.actionableCount} 件建议继续</strong>
-                    <span>{activity.patternGapCount} 件图样有缺口</span>
-                  </div>
-                </header>
-                {activity.coverage === "not_covered" ? (
-                  <ProductWorkspaceEmptyState className="library-weekly-coverage-empty">
-                    <strong>轮换已确认，掉落关系尚未核对</strong>
-                    <span>当前不会根据名称、活动奖励预览或历史印象猜测掉落装备。</span>
-                  </ProductWorkspaceEmptyState>
-                ) : (
-                  <div className="library-weekly-items" role="list">
-                    {activity.items.map((item) => renderWeeklyFarmingItem(item, actions))}
-                  </div>
-                )}
-              </section>
-            ))}
+            {weekly.activities.map((activity) => renderWeeklyFarmingActivity(activity, actions))}
           </div>
         )}
       </div>
     </div>
+  );
+}
+
+function renderWeeklyFarmingActivity(
+  activity: LibraryWeeklyFarmingActivityView,
+  actions: WeeklyFarmingPanelActions
+): ReactNode {
+  return (
+    <section className="library-weekly-activity" key={activity.key} aria-labelledby={`library-weekly-${activity.key}`}>
+      <header>
+        <div>
+          <span className="library-weekly-kicker">{activity.kind === "raid" ? "轮换突袭" : "轮换地牢"}</span>
+          <h3 id={`library-weekly-${activity.key}`}>{activity.title}</h3>
+          <p>{activity.rotationSource} · {activity.coverageNote}</p>
+        </div>
+        <div className="library-weekly-activity-counts" aria-label="活动判断摘要">
+          <span>{activity.itemCount} 件已核对</span>
+          <strong>{activity.actionableCount} 件建议继续</strong>
+          <span>{activity.patternGapCount} 件图样有缺口</span>
+        </div>
+      </header>
+      {activity.coverage === "not_covered" ? (
+        <ProductWorkspaceEmptyState className="library-weekly-coverage-empty">
+          <strong>轮换已确认，掉落关系尚未核对</strong>
+          <span>当前不会根据名称、活动奖励预览或历史印象猜测掉落装备。</span>
+        </ProductWorkspaceEmptyState>
+      ) : (
+        <div className="library-weekly-items" role="list">
+          {activity.items.map((item) => renderWeeklyFarmingItem(item, actions))}
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -131,7 +165,7 @@ function renderWeeklyFarmingItem(row: LibraryWeeklyFarmingItemView, actions: Wee
             <div><dt>来源范围</dt><dd>{formatWeeklyDropScope(row.item.drop_scope)}；只确认活动级归属，不保证指定遭遇战掉落。</dd></div>
             <div><dt>推荐核对</dt><dd>{row.recommendationLabel}</dd></div>
             <div><dt>图样状态</dt><dd>{row.patternDetail}</dd></div>
-            <div><dt>证据确认</dt><dd>{row.item.verified_at} · {row.item.source_license}</dd></div>
+            <div><dt>数据集生成时间</dt><dd>{row.item.generated_at} · {row.item.source_license}</dd></div>
             {row.bestInstance ? <div><dt>当前最佳实例</dt><dd>{row.bestInstance.detail}</dd></div> : null}
           </dl>
         </details>

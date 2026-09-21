@@ -44,7 +44,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     usedIn: "仓库推荐、武器详情",
     relationship: "社区数据来源",
     githubUrl: "https://github.com/48klocs/dim-wish-list-sources",
-    license: "MIT（以仓库当前声明为准）",
+    license: "MIT",
     note: "只反映愿望单作者偏好，不等于 Bungie 官方结论；文本由用户给出链接或文件导入，应用不替用户固定上游地址。"
   },
   {
@@ -67,7 +67,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     relationship: "功能与交互参考，不是运行时依赖",
     githubUrl: "https://github.com/DestinyItemManager/DIM",
     onlineUrl: "https://app.destinyitemmanager.com/",
-    license: "以仓库许可为准；未复制其页面代码",
+    license: "MIT；未复制其页面代码",
     note: "d2-tools 直接调用 Bungie API，不通过 DIM 读取账号。"
   },
   {
@@ -79,7 +79,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     relationship: "功能流程参考，不是运行时依赖",
     githubUrl: "https://github.com/Mijago/D2ArmorPicker",
     onlineUrl: "https://d2armorpicker.com/",
-    license: "以仓库许可为准；未复制其页面代码",
+    license: "AGPL-3.0；只参考流程，未复制其代码",
     note: "护甲结果由 d2-tools 自己的账号快照和规则计算。"
   },
   {
@@ -91,7 +91,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     relationship: "算法表达参考，不是运行时依赖",
     githubUrl: "https://github.com/MIGO-OvO/d2-armor-solver",
     onlineUrl: "https://migo-ovo.github.io/d2-armor-solver/",
-    license: "以仓库许可为准；未复制其实现",
+    license: "MIT；未复制其实现",
     note: "只借鉴问题表达和交互思路，具体规则以 d2-tools 实现为准。"
   },
   {
@@ -103,7 +103,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     relationship: "算法思路参考，不是运行时依赖",
     githubUrl: "https://github.com/cecilbowen/roll-report",
     onlineUrl: "https://roll.report/",
-    license: "MIT（以仓库当前声明为准）",
+    license: "MIT",
     note: "d2-tools 不直接调用其线上接口。"
   },
   {
@@ -114,7 +114,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     usedIn: "资料库和来源解析",
     relationship: "数据生成流程参考，不是玩家账号来源",
     githubUrl: "https://github.com/DestinyItemManager/d2-additional-info",
-    license: "MIT（以仓库当前声明为准）",
+    license: "MIT",
     note: "不能替代 Bungie Manifest，也不能覆盖实时账号事实。"
   }
 ];

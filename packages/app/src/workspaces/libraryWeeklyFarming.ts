@@ -34,6 +34,8 @@ export type LibraryWeeklyFarmingActivityView = {
   key: string;
   kind: "raid" | "dungeon";
   title: string;
+  /** 活动 Hash（`related_hashes` 的第一项）。排序用数值比较，不用 key 字符串。 */
+  relatedHash?: number;
   coverage: "confirmed_activity_source" | "not_covered";
   coverageNote: string;
   rotationSource: string;
@@ -130,6 +132,7 @@ export function buildLibraryWeeklyFarmingView(input: {
       key: activity.key,
       kind: activity.kind,
       title: activity.title,
+      relatedHash: activity.related_hashes?.[0],
       coverage: activity.coverage,
       coverageNote: activity.coverage_note,
       rotationSource: activity.rotation_source,
@@ -140,8 +143,14 @@ export function buildLibraryWeeklyFarmingView(input: {
       items
     };
   }).sort((left, right) => (
-    weeklyFarmingActivityRank(left.kind) - weeklyFarmingActivityRank(right.kind)
-    || left.key.localeCompare(right.key, "en")
+    // 旧的排序是「突袭一律排在前面，同类按 key 字符串比大小」。raid 优先只是展示习惯，
+    // 不能回答「先看哪个活动」，字符串比较还会随名称和位数变化（T91 第 12 节）。
+    // 现在按可刷状态 → 覆盖是否已确认 → 活动 Hash 数值升序 → key 兜底，全部与语言无关。
+    Number(right.actionableCount > 0) - Number(left.actionableCount > 0)
+    || Number(right.coverage === "confirmed_activity_source")
+      - Number(left.coverage === "confirmed_activity_source")
+    || (left.relatedHash ?? Number.MAX_SAFE_INTEGER) - (right.relatedHash ?? Number.MAX_SAFE_INTEGER)
+    || compareStableString(left.key, right.key)
   ));
   const allItems = activities.flatMap((activity) => activity.items);
   return {
@@ -166,8 +175,10 @@ export function buildLibraryWeeklyFarmingView(input: {
   };
 }
 
-function weeklyFarmingActivityRank(kind: LibraryWeeklyFarmingActivityView["kind"]): number {
-  return kind === "raid" ? 0 : 1;
+/** 稳定身份的字符串兜底比较。不跟运行环境语言走，两台机器结果一致（T91 第 5 节）。 */
+function compareStableString(left: string, right: string): number {
+  if (left === right) return 0;
+  return left < right ? -1 : 1;
 }
 
 function collectAccountItems(summary: AccountSummary | null | undefined): AccountItemSummary[] {
@@ -275,7 +286,6 @@ function decisionDetail(decision: WeeklyFarmingDecision, pattern: WeeklyFarmingP
 
 function patternLabel(pattern: WeeklyFarmingPatternProgress): string {
   switch (pattern.status) {
-    case "not_craftable": return "不可制作";
     case "in_progress": return `${pattern.progress} / ${pattern.completion_value}`;
     case "complete": return "图样已完成";
     case "unavailable": return "图样无法确认";
@@ -284,16 +294,17 @@ function patternLabel(pattern: WeeklyFarmingPatternProgress): string {
 
 function patternDetail(pattern: WeeklyFarmingPatternProgress): string {
   switch (pattern.status) {
-    case "not_craftable": return "当前装备定义没有制作图样。";
     case "in_progress": return `还差 ${pattern.remaining} 个图样进度。`;
     case "complete": return "Bungie ProfileRecords 已确认完成。";
     case "unavailable":
-      return pattern.reason === "entitlement_unowned"
-        ? "当前账号未拥有对应内容权限。"
-        : pattern.reason === "record_hidden"
-          ? "Bungie 当前隐藏了该图样记录。"
-          : pattern.reason === "read_failed"
-            ? "本次 Bungie 图样读取失败。"
-            : "Bungie 没有返回可解释的图样目标。";
+      switch (pattern.reason) {
+        case "pattern_not_mapped": return "数据集还没有这把武器的图样记录，不据此判断能不能制作。";
+        case "progress_missing": return "Bungie 返回了图样记录，但这次没有给出进度值。";
+        case "reward_unavailable": return "Bungie 标记这条图样记录的奖励当前不可用。";
+        case "entitlement_unowned": return "当前账号未拥有对应内容权限。";
+        case "record_hidden": return "Bungie 当前隐藏了该图样记录。";
+        case "read_failed": return "本次 Bungie 图样读取失败。";
+        default: return "Bungie 没有返回可解释的图样目标。";
+      }
   }
 }
