@@ -45,6 +45,9 @@ try {
     cappedSearchHashes: index.search("item", ["Same Gun"], 2),
     exactNameHashes: index.getItemHashesByExactName(["Same Gun"]),
     normalizedExactNameHashes: index.getItemHashesByExactName(["  same gun "]),
+    spacedExactNameHashes: index.getItemHashesByExactName(["Compact 02"]),
+    punctuatedExactNameHashes: index.getItemHashesByExactName(["compact-02"]),
+    spacedSearchHashes: index.search("item", ["Compact 02"], 10),
     missingNameHashes: index.getItemHashesByExactName(["No Such Gun"]),
     duplicateVersionHashes: index.getItemVersionHashes([100], 10),
     canonicalVersionHashes: index.getItemVersionHashes([101], 10),
@@ -89,7 +92,10 @@ function createSourceDatabase(path) {
       item(100, "releases.1", 10, 1498876634),
       { ...item(101, "releases.1", 20, 1498876634), collectibleHash: 9001 },
       { ...item(200, "releases.2", 30, 1498876634), collectibleHash: 9002 },
-      { ...item(300, "releases.3", 40, 3448274439), collectibleHash: 9003 }
+      { ...item(300, "releases.3", 40, 3448274439), collectibleHash: 9003 },
+      // 官方名把中文与字母数字连写、表格里按页面习惯写 `Compact 02`：这条数据的名字故意不留
+      // 空格，用来验证查找侧的规范化名兜底。
+      { ...item(400, "releases.4", 50, 1498876634), displayProperties: { name: "Compact02", icon: "/compact.png" } }
     ]) {
       insertItem.run(definition.hash, JSON.stringify(definition));
     }

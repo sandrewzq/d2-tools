@@ -5,7 +5,11 @@ export type GameDataSearchKind = "item" | "perk";
 export type GameDataSearchIndex = {
   search(kind: GameDataSearchKind, terms: Iterable<string>, limit: number): number[];
   /**
-   * 按**精确官方名**取该名字下的全部装备 hash（同名武器的所有官方版本都在内）。
+   * 按**官方名**取该名字下的全部装备 hash（同名武器的所有官方版本都在内）。
+   *
+   * 名字比对先看原样，再补一轮去掉空格、标点、大小写差异后的比对：官方名把中文与字母数字连写
+   * （`迪凯特02`），人工表格按页面习惯写 `迪凯特 02`，只比原样的话这一行取不到 hash、会被判成
+   * 「找不到可核对的武器」。
    *
    * 与 `search` 的区别是「搜索」和「身份」的区别：`search` 有排序、有上限，而且
    * `getItemVersionHashes` 只返回同一把武器的**代表版本**——拿它当「这个名字对应哪些官方版本」用，

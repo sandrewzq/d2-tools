@@ -13,6 +13,9 @@ describe("SQLite game data search index", () => {
       cappedSearchHashes: [300, 200],
       exactNameHashes: [100, 101, 200, 300],
       normalizedExactNameHashes: [100, 101, 200, 300],
+      spacedExactNameHashes: [400],
+      punctuatedExactNameHashes: [400],
+      spacedSearchHashes: [400],
       missingNameHashes: [],
       duplicateVersionHashes: [200, 101],
       canonicalVersionHashes: [200, 101],
@@ -37,6 +40,20 @@ describe("SQLite game data search index", () => {
     expect(output.normalizedExactNameHashes).toEqual(output.exactNameHashes);
     expect(output.missingNameHashes).toEqual([]);
   });
+
+  /**
+   * 官方名把中文与字母数字连写（`迪凯特02`），人工表格按页面习惯写 `迪凯特 02`。只比原样的话
+   * 这一行取不到 hash、定义池缺人，校验期就报「无法根据官方中文名称找到可核对的武器」。
+   */
+  it("folds spaces and punctuation when resolving a name to item hashes", () => {
+    const output = readHarnessOutput();
+
+    // `Compact 02` 是 `Compact02` 的另一种写法：取 hash 的精确名接口和搜索接口都要认。
+    expect(output.spacedExactNameHashes).toEqual([400]);
+    expect(output.spacedSearchHashes).toEqual([400]);
+    // 折叠口径是「去掉标点与空白」，不是「只删空格」。
+    expect(output.punctuatedExactNameHashes).toEqual([400]);
+  });
 });
 
 function readHarnessOutput(): {
@@ -44,6 +61,9 @@ function readHarnessOutput(): {
   cappedSearchHashes: number[];
   exactNameHashes: number[];
   normalizedExactNameHashes: number[];
+  spacedExactNameHashes: number[];
+  punctuatedExactNameHashes: number[];
+  spacedSearchHashes: number[];
   missingNameHashes: number[];
   duplicateVersionHashes: number[];
   canonicalVersionHashes: number[];

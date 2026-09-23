@@ -3,6 +3,7 @@ import type { PerkSearchResult, PerkVariantKind } from "@d2-tools/core/items/per
 import type { ItemSearchResult } from "@d2-tools/core/items/search";
 import type { WeaponIdentityRelation } from "@d2-tools/core/community-perks";
 import { relatedWeaponIdentityRelations } from "./weaponIdentity.js";
+import { normalizeLookupText } from "./lookupText.js";
 import { getGameDataRuntimeCapabilities, type GameDataCatalog, type ItemSearchQuery, type PerkSearchQuery } from "./catalog.js";
 
 export type MemoryGameDataCatalogSeed = {
@@ -49,13 +50,11 @@ export function createMemoryGameDataCatalog(seed: MemoryGameDataCatalogSeed = {}
     },
 
     async getItemHashesByExactName(input) {
-      const requested = new Set(
-        input.names.map((name) => name.trim()).filter(Boolean).map((name) => name.toLocaleLowerCase())
-      );
+      const requested = new Set(input.names.map(normalizeLookupText).filter(Boolean));
       if (!requested.size) return [];
       const hashes = new Set<number>();
       for (const item of items) {
-        if (!requested.has(item.name.trim().toLocaleLowerCase())) continue;
+        if (!requested.has(normalizeLookupText(item.name))) continue;
         hashes.add(item.hash);
       }
       return [...hashes].sort((left, right) => left - right);

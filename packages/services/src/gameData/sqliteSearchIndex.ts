@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { WeaponIdentityRelation, WeaponVariantKind } from "@d2-tools/core/community-perks";
 import type { DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import { toSignedHash, toUnsignedHash } from "./definitionReader.js";
+import { normalizeLookupText } from "./lookupText.js";
 import { buildWeaponIdentityRelations } from "./weaponIdentity.js";
 import type {
   GameDataSearchIndex,
@@ -32,6 +33,8 @@ type IndexedItem = {
 
 const nonEquipmentItemTypes = new Set([0, 19, 20, 30]);
 const searchIndexSchemaVersion = "4";
+/** 规范化名兜底一次最多带回的 hash 数，与查询本身的条数上限同量级。 */
+const LOOKUP_NAME_FALLBACK_LIMIT = 500;
 
 export function buildSqliteSearchIndex(
   options: BuildSqliteSearchIndexOptions
@@ -265,10 +268,43 @@ export function createSqliteSearchIndex(
     throw error;
   }
   let closed = false;
+  /**
+   * 规范化名 → hash 的兜底表（惰性，建一次就留着）。
+   *
+   * `name = ?` 与 `instr(search_text, ?)` 都只做 trim + 小写：官方名把中文和字母数字连写
+   * （`迪凯特02`），表格里按页面习惯写 `迪凯特 02`，两条查询就都落空。查不到 hash 的行装不进
+   * 导入期的定义池，会被整行判成异常。
+   */
+  let hashesByLookupName: Map<string, number[]> | null = null;
+  const lookupNameTable = (): Map<string, number[]> => {
+    if (!hashesByLookupName) {
+      hashesByLookupName = new Map();
+      const rows = database
+        .prepare("SELECT hash, name FROM search_documents WHERE kind = 'item'")
+        .all() as Array<{ hash: number; name: string }>;
+      for (const row of rows) {
+        const key = normalizeLookupText(row.name);
+        if (!key) continue;
+        const hash = toUnsignedHash(row.hash);
+        const bucket = hashesByLookupName.get(key);
+        if (bucket) bucket.push(hash);
+        else hashesByLookupName.set(key, [hash]);
+      }
+    }
+    return hashesByLookupName;
+  };
 
   return {
     search(kind, terms, limit) {
-      return searchHashes(database, kind, terms, limit);
+      // 下面两条路都要读一遍 terms，先物化，免得调用方给来一次性的迭代器。
+      const requestedTerms = [...terms];
+      return searchHashes(
+        database,
+        kind,
+        requestedTerms,
+        limit,
+        kind === "item" ? lookupItemHashesForTerms(requestedTerms, lookupNameTable) : []
+      );
     },
 
     getItemVersionHashes(itemHashes, limit) {
@@ -276,7 +312,7 @@ export function createSqliteSearchIndex(
     },
 
     getItemHashesByExactName(names) {
-      return queryItemHashesByExactName(database, names);
+      return queryItemHashesByExactName(database, names, lookupNameTable);
     },
 
     getWeaponIdentityRelations(itemHashes) {
@@ -379,7 +415,8 @@ function searchHashes(
   database: DatabaseSync,
   kind: GameDataSearchKind,
   terms: Iterable<string>,
-  requestedLimit: number
+  requestedLimit: number,
+  extraHashes: readonly number[] = []
 ): number[] {
   const normalizedTerms = [...new Set(
     [...terms].map(normalizeSearchText).filter(Boolean)
@@ -389,6 +426,11 @@ function searchHashes(
   }
 
   const conditions = normalizedTerms.map(() => "instr(search_text, ?) > 0").join(" OR ");
+  // 规范化名兜底：`instr` 是连续子串匹配，写法差一个空格就断（`迪凯特 02` 打不中 `迪凯特02`）。
+  // hash 都是索引里取出的整数，直接内联，不占查询参数；写回列里要转成有符号数。
+  const fallback = extraHashes.length
+    ? ` OR hash IN (${extraHashes.map(toSignedHash).join(",")})`
+    : "";
   const limit = Math.max(1, Math.min(Math.trunc(requestedLimit), 500));
   const primaryTerm = normalizedTerms[0];
   const rows = database.prepare(`
@@ -404,7 +446,7 @@ function searchHashes(
           ORDER BY rank DESC, hash ASC
         ) AS canonical_rank
       FROM search_documents
-      WHERE kind = ? AND (${conditions})
+      WHERE kind = ? AND (${conditions}${fallback})
     )
     WHERE canonical_rank = 1
     ORDER BY
@@ -420,6 +462,33 @@ function searchHashes(
   `).all(kind, ...normalizedTerms, primaryTerm, primaryTerm, limit) as Array<{ hash: number }>;
 
   return rows.map((row) => toUnsignedHash(row.hash));
+}
+
+/**
+ * 规范化名兜底：查询词和索引里的名字都折叠成 `normalizeLookupText` 的形式再做子串匹配，
+ * 用来兜住「写法差一个空格或标点」的查询。
+ *
+ * `instr(search_text, ?)` 是连续子串匹配，`迪凯特 02` 打不中 `迪凯特02`。命中结果交给
+ * `searchHashes` 一起参与排序和代表版本折叠，不另起一套排序。
+ *
+ * 匹配到的条数超过上限时直接截断：这里的输入来自用户查询词，宽泛的词（单个汉字）可能命中
+ * 成千上万条，而外层查询本来也只取 500 条。
+ */
+function lookupItemHashesForTerms(
+  terms: Iterable<string>,
+  lookupNameTable: () => Map<string, number[]>
+): number[] {
+  const keys = [...new Set([...terms].map(normalizeLookupText).filter(Boolean))];
+  if (!keys.length) return [];
+  const hashes = new Set<number>();
+  for (const [name, bucket] of lookupNameTable()) {
+    if (!keys.some((key) => name.includes(key))) continue;
+    for (const hash of bucket) {
+      hashes.add(hash);
+      if (hashes.size >= LOOKUP_NAME_FALLBACK_LIMIT) return [...hashes];
+    }
+  }
+  return [...hashes];
 }
 
 function equipmentCanonicalKey(definition: DefinitionRecord, hash: number): string {
@@ -476,10 +545,12 @@ function selectCanonicalItems(items: IndexedItem[]): Map<string, IndexedItem> {
  *
  * 名字按索引里存的 `name`（原样、去首尾空白）与 `search_text`（小写化）两条比对：
  * 后者让「英文名大小写不一致」的写法也能命中，中文名两者相同因而无副作用。
+ * 两条都比不过的再走规范化名兜底，让中间多一个空格的写法也能取到定义。
  */
 function queryItemHashesByExactName(
   database: DatabaseSync,
-  names: Iterable<string>
+  names: Iterable<string>,
+  lookupNameTable: () => Map<string, number[]>
 ): number[] {
   const requested = [...new Set([...names].map((name) => name.trim()).filter(Boolean))];
   if (!requested.length) return [];
@@ -494,6 +565,12 @@ function queryItemHashesByExactName(
       const rows = statement.all(name, name.toLocaleLowerCase()) as Array<{ hash: number }>;
       for (const row of rows) results.add(toUnsignedHash(row.hash));
     }
+  }
+  const table = lookupNameTable();
+  for (const name of requested) {
+    const hits = table.get(normalizeLookupText(name));
+    if (!hits) continue;
+    for (const hash of hits) results.add(hash);
   }
   return [...results].sort((left, right) => left - right);
 }

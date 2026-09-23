@@ -23,6 +23,7 @@ import {
   recommendationRequirementSlots,
   unspecifiedRequirementSlotLabel
 } from "@d2-tools/core/community-perks";
+import { normalizeLookupText } from "../gameData/lookupText.js";
 import { recommendationDatabasePath } from "./recommendationDatabase.js";
 import {
   escapeDelimitedValue,
@@ -1113,11 +1114,18 @@ function splitValues(value: string): string[] {
   return [...new Set(value.split(/\s+\/\s+|[；;\n]+/).map((part) => part.trim()).filter(Boolean))];
 }
 
+/**
+ * 校验期的名字口径与资料库索引查找共用一份实现（见 `normalizeLookupText`）。
+ *
+ * 从前这里和查找侧各有一份：校验去掉空格和标点、查找只 trim。表格里按页面习惯写
+ * `迪凯特 02`、官方名却是 `迪凯特02`，查找侧拿不到定义 hash，这行就会以
+ * 「无法根据官方中文名称找到可核对的武器」被拦下——校验口径本身明明是认的。
+ *
+ * 保留函数声明而不是 `const` 别名：下面 `unspecifiedRequirementNames` 在模块求值期就调用它，
+ * 换成 `const` 会落进暂时性死区。
+ */
 function normalizeName(value: string): string {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase()
-    .replace(/[\p{P}\p{Z}\s]+/gu, "");
+  return normalizeLookupText(value);
 }
 
 type RecommendationVariantConstraint = "adept" | "timelost" | "harrowed" | "holofoil" | "exact_only";

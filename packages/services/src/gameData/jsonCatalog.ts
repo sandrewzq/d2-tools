@@ -11,6 +11,7 @@ import {
 import type { DefinitionComponentName } from "@d2-tools/core/manifest/definitions";
 import { loadDefinitionComponent } from "../manifest/definitions.js";
 import { getGameDataRuntimeCapabilities, type GameDataCatalog } from "./catalog.js";
+import { normalizeLookupText } from "./lookupText.js";
 import { buildWeaponIdentityRelations, relatedWeaponIdentityRelations } from "./weaponIdentity.js";
 
 export type JsonGameDataCatalogOptions = {
@@ -137,15 +138,13 @@ export function createJsonGameDataCatalog(options: JsonGameDataCatalogOptions): 
     async getItemHashesByExactName(input) {
       const definitions = load("DestinyInventoryItemDefinition");
       if (!definitions) throw new Error("请先初始化资料库");
-      const requested = new Set(
-        input.names.map((name) => name.trim()).filter(Boolean).map((name) => name.toLocaleLowerCase())
-      );
+      const requested = new Set(input.names.map(normalizeLookupText).filter(Boolean));
       if (!requested.size) return [];
       const hashes = new Set<number>();
       for (const definition of Object.values(definitions)) {
         const name = definition.displayProperties?.name;
         if (typeof name !== "string") continue;
-        if (!requested.has(name.trim().toLocaleLowerCase())) continue;
+        if (!requested.has(normalizeLookupText(name))) continue;
         const hash = Number(definition.hash);
         if (Number.isFinite(hash)) hashes.add(hash >>> 0);
       }
