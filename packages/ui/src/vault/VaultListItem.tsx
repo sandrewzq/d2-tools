@@ -2,16 +2,19 @@ import { memo } from "react";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
-import { ammoFilterLabels, armorStatLabels, formatArmorStatsInline, getAccountItemSlotLabel, getVaultItemKey, getVaultItemLocationLabel, tagLabels } from "@d2-tools/app/vault";
+import { getAccountItemSlotKey, getAccountItemSlotLabel, getVaultItemKey } from "@d2-tools/app/vault";
+import type { VaultCopy } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
-import { championTypeLabels, VaultAmmoTypeIcon, VaultChampionTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
+import { VaultAmmoTypeIcon, VaultChampionTypeIcon, VaultDamageTypeIcon } from "./VaultWeaponFactIcons.js";
 import type { VaultRecommendationSourceSummary } from "../recommendationMatchView.js";
 import {
   useVaultQuickAction,
   type VaultQuickActionStore
 } from "./vaultQuickActionStore.js";
+import { vaultArmorStatsInline, vaultItemLocationLabel, vaultSlotLabel, vaultSlotShortLabel, vaultTemplate, vaultText } from "./vaultCopy.js";
 
 type VaultListItemProps = {
+  copy: VaultCopy;
   item: AccountItemSummary;
   tagValue: VaultTagValue;
   isLoadoutMatch: boolean;
@@ -31,6 +34,7 @@ type VaultListItemProps = {
 };
 
 export function VaultListItem(props: VaultListItemProps) {
+  const copy = props.copy;
   const disposition = dispositionForTag(props.tagValue);
   const gearTier = displayGearTier(props.item.instance?.gear_tier);
   const isWeapon = props.item.group_key === "weapons";
@@ -39,12 +43,13 @@ export function VaultListItem(props: VaultListItemProps) {
   const gearTierOverlay = props.item.instance?.gear_tier_overlay ?? gearTierOverlayUrl(gearTier);
   const crafting = isWeapon && props.item.crafting?.kind === "crafted" ? props.item.crafting : undefined;
   const championType = isWeapon ? props.item.breaker_type?.champion_type : undefined;
+  const unknownPowerTitle = vaultTemplate(copy, "光等 {power}", { power: vaultText(copy, "未知") });
   const visual = (
     <div
       className="vault-card-visual"
       title={[
-        gearTier > 0 ? `装备阶级 T${gearTier}` : "",
-        crafting ? craftingLabel(crafting.kind, true) : ""
+        gearTier > 0 ? vaultTemplate(copy, "装备阶级 T{tier}", { tier: gearTier }) : "",
+        crafting ? craftingLabel(copy, crafting.kind, true) : ""
       ].filter(Boolean).join(" · ") || undefined}
     >
       <GameAssetImage
@@ -83,12 +88,12 @@ export function VaultListItem(props: VaultListItemProps) {
   );
   const stateFlags = (
     <span className="vault-card-state-flags">
-      {props.item.locked ? <span className="vault-item-lock-icon" aria-label="已锁定" title="已锁定"><i /></span> : null}
-      {props.isLoadoutMatch ? <small data-status="success">配装</small> : null}
-      {props.isOpening ? <small data-status="pending">打开中</small> : null}
+      {props.item.locked ? <span className="vault-item-lock-icon" aria-label={vaultText(copy, "已锁定")} title={vaultText(copy, "已锁定")}><i /></span> : null}
+      {props.isLoadoutMatch ? <small data-status="success">{vaultText(copy, "配装")}</small> : null}
+      {props.isOpening ? <small data-status="pending">{vaultText(copy, "打开中")}</small> : null}
     </span>
   );
-  const strongestArmorStat = isArmor ? getStrongestArmorStat(props.item) : undefined;
+  const strongestArmorStat = isArmor ? getStrongestArmorStat(copy, props.item) : undefined;
   const sourceSummaries = isWeapon ? props.sourceSummaries : [];
   const totalSourceCount = sourceSummaries.length + props.additionalSourceCount;
   const itemKey = getVaultItemKey(props.item);
@@ -96,29 +101,31 @@ export function VaultListItem(props: VaultListItemProps) {
   const canUseQuickActions = Boolean(props.item.instance_id && props.onQuickAction);
   const canTransfer = canUseQuickActions && getItemSourceKind(props.item) === "vault" && Boolean(props.currentCharacterId);
   const lockQuickAction = props.item.locked ? "unlock" : "lock";
-  const lockQuickActionLabel = props.item.locked ? "解锁" : "加锁";
+  const lockQuickActionLabel = props.item.locked ? vaultText(copy, "解锁") : vaultText(copy, "加锁");
   const activeLockQuickAction = activeQuickAction === "lock" || activeQuickAction === "unlock"
     ? activeQuickAction
     : undefined;
-  const activeLockQuickActionLabel = activeLockQuickAction === "unlock" ? "解锁" : "加锁";
+  const activeLockQuickActionLabel = activeLockQuickAction === "unlock"
+    ? vaultText(copy, "解锁中")
+    : activeLockQuickAction === "lock" ? vaultText(copy, "加锁中") : lockQuickActionLabel;
   // 武器的位置、锻造与标记跟快捷操作合成卡片底部一行：左边是状态，右边是按钮。
   // 单独占一行时那条横向空白没人用（位置十几像素、右侧几百像素全空），并进来正好填掉。
   const weaponStatus = (
     <div className="vault-weapon-status">
       <span className="vault-weapon-location-state">
-        <span className="vault-weapon-location">{getVaultItemLocationLabel(props.item)}</span>
+        <span className="vault-weapon-location">{vaultItemLocationLabel(copy, props.item)}</span>
         {crafting ? (
           <span
             className="vault-weapon-crafting"
             data-crafting-kind={crafting.kind}
-            title={craftingLabel(crafting.kind, true)}
+            title={craftingLabel(copy, crafting.kind, true)}
           >
-            {craftingLabel(crafting.kind)}
+            {craftingLabel(copy, crafting.kind)}
           </span>
         ) : null}
         {disposition === "none"
-          ? props.isOrganizing ? <span className="vault-weapon-unmarked">未整理</span> : null
-          : <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>}
+          ? props.isOrganizing ? <span className="vault-weapon-unmarked">{vaultText(copy, "未整理")}</span> : null
+          : <span className={`vault-score-badge score-${disposition}`}>{dispositionLabel(copy, disposition)}</span>}
       </span>
       {stateFlags}
     </div>
@@ -131,10 +138,10 @@ export function VaultListItem(props: VaultListItemProps) {
       data-vault-action="lock"
       disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
       aria-busy={Boolean(activeLockQuickAction)}
-      title={`一键${lockQuickActionLabel}：${props.item.name}`}
+      title={vaultTemplate(copy, "一键{action}：{name}", { action: lockQuickActionLabel, name: props.item.name })}
       onClick={() => void props.onQuickAction?.(props.item, lockQuickAction)}
     >
-      {activeLockQuickAction ? `${activeLockQuickActionLabel}中` : lockQuickActionLabel}
+      {activeLockQuickAction ? activeLockQuickActionLabel : lockQuickActionLabel}
     </button>
     {canTransfer ? (
       <button
@@ -144,10 +151,12 @@ export function VaultListItem(props: VaultListItemProps) {
         data-vault-action="transfer"
         disabled={props.quickActionsDisabled || Boolean(activeQuickAction)}
         aria-busy={activeQuickAction === "transfer"}
-        title={`取出到当前角色${props.currentCharacterLabel ? `（${props.currentCharacterLabel}）` : ""}`}
+        title={props.currentCharacterLabel
+          ? vaultTemplate(copy, "取出到当前角色（{character}）", { character: props.currentCharacterLabel })
+          : vaultText(copy, "取出到当前角色")}
         onClick={() => void props.onQuickAction?.(props.item, "transfer")}
       >
-        {activeQuickAction === "transfer" ? "取出中" : "取出"}
+        {activeQuickAction === "transfer" ? vaultText(copy, "取出中") : vaultText(copy, "取出")}
       </button>
     ) : null}
   </>;
@@ -156,46 +165,54 @@ export function VaultListItem(props: VaultListItemProps) {
         {visual}
         <div className="vault-weapon-copy">
           <strong title={props.item.name}>{props.item.name}</strong>
-          <span title={[getAccountItemSlotLabel(props.item), props.item.item_type].filter(Boolean).join(" · ")}>
-            {[formatWeaponSlot(props.item), props.item.item_type || "武器"].filter(Boolean).join(" · ")}
+          <span title={[vaultSlotLabel(copy, getAccountItemSlotKey(props.item), getAccountItemSlotLabel(props.item)), props.item.item_type].filter(Boolean).join(" · ")}>
+            {[formatWeaponSlot(copy, props.item), props.item.item_type || vaultText(copy, "武器")].filter(Boolean).join(" · ")}
           </span>
         </div>
         {/* 光等放身份行右缘：事实行四等分时它挤掉别人的宽度，勇士词条会被截成「反势不可…」；
             搬到身份行后事实行只剩三项，每项都够宽，身份行右侧那块空白也有了用处。 */}
-        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
-          <small>光</small><strong>{props.item.power ?? "—"}</strong>
+        <span className="vault-weapon-power" title={props.item.power === undefined ? unknownPowerTitle : vaultTemplate(copy, "光等 {power}", { power: props.item.power })}>
+          <small>{vaultText(copy, "光")}</small><strong>{props.item.power ?? "—"}</strong>
         </span>
       </div>
       <div className="vault-weapon-fact-row">
-        <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? ammoFilterLabels[props.item.ammo_type] : "弹药类型未知"}>
+        <span className={`vault-weapon-fact ammo-${props.item.ammo_type ?? "unknown"}`} title={props.item.ammo_type ? copy.labels.ammo[props.item.ammo_type] : vaultText(copy, "弹药类型未知")}>
           <VaultAmmoTypeIcon type={props.item.ammo_type} size="compact" />
-          <span>{formatAmmoCompact(props.item.ammo_type)}</span>
+          <span>{formatAmmoCompact(copy, props.item.ammo_type)}</span>
         </span>
-        <span className="vault-weapon-fact" title={formatVaultCardContext(props.item)}>
+        <span className="vault-weapon-fact" title={formatVaultCardContext(copy, props.item)}>
           <VaultDamageTypeIcon damageType={props.item.instance?.damage_type} src={props.item.instance?.damage_type_icon} size="compact" />
-          <span>{formatVaultCardContext(props.item) || "属性未知"}</span>
+          <span>{formatVaultCardContext(copy, props.item) || vaultText(copy, "属性未知")}</span>
         </span>
         {championType ? (
           <span
             className={`vault-weapon-fact champion-${championType}`}
-            title={`${championTypeLabels[championType]}${props.item.breaker_type?.source_frame_name ? ` · ${props.item.breaker_type.source_frame_name}` : ""}`}
+            title={`${copy.labels.champions[championType]}${props.item.breaker_type?.source_frame_name ? ` · ${props.item.breaker_type.source_frame_name}` : ""}`}
           >
             <VaultChampionTypeIcon type={championType} src={props.item.breaker_type?.icon} size="compact" />
-            <span>{championTypeLabels[championType]}</span>
+            <span>{copy.labels.champions[championType]}</span>
           </span>
         ) : null}
       </div>
       <div
         className="vault-weapon-source-summary"
         aria-label={sourceSummaries.length
-          ? `推荐 Roll 匹配：${sourceSummaries.map((summary) => summary.detail).join("；")}${props.additionalSourceCount > 0 ? `；另有 ${props.additionalSourceCount} 个来源，请进入详情查看` : ""}`
-          : "当前武器暂无推荐来源"}
+          ? vaultTemplate(copy, "推荐 Roll 匹配：{details}", {
+              details: sourceSummaries.map((summary) => summary.detail).join("；")
+                + (props.additionalSourceCount > 0
+                  ? vaultTemplate(copy, "；另有 {count} 个来源，请进入详情查看", { count: props.additionalSourceCount })
+                  : "")
+            })
+          : vaultText(copy, "当前武器暂无推荐来源")}
       >
         <span className="vault-weapon-source-head">
-          <span>推荐 Roll 匹配</span>
+          <span>{vaultText(copy, "推荐 Roll 匹配")}</span>
           <small>{totalSourceCount > 0
-            ? `${totalSourceCount} 个来源${props.additionalSourceCount > 0 ? ` · 另有 ${props.additionalSourceCount} 个` : ""}`
-            : "暂无来源"}</small>
+            ? vaultTemplate(copy, "{count} 个来源", { count: totalSourceCount })
+              + (props.additionalSourceCount > 0
+                ? vaultTemplate(copy, " · 另有 {count} 个", { count: props.additionalSourceCount })
+                : "")
+            : vaultText(copy, "暂无来源")}</small>
         </span>
         <span className="vault-weapon-source-list">
           {sourceSummaries.map((summary) => (
@@ -209,7 +226,7 @@ export function VaultListItem(props: VaultListItemProps) {
               <strong>{summary.resultText}</strong>
             </span>
           ))}
-          {!sourceSummaries.length ? <span className="vault-weapon-source-empty">暂无推荐来源</span> : null}
+          {!sourceSummaries.length ? <span className="vault-weapon-source-empty">{vaultText(copy, "暂无推荐来源")}</span> : null}
         </span>
       </div>
     </> : isArmor ? <>
@@ -217,21 +234,21 @@ export function VaultListItem(props: VaultListItemProps) {
         {visual}
         <div className="vault-armor-copy">
           <strong title={props.item.name}>{props.item.name}</strong>
-          <span>{classTypeLabel(props.item.class_type) || "通用护甲"}</span>
-          <span title={props.item.bucket_name}>{props.item.bucket_name || props.item.item_type || "未知部位"}</span>
+          <span>{classTypeLabel(copy, props.item.class_type) || vaultText(copy, "通用护甲")}</span>
+          <span title={props.item.bucket_name}>{props.item.bucket_name || props.item.item_type || vaultText(copy, "未知部位")}</span>
         </div>
       </div>
       <div className="vault-armor-fact-row">
-        <span className="vault-armor-fact"><small>总值</small><strong>{props.item.armor_stats?.total ?? "—"}</strong></span>
+        <span className="vault-armor-fact"><small>{vaultText(copy, "总值")}</small><strong>{props.item.armor_stats?.total ?? "—"}</strong></span>
         <span className="vault-armor-fact" title={strongestArmorStat?.fullLabel}>
-          <small>{strongestArmorStat?.label ?? "属性"}</small><strong>{strongestArmorStat?.value ?? "—"}</strong>
+          <small>{strongestArmorStat?.label ?? vaultText(copy, "属性")}</small><strong>{strongestArmorStat?.value ?? "—"}</strong>
         </span>
-        <span className="vault-weapon-power" title={`光等 ${props.item.power ?? "未知"}`}>
-          <small>光</small><strong>{props.item.power ?? "—"}</strong>
+        <span className="vault-weapon-power" title={props.item.power === undefined ? unknownPowerTitle : vaultTemplate(copy, "光等 {power}", { power: props.item.power })}>
+          <small>{vaultText(copy, "光")}</small><strong>{props.item.power ?? "—"}</strong>
         </span>
       </div>
       <div className="vault-armor-status">
-        <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+        <span className={`vault-score-badge score-${disposition}`}>{dispositionLabel(copy, disposition)}</span>
         {stateFlags}
       </div>
     </> : <>
@@ -241,15 +258,15 @@ export function VaultListItem(props: VaultListItemProps) {
       </div>
       <div className="vault-card-body">
         <strong title={props.item.name}>{props.item.name}</strong>
-        <span className="vault-card-meta">{formatVaultCardMeta(props.item)}</span>
+        <span className="vault-card-meta">{formatVaultCardMeta(copy, props.item)}</span>
         <span className="vault-card-footer">
-          <span className={`vault-score-badge score-${disposition}`}>{dispositionShortLabel(disposition)}</span>
+          <span className={`vault-score-badge score-${disposition}`}>{dispositionLabel(copy, disposition)}</span>
           {stateFlags}
         </span>
       </div>
     {props.isLoadoutMatch ? (
-      <span className="vault-card-corner-flags" aria-label="配装引用">
-        <span title="配装引用">配</span>
+      <span className="vault-card-corner-flags" aria-label={vaultText(copy, "配装引用")}>
+        <span title={vaultText(copy, "配装引用")}>{vaultText(copy, "配")}</span>
       </span>
     ) : null}
   </>;
@@ -269,7 +286,7 @@ export function VaultListItem(props: VaultListItemProps) {
       data-vault-item-key={itemKey}
     >
       {props.isOrganizing ? (
-        <label className="vault-card-select" aria-label={`选择${props.item.name}`}>
+        <label className="vault-card-select" aria-label={vaultTemplate(copy, "选择{name}", { name: props.item.name })}>
           <input
             checked={props.isSelected}
             type="checkbox"
@@ -281,7 +298,7 @@ export function VaultListItem(props: VaultListItemProps) {
         <button
           type="button"
           className="vault-card-main"
-          title={formatVaultCardTitle(props.item, disposition, props.isLoadoutMatch)}
+          title={formatVaultCardTitle(copy, props.item, disposition, props.isLoadoutMatch)}
           aria-busy={props.isOpening}
           disabled={props.isOpening}
           onClick={() => props.onSelectItem(props.item)}
@@ -298,14 +315,14 @@ export function VaultListItem(props: VaultListItemProps) {
             <span
               className="vault-card-quick-action-buttons"
               role="group"
-              aria-label={`${props.item.name}快捷操作`}
+              aria-label={vaultTemplate(copy, "{name}快捷操作", { name: props.item.name })}
             >
               {quickActionButtons}
             </span>
           ) : null}
         </div>
       ) : !props.isOrganizing && canUseQuickActions ? (
-        <div className="vault-card-quick-actions" aria-label={`${props.item.name}快捷操作`}>
+        <div className="vault-card-quick-actions" aria-label={vaultTemplate(copy, "{name}快捷操作", { name: props.item.name })}>
           {quickActionButtons}
         </div>
       ) : null}
@@ -316,7 +333,8 @@ export function VaultListItem(props: VaultListItemProps) {
 export const MemoizedVaultListItem = memo(VaultListItem, sameVaultListItemProps);
 
 function sameVaultListItemProps(previous: VaultListItemProps, next: VaultListItemProps): boolean {
-  return previous.item === next.item
+  return previous.copy === next.copy
+    && previous.item === next.item
     && previous.item.breaker_type?.champion_type === next.item.breaker_type?.champion_type
     && previous.item.breaker_type?.icon === next.item.breaker_type?.icon
     && previous.tagValue === next.tagValue
@@ -365,81 +383,78 @@ function getItemSourceKind(item: AccountItemSummary): "equipped" | "inventory" |
   return "vault";
 }
 
-function dispositionLabel(tag: "none" | "keep" | "review" | "junk"): string {
-  return tag === "none" ? "未标记" : tag === "review" ? "待定" : tagLabels[tag];
+/** 标记短名就是标记全名：`keep` / `review` / `junk` / 未标记四个词在卡片和筛选器里本来就同一份文案。 */
+function dispositionLabel(copy: VaultCopy, tag: "none" | "keep" | "review" | "junk"): string {
+  return tag === "none" ? copy.labels.tags.untagged : copy.labels.tags[tag];
 }
 
-function dispositionShortLabel(tag: "none" | "keep" | "review" | "junk"): string {
-  if (tag === "review") return "待定";
-  if (tag === "junk") return "清理";
-  return dispositionLabel(tag);
-}
-
-function formatVaultCardMeta(item: AccountItemSummary): string {
+function formatVaultCardMeta(copy: VaultCopy, item: AccountItemSummary): string {
   if (item.group_key === "weapons") {
-    return item.item_type || "武器";
+    return item.item_type || vaultText(copy, "武器");
   }
   if (item.group_key === "armor") {
-    return [classTypeLabel(item.class_type), item.bucket_name ?? item.item_type].filter(Boolean).join(" · ") || "护甲";
+    return [classTypeLabel(copy, item.class_type), item.bucket_name ?? item.item_type].filter(Boolean).join(" · ") || vaultText(copy, "护甲");
   }
   return [
     item.item_type,
     item.bucket_name
-  ].filter(Boolean).slice(0, 2).join(" · ") || "装备";
+  ].filter(Boolean).slice(0, 2).join(" · ") || vaultText(copy, "装备");
 }
 
-function formatVaultCardContext(item: AccountItemSummary): string {
+function formatVaultCardContext(copy: VaultCopy, item: AccountItemSummary): string {
   if (item.group_key !== "weapons") return "";
   if (item.instance?.damage_type_name) return item.instance.damage_type_name;
   switch (item.instance?.damage_type) {
-    case 1: return "动能";
-    case 2: return "电弧";
-    case 3: return "烈日";
-    case 4: return "虚空";
-    case 6: return "冰影";
-    case 7: return "缚丝";
+    case 1: return copy.labels.damage.kinetic;
+    case 2: return copy.labels.damage.arc;
+    case 3: return copy.labels.damage.solar;
+    case 4: return copy.labels.damage.void;
+    case 6: return copy.labels.damage.stasis;
+    case 7: return copy.labels.damage.strand;
     default: return "";
   }
 }
 
-function formatWeaponSlot(item: AccountItemSummary): string {
-  const slot = getAccountItemSlotLabel(item).replace(/武器$/u, "").trim();
-  return slot ? `${slot}位` : "未知槽位";
+function formatWeaponSlot(copy: VaultCopy, item: AccountItemSummary): string {
+  // 槽位按 `VaultSlotKey` 取短名，认不出的槽位沿用 app 给的显示名，并按旧规则去掉「武器」后缀。
+  const slot = vaultSlotShortLabel(
+    copy,
+    getAccountItemSlotKey(item),
+    getAccountItemSlotLabel(item).replace(/武器$/u, "").trim()
+  );
+  return slot ? vaultTemplate(copy, "{slot}位", { slot }) : vaultText(copy, "未知槽位");
 }
 
-function formatAmmoCompact(type: AccountItemSummary["ammo_type"]): string {
-  if (type === "primary") return "主弹药";
-  if (type === "special") return "特殊";
-  if (type === "heavy") return "重型";
-  return "未知";
+function formatAmmoCompact(copy: VaultCopy, type: AccountItemSummary["ammo_type"]): string {
+  if (type === "primary") return vaultText(copy, "主弹药");
+  if (type === "special") return vaultText(copy, "特殊");
+  if (type === "heavy") return vaultText(copy, "重型");
+  return vaultText(copy, "未知");
 }
 
-function getStrongestArmorStat(item: AccountItemSummary): {
+function getStrongestArmorStat(copy: VaultCopy, item: AccountItemSummary): {
   label: string;
   fullLabel: string;
   value: number;
 } | undefined {
   if (!item.armor_stats) return undefined;
-  const keys = Object.keys(armorStatLabels) as ArmorStatKey[];
+  const keys = Object.keys(copy.labels.armorStats) as ArmorStatKey[];
   const strongest = keys.reduce<ArmorStatKey | undefined>((current, key) => {
     if (!current || item.armor_stats![key] > item.armor_stats![current]) return key;
     return current;
   }, undefined);
   if (!strongest) return undefined;
   return {
-    label: compactArmorStatLabel(strongest),
-    fullLabel: armorStatLabels[strongest],
+    label: compactArmorStatLabel(copy, strongest),
+    fullLabel: copy.labels.armorStats[strongest],
     value: item.armor_stats[strongest]
   };
 }
 
-function compactArmorStatLabel(stat: ArmorStatKey): string {
-  if (stat === "health") return "生命";
-  if (stat === "grenade") return "手雷";
-  if (stat === "super") return "超能";
-  if (stat === "class") return "职业";
-  if (stat === "weapon") return "武器";
-  return "近战";
+/** 卡片事实行里的属性短名；只有生命值比筛选器里的全名少一个字，其余直接复用。 */
+function compactArmorStatLabel(copy: VaultCopy, stat: ArmorStatKey): string {
+  if (stat === "health") return vaultText(copy, "生命");
+  return copy.labels.armorStats[stat];
 }
 
 function gearTierOverlayUrl(gearTier: number): string | undefined {
@@ -447,10 +462,10 @@ function gearTierOverlayUrl(gearTier: number): string | undefined {
   return `https://www.bungie.net/img/destiny_content/items/inventory-item-tier${gearTier}.png`;
 }
 
-function classTypeLabel(classType: number | undefined): string | undefined {
-  if (classType === 0) return "泰坦";
-  if (classType === 1) return "猎人";
-  if (classType === 2) return "术士";
+function classTypeLabel(copy: VaultCopy, classType: number | undefined): string | undefined {
+  if (classType === 0) return copy.labels.classes.titan;
+  if (classType === 1) return copy.labels.classes.hunter;
+  if (classType === 2) return copy.labels.classes.warlock;
   return undefined;
 }
 
@@ -459,41 +474,46 @@ function displayGearTier(value: number | null | undefined): number {
   return Math.min(5, Math.floor(value));
 }
 
-function craftingLabel(kind: NonNullable<AccountItemSummary["crafting"]>["kind"], full = false): string {
-  return kind === "crafted" ? full ? "锻造武器" : "锻造" : "";
+function craftingLabel(copy: VaultCopy, kind: NonNullable<AccountItemSummary["crafting"]>["kind"], full = false): string {
+  return kind === "crafted" ? full ? vaultText(copy, "锻造武器") : vaultText(copy, "锻造") : "";
 }
 
 function formatVaultCardTitle(
+  copy: VaultCopy,
   item: AccountItemSummary,
   disposition: "none" | "keep" | "review" | "junk",
   isLoadoutMatch: boolean
 ): string {
   return [
     item.name,
-    formatVaultCardMeta(item),
-    item.group_key === "weapons" ? formatWeaponSlot(item) : "",
-    item.group_key === "weapons" && item.ammo_type ? ammoFilterLabels[item.ammo_type] : "",
+    formatVaultCardMeta(copy, item),
+    item.group_key === "weapons" ? formatWeaponSlot(copy, item) : "",
+    item.group_key === "weapons" && item.ammo_type ? copy.labels.ammo[item.ammo_type] : "",
     item.group_key === "weapons" && item.breaker_type?.champion_type
-      ? championTypeLabels[item.breaker_type.champion_type]
+      ? copy.labels.champions[item.breaker_type.champion_type]
       : "",
-    item.crafting ? craftingLabel(item.crafting.kind, true) : "",
-    formatVaultCardContext(item),
-    item.power !== undefined ? `光等 ${item.power}` : "",
-    `整理状态：${disposition === "none" && item.group_key === "weapons" ? "未整理" : dispositionLabel(disposition)}`,
-    item.locked ? "已锁定" : "",
-    isLoadoutMatch ? "配装引用" : ""
+    item.crafting ? craftingLabel(copy, item.crafting.kind, true) : "",
+    formatVaultCardContext(copy, item),
+    item.power !== undefined ? vaultTemplate(copy, "光等 {power}", { power: item.power }) : "",
+    vaultTemplate(copy, "整理状态：{status}", {
+      status: disposition === "none" && item.group_key === "weapons"
+        ? vaultText(copy, "未整理")
+        : dispositionLabel(copy, disposition)
+    }),
+    item.locked ? vaultText(copy, "已锁定") : "",
+    isLoadoutMatch ? vaultText(copy, "配装引用") : ""
   ].filter(Boolean).join("\n");
 }
 
-export function formatVaultItemMeta(item: AccountItemSummary): string {
+export function formatVaultItemMeta(copy: VaultCopy, item: AccountItemSummary): string {
   return [
     item.bucket_name,
     item.item_type,
-    item.ammo_type ? ammoFilterLabels[item.ammo_type] : undefined,
+    item.ammo_type ? copy.labels.ammo[item.ammo_type] : undefined,
     item.tier,
-    item.power ? `光等 ${item.power}` : undefined,
-    item.crafting ? craftingLabel(item.crafting.kind, true) : undefined,
-    formatArmorStatsInline(item),
-    item.locked ? "已锁定" : undefined
+    item.power ? vaultTemplate(copy, "光等 {power}", { power: item.power }) : undefined,
+    item.crafting ? craftingLabel(copy, item.crafting.kind, true) : undefined,
+    vaultArmorStatsInline(copy, item),
+    item.locked ? vaultText(copy, "已锁定") : undefined
   ].filter(Boolean).join(" / ");
 }

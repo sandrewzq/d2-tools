@@ -28,7 +28,7 @@ import { api } from "../../api/client";
 import type { SameNameItemSummary, SelectedItemDetail, SelectedItemSource } from "../hooks/useItemDetail";
 import { createWriteActionOperationId, type ItemWriteActionOptions, type ItemWriteActionOutcome } from "../hooks/useItemDetailWorkspace";
 import type { buildDuplicateGroupBatchTagPlan } from "../domain/vault/vaultCleanup";
-import { ArmorDetailContent, DetailInstanceActionPanel, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
+import { ArmorDetailContent, DetailInstanceActionPanel, getLocaleCopy, itemDetailTemplate, itemDetailText, SharedItemDetailDialog, SharedItemDetailLoading, WeaponDetailContent, type InterfaceLocale, type ItemDetailCopy, type WeaponConfigurationWriteFeedback } from "@d2-tools/ui";
 import { ItemDetailHeader } from "./item-detail/ItemDetailHeader";
 import { ItemDetailStats } from "./item-detail/ItemDetailStats";
 import { ItemDetailTools } from "./item-detail/ItemDetailTools";
@@ -44,6 +44,7 @@ import { completeRendererPerformanceInteraction } from "../performance/rendererP
 
 type ItemDetailReadyProps = {
   accountSummary: AccountSummary | null;
+  copy: ItemDetailCopy;
   accountOperationFeedback?: AccountOperationFeedbackView;
   communityRecommendations: WeaponRecommendation | null;
   communityRecommendationError: string;
@@ -102,14 +103,16 @@ type ItemDetailReadyProps = {
   onSetItemNoteDraft: (value: string) => void;
 };
 
-export type ItemDetailModalProps = Omit<ItemDetailReadyProps, "selectedItem"> & {
+export type ItemDetailModalProps = Omit<ItemDetailReadyProps, "selectedItem" | "copy"> & {
   selectedItem: SelectedItemDetail | null;
   openingItem: AccountItemSummary | ItemSearchResult;
+  interfaceLocale: InterfaceLocale;
   isReady: boolean;
 };
 
 export function ItemDetailModal(props: ItemDetailModalProps) {
-  const { openingItem, isReady, selectedItem, ...readyProps } = props;
+  const { openingItem, interfaceLocale, isReady, selectedItem, ...readyProps } = props;
+  const copy = getLocaleCopy(interfaceLocale).itemDetail;
   const readyCloseHandlerRef = useRef<(() => void) | null>(null);
   const onCloseRef = useRef(props.onClose);
   onCloseRef.current = props.onClose;
@@ -150,20 +153,22 @@ export function ItemDetailModal(props: ItemDetailModalProps) {
         isBusy: (!showReadyContent && !loadingError) || Boolean(selectedItem?.is_detail_loading)
       }}
       variant={variant}
-      closeLabel="关闭装备详情"
+      copy={copy}
+      closeLabel={itemDetailText(copy, "关闭装备详情")}
       onClose={requestClose}
       sections={showReadyContent && selectedItem ? (
         <ItemDetailReadyContent
           {...readyProps}
+          copy={copy}
           selectedItem={selectedItem}
           registerCloseHandler={registerReadyCloseHandler}
         />
       ) : loadingError ? (
         <div className="shared-item-detail-loading-state" role="alert">
           <p className="status-message status-error">{loadingError}</p>
-          <p>装备详情暂时无法读取，可以关闭后重试。</p>
+          <p>{itemDetailText(copy, "装备详情暂时无法读取，可以关闭后重试。")}</p>
         </div>
-      ) : <SharedItemDetailLoading />}
+      ) : <SharedItemDetailLoading copy={copy} />}
     />
   );
 }
@@ -177,6 +182,7 @@ function ItemDetailReadyContent(
     ? selectedItemLocation.characterId
     : selectedItem.source_character_id;
   const selectedItemLocationLabel = formatSelectedItemLocation(
+    props.copy,
     props.accountSummary,
     selectedItemLocation?.kind
       ?? selectedItem.source_kind
@@ -199,8 +205,8 @@ function ItemDetailReadyContent(
     [isWeapon, props.communityRecommendations, selectedItem]
   );
   const weaponSources = useMemo(
-    () => buildWeaponSources(selectedItem, props.itemAvailability),
-    [props.itemAvailability, selectedItem]
+    () => buildWeaponSources(props.copy, selectedItem, props.itemAvailability),
+    [props.copy, props.itemAvailability, selectedItem]
   );
   const weaponBaseModel = useMemo(() => buildWeaponDetailView({
     selectedItem,
@@ -216,8 +222,8 @@ function ItemDetailReadyContent(
     recommendation_disclaimer: props.communityRecommendations?.disclaimer
   } : null, [weaponBaseModel, weaponRecommendations, props.communityRecommendations?.disclaimer]);
   const armorSources = useMemo(
-    () => buildArmorSources(selectedItem, props.itemAvailability),
-    [props.itemAvailability, selectedItem]
+    () => buildArmorSources(props.copy, selectedItem, props.itemAvailability),
+    [props.copy, props.itemAvailability, selectedItem]
   );
   const armorModel = useMemo(() => buildArmorDetailView({
     selectedItem,
@@ -237,17 +243,23 @@ function ItemDetailReadyContent(
   const confirmLeaveItemDetail = useCallback(() => {
     if (!weaponModel && !armorModel) return true;
     if ((!weaponModel || !hasPendingPerks) && !noteDirty) return true;
-    const subject = weaponModel ? "武器" : armorModel ? "护甲" : "装备";
+    const subject = weaponModel
+      ? itemDetailText(props.copy, "武器")
+      : armorModel
+        ? itemDetailText(props.copy, "护甲")
+        : itemDetailText(props.copy, "装备");
     const pendingMessages = [
-      weaponModel && hasPendingPerks ? `${Object.keys(pendingPerks).length} 项 Perk 更改尚未应用` : undefined,
-      noteDirty ? "装备备注尚未保存" : undefined
+      weaponModel && hasPendingPerks
+        ? itemDetailTemplate(props.copy, "{count} 项 Perk 更改尚未应用", { count: Object.keys(pendingPerks).length })
+        : undefined,
+      noteDirty ? itemDetailText(props.copy, "装备备注尚未保存") : undefined
     ].filter((message): message is string => Boolean(message));
     return window.confirm([
-      `当前${subject}还有未提交的内容：`,
-      ...pendingMessages.map((message) => `• ${message}`),
-      "继续将放弃这些内容。"
+      itemDetailTemplate(props.copy, "当前{subject}还有未提交的内容：", { subject }),
+      ...pendingMessages.map((message) => itemDetailTemplate(props.copy, "• {message}", { message })),
+      itemDetailText(props.copy, "继续将放弃这些内容。")
     ].join("\n"));
-  }, [armorModel, hasPendingPerks, noteDirty, weaponModel]);
+  }, [armorModel, hasPendingPerks, noteDirty, props.copy, weaponModel]);
   const requestClose = useCallback(() => {
     if (confirmLeaveItemDetail()) props.onClose();
   }, [confirmLeaveItemDetail, props.onClose]);
@@ -279,6 +291,7 @@ function ItemDetailReadyContent(
       ) : null}
       <WeaponDetailContent
         key={selectedItem.item_key}
+        copy={props.copy}
         model={weaponModel}
         recommendationEvidence={{
               sourceMatches: recommendationSourceMatches,
@@ -335,7 +348,7 @@ function ItemDetailReadyContent(
                 const instanceId = selectedItem.instance_id;
                 // 同一份 payload 既是发给写接口的请求，也是受理后落到本地的依据：两处永远一致。
                 const pluginChanges = toAcceptedSocketPlugChanges(changes, selectedItem.sockets);
-                const outcome = await props.onRunItemWriteAction("应用武器配置", () => api.applySocketPlugs({
+                const outcome = await props.onRunItemWriteAction(itemDetailText(props.copy, "应用武器配置"), () => api.applySocketPlugs({
                   membership_type: props.accountSummary?.membership_type ?? 0,
                   character_id: selectedItemCharacterId ?? props.selectedActionCharacterId,
                   item_id: selectedItem.instance_id ?? "",
@@ -344,6 +357,7 @@ function ItemDetailReadyContent(
                 }), {
                   keepDetailOpen: true,
                   feedbackScope: "detail",
+                  logType: "insert-socket-plug",
                   onProgress: (phase, message) => setPerkWriteFeedback({ status: phase, message }),
                   // 受理即权威：写接口返回成功就把本地配置改成新选的 Perk，不等服务器读回。
                   acceptedSocketChanges: { instance_id: instanceId, changes: pluginChanges },
@@ -378,7 +392,7 @@ function ItemDetailReadyContent(
                   })),
                   selectedItem.sockets
                 );
-                setPerkWriteFeedback({ status: "refreshing", message: "正在读取服务器当前配置..." });
+                setPerkWriteFeedback({ status: "refreshing", message: itemDetailText(props.copy, "正在读取服务器当前配置...") });
                 try {
                   const startedAt = performance.now();
                   const detail = await props.onRefreshSelectedItemDetail();
@@ -409,11 +423,11 @@ function ItemDetailReadyContent(
                   // 读到的是旧值不等于读取失败 —— 实测传播延迟可以到几分钟。这里只如实说
                   // 「读到了服务器当前配置」，不对「有没有换成新的」下任何断言（见 T78）。
                   if (reflected) setPendingPerks({});
-                  setPerkWriteFeedback({ status: "reloaded", message: "已读取服务器当前配置。" });
+                  setPerkWriteFeedback({ status: "reloaded", message: itemDetailText(props.copy, "已读取服务器当前配置。") });
                 } catch (error) {
                   setPerkWriteFeedback({
                     status: "error",
-                    message: error instanceof Error ? error.message : "配置刷新失败，请稍后重试。"
+                    message: error instanceof Error ? error.message : itemDetailText(props.copy, "配置刷新失败，请稍后重试。")
                   });
                 }
               }
@@ -431,6 +445,7 @@ function ItemDetailReadyContent(
       ) : null}
       <ArmorDetailContent
         key={selectedItem.item_key}
+        copy={props.copy}
         model={armorModel}
             actions={{
               selectInstance: (instance) => {
@@ -455,12 +470,13 @@ function ItemDetailReadyContent(
         </p>
       ) : null}
       <section className="item-detail-game-card">
-        <ItemDetailHeader selectedItem={selectedItem} onClose={props.onClose} showClose={false} />
-        <ItemDetailStats selectedItem={selectedItem} />
+        <ItemDetailHeader copy={props.copy} selectedItem={selectedItem} onClose={props.onClose} showClose={false} />
+        <ItemDetailStats copy={props.copy} selectedItem={selectedItem} />
       </section>
 
       <ItemDetailTools
               accountSummary={props.accountSummary}
+              copy={props.copy}
               localTargetRules={props.localTargetRules}
               equipmentTargetStore={props.equipmentTargetStore}
               isGeneratingItemAi={props.isGeneratingItemAi}
@@ -518,17 +534,22 @@ function mergeRecommendationSourceDetails(
 }
 
 function formatSelectedItemLocation(
+  copy: ItemDetailCopy,
   account: AccountSummary | null,
   kind: SelectedItemDetail["source_kind"] | undefined,
   characterId: string | undefined
 ): string | undefined {
   if (!kind) return undefined;
-  if (kind === "vault") return "仓库";
+  if (kind === "vault") return itemDetailText(copy, "仓库");
   const characterName = account?.characters.find((character) => (
     character.character_id === characterId
-  ))?.class_name ?? "角色";
-  const place = kind === "equipped" ? "已装备" : kind === "postmaster" ? "邮政官" : "背包";
-  return `${characterName} · ${place}`;
+  ))?.class_name ?? itemDetailText(copy, "角色");
+  const place = kind === "equipped"
+    ? itemDetailText(copy, "已装备")
+    : kind === "postmaster"
+      ? itemDetailText(copy, "邮政官")
+      : itemDetailText(copy, "背包");
+  return itemDetailTemplate(copy, "{name} · {place}", { name: characterName, place });
 }
 
 function resolveRecommendationEvidenceStatus(
@@ -599,7 +620,10 @@ function ItemDetailInstanceActions(input: {
     action: () => Promise<ItemActionResult>,
     expectedAccountPatch: AccountItemActionPatch
   ) => {
-    setActionFeedback({ status: "submitting", message: `${label}正在提交到 Bungie...` });
+    setActionFeedback({
+      status: "submitting",
+      message: itemDetailTemplate(props.copy, "{label}正在提交到 Bungie...", { label })
+    });
     try {
       const outcome = await props.onRunItemWriteAction(label, action, {
         keepDetailOpen: true,
@@ -618,7 +642,9 @@ function ItemDetailInstanceActions(input: {
     } catch (error) {
       setActionFeedback({
         status: "error",
-        message: error instanceof Error ? error.message : `${label}失败，请稍后重试。`
+        message: error instanceof Error
+          ? error.message
+          : itemDetailTemplate(props.copy, "{label}失败，请稍后重试。", { label })
       });
     }
   };
@@ -647,13 +673,14 @@ function ItemDetailInstanceActions(input: {
   const localEntry = props.vaultTags.items[selectedItem.item_key]
     ?? (selectedItem.instance_id ? props.vaultTags.items[selectedItem.instance_id] : undefined);
   const currentTag = localEntry?.tag;
+  const characterName = sourceCharacter?.class_name ?? itemDetailText(props.copy, "角色");
   const locationLabel = isPostmasterItem
-    ? `${sourceCharacter?.class_name ?? "角色"} · 邮政官`
+    ? itemDetailTemplate(props.copy, "{name} · 邮政官", { name: characterName })
     : isVaultItem
-      ? "仓库"
+      ? itemDetailText(props.copy, "仓库")
       : sourceKind === "equipped"
-        ? `${sourceCharacter?.class_name ?? "角色"} · 已装备`
-        : `${sourceCharacter?.class_name ?? "角色"} · 背包`;
+        ? itemDetailTemplate(props.copy, "{name} · 已装备", { name: characterName })
+        : itemDetailTemplate(props.copy, "{name} · 背包", { name: characterName });
   const isAlreadyEquippedToTarget = sourceKind === "equipped"
     && sourceCharacterId === props.selectedActionCharacterId;
 
@@ -690,9 +717,9 @@ function ItemDetailInstanceActions(input: {
   const primaryActions = isPostmasterItem
     ? [{
         key: "postmaster-pull",
-        label: "取回到角色背包",
+        label: itemDetailText(props.copy, "取回到角色背包"),
         primary: true,
-        onClick: () => void runDetailAction("从邮政官取回", () => api.pullFromPostmaster({
+        onClick: () => void runDetailAction(itemDetailText(props.copy, "从邮政官取回"), () => api.pullFromPostmaster({
           membership_type: props.accountSummary?.membership_type ?? 0,
           character_id: sourceCharacterId ?? props.selectedActionCharacterId,
           item_id: selectedItem.instance_id ?? "",
@@ -710,9 +737,11 @@ function ItemDetailInstanceActions(input: {
         isVaultItem
           ? {
               key: "transfer-from-vault",
-              label: `取出到${targetCharacter?.class_name ?? "角色"}`,
+              label: itemDetailTemplate(props.copy, "取出到{name}", {
+                name: targetCharacter?.class_name ?? itemDetailText(props.copy, "角色")
+              }),
               primary: true,
-              onClick: () => void runDetailAction("取出到角色", transferItem, {
+              onClick: () => void runDetailAction(itemDetailText(props.copy, "取出到角色"), transferItem, {
                 kind: "transfer",
                 item_instance_id: selectedItem.instance_id ?? "",
                 character_id: transferCharacterId,
@@ -721,10 +750,14 @@ function ItemDetailInstanceActions(input: {
             }
           : {
               key: "equip",
-              label: isAlreadyEquippedToTarget ? `已装备到${targetCharacter?.class_name ?? "角色"}` : `装备到${targetCharacter?.class_name ?? "角色"}`,
+              label: itemDetailTemplate(
+                props.copy,
+                isAlreadyEquippedToTarget ? "已装备到{name}" : "装备到{name}",
+                { name: targetCharacter?.class_name ?? itemDetailText(props.copy, "角色") }
+              ),
               primary: true,
               disabled: isAlreadyEquippedToTarget,
-              onClick: () => void runDetailAction("装备到角色", () => api.equipItem({
+              onClick: () => void runDetailAction(itemDetailText(props.copy, "装备到角色"), () => api.equipItem({
                 membership_type: props.accountSummary?.membership_type ?? 0,
                 character_id: props.selectedActionCharacterId,
                 item_id: selectedItem.instance_id ?? "",
@@ -736,11 +769,11 @@ function ItemDetailInstanceActions(input: {
               })
             },
         ...(isVaultItem
-          ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
+          ? [{ key: "copy-transfer", label: itemDetailText(props.copy, "复制转移计划"), onClick: copyTransferPlan }]
           : [{
               key: "transfer-to-vault",
-              label: "移入仓库",
-              onClick: () => void runDetailAction("移入仓库", transferItem, {
+              label: itemDetailText(props.copy, "移入仓库"),
+              onClick: () => void runDetailAction(itemDetailText(props.copy, "移入仓库"), transferItem, {
                 kind: "transfer",
                 item_instance_id: selectedItem.instance_id ?? "",
                 character_id: transferCharacterId,
@@ -750,22 +783,24 @@ function ItemDetailInstanceActions(input: {
         {
           key: "lock",
           label: effectiveLocked === undefined
-            ? "锁定状态未知"
+            ? itemDetailText(props.copy, "锁定状态未知")
             : effectiveLocked
-              ? "解锁"
-              : "锁定",
+              ? itemDetailText(props.copy, "解锁")
+              : itemDetailText(props.copy, "锁定"),
           disabled: effectiveLocked === undefined,
-          onClick: () => void runDetailAction(effectiveLocked ? "解锁" : "锁定", () => api.setItemLockState({
-            membership_type: props.accountSummary?.membership_type ?? 0,
-            character_id: props.selectedActionCharacterId,
-            item_id: selectedItem.instance_id ?? "",
-            item_name: selectedItem.name,
-            state: !effectiveLocked
-          }), {
-            kind: "lock",
-            item_instance_id: selectedItem.instance_id ?? "",
-            locked: !effectiveLocked
-          })
+          onClick: () => void runDetailAction(
+            effectiveLocked ? itemDetailText(props.copy, "解锁") : itemDetailText(props.copy, "锁定"),
+            () => api.setItemLockState({
+              membership_type: props.accountSummary?.membership_type ?? 0,
+              character_id: props.selectedActionCharacterId,
+              item_id: selectedItem.instance_id ?? "",
+              item_name: selectedItem.name,
+              state: !effectiveLocked
+            }), {
+              kind: "lock",
+              item_instance_id: selectedItem.instance_id ?? "",
+              locked: !effectiveLocked
+            })
         }
       ];
 
@@ -773,7 +808,7 @@ function ItemDetailInstanceActions(input: {
     const accountItem = selectedItemToAccountItem(selectedItem);
     const character = characters.find((candidate) => candidate.character_id === props.selectedActionCharacterId);
     if (!accountItem || !props.selectedActionCharacterId || !character) {
-      input.setItemToolMessage("请先选择用于配装草稿的角色。");
+      input.setItemToolMessage(itemDetailText(props.copy, "请先选择用于配装草稿的角色。"));
       return;
     }
     void api.createLoadoutTemplate({
@@ -781,52 +816,61 @@ function ItemDetailInstanceActions(input: {
       character_id: props.selectedActionCharacterId,
       class_name: character.class_name,
       equipped_items: [accountItem]
-    }).then(() => input.setItemToolMessage("已保存到配装草稿。"))
-      .catch((error) => input.setItemToolMessage(error instanceof Error ? error.message : "配装草稿保存失败"));
+    }).then(() => input.setItemToolMessage(itemDetailText(props.copy, "已保存到配装草稿。")))
+      .catch((error) => input.setItemToolMessage(error instanceof Error
+        ? error.message
+        : itemDetailText(props.copy, "配装草稿保存失败")));
   };
 
   return (
     <DetailInstanceActionPanel
+      copy={props.copy}
       title={selectedItem.name}
-      subtitle={`${locationLabel} · ${selectedItem.power ?? "-"} 光等`}
-      eyebrow="当前装备"
-      currentBadge="正在查看"
+      subtitle={itemDetailTemplate(props.copy, "{place} · {power} 光等", {
+        place: locationLabel,
+        power: selectedItem.power ?? "-"
+      })}
+      eyebrow={itemDetailText(props.copy, "当前装备")}
+      currentBadge={itemDetailText(props.copy, "正在查看")}
       statusLabels={[
-        sourceKind === "equipped" ? "已装备" : "未装备",
+        sourceKind === "equipped" ? itemDetailText(props.copy, "已装备") : itemDetailText(props.copy, "未装备"),
         effectiveLocked === undefined
-          ? "锁定状态未知"
+          ? itemDetailText(props.copy, "锁定状态未知")
           : effectiveLocked
-            ? "已锁定"
-            : "未锁定",
-        currentTag ? formatVaultTagLabel(currentTag) : "未整理"
+            ? itemDetailText(props.copy, "已锁定")
+            : itemDetailText(props.copy, "未锁定"),
+        currentTag ? formatVaultTagLabel(props.copy, currentTag) : itemDetailText(props.copy, "未整理")
       ]}
       targetValue={props.selectedActionCharacterId}
       targetOptions={characters.map((character) => ({
         value: character.character_id,
-        label: `${character.class_name} / 光等 ${character.light ?? "-"}`
+        label: itemDetailTemplate(props.copy, "{className} / 光等 {light}", {
+          className: character.class_name,
+          light: character.light ?? "-"
+        })
       }))}
       disabled={props.isRunningItemAction}
       actions={primaryActions}
       tags={(["keep", "review", "farm", "loadout", "junk", "none"] as VaultTagValue[]).map((tag) => ({
         key: tag,
-        label: tag === "none" ? "清除标记" : formatVaultTagLabel(tag),
+        label: tag === "none" ? itemDetailText(props.copy, "清除标记") : formatVaultTagLabel(props.copy, tag),
         pressed: tag === "none" ? !currentTag : currentTag === tag,
         onClick: () => props.onSaveSelectedItemTag(tag)
       }))}
       note={props.itemNoteDraft}
-      noteLabel="装备备注"
+      noteLabel={itemDetailText(props.copy, "装备备注")}
       noteDirty={input.noteDirty}
       collapseAuxiliary
       onTargetChange={props.onSelectedActionCharacterIdChange}
       onNoteChange={props.onSetItemNoteDraft}
       noteActions={[
-        { key: "save-note", label: "保存备注", primary: true, disabled: !input.noteDirty, onClick: props.onSaveSelectedItemNote },
+        { key: "save-note", label: itemDetailText(props.copy, "保存备注"), primary: true, disabled: !input.noteDirty, onClick: props.onSaveSelectedItemNote },
         ...(!isPostmasterItem && !isVaultItem
-          ? [{ key: "copy-transfer", label: "复制转移计划", onClick: copyTransferPlan }]
+          ? [{ key: "copy-transfer", label: itemDetailText(props.copy, "复制转移计划"), onClick: copyTransferPlan }]
           : []),
-        { key: "copy-summary", label: "复制结论", onClick: props.onCopySelectedItemSummary },
-        { key: "copy-chat", label: "生成群聊说明", onClick: props.onCopySelectedItemChatGuide },
-        { key: "loadout", label: "加入配装草稿", onClick: addToLoadoutDraft }
+        { key: "copy-summary", label: itemDetailText(props.copy, "复制结论"), onClick: props.onCopySelectedItemSummary },
+        { key: "copy-chat", label: itemDetailText(props.copy, "生成群聊说明"), onClick: props.onCopySelectedItemChatGuide },
+        { key: "loadout", label: itemDetailText(props.copy, "加入配装草稿"), onClick: addToLoadoutDraft }
       ]}
       feedback={actionFeedback.status !== "idle" ? (
         <div
@@ -838,14 +882,14 @@ function ItemDetailInstanceActions(input: {
           <span className="weapon-detail-write-indicator" aria-hidden="true" />
           <div>
             <strong>{actionFeedback.status === "submitting"
-              ? "正在提交装备操作"
+              ? itemDetailText(props.copy, "正在提交装备操作")
               : actionFeedback.status === "refreshing"
-                ? "Bungie 已受理，正在同步"
+                ? itemDetailText(props.copy, "Bungie 已受理，正在同步")
                 : actionFeedback.status === "syncing"
-                  ? "同步中"
+                  ? itemDetailText(props.copy, "同步中")
                 : actionFeedback.status === "success"
-                  ? "游戏内状态已更新"
-                  : "操作未完成"}</strong>
+                  ? itemDetailText(props.copy, "游戏内状态已更新")
+                  : itemDetailText(props.copy, "操作未完成")}</strong>
             <p>{actionFeedback.message}</p>
           </div>
         </div>
@@ -856,6 +900,7 @@ function ItemDetailInstanceActions(input: {
 }
 
 function buildArmorSources(
+  copy: ItemDetailCopy,
   item: SelectedItemDetail,
   availability: LiveItemAvailabilityEntry | null
 ): ArmorDetailViewModel["sources"] {
@@ -869,15 +914,15 @@ function buildArmorSources(
         source.inventory_path,
         ...(source.price_labels ?? []),
         ...(source.purchase_requirements ?? []),
-        source.refresh_at ? `刷新时间：${source.refresh_at}` : undefined,
+        source.refresh_at ? itemDetailTemplate(copy, "刷新时间：{value}", { value: source.refresh_at }) : undefined,
         ...(source.failure_messages ?? [])
       ].filter((part): part is string => Boolean(part?.trim())).join(" · ") || source.label,
       ...(source.can_purchase !== undefined ? { available_now: source.can_purchase } : {}),
       status_label: source.can_purchase === true
-        ? "当前可购买"
+        ? itemDetailText(copy, "当前可购买")
         : source.can_purchase === false
-          ? source.failure_messages?.join("；") || "当前不可购买"
-          : "当前角色库存已检出"
+          ? source.failure_messages?.join("；") || itemDetailText(copy, "当前不可购买")
+          : itemDetailText(copy, "当前角色库存已检出")
     });
   }
   if (item.source.status === "ready") {
@@ -885,7 +930,7 @@ function buildArmorSources(
       id: `source:${item.hash}:${item.source.source_hash ?? "hint"}`,
       label: item.source.label,
       description: item.source.description,
-      status_label: "来源已记录"
+      status_label: itemDetailText(copy, "来源已记录")
     });
   }
   return {
@@ -895,6 +940,7 @@ function buildArmorSources(
 }
 
 function buildWeaponSources(
+  copy: ItemDetailCopy,
   item: SelectedItemDetail,
   availability: LiveItemAvailabilityEntry | null
 ): WeaponDetailViewModel["sources"] {
@@ -917,7 +963,7 @@ function buildWeaponSources(
       label: source.label,
       description: source.kind === "public_activity"
         ? availability?.description ?? source.label
-        : `当前在“${source.label}”中发现这件武器的获取入口。`,
+        : itemDetailTemplate(copy, "当前在“{name}”中发现这件武器的获取入口。", { name: source.label }),
       available_now: true,
       offer
     });
@@ -926,8 +972,8 @@ function buildWeaponSources(
     entries.push({
       id: `live-status:${item.hash}`,
       kind: "live_status",
-      label: "当前获取状态",
-      description: availability?.description ?? "当前没有返回商人库存或活动奖励数据，暂时无法判断是否有获取入口。",
+      label: itemDetailText(copy, "当前获取状态"),
+      description: availability?.description ?? itemDetailText(copy, "当前没有返回商人库存或活动奖励数据，暂时无法判断是否有获取入口。"),
       available_now: availability ? false : undefined
     });
   }
@@ -935,7 +981,7 @@ function buildWeaponSources(
     entries.push({
       id: `manifest:${item.hash}:${item.source.source_hash ?? "hint"}`,
       kind: "manifest_hint",
-      label: "历史获取途径",
+      label: itemDetailText(copy, "历史获取途径"),
       description: item.source.description
     });
   }

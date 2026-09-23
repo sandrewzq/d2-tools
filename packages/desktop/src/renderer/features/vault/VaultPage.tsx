@@ -1,6 +1,6 @@
 import { buildVaultRecommendationAuditReport, selectVaultPageModel } from "@d2-tools/app/vault";
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
-import { ProductWorkspaceEmptyState, RefreshControlButton, VaultPageContentView, type VaultWishlistActions } from "@d2-tools/ui";
+import { ProductWorkspaceEmptyState, RefreshControlButton, VaultPageContentView, getLocaleCopy, vaultText, type InterfaceLocale, type VaultWishlistActions } from "@d2-tools/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { LoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import type {
@@ -21,6 +21,7 @@ import { loadAccountItemDetailCached } from "../../shared/hooks/useItemDetail";
 import type { VaultAccountStoreSnapshot } from "../../shared/stores/accountEntityStore";
 
 export function VaultPage(props: {
+  interfaceLocale?: InterfaceLocale;
   account: VaultAccountStoreSnapshot | null;
   isBungieConfigured: boolean;
   isAccountLoggedIn: boolean;
@@ -59,6 +60,7 @@ export function VaultPage(props: {
   onOpenItem: (item: AccountItemSummary) => void;
   onSaveTag: (item: AccountItemSummary, tag: VaultTagValue) => void | Promise<void>;
 }) {
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").vault;
   const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogItem[]>([]);
   const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
   const detailScopeKey = props.detailCacheScopeKey ?? (props.account
@@ -168,14 +170,14 @@ export function VaultPage(props: {
       const isConfigured = props.isBungieConfigured;
       return (
         <ProductWorkspaceEmptyState className="account-unavailable product-workspace-empty--page" uiKind="state-frame">
-          <span className="ui-badge status-warning">未连接 Bungie</span>
-          <h2>{isConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用"}</h2>
-          <p>{isConfigured ? "先登录 Bungie；登录后会自动同步装备数据，随后即可查看仓库、装备和清理候选。" : "先在设置里完成 Bungie 应用配置，再登录账号同步装备数据。"}</p>
+          <span className="ui-badge status-warning">{vaultText(copy, "未连接 Bungie")}</span>
+          <h2>{isConfigured ? vaultText(copy, "账号还没有登录") : vaultText(copy, "还没有配置 Bungie 应用")}</h2>
+          <p>{isConfigured ? vaultText(copy, "先登录 Bungie；登录后会自动同步装备数据，随后即可查看仓库、装备和清理候选。") : vaultText(copy, "先在设置里完成 Bungie 应用配置，再登录账号同步装备数据。")}</p>
           <div className="button-row">
             {isConfigured ? (
-              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onLoginBungie}>登录 Bungie</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onLoginBungie}>{vaultText(copy, "登录 Bungie")}</button>
             ) : (
-              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onConfigureBungie}>去设置 Bungie</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.onConfigureBungie}>{vaultText(copy, "去设置 Bungie")}</button>
             )}
           </div>
         </ProductWorkspaceEmptyState>
@@ -184,9 +186,9 @@ export function VaultPage(props: {
 
     return (
       <ProductWorkspaceEmptyState className="vault-empty-state product-workspace-empty--page">
-        <strong>{props.accountError ? "仓库读取失败" : props.isLoadingAccount ? "正在读取账号" : "还没有账号数据"}</strong>
-        <span>{props.accountError || "先同步装备数据，然后查看当前角色、背包和仓库中的真实装备。"}</span>
-        <RefreshControlButton variant="primary" refreshing={props.isLoadingAccount} onClick={props.onLoadAccount}>同步装备数据</RefreshControlButton>
+        <strong>{props.accountError ? vaultText(copy, "仓库读取失败") : props.isLoadingAccount ? vaultText(copy, "正在读取账号") : vaultText(copy, "还没有账号数据")}</strong>
+        <span>{props.accountError || vaultText(copy, "先同步装备数据，然后查看当前角色、背包和仓库中的真实装备。")}</span>
+        <RefreshControlButton variant="primary" refreshing={props.isLoadingAccount} onClick={props.onLoadAccount}>{vaultText(copy, "同步装备数据")}</RefreshControlButton>
       </ProductWorkspaceEmptyState>
     );
   }
@@ -196,6 +198,7 @@ export function VaultPage(props: {
 
   return (
     <VaultPageContentView
+      interfaceLocale={props.interfaceLocale}
       items={model.vaultItems}
       currentCharacterId={model.currentCharacterId}
       characterTabs={model.characterTabs}

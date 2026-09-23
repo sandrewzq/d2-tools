@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { emptyLocalTargetRules } from "@d2-tools/core/analysis/targets";
+import { localeCopy } from "@d2-tools/ui";
 import type {
   AccountItemDetail,
   AccountItemPlugSummary,
@@ -351,6 +352,7 @@ describe("写响应体与写入意图对账", () => {
 
 function workspaceInput(detailCacheScopeKey: string) {
   return {
+    copy: localeCopy["zh-CN"].itemDetail,
     accountSummary: accountSummary(),
     detailCacheScopeKey,
     vaultTags: { items: {} } as VaultTags,

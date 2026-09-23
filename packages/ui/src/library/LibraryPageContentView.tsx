@@ -21,11 +21,14 @@ import { defaultLibraryPerkRelatedFilter, formatLibraryVersion } from "@d2-tools
 import {
   classifyWeaponSocketPlugs,
   isWeaponSystemPlug,
-  weaponSocketColumnLabel
+  weaponSocketColumnLabel,
+  type WeaponSocketColumnLabel
 } from "@d2-tools/app/items";
 import { getLocaleCopy } from "../i18n/copy.js";
-import type { InterfaceLocale, LibraryCopy } from "../i18n/types.js";
+import type { InterfaceLocale, ItemDetailCopy, LibraryCopy } from "../i18n/types.js";
+import { weaponSocketColumnLabelText } from "../item-detail/itemDetailLabels.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
+import { ItemDetailVendorContext } from "../item-detail/ItemDetailVendorContext.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { GameCombatIcon, gameDamageTypeKeyFromLabel, gameWeaponSlotTypeFromLabel } from "../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../time/formatTime.js";
@@ -42,7 +45,7 @@ type LibraryPerkGroup = NonNullable<ItemSearchResult["perks"]>[number];
 type LibraryDefinitionStat = NonNullable<ItemSearchResult["definition_stats"]>[number];
 type LibraryWeaponPerkColumn = {
   key: string;
-  label: string;
+  label: WeaponSocketColumnLabel;
   plugs: LibraryPerkGroup["plugs"];
 };
 type LibraryEquipmentTag = {
@@ -81,6 +84,11 @@ export type LibraryPageContentViewProps = {
 
 function libraryText(copy: LibraryCopy, key: string): string {
   return copy.inline[key] ?? key;
+}
+
+function libraryTemplate(copy: LibraryCopy, key: string, values: Record<string, string | number>): string {
+  return libraryText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
+    name in values ? String(values[name]) : match);
 }
 
 export function LibraryPageContentView(props: LibraryPageContentViewProps) {
@@ -927,6 +935,8 @@ export function LibraryDefinitionDialog(props: {
   isBusy?: boolean;
   error?: string;
   copy: LibraryCopy;
+  /** 武器 Perk 池的列名沿用装备详情的词表，见 `itemDetailLabels`。 */
+  itemDetailCopy: ItemDetailCopy;
   onClose: () => void;
   onLocateOwnedItem?: () => void;
 }) {
@@ -1018,28 +1028,15 @@ export function LibraryDefinitionDialog(props: {
             <p>{meta.join(" / ") || libraryText(copy, "装备定义")}</p>
           </div>
           {props.vendorContext ? (
-            <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
-              <strong>{props.vendorContext.vendorName}</strong>
-              <span>{props.vendorContext.costLabel}</span>
-              <span>{props.vendorContext.affordabilityLabel}</span>
-              <span>{props.vendorContext.characterLabel}</span>
-              <span>{props.vendorContext.refreshLabel}</span>
-              {props.vendorContext.ownershipLabel ? (
-                <span>账号状态：{props.vendorContext.ownershipLabel}</span>
+            <ItemDetailVendorContext
+              context={props.vendorContext}
+              text={(key) => libraryText(copy, key)}
+              template={(key, values) => libraryTemplate(copy, key, values)}
+              showRollLabels={item.group_key === "weapons"}
+              extra={item.group_key === "armor" && vendorArmorStats.length ? (
+                <span>{libraryTemplate(copy, "当前售卖属性：总计 {total}", { total: vendorArmorStatTotal })}</span>
               ) : null}
-              {props.vendorContext.ownershipLocationLabel ? (
-                <span>实例位置：{props.vendorContext.ownershipLocationLabel}</span>
-              ) : null}
-              {props.vendorContext.ownershipAsOfLabel ? (
-                <span>账号数据：{props.vendorContext.ownershipAsOfLabel}</span>
-              ) : null}
-              {item.group_key === "weapons" && props.vendorContext.rollLabels?.length ? (
-                <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
-              ) : null}
-              {item.group_key === "armor" && vendorArmorStats.length ? (
-                <span>当前售卖属性：总计 {vendorArmorStatTotal}</span>
-              ) : null}
-            </section>
+            />
           ) : null}
         </div>
         <div className="library-definition-body">
@@ -1053,7 +1050,7 @@ export function LibraryDefinitionDialog(props: {
                 <div className="library-definition-perk-columns">
                   {weaponPerkColumns.map((column) => (
                     <div className="library-definition-perk-column" key={column.key}>
-                      <h4>{libraryText(copy, column.label)}</h4>
+                      <h4>{weaponSocketColumnLabelText(props.itemDetailCopy, column.label)}</h4>
                       <div className="library-definition-perk-list">
                         {column.plugs.map((plug) => (
                           <article className="library-definition-perk-card" key={plug.hash}>
@@ -1263,7 +1260,7 @@ export function getLibraryWeaponPerkColumns(groups: LibraryPerkGroup[]): Library
   let traitIndex = 0;
   return columns.map((column) => ({
     key: column.key,
-    label: column.role === "trait" ? `Perk ${++traitIndex}` : column.label,
+    label: column.role === "trait" ? { kind: "perk_index" as const, index: ++traitIndex } : column.label,
     plugs: column.plugs
   }));
 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailText } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import type { AccountItemDetail, AccountItemSummary, ItemDefinitionDetail, ItemSearchResult, LibraryHistory } from "../../api/types";
 import {
@@ -43,6 +45,7 @@ type ItemOpenContext = {
 
 const ITEM_DETAIL_CACHE_LIMIT = 80;
 const ACCOUNT_ITEM_DETAIL_CACHE_LIMIT = 24;
+const fallbackItemDetailCopy: ItemDetailCopy = { inline: {} };
 
 // 进程级实例详情缓存：仓库同名整理与详情弹层可能同时请求同一实例。
 // 统一在这里做短生命周期的内存复用和 in-flight 去重，避免页面之间重复 IPC。
@@ -135,10 +138,13 @@ export function invalidateCachedAccountItemDetail(instanceId: string, scopeKey =
 
 export function useItemDetail(options: {
   cacheScopeKey?: string;
+  /** 界面文案查表。未传时按 zh-CN 兜底（key 就是中文原文），不会渲染成空白。 */
+  copy?: ItemDetailCopy;
   onOpenStart?: (context: ItemOpenContext) => void;
   onRecentHistoryChanged?: (history: LibraryHistory) => void;
 } = {}) {
   const cacheScopeKey = options.cacheScopeKey ?? "default";
+  const copy = options.copy ?? fallbackItemDetailCopy;
   const [selectedItem, setSelectedItem] = useState<SelectedItemDetail | null>(null);
   const [itemDetailLoadingKey, setItemDetailLoadingKey] = useState("");
   const [itemDetailError, setItemDetailError] = useState("");
@@ -260,7 +266,7 @@ export function useItemDetail(options: {
             : current);
           appendItemDetailError(
             setItemDetailError,
-            errorMessage(error, "物品定义详情读取失败")
+            errorMessage(error, itemDetailText(copy, "物品定义详情读取失败"))
           );
         }));
     }
@@ -323,7 +329,7 @@ export function useItemDetail(options: {
           : value);
       }).catch((error) => {
         if (!isCurrent()) return;
-        appendItemDetailError(setItemDetailError, errorMessage(error, "物品定义详情读取失败"));
+        appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "物品定义详情读取失败")));
       }));
     }
     if (instanceId && needsInstance) {
@@ -349,7 +355,7 @@ export function useItemDetail(options: {
           : value);
       }).catch((error) => {
         if (!isCurrent()) return;
-        appendItemDetailError(setItemDetailError, errorMessage(error, "完整实例 Roll 读取失败"));
+        appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "完整实例 Roll 读取失败")));
       }));
     }
     await Promise.allSettled(requests);
@@ -400,7 +406,7 @@ export function useItemDetail(options: {
       return true;
     }).catch((error) => {
       if (!isCurrent()) return false;
-      appendItemDetailError(setItemDetailError, errorMessage(error, "物品定义详情读取失败"));
+      appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "物品定义详情读取失败")));
       return false;
     }).finally(() => {
       if (definitionRequestsRef.current.get(itemKey) === request) {
@@ -472,7 +478,7 @@ export function useItemDetail(options: {
         setSelectedItem((value) => value?.item_key === itemKey
           ? withDetailLoadingState(value, { definition: false, instance: false })
           : value);
-        setItemDetailError(errorMessage(error, "账号实例详情刷新失败"));
+        setItemDetailError(errorMessage(error, itemDetailText(copy, "账号实例详情刷新失败")));
       }
       throw error;
     } finally {

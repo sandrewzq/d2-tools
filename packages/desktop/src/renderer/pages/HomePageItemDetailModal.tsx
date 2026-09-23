@@ -2,7 +2,16 @@ import type { AccountOperationFeedbackView, VaultRecommendationScanState } from 
 import type { AccountItemSummary, AccountSummary, EquipmentTargetStore, ItemSearchResult, LocalTargetRules, VaultTags } from "../api/types";
 import type { ArmorStatSummary, WeaponStatKey, WeaponStatSummary } from "@d2-tools/core/account/summary";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
-import { ArmorDetailContent, getLocaleCopy, LibraryDefinitionDialog, SharedItemDetailDialog, WeaponDetailContent } from "@d2-tools/ui";
+import {
+  ArmorDetailContent,
+  getLocaleCopy,
+  itemDetailEntryLabel,
+  itemDetailText,
+  LibraryDefinitionDialog,
+  SharedItemDetailDialog,
+  WeaponDetailContent,
+  type ItemDetailCopy
+} from "@d2-tools/ui";
 import { buildLibraryDefinitionDetailView, buildLibraryOwnership } from "@d2-tools/app/library";
 import { collectSelectedSameNameItems, createSelectedItemPreview, selectBestSameNameItem, type ArmorDetailSources, type WeaponDetailSources } from "@d2-tools/app/items";
 import type { useVendorDefinitionDetail } from "../features/vendors/useVendorDefinitionDetail";
@@ -38,6 +47,7 @@ export function HomePageItemDetailModal(props: {
 }) {
   const itemDetail = props.itemDetail;
   const vendorDefinitionState = props.vendorDefinitionDetail.state;
+  const copy = getLocaleCopy(props.interfaceLocale).itemDetail;
 
   if (vendorDefinitionState) {
     const vendorSelectedItem = {
@@ -64,8 +74,8 @@ export function HomePageItemDetailModal(props: {
       context: {
         kind: "vendor_offer",
         entry: "vendor",
-        entry_label: "商人",
-        object_label: "商人 Offer",
+        entry_label: itemDetailEntryLabel(copy, "vendor"),
+        object_label: itemDetailText(copy, "商人 Offer"),
         object_id: vendorDefinitionState.offerItem.id,
         read_only: true
       },
@@ -84,9 +94,10 @@ export function HomePageItemDetailModal(props: {
           detail={{ name: vendorWeaponModel.identity.name, isBusy: vendorDefinitionState.isBusy }}
           variant="weapon"
           subtitle={`${vendorWeaponModel.context.entry_label} · ${vendorWeaponModel.context.object_label}`}
-          objectContext={vendorWeaponModel.context.read_only ? "只读查看" : "可管理实例"}
+          objectContext={vendorWeaponModel.context.read_only ? itemDetailText(copy, "只读查看") : itemDetailText(copy, "可管理实例")}
           vendorContext={vendorDefinitionState.context}
-          closeLabel="关闭武器详情"
+          copy={copy}
+          closeLabel={itemDetailText(copy, "关闭武器详情")}
           onClose={props.vendorDefinitionDetail.close}
           sections={(
             <>
@@ -94,6 +105,7 @@ export function HomePageItemDetailModal(props: {
                 <p className="status-message status-error" role="status">{vendorDefinitionState.error}</p>
               ) : null}
               <WeaponDetailContent
+                copy={copy}
                 model={vendorWeaponModel}
               />
             </>
@@ -109,12 +121,12 @@ export function HomePageItemDetailModal(props: {
       context: {
         kind: "vendor_offer",
         entry: "vendor",
-        entry_label: "商人",
-        object_label: "当前售卖",
+        entry_label: itemDetailEntryLabel(copy, "vendor"),
+        object_label: itemDetailText(copy, "当前售卖"),
         object_id: vendorDefinitionState.offerItem.id,
         read_only: true
       },
-      sources: buildVendorArmorSources(vendorDefinitionState),
+      sources: buildVendorArmorSources(vendorDefinitionState, copy),
       localTargetRules: props.localTargetRules,
       equipmentTargetStore: props.equipmentTargetStore,
       currentStats: buildVendorArmorStats(vendorDefinitionState.context.stats)
@@ -125,9 +137,10 @@ export function HomePageItemDetailModal(props: {
           detail={{ name: vendorArmorModel.identity.name, isBusy: vendorDefinitionState.isBusy }}
           variant="armor"
           subtitle={`${vendorArmorModel.context.entry_label} · ${vendorArmorModel.context.object_label}`}
-          objectContext="只读查看"
+          objectContext={itemDetailText(copy, "只读查看")}
           vendorContext={vendorDefinitionState.context}
-          closeLabel="关闭护甲详情"
+          copy={copy}
+          closeLabel={itemDetailText(copy, "关闭护甲详情")}
           onClose={props.vendorDefinitionDetail.close}
           sections={(
             <>
@@ -135,6 +148,7 @@ export function HomePageItemDetailModal(props: {
                 <p className="status-message status-error" role="status">{vendorDefinitionState.error}</p>
               ) : null}
               <ArmorDetailContent
+                copy={getLocaleCopy(props.interfaceLocale).itemDetail}
                 model={vendorArmorModel}
                 actions={{
                   selectInstance: (instance) => {
@@ -176,6 +190,7 @@ export function HomePageItemDetailModal(props: {
         isBusy={vendorDefinitionState.isBusy}
         error={vendorDefinitionState.error}
         copy={getLocaleCopy(props.interfaceLocale).library}
+        itemDetailCopy={getLocaleCopy(props.interfaceLocale).itemDetail}
         onClose={props.vendorDefinitionDetail.close}
         onLocateOwnedItem={detail.ownership.vaultCount > 0
           ? () => props.onLocateOwnedItem(detail.item)
@@ -187,6 +202,7 @@ export function HomePageItemDetailModal(props: {
   return props.itemDetailOverlay ? (
     <ItemDetailModal
       accountSummary={props.accountSummary}
+      interfaceLocale={props.interfaceLocale}
       accountOperationFeedback={props.accountOperationFeedback}
       communityRecommendations={itemDetail.communityRecommendations}
       communityRecommendationError={itemDetail.communityRecommendationError}
@@ -307,7 +323,8 @@ function buildVendorWeaponStats(stats: Record<string, number> | undefined): Weap
 }
 
 function buildVendorArmorSources(
-  state: NonNullable<VendorDefinitionDetailWorkspace["state"]>
+  state: NonNullable<VendorDefinitionDetailWorkspace["state"]>,
+  copy: ItemDetailCopy
 ): ArmorDetailSources {
   const entries: ArmorDetailSources["entries"] = [{
     id: `vendor:${state.context.vendorName}:${state.item.hash}`,
@@ -319,7 +336,7 @@ function buildVendorArmorSources(
       state.context.refreshLabel
     ].filter(Boolean).join(" · "),
     available_now: true,
-    status_label: "当前在售"
+    status_label: itemDetailText(copy, "当前在售")
   }];
   for (const [index, source] of (state.liveEntry?.sources ?? []).entries()) {
     if (entries.some((entry) => entry.label === source.label)) continue;
@@ -327,16 +344,14 @@ function buildVendorArmorSources(
       id: `live:${source.kind}:${index}:${source.label}`,
       label: source.label,
       description: state.liveEntry?.description ?? state.context.vendorName,
-      available_now: true,
-      status_label: "当前可获得"
+      available_now: true
     });
   }
   if (state.item.source.status === "ready") {
     entries.push({
       id: `source:${state.item.hash}`,
       label: state.item.source.label,
-      description: state.item.source.description,
-      status_label: "来源已记录"
+      description: state.item.source.description
     });
   }
   return {

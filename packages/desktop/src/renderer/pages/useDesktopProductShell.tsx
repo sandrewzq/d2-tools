@@ -85,6 +85,15 @@ export function useDesktopProductShell(props: {
     initialDensity: props.state.density ?? "standard",
     initialLanguagePreferences: props.state.languagePreferences
   });
+  // 这几份 copy 必须在使用点之前声明：下面 memo 的依赖数组会在渲染时同步求值，
+  // 放后面会踩 const 的暂时性死区，整棵 React 树直接挂掉（表现为黑屏）。
+  const productPreferences: ProductPreferences = {
+    ...diagnostics.languagePreferences,
+    colorMode: diagnostics.colorMode,
+    density: diagnostics.density
+  };
+  const homeCopy = getLocaleCopy(productPreferences.interfaceLocale).home;
+  const vaultCopy = getLocaleCopy(productPreferences.interfaceLocale).vault;
   const desktopPlatformActions = useMemo(() => ({
     openExternal: (url: string) => window.d2.openExternal(url),
     setColorMode: (mode: "light" | "dark") => window.d2?.setWindowColorMode?.(mode),
@@ -163,6 +172,7 @@ export function useDesktopProductShell(props: {
   }), [accountSummary?.characters, loadoutLibrary.templates]);
   const itemDetailCleanupProtection = useMemo(() => accountSummary
     ? buildVaultCleanupProtectionIndex({
+        copy: vaultCopy,
         items: getAllKnownAccountItemsWithSource(accountSummary),
         tags: vaultTags,
         highlightedItemKeys: cleanupProtectedItemKeys,
@@ -174,6 +184,7 @@ export function useDesktopProductShell(props: {
       cleanupProtectedItemKeys,
       accountWorkspace.vaultRecommendationScan.phase,
       accountWorkspace.vaultRecommendationCardSummary,
+      vaultCopy,
       vaultTags
     ]);
   const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
@@ -181,6 +192,7 @@ export function useDesktopProductShell(props: {
     accountSummary,
     applyAcceptedAccountActionPatches,
     diagnostics,
+    interfaceLocale: diagnostics.languagePreferences.interfaceLocale,
     vaultTags,
     setVaultTags,
     setAccountError,
@@ -368,13 +380,6 @@ export function useDesktopProductShell(props: {
       handlePageChange("settings");
     }
   });
-
-  const productPreferences: ProductPreferences = {
-    ...diagnostics.languagePreferences,
-    colorMode: diagnostics.colorMode,
-    density: diagnostics.density
-  };
-  const homeCopy = getLocaleCopy(productPreferences.interfaceLocale).home;
 
   function handleProductPreferencesChange(preferences: ProductPreferences) {
     if (preferences.colorMode !== diagnostics.colorMode) {

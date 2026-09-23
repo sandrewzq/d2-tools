@@ -23,7 +23,7 @@ export type DimWishlistLinkDownload = {
   source_url: string;
   /** 跟随跳转后真正读到内容的地址。 */
   final_url: string;
-  /** 从链接末段还原出的文件名，例如 `DIMLGpigWeaponWishlist by moc.txt`。 */
+  /** 从链接末段还原出的文件名，例如 `示例愿望单 by 作者.txt`。 */
   file_name: string;
   /** 内容指纹：判断「有没有新内容」的唯一依据。 */
   fingerprint: string;

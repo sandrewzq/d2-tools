@@ -6,8 +6,6 @@ import type { RecommendationCardSummary, VaultItemInstanceMatchInfo } from "@d2-
 import type { SaveVaultTagInput, VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import {
-  armorStatLabels,
-  ammoFilterLabels,
   buildVaultArmorSetFilters,
   buildVaultContextFacts,
   buildVaultFrameFilters,
@@ -17,21 +15,11 @@ import {
   buildVaultSlotFilters,
   applyVisibleVaultSelection,
   buildVaultSelectionSummary,
-  classFilterLabels,
-  championFilterLabels,
-  craftingFilterLabels,
-  damageFilterLabels,
   defaultVaultGroupTab,
   filterVaultItems,
-  gearTierFilterLabels,
-  lockFilterLabels,
-  locationFilterLabels,
-  rarityFilterLabels,
   getVaultSelectionItemKey,
   selectMarkedCleanupItems,
   sortVaultItems,
-  sortLabels,
-  tagLabels,
   type VaultAmmoFilter,
   type VaultArmorSetFilter,
   type VaultArmorStatRule,
@@ -62,7 +50,7 @@ import type {
   VaultRecommendationManagedSource,
   VaultWishlistActions
 } from "./VaultWishlistManager.js";
-import type { VaultCleanupActions } from "./useVaultBatchActions.js";
+import type { VaultBatchMessage, VaultCleanupActions } from "./useVaultBatchActions.js";
 import { useVaultBatchActions } from "./useVaultBatchActions.js";
 import { VaultOrganizePanel } from "./VaultOrganizePanel.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
@@ -84,6 +72,9 @@ import {
 } from "../recommendationMatchView.js";
 import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 import { createVaultItemCollectionStore } from "./vaultItemCollectionStore.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import type { InterfaceLocale, VaultCopy } from "../i18n/types.js";
+import { vaultContextFactLine, vaultItemLocationLabel, vaultSelectionSummaryText, vaultSlotLabel, vaultTemplate, vaultText } from "./vaultCopy.js";
 import {
   createVaultQuickActionStore,
   type VaultQuickAction
@@ -98,12 +89,16 @@ type VaultRecommendationSourceSelection = {
   completeFilter: VaultRecommendationCompleteFilter;
 };
 
-const vaultWorkspaceTabs: Array<{ key: VaultWorkspaceTab; label: string }> = [
-  { key: "filters", label: "1 浏览装备" },
-  { key: "recommendations", label: "2 推荐来源" }
-];
+/** 标签随界面语言变，所以按 copy 现算，不再做模块级常量。 */
+function buildVaultWorkspaceTabs(copy: VaultCopy): Array<{ key: VaultWorkspaceTab; label: string }> {
+  return [
+    { key: "filters", label: vaultText(copy, "1 浏览装备") },
+    { key: "recommendations", label: vaultText(copy, "2 推荐来源") }
+  ];
+}
 const emptyCleanupProtection = new Map<string, string[]>();
 export function VaultPageContentView(props: {
+  interfaceLocale?: InterfaceLocale;
   items: AccountItemSummary[];
   currentCharacterId?: string;
   /** 当前角色条目，由 @d2-tools/app 的共享 builder 生成，与账号页同源。 */
@@ -133,6 +128,7 @@ export function VaultPageContentView(props: {
   onSaveTagBatch: (inputs: SaveVaultTagInput[]) => void | Promise<void>;
   cleanupActions?: VaultCleanupActions;
 }) {
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").vault;
   const [query, setQuery] = useState("");
   const deferredQuery = useDeferredValue(query);
   const [group, setGroup] = useState<VaultGroupFilter>(defaultVaultGroupTab);
@@ -154,7 +150,11 @@ export function VaultPageContentView(props: {
   const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
   const [frameFilter, setFrameFilter] = useState<VaultFrameFilter>("all");
   const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
-  const [batchMessage, setBatchMessage] = useState("");
+  const [batchMessage, setBatchMessage] = useState<VaultBatchMessage | null>(null);
+  /** 本页快捷操作的回执。空文本沿用原来的「清空后回落到批量面板回执」。 */
+  function reportBatchMessage(text: string, tone: VaultBatchMessage["tone"] = "ready") {
+    setBatchMessage(text ? { text, tone } : null);
+  }
   const [isBatchSaving, setIsBatchSaving] = useState(false);
   const [isOrganizing, setIsOrganizing] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -169,9 +169,10 @@ export function VaultPageContentView(props: {
   });
   const filterScrollPositionRef = useRef(0);
   const workspaceId = useId();
-  const tabIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-tab`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
-  const panelIds = useMemo(() => Object.fromEntries(vaultWorkspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-panel`])) as Record<VaultWorkspaceTab, string>, [workspaceId]);
-  const recommendationWorkflowStatus = vaultRecommendationWorkflowStatus(props.recommendationSourceState?.recommendationScan);
+  const workspaceTabs = useMemo(() => buildVaultWorkspaceTabs(copy), [copy]);
+  const tabIds = useMemo(() => Object.fromEntries(workspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-tab`])) as Record<VaultWorkspaceTab, string>, [workspaceId, workspaceTabs]);
+  const panelIds = useMemo(() => Object.fromEntries(workspaceTabs.map((tab) => [tab.key, `${workspaceId}-${tab.key}-panel`])) as Record<VaultWorkspaceTab, string>, [workspaceId, workspaceTabs]);
+  const recommendationWorkflowStatus = vaultRecommendationWorkflowStatus(copy, props.recommendationSourceState?.recommendationScan);
   const itemCollectionStore = useMemo(() => createVaultItemCollectionStore(props.items), []);
   const vaultQueryIndex = useMemo(() => new VaultQueryIndex(), []);
   const vaultQueryRevision = vaultQueryIndex.replaceItems(props.items, props.currentCharacterId);
@@ -393,13 +394,14 @@ export function VaultPageContentView(props: {
   }, [availableRecommendationSources, recommendationSourceSelections]);
 
   const recommendationFilterState = useMemo(() => buildVaultRecommendationFilterState({
+    copy,
     contextualItems: filteredVaultItems,
     factIndex: recommendationFilterFactByInstance,
     selections: recommendationSourceSelections,
     sourceIds: availableRecommendationSources.map((source) => source.sourceId),
     recommendationCardSummary: props.recommendationCardSummary,
     recommendationScanComplete: props.recommendationSourceState?.recommendationScan.phase === "complete"
-  }), [availableRecommendationSources, filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections]);
+  }), [availableRecommendationSources, copy, filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections]);
   const recommendationAllowedItemKeys = useMemo(() => buildVaultRecommendationAllowedItemKeys({
     catalogItems: staticCatalogItems,
     factIndex: recommendationFilterFactByInstance,
@@ -434,15 +436,15 @@ export function VaultPageContentView(props: {
     const source = recommendationSourceOptions.find((option) => option.sourceId === selection.sourceId);
     const sourceState = recommendationSourceFilterStates.find((state) => state.sourceId === selection.sourceId);
     if (!source || !sourceState) return [];
-    const labels = [`推荐来源：${source.sourceLabel}`];
+    const labels = [vaultTemplate(copy, "推荐来源：{label}", { label: source.sourceLabel })];
     if (selection.primaryFilter !== "all") {
-      labels.push(`perk 命中：${vaultRecommendationPrimaryFilterLabel(selection.primaryFilter)}`);
+      labels.push(vaultTemplate(copy, "perk 命中：{filter}", { filter: vaultRecommendationPrimaryFilterLabel(copy, selection.primaryFilter) }));
     }
     if (selection.completeFilter !== "all") {
-      labels.push(`完整命中：${selection.completeFilter}`);
+      labels.push(vaultTemplate(copy, "完整命中：{filter}", { filter: selection.completeFilter }));
     }
     return labels;
-  }), [recommendationSourceFilterStates, recommendationSourceOptions, recommendationSourceSelections]);
+  }), [copy, recommendationSourceFilterStates, recommendationSourceOptions, recommendationSourceSelections]);
   const selectedItems = useMemo(
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
     [props.items, selectedKeys]
@@ -469,6 +471,7 @@ export function VaultPageContentView(props: {
   );
   const cleanupProtectionByItemKey = useMemo(() => needsCleanupProtection
     ? buildVaultCleanupProtectionIndex({
+        copy,
         items: props.items,
         tags: props.tags,
         highlightedItemKeys: props.cleanupProtectedItemKeys ?? props.highlightedItemKeys,
@@ -476,7 +479,7 @@ export function VaultPageContentView(props: {
         recommendationReady: props.recommendationSourceState?.recommendationScan.phase === "complete"
       })
     : emptyCleanupProtection,
-  [needsCleanupProtection, props.cleanupProtectedItemKeys, props.highlightedItemKeys, props.items, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, props.tags]);
+  [copy, needsCleanupProtection, props.cleanupProtectedItemKeys, props.highlightedItemKeys, props.items, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, props.tags]);
   const safeCleanupActionItems = useMemo(() => cleanupActionItems.filter((item) => (
     (cleanupProtectionByItemKey.get(getVaultCommunityInstanceKey(item))?.length ?? 0) === 0
   )), [cleanupActionItems, cleanupProtectionByItemKey]);
@@ -484,14 +487,15 @@ export function VaultPageContentView(props: {
     (cleanupProtectionByItemKey.get(getVaultCommunityInstanceKey(item))?.length ?? 0) > 0
   )).length, [cleanupProtectionByItemKey, selectedItems]);
   const cleanupTargetCharacterLabel = useMemo(
-    () => props.cleanupActions?.characters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name ?? "目标角色",
-    [cleanupTargetCharacterId, props.cleanupActions?.characters]
+    () => props.cleanupActions?.characters.find((character) => character.character_id === cleanupTargetCharacterId)?.class_name ?? vaultText(copy, "目标角色"),
+    [cleanupTargetCharacterId, copy, props.cleanupActions?.characters]
   );
   const selectionSummary = useMemo(
-    () => buildVaultSelectionSummary({ selectedTotalCount: selectedItems.length, selectedVisibleCount }),
-    [selectedItems.length, selectedVisibleCount]
+    () => vaultSelectionSummaryText(copy, buildVaultSelectionSummary({ selectedTotalCount: selectedItems.length, selectedVisibleCount })),
+    [copy, selectedItems.length, selectedVisibleCount]
   );
   const batchActions = useVaultBatchActions({
+    copy,
     selectedItems,
     vaultActionItems: selectedVaultItems,
     cleanupActionItems: safeCleanupActionItems,
@@ -502,6 +506,8 @@ export function VaultPageContentView(props: {
     setSelectedKeys,
     onSaveTagBatch: props.onSaveTagBatch
   });
+  // 两条来源只显示一条：本页快捷操作的回执优先，其次才是批量面板的回执。
+  const activeBatchMessage = batchMessage ?? batchActions.batchMessage;
   const filteredSections = useMemo(() => buildVaultSections(filteredItems), [filteredItems]);
   const groups = useMemo(() => buildVaultGroups(staticCatalogItems), [staticCatalogItems]);
   const slotFilters = useMemo(() => {
@@ -518,10 +524,10 @@ export function VaultPageContentView(props: {
       className: tab.className,
       emblemUrl: tab.emblemUrl,
       isSelected: tab.isSelected,
-      title: `切换到${tab.className}`,
+      title: vaultTemplate(copy, "切换到{className}", { className: tab.className }),
       meta: tab.power.currentLabel
     })),
-    [props.characterTabs]
+    [copy, props.characterTabs]
   );
   const availableFrameFilters = useMemo(() => {
     const candidates = queryIndexedItems({ frame: "all" }, recommendationAllowedItemKeys);
@@ -558,10 +564,14 @@ export function VaultPageContentView(props: {
     [filteredItems, props.highlightedItemKeys]
   );
   const activeFilterLabels = useMemo(() => buildActiveFilterLabels({
+    copy,
     group,
     query,
     sortKey,
     slotFilter,
+    slotLabel: slotFilter === "all"
+      ? undefined
+      : vaultSlotLabel(copy, slotFilter, slotFilters.find((item) => item.key === slotFilter)?.label),
     locationFilter,
     itemTypeFilter,
     rarityFilter,
@@ -579,13 +589,16 @@ export function VaultPageContentView(props: {
     frameFilter,
     frameLabel: availableFrameFilters.find((option) => option.key === frameFilter)?.label,
     armorRuleCount: armorStatRules.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, championFilter, classFilter, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationSelectionLabels, slotFilter, sortKey, tagFilter]);
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules.length, championFilter, classFilter, copy, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationSelectionLabels, slotFilter, slotFilters, sortKey, tagFilter]);
   const contextFacts = useMemo(() => buildVaultContextFacts({
     group,
     query,
     tagFilter,
     lockFilter,
     slotFilter,
+    slotLabel: slotFilter === "all"
+      ? undefined
+      : vaultSlotLabel(copy, slotFilter, slotFilters.find((item) => item.key === slotFilter)?.label),
     locationFilter,
     ammoFilter,
     itemTypeFilter,
@@ -598,18 +611,20 @@ export function VaultPageContentView(props: {
     armorSetLabel,
     frameFilter,
     frameLabel: availableFrameFilters.find((option) => option.key === frameFilter)?.label,
-    armorStatRules,
+    armorStatRules
+  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, championFilter, classFilter, copy, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, slotFilter, slotFilters, tagFilter]);
+  const contextFactLine = useMemo(() => vaultContextFactLine(copy, contextFacts, {
     filteredCount: filteredVaultItems.length,
     totalCount: props.items.length
-  }), [ammoFilter, armorSetFilter, armorSetLabel, armorStatRules, championFilter, classFilter, craftingFilter, damageFilter, filteredVaultItems.length, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, props.items.length, query, rarityFilter, slotFilter, tagFilter]);
+  }), [contextFacts, copy, filteredVaultItems.length, props.items.length]);
 
   useEffect(() => {
     props.onContextFactsChange?.([
-      ...contextFacts,
+      contextFactLine,
       ...recommendationSelectionLabels,
-      `当前结果：${filteredItems.length} 件`
+      vaultTemplate(copy, "当前结果：{count} 件", { count: filteredItems.length })
     ]);
-  }, [contextFacts, filteredItems.length, props.onContextFactsChange, recommendationSelectionLabels]);
+  }, [contextFactLine, copy, filteredItems.length, props.onContextFactsChange, recommendationSelectionLabels]);
 
   function resetFilterState(
     resetQuery = true,
@@ -633,7 +648,7 @@ export function VaultPageContentView(props: {
     setArmorSetFilter("all");
     setArmorStatRules([]);
     setFrameFilter("all");
-    setBatchMessage("");
+    reportBatchMessage("");
   }
 
   function switchVaultFilterMode(nextGroup: VaultGroupFilter) {
@@ -664,7 +679,9 @@ export function VaultPageContentView(props: {
   function addArmorStatRule() {
     setArmorStatRules((current) => {
       const used = new Set(current.map((rule) => rule.stat));
-      const nextStat = (Object.keys(armorStatLabels) as Array<Exclude<VaultArmorStatRule["stat"], "">>).find((stat) => !used.has(stat));
+      // 这里只借 copy.labels.armorStats 的属性名枚举属性键（六条与 app 的那张表同序同键），
+      // 显示名不从这里出——属性名由 VaultFilterToolbar 查同一张表。
+      const nextStat = (Object.keys(copy.labels.armorStats) as Array<Exclude<VaultArmorStatRule["stat"], "">>).find((stat) => !used.has(stat));
       return nextStat ? [...current, { stat: nextStat, min: 10 }] : current;
     });
   }
@@ -678,20 +695,20 @@ export function VaultPageContentView(props: {
       }
     }
     setActiveVaultTab(tab);
-    setBatchMessage("");
+    reportBatchMessage("");
   }
 
   function handleVaultTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
-    const currentIndex = vaultWorkspaceTabs.findIndex((tab) => tab.key === activeVaultTab);
+    const currentIndex = workspaceTabs.findIndex((tab) => tab.key === activeVaultTab);
     const nextIndex = getRovingFocusIndex({
       key: event.key,
       currentIndex,
-      itemCount: vaultWorkspaceTabs.length,
+      itemCount: workspaceTabs.length,
       orientation: "horizontal"
     });
     if (nextIndex === null) return;
     event.preventDefault();
-    const nextTab = vaultWorkspaceTabs[nextIndex]?.key ?? "filters";
+    const nextTab = workspaceTabs[nextIndex]?.key ?? "filters";
     switchVaultTab(nextTab);
     event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')[nextIndex]?.focus();
   }
@@ -726,8 +743,8 @@ export function VaultPageContentView(props: {
   async function runSelectedBulkLock() {
     if (!props.cleanupActions || !selectedLockableItems.length || isBatchSaving) return;
     setIsBatchSaving(true);
-    batchActions.setActiveBatchAction("批量加锁");
-    setBatchMessage(`正在加锁 ${selectedLockableItems.length} 件装备...`);
+    batchActions.setActiveBatchAction(vaultText(copy, "批量加锁"));
+    reportBatchMessage(vaultTemplate(copy, "正在加锁 {count} 件装备...", { count: selectedLockableItems.length }));
     let successCount = 0;
     const failures: string[] = [];
     for (const item of selectedLockableItems) {
@@ -736,20 +753,26 @@ export function VaultPageContentView(props: {
         props.cleanupActions.currentCharacterId ?? cleanupTargetCharacterId
       );
       if (!targetCharacterId) {
-        failures.push(`${item.name}：没有可用角色`);
+        failures.push(vaultTemplate(copy, "{item}：没有可用角色", { item: item.name }));
         continue;
       }
       try {
         await props.cleanupActions.onLockItem(item, targetCharacterId);
         successCount += 1;
       } catch (error) {
-        failures.push(`${item.name}：${error instanceof Error ? error.message : "加锁失败"}`);
+        failures.push(vaultTemplate(copy, "{item}：{reason}", {
+          item: item.name,
+          reason: error instanceof Error ? error.message : vaultText(copy, "加锁失败")
+        }));
       }
     }
-    setBatchMessage([
-      successCount ? `已加锁 ${successCount} 件装备。` : "没有装备成功加锁。",
-      failures.length ? `${failures.length} 件失败：${failures.slice(0, 3).join("；")}${failures.length > 3 ? "；其余失败请查看应用日志" : ""}` : ""
-    ].filter(Boolean).join(" "));
+    const failureText = failures.length
+      ? `${vaultTemplate(copy, "{count} 件失败：{list}", { count: failures.length, list: failures.slice(0, 3).join(vaultText(copy, "；")) })}${failures.length > 3 ? vaultText(copy, "；其余失败请查看应用日志") : ""}`
+      : "";
+    reportBatchMessage([
+      successCount ? vaultTemplate(copy, "已加锁 {count} 件装备。", { count: successCount }) : vaultText(copy, "没有装备成功加锁。"),
+      failureText
+    ].filter(Boolean).join(" "), failures.length ? "error" : "ready");
     batchActions.setActiveBatchAction("");
     setIsBatchSaving(false);
   }
@@ -759,7 +782,7 @@ export function VaultPageContentView(props: {
     const itemKey = getVaultSelectionItemKey(item);
     const itemIndex = filteredItems.findIndex((candidate) => getVaultSelectionItemKey(candidate) === itemKey);
     const lockState = action === "lock" ? true : action === "unlock" ? false : undefined;
-    const actionLabel = action === "transfer" ? "取出" : lockState ? "加锁" : "解锁";
+    const actionLabel = action === "transfer" ? vaultText(copy, "取出") : lockState ? vaultText(copy, "加锁") : vaultText(copy, "解锁");
     const itemWillLeaveResults = (action === "transfer" && locationFilter === "vault")
       || (lockState !== undefined && lockFilter !== "all");
     const fallbackItem = itemWillLeaveResults
@@ -767,29 +790,32 @@ export function VaultPageContentView(props: {
       : item;
     const targetCharacterId = getQuickActionCharacterId(item, props.cleanupActions.currentCharacterId);
     if (!targetCharacterId) {
-      setBatchMessage(`${actionLabel}失败：当前没有可用角色。`);
+      reportBatchMessage(vaultTemplate(copy, "{action}失败：当前没有可用角色。", { action: actionLabel }), "error");
       requestQuickActionFocus(itemKey);
       return;
     }
 
     quickActionStore.setActive({ itemKey, action });
-    setBatchMessage(action === "transfer"
-      ? `正在取出到${props.cleanupActions.currentCharacterLabel ?? "当前角色"}：${item.name}`
-      : `正在${actionLabel}：${item.name}`);
+    reportBatchMessage(action === "transfer"
+      ? vaultTemplate(copy, "正在取出到{target}：{item}", { target: props.cleanupActions.currentCharacterLabel ?? vaultText(copy, "当前角色"), item: item.name })
+      : vaultTemplate(copy, "正在{action}：{item}", { action: actionLabel, item: item.name }));
     try {
       if (lockState !== undefined) {
         await props.cleanupActions.onLockItem(item, targetCharacterId, lockState);
-        setBatchMessage(`已${actionLabel}：${item.name}`);
+        reportBatchMessage(vaultTemplate(copy, "已{action}：{item}", { action: actionLabel, item: item.name }));
       } else {
         const result = await props.cleanupActions.onBatchTransferToCharacter([item], targetCharacterId);
         if (!result.success_count) {
-          throw new Error(result.failure_messages?.[0] || result.message || "Bungie 未接受这次取出操作");
+          throw new Error(result.failure_messages?.[0] || result.message || vaultText(copy, "Bungie 未接受这次取出操作"));
         }
-        setBatchMessage(`已取出到${props.cleanupActions.currentCharacterLabel ?? "当前角色"}：${item.name}`);
+        reportBatchMessage(vaultTemplate(copy, "已取出到{target}：{item}", { target: props.cleanupActions.currentCharacterLabel ?? vaultText(copy, "当前角色"), item: item.name }));
       }
       if (fallbackItem) requestQuickActionFocus(getVaultSelectionItemKey(fallbackItem));
     } catch (error) {
-      setBatchMessage(`${actionLabel}失败：${error instanceof Error ? error.message : "操作未完成"}`);
+      reportBatchMessage(vaultTemplate(copy, "{action}失败：{reason}", {
+        action: actionLabel,
+        reason: error instanceof Error ? error.message : vaultText(copy, "操作未完成")
+      }), "error");
       requestQuickActionFocus(itemKey);
     } finally {
       quickActionStore.setActive(null);
@@ -800,8 +826,8 @@ export function VaultPageContentView(props: {
     <div className="vault-page">
       <div className="vault-sticky-zone">
         <div className="vault-workflow-bar" data-surface="section">
-          <div className="vault-workflow-tabs" data-ui-kind="segmented-control" role="tablist" aria-label="仓库工作台">
-            {vaultWorkspaceTabs.map((tab) => (
+          <div className="vault-workflow-tabs" data-ui-kind="segmented-control" role="tablist" aria-label={vaultText(copy, "仓库工作台")}>
+            {workspaceTabs.map((tab) => (
               <button type="button" data-ui-kind="button" data-control-variant="quiet" role="tab" id={tabIds[tab.key]} aria-controls={panelIds[tab.key]} aria-selected={activeVaultTab === tab.key} tabIndex={activeVaultTab === tab.key ? 0 : -1} key={tab.key} className={activeVaultTab === tab.key ? "active" : ""} onClick={() => switchVaultTab(tab.key)} onKeyDown={handleVaultTabKeyDown}>
                 {tab.label}
               </button>
@@ -810,25 +836,26 @@ export function VaultPageContentView(props: {
           {props.onSelectCharacter && characterSwitcherItems.length > 0 ? (
             <ContextSwitcher
               variant="compact"
-              label="当前角色"
+              label={vaultText(copy, "当前角色")}
               items={characterSwitcherItems}
               onSelect={props.onSelectCharacter}
             />
           ) : null}
           <div className="vault-workflow-meta">
-            {props.accountResourceStatus && props.accountResourceStatus !== "ready" ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(props.accountResourceStatus)}</span> : null}
+            {props.accountResourceStatus && props.accountResourceStatus !== "ready" ? <span className={`ui-badge ${vaultResourceStatusTone(props.accountResourceStatus)}`} data-ui-kind="status-chip" data-status={props.accountResourceStatus}>{vaultResourceStatusLabel(copy, props.accountResourceStatus)}</span> : null}
             <button type="button" className={`ui-badge vault-recommendation-status-link status-${recommendationWorkflowStatus.tone}`} data-ui-kind="status-chip" data-status={recommendationWorkflowStatus.tone} onClick={() => switchVaultTab("recommendations")}>{recommendationWorkflowStatus.label}</button>
-            {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">配装命中 {loadoutMatchCount} 件</span> : null}
+            {props.highlightedItemKeys ? <span className="ui-badge status-success" data-ui-kind="status-chip">{vaultTemplate(copy, "配装命中 {count} 件", { count: loadoutMatchCount })}</span> : null}
           </div>
         </div>
         {props.accountResourceError ? <p className="status-message status-error" role="alert">{props.accountResourceError}</p> : props.accountResourceMessage ? <p className={`status-message ${props.accountResourceStatus === "cached" || props.accountResourceStatus === "refreshing" ? "status-warning" : "status-ready"}`} role="status">{props.accountResourceMessage}</p> : null}
-        {(batchMessage || batchActions.batchMessage) ? <p className={(batchMessage || batchActions.batchMessage).includes("失败") ? "status-message status-error" : "status-message status-ready"}>{batchMessage || batchActions.batchMessage}</p> : null}
+        {activeBatchMessage ? <p className={`status-message status-${activeBatchMessage.tone === "error" ? "error" : "ready"}`}>{activeBatchMessage.text}</p> : null}
       </div>
 
       {activeVaultTab === "filters" ? (
         <div id={panelIds.filters} role="tabpanel" aria-labelledby={tabIds.filters} className="vault-workspace-panel vault-browse-panel">
           <div className="vault-browse">
             <VaultFilterToolbar
+              copy={copy}
               query={query}
               sortKey={sortKey}
               tagFilter={tagFilter}
@@ -879,8 +906,8 @@ export function VaultPageContentView(props: {
             <section className="vault-results-column vault-browse-results" data-surface="section" data-contract-id="vault.results" data-vault-scroll-pane="filters">
               <div className="vault-results-command-row">
                 {group === "weapons" ? (
-                  <div className="vault-recommendation-filter" role="group" aria-label="按推荐来源筛选">
-                    <div className="vault-recommendation-source-list" role="group" aria-label="推荐来源多选">
+                  <div className="vault-recommendation-filter" role="group" aria-label={vaultText(copy, "按推荐来源筛选")}>
+                    <div className="vault-recommendation-source-list" role="group" aria-label={vaultText(copy, "推荐来源多选")}>
                       {recommendationSourceOptions.map((option) => {
                         const selection = recommendationSourceSelections.find((item) => item.sourceId === option.sourceId);
                         const sourceState = recommendationSourceFilterStates.find((state) => state.sourceId === option.sourceId);
@@ -896,8 +923,8 @@ export function VaultPageContentView(props: {
                                 className="vault-recommendation-source-toggle"
                                 aria-pressed={active}
                                 aria-expanded={active}
-                                aria-label={`${option.sourceLabel}，覆盖 ${option.count} 件${active ? "，已选中" : ""}`}
-                                title={`${option.sourceLabel} · 覆盖 ${option.count} 件`}
+                                aria-label={`${vaultTemplate(copy, "{label}，覆盖 {count} 件", { label: option.sourceLabel, count: option.count })}${active ? vaultText(copy, "，已选中") : ""}`}
+                                title={vaultTemplate(copy, "{label} · 覆盖 {count} 件", { label: option.sourceLabel, count: option.count })}
                                 onClick={() => toggleRecommendationSource(option.sourceId)}
                               >
                                 <span className="vault-recommendation-source-check" aria-hidden="true">{active ? "✓" : ""}</span>
@@ -906,21 +933,21 @@ export function VaultPageContentView(props: {
                               </button>
                             </div>
                             {active && selection ? (
-                              <div className="vault-recommendation-source-conditions" role="group" aria-label={`${option.sourceLabel}命中筛选`}>
-                                <div className="vault-recommendation-primary-filter" role="group" aria-label={`${option.sourceLabel}perk 命中筛选`}>
+                              <div className="vault-recommendation-source-conditions" role="group" aria-label={vaultTemplate(copy, "{label}命中筛选", { label: option.sourceLabel })}>
+                                <div className="vault-recommendation-primary-filter" role="group" aria-label={vaultTemplate(copy, "{label}perk 命中筛选", { label: option.sourceLabel })}>
                                   <span>
-                                    <span className="vault-recommendation-primary-filter-label" aria-hidden="true">perk 命中</span>
+                                    <span className="vault-recommendation-primary-filter-label" aria-hidden="true">{vaultText(copy, "perk 命中")}</span>
                                     {directOptions.map((filterOption) => (
                                       <button
                                         type="button"
                                         key={filterOption.key}
                                         disabled={filterOption.count === 0}
                                         aria-pressed={selection.primaryFilter === filterOption.key}
-                                        aria-label={`${option.sourceLabel}${formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}`}
-                                        title={formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}
+                                        aria-label={`${option.sourceLabel}${formatVaultRecommendationMetricOptionDescription(copy, filterOption.key, filterOption.count)}`}
+                                        title={formatVaultRecommendationMetricOptionDescription(copy, filterOption.key, filterOption.count)}
                                         onClick={() => updateRecommendationSourceSelection(option.sourceId, { primaryFilter: filterOption.key, completeFilter: "all" })}
                                       >
-                                        <span>{filterOption.key === "all" ? "全部" : filterOption.key}</span>
+                                        <span>{filterOption.key === "all" ? vaultText(copy, "全部") : filterOption.key}</span>
                                         <small className="vault-recommendation-option-count" aria-hidden="true">{filterOption.count}</small>
                                       </button>
                                     ))}
@@ -928,13 +955,13 @@ export function VaultPageContentView(props: {
                                 </div>
                                 {otherOptions.length ? (
                                   <label className="vault-recommendation-other-filter">
-                                    <span className="sr-only">{option.sourceLabel}其他推荐状态</span>
+                                    <span className="sr-only">{vaultTemplate(copy, "{label}其他推荐状态", { label: option.sourceLabel })}</span>
                                     <select
-                                      aria-label={`${option.sourceLabel}其他推荐状态`}
+                                      aria-label={vaultTemplate(copy, "{label}其他推荐状态", { label: option.sourceLabel })}
                                       value={selection.primaryFilter === "all" || isVaultRecommendationMetricKey(selection.primaryFilter) ? "" : selection.primaryFilter}
                                       onChange={(event) => updateRecommendationSourceSelection(option.sourceId, { primaryFilter: (event.target.value || "all") as VaultRecommendationPrimaryFilter, completeFilter: "all" })}
                                     >
-                                      <option value="">其他状态</option>
+                                      <option value="">{vaultText(copy, "其他状态")}</option>
                                       {otherOptions.map((filterOption) => (
                                         <option key={filterOption.key} value={filterOption.key} disabled={filterOption.count === 0}>{filterOption.label} · {filterOption.count}</option>
                                       ))}
@@ -943,14 +970,14 @@ export function VaultPageContentView(props: {
                                 ) : null}
                                 {sourceState.completeOptions.length > 1 ? (
                                   <label className="vault-recommendation-complete-filter">
-                                    <span className="sr-only">{option.sourceLabel}完整命中筛选</span>
+                                    <span className="sr-only">{vaultTemplate(copy, "{label}完整命中筛选", { label: option.sourceLabel })}</span>
                                     <select
-                                      aria-label={`${option.sourceLabel}完整命中筛选`}
+                                      aria-label={vaultTemplate(copy, "{label}完整命中筛选", { label: option.sourceLabel })}
                                       value={selection.completeFilter}
                                       onChange={(event) => updateRecommendationSourceSelection(option.sourceId, { completeFilter: event.target.value as VaultRecommendationCompleteFilter })}
                                     >
                                       {sourceState.completeOptions.map((filterOption) => (
-                                        <option key={filterOption.key} value={filterOption.key} disabled={filterOption.count === 0}>{filterOption.key === "all" ? "完整：不限" : `完整 ${filterOption.key}`} · {filterOption.count}</option>
+                                        <option key={filterOption.key} value={filterOption.key} disabled={filterOption.count === 0}>{filterOption.key === "all" ? vaultText(copy, "完整：不限") : vaultTemplate(copy, "完整 {filter}", { filter: filterOption.key })} · {filterOption.count}</option>
                                       ))}
                                     </select>
                                   </label>
@@ -964,12 +991,12 @@ export function VaultPageContentView(props: {
                   </div>
                 ) : null}
                 <div className="vault-results-command-summary" aria-live="polite">
-                  <span>{group === "weapons" ? locationFilterLabels[locationFilter] : "仓库装备"}</span>
-                  <strong>{filteredItems.length} 件</strong>
-                  <span>{activeFilterLabels.length} 项条件</span>
+                  <span>{group === "weapons" ? copy.labels.locations[locationFilter] : vaultText(copy, "仓库装备")}</span>
+                  <strong>{vaultTemplate(copy, "{count} 件", { count: filteredItems.length })}</strong>
+                  <span>{vaultTemplate(copy, "{count} 项条件", { count: activeFilterLabels.length })}</span>
                 </div>
                 {group === "weapons" ? (
-                  <div className="vault-results-location-filter" role="group" aria-label="武器查看位置">
+                  <div className="vault-results-location-filter" role="group" aria-label={vaultText(copy, "武器查看位置")}>
                     {locationFilters.map((item) => (
                       <button
                         type="button"
@@ -977,7 +1004,7 @@ export function VaultPageContentView(props: {
                         aria-pressed={locationFilter === item.key}
                         onClick={() => setLocationFilter(item.key)}
                       >
-                        <span>{item.label}</span>
+                        <span>{copy.labels.locations[item.key]}</span>
                         <small aria-hidden="true">{item.count}</small>
                       </button>
                     ))}
@@ -991,10 +1018,11 @@ export function VaultPageContentView(props: {
                   aria-expanded={isOrganizing}
                   onClick={toggleOrganizing}
                 >
-                  {isOrganizing ? "退出批量" : "批量选择"}
+                  {isOrganizing ? vaultText(copy, "退出批量") : vaultText(copy, "批量选择")}
                 </button>
               </div>
               <VaultOrganizePanel
+                copy={copy}
                 isOrganizing={isOrganizing}
                 filteredItemCount={filteredItems.length}
                 selectedItemCount={selectedItems.length}
@@ -1020,6 +1048,7 @@ export function VaultPageContentView(props: {
                 onRunCleanupAction={batchActions.runCleanupAction}
               />
               <VaultItemSections
+                copy={copy}
                 sections={filteredSections}
                 itemCollectionStore={itemCollectionStore}
                 highlightedItemKeys={props.highlightedItemKeys}
@@ -1035,7 +1064,7 @@ export function VaultPageContentView(props: {
                 quickActionStore={quickActionStore}
                 quickActionsDisabled={isBatchSaving || batchActions.isBatchSaving}
                 focusRequest={quickActionFocusRequest}
-                emptyMessage="没有匹配的装备。请调整左侧条件或重置筛选。"
+                emptyMessage={vaultText(copy, "没有匹配的装备。请调整左侧条件或重置筛选。")}
                 onSelectItem={props.onOpenItem}
                 onToggleSelected={toggleSelectedItem}
                 onQuickAction={runQuickAction}
@@ -1049,6 +1078,7 @@ export function VaultPageContentView(props: {
         <div id={panelIds.recommendations} role="tabpanel" aria-labelledby={tabIds.recommendations} className="vault-recommendations vault-workspace-panel" data-vault-scroll-pane="recommendations">
           <div className="vault-recommendation-view-panel">
               <VaultRecommendationEvidencePanel
+                interfaceLocale={props.interfaceLocale}
                 sourceState={props.recommendationSourceState}
                 wishlistActions={props.wishlistActions}
                 onCopyAuditReport={props.onCopyRecommendationAudit}
@@ -1077,15 +1107,15 @@ function getVaultWorkspaceScrollRoot(
   return page;
 }
 
-function vaultResourceStatusLabel(status: VaultAccountResourceStatus): string {
+function vaultResourceStatusLabel(copy: VaultCopy, status: VaultAccountResourceStatus): string {
   switch (status) {
-    case "cached": return "本地缓存";
-    case "stale": return "缓存已过期";
-    case "refreshing": return "正在同步装备数据";
-    case "loading": return "正在读取装备数据";
-    case "ready": return "装备数据已同步";
-    case "error": return "读取失败";
-    default: return "装备数据不可用";
+    case "cached": return vaultText(copy, "本地缓存");
+    case "stale": return vaultText(copy, "缓存已过期");
+    case "refreshing": return vaultText(copy, "正在同步装备数据");
+    case "loading": return vaultText(copy, "正在读取装备数据");
+    case "ready": return vaultText(copy, "装备数据已同步");
+    case "error": return vaultText(copy, "读取失败");
+    default: return vaultText(copy, "装备数据不可用");
   }
 }
 
@@ -1101,16 +1131,16 @@ function vaultResourceStatusTone(status: VaultAccountResourceStatus): string {
   }
 }
 
-function vaultRecommendationWorkflowStatus(scan?: VaultRecommendationSourceState["recommendationScan"]): { label: string; tone: "neutral" | "pending" | "success" | "error" } {
+function vaultRecommendationWorkflowStatus(copy: VaultCopy, scan?: VaultRecommendationSourceState["recommendationScan"]): { label: string; tone: "neutral" | "pending" | "success" | "error" } {
   if (scan?.blocking_reason === "recommendation_unavailable"
     || scan?.issues?.some((issue) => issue.code === "recommendation_unavailable")) {
-    return { label: "推荐数据未准备", tone: "pending" };
+    return { label: vaultText(copy, "推荐数据未准备"), tone: "pending" };
   }
-  if (scan?.phase === "scanning") return { label: "正在核对推荐", tone: "pending" };
-  if (scan?.phase === "partial") return { label: "部分核对完成", tone: "pending" };
-  if (scan?.phase === "error") return { label: "推荐核对失败", tone: "error" };
-  if (scan?.phase === "complete") return { label: `已核对 ${scan.scanned_weapon_count} 件`, tone: "success" };
-  return { label: "尚未核对", tone: "neutral" };
+  if (scan?.phase === "scanning") return { label: vaultText(copy, "正在核对推荐"), tone: "pending" };
+  if (scan?.phase === "partial") return { label: vaultText(copy, "部分核对完成"), tone: "pending" };
+  if (scan?.phase === "error") return { label: vaultText(copy, "推荐核对失败"), tone: "error" };
+  if (scan?.phase === "complete") return { label: vaultTemplate(copy, "已核对 {count} 件", { count: scan.scanned_weapon_count }), tone: "success" };
+  return { label: vaultText(copy, "尚未核对"), tone: "neutral" };
 }
 
 type VaultRecommendationFilterOption<T extends string> = {
@@ -1126,6 +1156,7 @@ type VaultRecommendationSourceFilterState = {
 };
 
 function buildVaultRecommendationFilterState(input: {
+  copy: VaultCopy;
   contextualItems: readonly AccountItemSummary[];
   factIndex: VaultRecommendationFilterFactIndex;
   selections: readonly VaultRecommendationSourceSelection[];
@@ -1158,9 +1189,9 @@ function buildVaultRecommendationFilterState(input: {
       if (fact.completeKey) completeKeys.add(fact.completeKey);
     }
     const primaryOptions: Array<VaultRecommendationFilterOption<VaultRecommendationPrimaryFilter>> = [
-      { key: "all", label: "全部", count: candidates.filter((item) => hasSourceRecord(item, sourceId, input.factIndex)).length },
+      { key: "all", label: vaultText(input.copy, "全部"), count: candidates.filter((item) => hasSourceRecord(item, sourceId, input.factIndex)).length },
       ...[...metricKeys].sort(compareVaultRecommendationMetricKeys).map((key) => ({ key, label: key, count: primaryCounts.get(key) ?? 0 })),
-      ...(["unrequired", "uncheckable", "uncovered"] as const).map((key) => ({ key, label: vaultRecommendationPrimaryFilterLabel(key), count: primaryCounts.get(key) ?? 0 }))
+      ...(["unrequired", "uncheckable", "uncovered"] as const).map((key) => ({ key, label: vaultRecommendationPrimaryFilterLabel(input.copy, key), count: primaryCounts.get(key) ?? 0 }))
     ];
     const completeBase = candidates.filter((item) => {
       const fact = getSourceFact(item, sourceId, input);
@@ -1176,7 +1207,7 @@ function buildVaultRecommendationFilterState(input: {
       sourceId,
       primaryOptions,
       completeOptions: [
-        { key: "all", label: "不限", count: completeBase.length },
+        { key: "all", label: vaultText(input.copy, "不限"), count: completeBase.length },
         ...[...completeKeys].sort(compareVaultRecommendationMetricKeys).map((key) => ({ key, label: key, count: completeCounts.get(key) ?? 0 }))
       ]
     };
@@ -1282,22 +1313,25 @@ function sameStringList(previous: readonly string[], next: readonly string[]): b
  * 这句话要说清的是**来源要求的项数与其中命中的项数**（分子分母）。
  */
 function formatVaultRecommendationMetricOptionDescription(
+  copy: VaultCopy,
   key: VaultRecommendationPrimaryFilter,
   count: number
 ): string {
-  if (key === "all") return `全部：有本来源记录的候选，${count} 件`;
-  if (key === "unrequired") return `未要求：来源没提要求，${count} 件`;
-  if (key === "uncheckable") return `无法判断：有要求核对不了，${count} 件`;
-  if (key === "uncovered") return `未收录：本来源没有这些武器的记录，${count} 件`;
+  if (key === "all") return vaultTemplate(copy, "全部：有本来源记录的候选，{count} 件", { count });
+  if (key === "unrequired") return vaultTemplate(copy, "未要求：来源没提要求，{count} 件", { count });
+  if (key === "uncheckable") return vaultTemplate(copy, "无法判断：有要求核对不了，{count} 件", { count });
+  if (key === "uncovered") return vaultTemplate(copy, "未收录：本来源没有这些武器的记录，{count} 件", { count });
   const [matched, required] = key.split("/");
-  return `要求 ${required} 项，命中 ${matched} 项，${count} 件`;
+  return vaultTemplate(copy, "要求 {required} 项，命中 {matched} 项，{count} 件", { required, matched, count });
 }
 
 function buildActiveFilterLabels(input: {
+  copy: VaultCopy;
   group: VaultGroupFilter;
   query: string;
   sortKey: VaultSortKey;
   slotFilter: VaultSlotFilter;
+  slotLabel?: string;
   locationFilter: VaultLocationFilter;
   itemTypeFilter: string;
   rarityFilter: VaultRarityFilter;
@@ -1316,27 +1350,34 @@ function buildActiveFilterLabels(input: {
   frameLabel?: string;
   armorRuleCount: number;
 }): string[] {
+  const copy = input.copy;
   return [
-    input.query.trim() ? `搜索：${input.query.trim()}` : "",
-    input.sortKey !== "name" ? sortLabels[input.sortKey] : "",
-    input.slotFilter !== "all" ? `槽位：${input.slotFilter}` : "",
+    input.query.trim() ? vaultTemplate(copy, "搜索：{query}", { query: input.query.trim() }) : "",
+    input.sortKey !== "name" ? copy.labels.sorts[input.sortKey] : "",
+    input.slotFilter !== "all" ? vaultTemplate(copy, "槽位：{slot}", { slot: input.slotLabel ?? input.slotFilter }) : "",
     input.locationFilter !== (input.group === "weapons" ? "vault" : "all")
-      ? `所在位置：${locationFilterLabels[input.locationFilter]}`
+      ? vaultTemplate(copy, "所在位置：{location}", { location: copy.labels.locations[input.locationFilter] })
       : "",
-    input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
-    input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
-    input.gearTierFilter !== "all" ? `阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
-    input.ammoFilter !== "all" ? `弹药：${ammoFilterLabels[input.ammoFilter]}` : "",
-    input.damageFilter !== "all" ? `属性：${damageFilterLabels[input.damageFilter]}` : "",
-    input.championFilter !== "all" ? `反勇士：${championFilterLabels[input.championFilter]}` : "",
-    input.craftingFilter !== "all" ? `锻造状态：${craftingFilterLabels[input.craftingFilter]}` : "",
-    input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
-    input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
-    input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
-    input.tagFilter !== "all" ? `整理状态：${input.tagFilter === "untagged" ? input.group === "weapons" ? "未整理" : "未标记" : tagLabels[input.tagFilter]}` : "",
+    input.itemTypeFilter !== "all" ? vaultTemplate(copy, "类型：{type}", { type: input.itemTypeFilter }) : "",
+    input.rarityFilter !== "all" ? vaultTemplate(copy, "稀有度：{rarity}", { rarity: copy.labels.rarity[input.rarityFilter] }) : "",
+    input.gearTierFilter !== "all" ? vaultTemplate(copy, "阶级：{tier}", { tier: copy.labels.gearTiers[input.gearTierFilter] }) : "",
+    input.ammoFilter !== "all" ? vaultTemplate(copy, "弹药：{ammo}", { ammo: copy.labels.ammo[input.ammoFilter] }) : "",
+    input.damageFilter !== "all" ? vaultTemplate(copy, "属性：{damage}", { damage: copy.labels.damage[input.damageFilter] }) : "",
+    input.championFilter !== "all" ? vaultTemplate(copy, "反勇士：{champion}", { champion: copy.labels.champions[input.championFilter] }) : "",
+    input.craftingFilter !== "all" ? vaultTemplate(copy, "锻造状态：{crafting}", { crafting: copy.labels.crafting[input.craftingFilter] }) : "",
+    input.classFilter !== "all" ? vaultTemplate(copy, "职业：{className}", { className: copy.labels.classes[input.classFilter] }) : "",
+    input.armorSetFilter !== "all" ? vaultTemplate(copy, "护甲套装：{set}", { set: input.armorSetLabel ?? input.armorSetFilter }) : "",
+    input.lockFilter !== "all" ? copy.labels.locks[input.lockFilter] : "",
+    input.tagFilter !== "all"
+      ? vaultTemplate(copy, "整理状态：{tag}", {
+          tag: input.tagFilter === "untagged"
+            ? input.group === "weapons" ? vaultText(copy, "未整理") : vaultText(copy, "未标记")
+            : copy.labels.tags[input.tagFilter]
+        })
+      : "",
     ...input.recommendationSelectionLabels,
-    input.frameFilter && input.frameFilter !== "all" ? `武器框架：${input.frameLabel ?? input.frameFilter}` : "",
-    input.armorRuleCount ? `护甲属性：${input.armorRuleCount} 条` : ""
+    input.frameFilter && input.frameFilter !== "all" ? vaultTemplate(copy, "武器框架：{frame}", { frame: input.frameLabel ?? input.frameFilter }) : "",
+    input.armorRuleCount ? vaultTemplate(copy, "护甲属性：{count} 条", { count: input.armorRuleCount }) : ""
   ].filter(Boolean);
 }
 

@@ -1,6 +1,7 @@
 import { startTransition, useCallback, useEffect, useRef, useState, type ComponentProps } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { getItemKey } from "@d2-tools/app/items";
+import { getLocaleCopy } from "@d2-tools/ui";
 import type {
   AccountItemActionPatch,
   LibraryHistory,
@@ -60,6 +61,7 @@ export function HomePageItemDetailHost(props: HomePageItemDetailHostProps) {
   }, [onRecentHistoryChanged]);
   const itemDetail = useItemDetailWorkspace({
     accountSummary: props.accountSummary,
+    copy: getLocaleCopy(props.interfaceLocale).itemDetail,
     vaultTags: props.vaultTags,
     setVaultTags,
     cleanupProtectionByItemKey,

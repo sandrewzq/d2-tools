@@ -254,7 +254,7 @@ function createV6Database(dataDir: string): DatabaseSync {
   `).run();
 
   // 2. CSV：v6 时住在五张旧表里。
-  raw.prepare("INSERT INTO recommendation_sources(id, source_key, label) VALUES (1, 'aegis', 'Aegis推荐')").run();
+  raw.prepare("INSERT INTO recommendation_sources(id, source_key, label) VALUES (1, 'legacy-csv', '旧版推荐表')").run();
   raw.prepare(`
     INSERT INTO weapon_recommendations(id, rule_stable_id, identity_key, normalized_weapon_name, weapon_name, source_id, rating, note)
     VALUES (1, 'old-rule', 'hash:1001', '测试步枪', '测试步枪', 1, 'S', '旧 CSV 数据')

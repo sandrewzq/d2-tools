@@ -324,7 +324,13 @@ export const libraryCopy: Record<InterfaceLocale, LocaleCopy["library"]> = {
         "全部位置": "All slots",
         "主弹": "Primary",
         "特殊": "Special",
-        "重弹": "Heavy"
+        "重弹": "Heavy",
+        "商人售卖信息": "Vendor sale info",
+        "账号状态：{value}": "Account state: {value}",
+        "实例位置：{value}": "Instance location: {value}",
+        "账号数据：{value}": "Account data: {value}",
+        "当前售卖 Perk：{value}": "Perks on sale: {value}",
+        "当前售卖属性：总计 {total}": "Sale stats: {total} total"
       },
       title: "Library",
       subtitle: "Default to acquisition-source lookup using only verified fields in the current library.",

@@ -6,8 +6,11 @@ import type {
 import type { VaultTags } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultCommunityInstanceKey } from "../recommendationMatchView.js";
+import type { VaultCopy } from "../i18n/types.js";
+import { vaultText } from "./vaultCopy.js";
 
 export function buildVaultCleanupProtectionIndex(input: {
+  copy: VaultCopy;
   items: AccountItemSummary[];
   tags: VaultTags;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
@@ -38,19 +41,19 @@ export function buildVaultCleanupProtectionIndex(input: {
     const hasUncheckableRecommendation = sourceStates.some((source) => source.state === "uncheckable");
     const hasRecommendationConflict = recommendationPurposesConflict(sourceStates);
     const reasons = [
-      item.locked ? "已锁定" : "",
-      item.instance_id && input.highlightedItemKeys?.instanceIds.has(item.instance_id) ? "配装实例" : "",
-      localTag === "keep" ? "玩家手动保留" : "",
-      !item.name.trim() || /^Hash\s+\d+$/i.test(item.name.trim()) ? "官方名称未解析" : "",
-      !item.instance_id ? "缺少实例 ID" : "",
-      isWeapon && hasIncompleteRelevantWeaponRoll(item) ? "Roll 数据不完整" : "",
-      isWeapon && input.recommendationReady === false ? "推荐核对尚未完成" : "",
-      isWeapon && (!match || match.coverage !== "covered") ? "推荐库未覆盖" : "",
-      hasPositiveRecommendation ? "明确推荐符合" : "",
-      hasWeaponOnlyRecommendation ? "来源只推荐武器，需人工选择实例" : "",
-      hasUncheckableRecommendation ? "推荐数据无法安全核对" : "",
-      nameGroup.length > 1 && sameFingerprintCount === 1 ? "同名组独特 Roll" : "",
-      hasRecommendationConflict ? "推荐来源存在冲突" : ""
+      item.locked ? vaultText(input.copy, "已锁定") : "",
+      item.instance_id && input.highlightedItemKeys?.instanceIds.has(item.instance_id) ? vaultText(input.copy, "配装实例") : "",
+      localTag === "keep" ? vaultText(input.copy, "玩家手动保留") : "",
+      !item.name.trim() || /^Hash\s+\d+$/i.test(item.name.trim()) ? vaultText(input.copy, "官方名称未解析") : "",
+      !item.instance_id ? vaultText(input.copy, "缺少实例 ID") : "",
+      isWeapon && hasIncompleteRelevantWeaponRoll(item) ? vaultText(input.copy, "Roll 数据不完整") : "",
+      isWeapon && input.recommendationReady === false ? vaultText(input.copy, "推荐核对尚未完成") : "",
+      isWeapon && (!match || match.coverage !== "covered") ? vaultText(input.copy, "推荐库未覆盖") : "",
+      hasPositiveRecommendation ? vaultText(input.copy, "明确推荐符合") : "",
+      hasWeaponOnlyRecommendation ? vaultText(input.copy, "来源只推荐武器，需人工选择实例") : "",
+      hasUncheckableRecommendation ? vaultText(input.copy, "推荐数据无法安全核对") : "",
+      nameGroup.length > 1 && sameFingerprintCount === 1 ? vaultText(input.copy, "同名组独特 Roll") : "",
+      hasRecommendationConflict ? vaultText(input.copy, "推荐来源存在冲突") : ""
     ].filter(Boolean);
     result.set(key, [...new Set(reasons)]);
   }

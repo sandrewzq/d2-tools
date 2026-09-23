@@ -5,6 +5,8 @@ import {
   weaponSocketColumnLabel,
   type WeaponPerkColumnRole
 } from "@d2-tools/app/items";
+import { getLocaleCopy } from "../i18n/copy.js";
+import { weaponSocketColumnLabelText } from "../item-detail/itemDetailLabels.js";
 import type {
   AccountItemPlugSummary,
   AccountItemReusablePlugSummary,
@@ -23,11 +25,13 @@ import type {
 import type { SaveVaultTagInput } from "@d2-tools/core/vault/tags";
 import type { LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import { getVaultItemKey, normalizeCoreItem } from "@d2-tools/app/vault";
+import type { VaultCopy } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { useNavigationGuard } from "../navigation/NavigationGuard.js";
 import { presentRecommendationSlotMatch } from "../recommendationMatchView.js";
 import { formatVaultItemMeta } from "./VaultListItem.js";
+import { vaultText } from "./vaultCopy.js";
 import {
   displayVaultRecommendationSourceLabel,
   getVaultCommunityInstanceKey,
@@ -90,6 +94,12 @@ type DuplicateSourceOption = {
 
 const DUPLICATE_DETAIL_CONCURRENCY = 3;
 
+/**
+ * 这个组件还没接线（见 `docs/todo.md` 的 S10 条目），暂时没有 locale 入口，
+ * 列名按 zh-CN 词表算。接线时需要把它改成从 props 传进来的 copy。
+ */
+const duplicateGroupLabelCopy = getLocaleCopy("zh-CN").itemDetail;
+
 const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = [
   { key: "none", label: "未标记" },
   { key: "keep", label: "保留" },
@@ -98,6 +108,7 @@ const dispositionOptions: Array<{ key: DuplicateDisposition; label: string }> = 
 ];
 
 export function VaultDuplicateGroups(props: {
+  copy: VaultCopy;
   duplicateSummary: DuplicateAnalysisResult;
   items: AccountItemSummary[];
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
@@ -167,7 +178,7 @@ export function VaultDuplicateGroups(props: {
       }
     }
     return index;
-  }, [groups, itemByKey, props.cleanupProtectionByItemKey, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.recommendationSummaryByInstance]);
+  }, [groups, itemByKey, props.copy, props.cleanupProtectionByItemKey, props.equipmentTargetStore, props.highlightedItemKeys, props.localTargetRules, props.recommendationSummaryByInstance]);
   const evidenceSummaryByGroup = useMemo(() => new Map(groups.map((group) => [
     group.group_key,
     summarizeGroupEvidence(group, evidenceByItemKey)
@@ -375,6 +386,7 @@ export function VaultDuplicateGroups(props: {
         <div className="duplicate-compare-workspace">
           {revisionResetMessage ? <p className="status-message status-warning" role="status">{revisionResetMessage}</p> : null}
           <DuplicateComparePanel
+            copy={props.copy}
             key={`${activeGroup.group_key}\u0000${props.recommendationRevision ?? ""}`}
             group={activeGroup}
             itemByKey={comparisonItemByKey}
@@ -409,6 +421,7 @@ export function VaultDuplicateGroups(props: {
 }
 
 function DuplicateComparePanel(props: {
+  copy: VaultCopy;
   group: DuplicateItemGroup;
   itemByKey: Map<string, AccountItemSummary>;
   evidenceByItemKey: ReadonlyMap<string, DuplicateEvidence>;
@@ -650,7 +663,7 @@ function DuplicateComparePanel(props: {
                 <input type="radio" name={`duplicate-reference-${props.group.group_key}`} checked={isReference} onChange={() => props.onReferenceChange(entry.item_key)} />
                 <span>基准</span>
               </label>
-              <button type="button" className="duplicate-identity" title={`打开详情：${formatVaultItemMeta(item)}`} onClick={() => props.onOpenItem(item)}>
+              <button type="button" className="duplicate-identity" title={`打开详情：${formatVaultItemMeta(props.copy, item)}`} onClick={() => props.onOpenItem(item)}>
                 <GameAssetImage src={item.icon} alt="" loading="eager" fallback={<span className="duplicate-thumb-fallback">{item.group_key === "armor" ? "甲" : "武"}</span>} />
                 <span><strong>实例 {index + 1}</strong><small>{formatInstanceMeta(item)}</small>{isDirty ? <em>状态待应用</em> : null}</span>
               </button>
@@ -846,7 +859,9 @@ function buildComparisonColumns(items: AccountItemSummary[]): DuplicateCompariso
   let traitIndex = 0;
   const columns = sortedSockets.map(([socketIndex, plugs]) => {
     const role: WeaponPerkColumnRole = classifyWeaponSocketPlugs(plugs) ?? "other";
-    const label = role === "trait" ? `Perk ${++traitIndex}` : weaponSocketColumnLabel(plugs, role, socketIndex);
+    const label = role === "trait"
+      ? weaponSocketColumnLabelText(duplicateGroupLabelCopy, { kind: "perk_index", index: ++traitIndex })
+      : weaponSocketColumnLabelText(duplicateGroupLabelCopy, weaponSocketColumnLabel(plugs, role, socketIndex));
     return {
       key: `socket-${socketIndex}`,
       label,
@@ -1061,6 +1076,7 @@ function rollDetailCacheKey(itemKey: string, item: AccountItemSummary): string {
 }
 
 function itemEvidence(item: AccountItemSummary, props: {
+  copy: VaultCopy;
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex;
   localTargetRules?: LocalTargetRules | null;
   equipmentTargetStore?: EquipmentTargetStore | null;
@@ -1080,8 +1096,8 @@ function itemEvidence(item: AccountItemSummary, props: {
   return {
     protection: [...new Set([
       ...(props.cleanupProtectionByItemKey?.get(getVaultCommunityInstanceKey(item)) ?? []),
-      item.locked ? "已锁定" : "",
-      exactLoadoutMatch ? "配装实例" : ""
+      item.locked ? vaultText(props.copy, "已锁定") : "",
+      exactLoadoutMatch ? vaultText(props.copy, "配装实例") : ""
     ].filter(Boolean))],
     matches: [
       sameDefinitionLoadoutMatch ? "配装同款" : "",

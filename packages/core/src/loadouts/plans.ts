@@ -1,10 +1,11 @@
-import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
+import type { AccountItemPlugSummary, AccountItemSummary, AccountSummary } from "../account/summary.js";
 import {
   armorSlots,
   type ArmorSlot,
   type ArmorStatModSlotRuleMode
 } from "../armor/model.js";
 import type { ArmorSetConstraint } from "../armor/sets.js";
+import { classifySubclassPlug, isLoadoutPlanTargetItem, isSubclassBucket } from "../items/classification.js";
 import type { ArmorStatKey } from "./analysis.js";
 
 export const loadoutPlanArmorStatKeys = [
@@ -227,6 +228,70 @@ export function summarizeLoadoutPlanArmorStatModRules(
   };
 }
 
+/**
+ * 把一组子职业插槽 plug 收成配装的子职业目标。
+ *
+ * `socket_overrides` 收全部带索引的 plug，包括分类没认出来的那些：它是未分类配置唯一的往返依据，
+ * 丢掉就只能靠猜重建。
+ *
+ * `mod_hashes` 一律留空。子职业没有模组插槽，原来把分类兜底 `other` 塞进这里的写法，会把
+ * 没认出来的星象或碎片当成模组导出给 DIM。
+ */
+export function createSubclassTargetFromPlugs(input: {
+  subclass_hash?: number;
+  plugs: readonly AccountItemPlugSummary[];
+}): LoadoutPlanSubclassTarget | undefined {
+  const indexed = input.plugs.filter((plug) => typeof plug.socket_index === "number");
+  const hashesByRole = (role: "ability" | "aspect" | "fragment"): number[] => input.plugs
+    .filter((plug) => classifySubclassPlug(plug) === role)
+    .map((plug) => plug.hash);
+  const target: LoadoutPlanSubclassTarget = {
+    ...(input.subclass_hash ? { subclass_hash: input.subclass_hash } : {}),
+    ...(indexed.length
+      ? { socket_overrides: Object.fromEntries(indexed.map((plug) => [String(plug.socket_index), plug.hash] as const)) }
+      : {}),
+    ability_hashes: hashesByRole("ability"),
+    aspect_hashes: hashesByRole("aspect"),
+    fragment_hashes: hashesByRole("fragment"),
+    mod_hashes: []
+  };
+  const configured = target.subclass_hash
+    || target.ability_hashes.length
+    || target.aspect_hashes.length
+    || target.fragment_hashes.length
+    || indexed.length;
+  return configured ? target : undefined;
+}
+
+/**
+ * 角色当前装备的子职业里，星象和碎片一共加了多少属性。
+ *
+ * 只算星象和碎片：超能和技能不加属性，护甲模组走的是另一条链（`armor_stat_mod_slot_rules`）。
+ * 装备链的 `socket_plugs` 自带 `armor_stat_modifiers`，读当前配置不需要拉完整详情。
+ *
+ * 认不出的分类（`other`）一律不计入——按分类名认不出来就不该往六维上算，
+ * 算错比不算更糟：求解器会拿这个起点去凑六维。
+ */
+export function summarizeEquippedSubclassStatBonuses(
+  equippedItems: readonly AccountItemSummary[]
+): Partial<Record<LoadoutPlanArmorStatKey, number>> {
+  const subclass = equippedItems.find(
+    (item) => isSubclassBucket(item.bucket_hash) || isSubclassBucket(item.equipment_bucket_hash)
+  );
+  if (!subclass) return {};
+  const totals: Partial<Record<LoadoutPlanArmorStatKey, number>> = {};
+  for (const plug of subclass.socket_plugs) {
+    const role = classifySubclassPlug(plug);
+    if (role !== "aspect" && role !== "fragment") continue;
+    for (const [stat, value] of Object.entries(plug.armor_stat_modifiers ?? {})) {
+      if (!value) continue;
+      const key = stat as LoadoutPlanArmorStatKey;
+      totals[key] = (totals[key] ?? 0) + value;
+    }
+  }
+  return totals;
+}
+
 export function createLocalLoadoutPlanFromEquippedItems(input: {
   name: string;
   class_name: string;
@@ -234,17 +299,30 @@ export function createLocalLoadoutPlanFromEquippedItems(input: {
   equipped_items: AccountItemSummary[];
   source?: LocalLoadoutPlanSource;
 }): CreateLocalLoadoutPlanInput {
+  // 配装的目标集合只收三武器和五护甲。子职业由 `subclass_target` 承载；装饰槽（机灵、载具、
+  // 飞船、徽标、公会战旗、终结技、动作）和赛季神器不进来——游戏内配装每角色十格装的是子职业、
+  // 神器、三武器和五护甲，这七类既存不进去，也不该占用 `selected_count === item_targets.length`
+  // 这条穿戴判据。判据是 `isLoadoutPlanTargetItem`，一律看 Bucket hash，不看槽位显示名。
+  const subclassItem = input.equipped_items.find(
+    (item) => isSubclassBucket(item.bucket_hash) || isSubclassBucket(item.equipment_bucket_hash)
+  );
+  const subclassTarget = subclassItem
+    ? createSubclassTargetFromPlugs({ subclass_hash: subclassItem.hash, plugs: subclassItem.socket_plugs })
+    : undefined;
   return {
     name: input.name,
     class_name: input.class_name,
     target_character_id: input.target_character_id,
     source: input.source ?? { kind: "current-equipment" },
-    item_targets: input.equipped_items.map((item) => ({
-      slot: item.bucket_name ?? item.group_key,
-      item_hash: item.hash,
-      selected_instance_id: item.instance_id,
-      plug_hashes: item.socket_plugs.map((plug) => plug.hash)
-    }))
+    item_targets: input.equipped_items
+      .filter((item) => isLoadoutPlanTargetItem(item))
+      .map((item) => ({
+        slot: item.bucket_name ?? item.group_key,
+        item_hash: item.hash,
+        selected_instance_id: item.instance_id,
+        plug_hashes: item.socket_plugs.map((plug) => plug.hash)
+      })),
+    ...(subclassTarget ? { subclass_target: subclassTarget } : {})
   };
 }
 

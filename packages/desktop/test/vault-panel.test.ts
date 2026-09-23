@@ -142,15 +142,15 @@ describe("vault panel helpers", () => {
       selectedVisibleCount: 3
     });
 
-    expect(summary).toBe("已选 5 件，其中当前结果 3 件，另外 2 件来自其他筛选结果。");
+    expect(summary).toEqual({ kind: "partial", total: 5, visible: 3, hidden: 2 });
     expect(buildVaultSelectionSummary({
       selectedTotalCount: 2,
       selectedVisibleCount: 2
-    })).toBe("已选 2 件，全部都在当前结果中。");
+    })).toEqual({ kind: "all-visible", total: 2 });
     expect(buildVaultSelectionSummary({
       selectedTotalCount: 0,
       selectedVisibleCount: 0
-    })).toBe("未选择任何装备。");
+    })).toEqual({ kind: "none" });
   });
 
   it("supports replacing, appending, and removing visible vault selections", () => {
@@ -161,7 +161,7 @@ describe("vault panel helpers", () => {
     expect([...applyVisibleVaultSelection(new Set(["a", "d", "e", "hash:99"]), visibleItems, "remove")]).toEqual(["hash:99"]);
   });
 
-  it("builds a clearer bulk move result with target character and failure guidance", () => {
+  it("carries target character and failure counts out of the bulk move result", () => {
     const partialResult: BatchItemActionResult = {
       ok: true,
       total: 4,
@@ -170,14 +170,12 @@ describe("vault panel helpers", () => {
       message: "批量操作完成"
     };
 
-    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
-      .toContain("部分转移到猎人");
-    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
-      .toContain("成功 3 件，失败 1 件");
-    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
-      .toContain("设置");
-    expect(buildVaultBulkMoveResultMessage("猎人", partialResult))
-      .toContain("操作日志");
+    expect(buildVaultBulkMoveResultMessage("猎人", partialResult)).toEqual({
+      kind: "bulkMoveResult",
+      targetLabel: "猎人",
+      successCount: 3,
+      failedCount: 1
+    });
 
     expect(buildVaultBulkMoveResultMessage("泰坦", {
       ok: true,
@@ -185,7 +183,12 @@ describe("vault panel helpers", () => {
       success_count: 2,
       failed_count: 0,
       message: "批量操作完成"
-    })).toBe("已转移到泰坦：共 2 件，页面已更新。");
+    })).toEqual({
+      kind: "bulkMoveResult",
+      targetLabel: "泰坦",
+      successCount: 2,
+      failedCount: 0
+    });
   });
 
   it("filters vault items by selected weapon frame", () => {
@@ -404,11 +407,11 @@ describe("vault panel helpers", () => {
 
   it("builds stable vault groups with counts", () => {
     expect(buildVaultGroups(items)).toEqual([
-      { key: "all", label: "全部", count: 5 },
-      { key: "weapons", label: "武器", count: 3 },
-      { key: "armor", label: "护甲", count: 1 },
-      { key: "equipment", label: "装备", count: 1 },
-      { key: "other", label: "其他", count: 0 }
+      { key: "all", count: 5 },
+      { key: "weapons", count: 3 },
+      { key: "armor", count: 1 },
+      { key: "equipment", count: 1 },
+      { key: "other", count: 0 }
     ]);
   });
 

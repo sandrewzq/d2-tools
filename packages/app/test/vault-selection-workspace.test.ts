@@ -103,10 +103,13 @@ describe("vault selection workspace", () => {
 
   it("summarizes visible and hidden selections for desktop UI", () => {
     expect(buildVaultSelectionSummary({ selectedTotalCount: 0, selectedVisibleCount: 0 }))
-      .toBe("未选择任何装备。");
+      .toEqual({ kind: "none" });
     expect(buildVaultSelectionSummary({ selectedTotalCount: 2, selectedVisibleCount: 2 }))
-      .toBe("已选 2 件，全部都在当前结果中。");
+      .toEqual({ kind: "all-visible", total: 2 });
     expect(buildVaultSelectionSummary({ selectedTotalCount: 5, selectedVisibleCount: 3 }))
-      .toBe("已选 5 件，其中当前结果 3 件，另外 2 件来自其他筛选结果。");
+      .toEqual({ kind: "partial", total: 5, visible: 3, hidden: 2 });
+    // 可见数大于总数时不给负数。
+    expect(buildVaultSelectionSummary({ selectedTotalCount: 5, selectedVisibleCount: 7 }))
+      .toEqual({ kind: "all-visible", total: 5 });
   });
 });

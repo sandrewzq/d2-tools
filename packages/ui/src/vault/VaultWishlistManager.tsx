@@ -2,6 +2,8 @@ import { type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ControlButton } from "../control/ControlButton.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
+import type { VaultCopy } from "../i18n/types.js";
+import { vaultTemplate, vaultText } from "./vaultCopy.js";
 
 export type VaultDimWishlistImportPreview = {
   token: string;
@@ -223,12 +225,14 @@ type ManagementConfirmation = {
 };
 
 export function VaultRecommendationDataPanel(props: {
+  copy: VaultCopy;
   actions: VaultWishlistActions;
   showManagement?: boolean;
   onApplied?: (message: string) => void;
   /** 同一页下方还有来源管理面板时用它：导入 / 覆盖 / 移除 / 清空改动了存储，那边要重读一次。 */
   onStoredSourcesChanged?: () => void;
 }) {
+  const copy = props.copy;
   const importDialogRef = useRef<HTMLElement>(null);
   const linkDialogRef = useRef<HTMLElement>(null);
   const fileDialogRef = useRef<HTMLElement>(null);
@@ -291,7 +295,7 @@ export function VaultRecommendationDataPanel(props: {
       (error) => {
         if (!active) return;
         setManagementLoadState("error");
-        setFeedback({ tone: "error", message: errorMessage(error, "推荐来源状态读取失败。") });
+        setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐来源状态读取失败。")) });
       }
     );
     return () => {
@@ -317,7 +321,7 @@ export function VaultRecommendationDataPanel(props: {
         if (!active) return;
         setManagedRules([]);
         setRuleLoadState("error");
-        setFeedback({ tone: "error", message: errorMessage(error, "推荐规则读取失败。") });
+        setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐规则读取失败。")) });
       }
     );
     return () => {
@@ -366,14 +370,14 @@ export function VaultRecommendationDataPanel(props: {
   }, [managementSnapshot, importedDocuments]);
 
   function managedSourceNotice(): string {
-    if (blockedImportSources.some((source) => source.state === "removed")) return "来源仍会保持已移除，需要稍后显式恢复。";
-    if (blockedImportSources.some((source) => source.state === "disabled")) return "来源仍会保持停用，需要稍后显式启用。";
+    if (blockedImportSources.some((source) => source.state === "removed")) return vaultText(copy, "来源仍会保持已移除，需要稍后显式恢复。");
+    if (blockedImportSources.some((source) => source.state === "disabled")) return vaultText(copy, "来源仍会保持停用，需要稍后显式启用。");
     return "";
   }
 
   function appliedNotice(message: string): string {
-    if (blockedImportSources.some((source) => source.state === "removed")) return `${message} 来源仍保持已移除，尚未参与推荐。`;
-    if (blockedImportSources.some((source) => source.state === "disabled")) return `${message} 来源仍保持停用，尚未参与推荐。`;
+    if (blockedImportSources.some((source) => source.state === "removed")) return vaultTemplate(copy, "{message} 来源仍保持已移除，尚未参与推荐。", { message });
+    if (blockedImportSources.some((source) => source.state === "disabled")) return vaultTemplate(copy, "{message} 来源仍保持停用，尚未参与推荐。", { message });
     return message;
   }
 
@@ -388,15 +392,15 @@ export function VaultRecommendationDataPanel(props: {
   function importTarget(mode: VaultImportTarget["mode"]): VaultImportTarget | null {
     const name = importName.trim();
     if (!name) {
-      setFeedback({ tone: "error", message: "请先给这份来源起一个名字。" });
+      setFeedback({ tone: "error", message: vaultText(copy, "请先给这份来源起一个名字。") });
       return null;
     }
     return { name, mode };
   }
 
   function importAppliedMessage(target: VaultImportTarget, ruleCount: number): string {
-    const action = target.mode === "overwrite" ? "已覆盖" : "已新建";
-    return `来源「${target.name}」${action} · ${ruleCount} 条规则。`;
+    const action = target.mode === "overwrite" ? vaultText(copy, "已覆盖") : vaultText(copy, "已新建");
+    return vaultTemplate(copy, "来源「{name}」{action} · {count} 条规则。", { name: target.name, action, count: ruleCount });
   }
 
   /** 读一份本地愿望单文件。由本地文件弹框里的「选择文件」触发——入口按钮先开框，不直接弹系统选文件对话框。 */
@@ -409,12 +413,12 @@ export function VaultRecommendationDataPanel(props: {
       setDimFilePreview(preview);
       // 名字预填文件名（去扩展名），用户可改；每次导入仍由用户在新建 / 覆盖里二选一。
       setImportName(suggestedImportSourceName(preview.file_name));
-      const dimNotice = dimPreviewNotice(preview);
+      const dimNotice = dimPreviewNotice(copy, preview);
       setFeedback(dimNotice
-        ? { tone: preview.skipped_row_count > 0 ? "neutral" : "success", message: `已识别 ${preview.importable_rule_count} 条可导入的愿望单规则；${dimNotice}。确认名字后选择新建或覆盖。${managedSourceNotice()}` }
-        : { tone: "success", message: `已识别 ${preview.rule_count} 条愿望单规则；确认名字后选择新建或覆盖。${managedSourceNotice()}` });
+        ? { tone: preview.skipped_row_count > 0 ? "neutral" : "success", message: vaultTemplate(copy, "已识别 {count} 条可导入的愿望单规则；{notice}。确认名字后选择新建或覆盖。{managed}", { count: preview.importable_rule_count, notice: dimNotice, managed: managedSourceNotice() }) }
+        : { tone: "success", message: vaultTemplate(copy, "已识别 {count} 条愿望单规则；确认名字后选择新建或覆盖。{managed}", { count: preview.rule_count, managed: managedSourceNotice() }) });
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "愿望单文件读取失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "愿望单文件读取失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -434,21 +438,21 @@ export function VaultRecommendationDataPanel(props: {
       const result = await props.actions.readWishlistLink(url);
       if (result.unchanged) {
         setDimFilePreview(null);
-        setFeedback({ tone: "success", message: `「${result.source_name || result.source_url}」已是最新，没有需要写入的内容。` });
+        setFeedback({ tone: "success", message: vaultTemplate(copy, "「{name}」已是最新，没有需要写入的内容。", { name: result.source_name || result.source_url }) });
         return "unchanged";
       }
       if (!result.preview) return "failed";
       setDimFilePreview(result.preview);
       // 名字预填：链接里最后一段文件名去掉扩展名；同名来源已存在就只剩「覆盖」可点。
       setImportName(suggestedImportSourceName(result.preview.file_name));
-      const linkNotice = dimPreviewNotice(result.preview);
+      const linkNotice = dimPreviewNotice(copy, result.preview);
       setFeedback(linkNotice
-        ? { tone: result.preview.skipped_row_count > 0 ? "neutral" : "success", message: `已从链接读取 ${result.preview.importable_rule_count} 条可导入的愿望单规则；${linkNotice}。确认名字后选择新建或覆盖。${managedSourceNotice()}` }
-        : { tone: "success", message: `已从链接读取 ${result.preview.rule_count} 条愿望单规则；确认名字后选择新建或覆盖。${managedSourceNotice()}` });
+        ? { tone: result.preview.skipped_row_count > 0 ? "neutral" : "success", message: vaultTemplate(copy, "已从链接读取 {count} 条可导入的愿望单规则；{notice}。确认名字后选择新建或覆盖。{managed}", { count: result.preview.importable_rule_count, notice: linkNotice, managed: managedSourceNotice() }) }
+        : { tone: "success", message: vaultTemplate(copy, "已从链接读取 {count} 条愿望单规则；确认名字后选择新建或覆盖。{managed}", { count: result.preview.rule_count, managed: managedSourceNotice() }) });
       return "preview";
     } catch (error) {
       setDimFilePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, "愿望单链接读取失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "愿望单链接读取失败。")) });
       return "failed";
     } finally {
       setBusyAction("");
@@ -480,7 +484,7 @@ export function VaultRecommendationDataPanel(props: {
   async function confirmWishlistLink() {
     const url = linkInput.trim();
     if (!url) {
-      setFeedback({ tone: "error", message: "请先粘贴愿望单文本的链接。" });
+      setFeedback({ tone: "error", message: vaultText(copy, "请先粘贴愿望单文本的链接。") });
       return;
     }
     // 读完**不收弹框**：预览、起名与新建 / 覆盖都在这个框里确认——与表格导入弹框、来源行的「同步」同一个样子。
@@ -502,7 +506,7 @@ export function VaultRecommendationDataPanel(props: {
       finishApplied(appliedNotice(importAppliedMessage(target, saved.rules.length)));
     } catch (error) {
       setDimFilePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, "愿望单导入失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "愿望单导入失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -515,7 +519,7 @@ export function VaultRecommendationDataPanel(props: {
       const result = await props.actions.exportKnowledgeTemplate(language);
       setFeedback({ tone: result.canceled ? "neutral" : "success", message: result.message });
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "标准模板导出失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "标准模板导出失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -528,7 +532,7 @@ export function VaultRecommendationDataPanel(props: {
       const result = await props.actions.exportKnowledgeCsv();
       setFeedback({ tone: result.canceled ? "neutral" : "success", message: result.message });
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "可编辑推荐导出失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "可编辑推荐导出失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -544,10 +548,10 @@ export function VaultRecommendationDataPanel(props: {
       // 预填默认名，用户不必先打字；改成已有来源名即走覆盖。
       setImportName(suggestedImportSourceName(preview.file_name) || preview.source_labels[0]?.trim() || "");
       setFeedback(preview.skipped_row_count > 0
-        ? { tone: "neutral", message: `发现 ${preview.skipped_row_count} 行异常，将单独忽略；其余 ${preview.importable_recommendation_count} 条记录可以导入。` }
-        : { tone: "success", message: "文件已通过校验。来源名已按文件名填好，可改；再选择新建或覆盖同名来源。" });
+        ? { tone: "neutral", message: vaultTemplate(copy, "发现 {rows} 行异常，将单独忽略；其余 {records} 条记录可以导入。", { rows: preview.skipped_row_count, records: preview.importable_recommendation_count }) }
+        : { tone: "success", message: vaultText(copy, "文件已通过校验。来源名已按文件名填好，可改；再选择新建或覆盖同名来源。") });
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "知识库 CSV 校验失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "知识库 CSV 校验失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -562,10 +566,14 @@ export function VaultRecommendationDataPanel(props: {
       setKnowledgePreview(null);
       setImportName("");
       await refreshAfterImportChange();
-      finishApplied(`${importAppliedMessage(target, result.imported_row_count)}当前库共 ${result.weapon_count} 把武器，覆盖 ${result.source_count} 个来源。`);
+      finishApplied(vaultTemplate(copy, "{applied}当前库共 {weapons} 把武器，覆盖 {sources} 个来源。", {
+        applied: importAppliedMessage(target, result.imported_row_count),
+        weapons: result.weapon_count,
+        sources: result.source_count
+      }));
     } catch (error) {
       setKnowledgePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, "推荐 CSV 导入失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐 CSV 导入失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -579,7 +587,7 @@ export function VaultRecommendationDataPanel(props: {
       setRuleLoadState("ready");
     } catch (error) {
       setRuleLoadState("error");
-      setFeedback({ tone: "error", message: errorMessage(error, "推荐规则搜索失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐规则搜索失败。")) });
     }
   }
 
@@ -589,10 +597,10 @@ export function VaultRecommendationDataPanel(props: {
     try {
       const snapshot = await props.actions.setRecommendationSourceState(source.source_key, "active");
       setManagementSnapshot(snapshot);
-      setFeedback({ tone: "success", message: `${source.label}已启用，推荐结果已按当前规则重新核对。` });
+      setFeedback({ tone: "success", message: vaultTemplate(copy, "{label}已启用，推荐结果已按当前规则重新核对。", { label: source.label }) });
       await selectOrReloadManagedSource(source.source_key);
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "推荐来源启用失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐来源启用失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -609,10 +617,10 @@ export function VaultRecommendationDataPanel(props: {
         source_revision: rule.source_revision
       });
       setManagementSnapshot(snapshot);
-      setFeedback({ tone: "success", message: `${rule.source_label} · ${rule.weapon_name} 的规则已恢复。` });
+      setFeedback({ tone: "success", message: vaultTemplate(copy, "{source} · {weapon} 的规则已恢复。", { source: rule.source_label, weapon: rule.weapon_name }) });
       await selectOrReloadManagedSource(rule.source_key);
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "推荐规则恢复失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐规则恢复失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -629,8 +637,8 @@ export function VaultRecommendationDataPanel(props: {
         setFeedback({
           tone: "success",
           message: pending.sourceState === "removed"
-            ? `${pending.source.label}已按来源移除；其他来源和玩家本地标记未改变。`
-            : `${pending.source.label}已停用；本地数据仍保留，可随时恢复。`
+            ? vaultTemplate(copy, "{label}已按来源移除；其他来源和玩家本地标记未改变。", { label: pending.source.label })
+            : vaultTemplate(copy, "{label}已停用；本地数据仍保留，可随时恢复。", { label: pending.source.label })
         });
         await selectOrReloadManagedSource(pending.source.source_key);
       } else if (pending.kind === "rule" && pending.rule && props.actions.setRecommendationRuleState) {
@@ -641,18 +649,18 @@ export function VaultRecommendationDataPanel(props: {
           source_revision: pending.rule.source_revision
         });
         setManagementSnapshot(snapshot);
-        setFeedback({ tone: "success", message: `${pending.rule.source_label} · ${pending.rule.weapon_name} 的规则已移除，可在已移除规则中恢复。` });
+        setFeedback({ tone: "success", message: vaultTemplate(copy, "{source} · {weapon} 的规则已移除，可在已移除规则中恢复。", { source: pending.rule.source_label, weapon: pending.rule.weapon_name }) });
         await selectOrReloadManagedSource(pending.rule.source_key);
       } else if (pending.kind === "rule-imports" && props.actions.clearImportedRecommendationRules) {
         const snapshot = await props.actions.clearImportedRecommendationRules();
         setManagementSnapshot(snapshot);
         setManagedRules([]);
         await loadImportedDocuments();
-        setFeedback({ tone: "success", message: "已清空导入的推荐规则；账号装备、玩家标签、备注、锁定和配装均未改变。" });
+        setFeedback({ tone: "success", message: vaultText(copy, "已清空导入的推荐规则；账号装备、玩家标签、备注、锁定和配装均未改变。") });
       }
       setPendingManagementAction(null);
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, "推荐数据操作失败。") });
+      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐数据操作失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -695,65 +703,65 @@ export function VaultRecommendationDataPanel(props: {
   ) : null;
 
   const panel = (
-    <section className="vault-recommendation-data-panel" data-surface="section" aria-label="推荐数据" aria-busy={isBusy ? "true" : "false"}>
+    <section className="vault-recommendation-data-panel" data-surface="section" aria-label={vaultText(copy, "推荐数据")} aria-busy={isBusy ? "true" : "false"}>
       <div className="vault-recommendation-data-head">
         <span>
-          <strong>推荐数据</strong>
-          <small>导入后来源立即出现在推荐来源页；作者、规则和证据只在来源详情中查看。</small>
+          <strong>{vaultText(copy, "推荐数据")}</strong>
+          <small>{vaultText(copy, "导入后来源立即出现在推荐来源页；作者、规则和证据只在来源详情中查看。")}</small>
         </span>
       </div>
 
       {props.showManagement !== false && supportsRecommendationManagement ? (
-        <section className="vault-import-section vault-recommendation-management" aria-label="推荐来源与规则管理">
+        <section className="vault-import-section vault-recommendation-management" aria-label={vaultText(copy, "推荐来源与规则管理")}>
           <div className="vault-import-section-head">
-            <span><strong>来源管理</strong><small>每个导入文件是一个来源；文件内部的作者 / 清单分组只在详情中显示。</small></span>
+            <span><strong>{vaultText(copy, "来源管理")}</strong><small>{vaultText(copy, "每个导入文件是一个来源；文件内部的作者 / 清单分组只在详情中显示。")}</small></span>
           </div>
-          {managementLoadState === "loading" ? <p className="vault-management-state">正在读取推荐来源…</p> : null}
-          {managementLoadState === "error" ? <p className="vault-management-state" role="alert">推荐来源暂时无法读取，导入与更新入口仍可使用。</p> : null}
+          {managementLoadState === "loading" ? <p className="vault-management-state">{vaultText(copy, "正在读取推荐来源…")}</p> : null}
+          {managementLoadState === "error" ? <p className="vault-management-state" role="alert">{vaultText(copy, "推荐来源暂时无法读取，导入与更新入口仍可使用。")}</p> : null}
           {managementSnapshot ? (
             <>
               <div className="vault-managed-source-list" data-surface="list">
                 {managementSnapshot.sources.map((source) => (
                   <article className="vault-managed-source" data-surface="row" data-source-state={source.state} key={source.source_key}>
                     <div className="vault-managed-source-select">
-                      <span><strong>{source.label}</strong><small>{managedSourceMetaLabel(source)}</small></span>
-                      <span title={managedSourceCountsTitle}><b>{managedSourceRuleLabel(source)}</b><small>{managedSourceWeaponLabel(source)}</small><small>{managedSourceImpactLabel(source)}</small></span>
+                      <span><strong>{source.label}</strong><small>{managedSourceMetaLabel(copy, source)}</small></span>
+                      <span title={managedSourceCountsTitle(copy)}><b>{managedSourceRuleLabel(copy, source)}</b><small>{managedSourceWeaponLabel(copy, source)}</small><small>{managedSourceImpactLabel(copy, source)}</small></span>
                     </div>
                     <div className="vault-managed-source-actions">
-                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{selectedSourceKey === source.source_key ? "收起详情" : "查看详情"}</ControlButton>
-                      {source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(source, "disabled"))}>停用</ControlButton> : null}
-                      {source.state === "disabled" || (source.state === "removed" && source.configured) ? <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void activateManagedSource(source)}>启用</ControlButton> : null}
-                      {source.state !== "removed" && source.configured ? <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(source, "removed"))}>按来源移除</ControlButton> : null}
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => { setSelectedSourceKey((current) => current === source.source_key ? "" : source.source_key); setRuleQuery(""); }}>{vaultText(copy, selectedSourceKey === source.source_key ? "收起详情" : "查看详情")}</ControlButton>
+                      {source.state === "active" ? <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(copy, source, "disabled"))}>{vaultText(copy, "停用")}</ControlButton> : null}
+                      {source.state === "disabled" || (source.state === "removed" && source.configured) ? <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void activateManagedSource(source)}>{vaultText(copy, "启用")}</ControlButton> : null}
+                      {source.state !== "removed" && source.configured ? <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(sourceConfirmation(copy, source, "removed"))}>{vaultText(copy, "按来源移除")}</ControlButton> : null}
                     </div>
                   </article>
                 ))}
               </div>
 
               {selectedManagedSource ? (
-                <section className="vault-managed-rules" aria-label={`${selectedManagedSource.label}规则`}>
+                <section className="vault-managed-rules" aria-label={vaultTemplate(copy, "{label}规则", { label: selectedManagedSource.label })}>
                   <div className="vault-managed-rules-head">
-                    <span><strong>{selectedManagedSource.label}详情</strong><small>{selectedManagedSource.configured ? `版本 ${shortRevision(selectedManagedSource.revision)} · 最多显示 200 条规则` : selectedManagedSource.state === "removed" ? "来源已移除，重新导入或更新后可显式恢复" : "当前未配置"}</small></span>
+                    <span><strong>{vaultTemplate(copy, "{label}详情", { label: selectedManagedSource.label })}</strong><small>{selectedManagedSource.configured ? vaultTemplate(copy, "版本 {revision} · 最多显示 200 条规则", { revision: shortRevision(copy, selectedManagedSource.revision) }) : selectedManagedSource.state === "removed" ? vaultText(copy, "来源已移除，重新导入或更新后可显式恢复") : vaultText(copy, "当前未配置")}</small></span>
                     <form onSubmit={(event) => { event.preventDefault(); void searchManagedRules(); }}>
-                      <input type="search" value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder="搜索武器或 Perk" aria-label={`搜索${selectedManagedSource.label}规则`} />
-                      <ControlButton type="submit" size="compact" variant="secondary" disabled={ruleLoadState === "loading"}>搜索</ControlButton>
+                      <input type="search" value={ruleQuery} onChange={(event) => setRuleQuery(event.target.value)} placeholder={vaultText(copy, "搜索武器或 Perk")} aria-label={vaultTemplate(copy, "搜索{label}规则", { label: selectedManagedSource.label })} />
+                      <ControlButton type="submit" size="compact" variant="secondary" disabled={ruleLoadState === "loading"}>{vaultText(copy, "搜索")}</ControlButton>
                     </form>
                   </div>
-                  {ruleLoadState === "loading" ? <p className="vault-management-state">正在读取规则…</p> : null}
-                  {ruleLoadState === "ready" && !managedRules.length ? <p className="vault-management-state">当前来源没有匹配的可用规则。</p> : null}
+                  {ruleLoadState === "loading" ? <p className="vault-management-state">{vaultText(copy, "正在读取规则…")}</p> : null}
+                  {ruleLoadState === "ready" && !managedRules.length ? <p className="vault-management-state">{vaultText(copy, "当前来源没有匹配的可用规则。")}</p> : null}
                   {managedRules.length ? (
                     <div className="vault-managed-rule-list" data-surface="list">
                       {managedRules.map((rule) => (
                         <article className="vault-managed-rule" data-surface="row" data-rule-state={rule.state} key={`${rule.source_key}:${rule.rule_stable_id}`}>
                           <div>
-                            <span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{formatModes(rule.purposes)} · 当前账号影响 {rule.affected_instance_count ?? 0} 件</small></span>
-                            <p>{formatManagedRequirements(rule)}</p>
+                            <span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{vaultTemplate(copy, "{modes} · 当前账号影响 {count} 件", { modes: formatModes(copy, rule.purposes), count: rule.affected_instance_count ?? 0 })}</small></span>
+                            <p>{formatManagedRequirements(copy, rule)}</p>
                             {rule.note ? <small>{rule.note}</small> : null}
-                            {rule.review_required ? <em>来源版本已变化，需要复核后再恢复</em> : null}
+                            {rule.review_required ? <em>{vaultText(copy, "来源版本已变化，需要复核后再恢复")}</em> : null}
                           </div>
                           {rule.state === "removed" ? (
-                            <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                            <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>{vaultText(copy, "恢复")}</ControlButton>
                           ) : (
-                            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(ruleConfirmation(rule))}>移除规则</ControlButton>
+                            <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setPendingManagementAction(ruleConfirmation(copy, rule))}>{vaultText(copy, "移除规则")}</ControlButton>
                           )}
                         </article>
                       ))}
@@ -764,12 +772,12 @@ export function VaultRecommendationDataPanel(props: {
 
               {managementSnapshot.removed_rules.length ? (
                 <details className="vault-removed-rules">
-                  <summary>已移除规则（{managementSnapshot.removed_rules.length}）</summary>
+                  <summary>{vaultTemplate(copy, "已移除规则（{count}）", { count: managementSnapshot.removed_rules.length })}</summary>
                   <div className="vault-managed-rule-list" data-surface="list">
                     {managementSnapshot.removed_rules.slice(0, 100).map((rule) => (
                       <article className="vault-managed-rule" data-surface="row" data-rule-state="removed" key={`removed:${rule.source_key}:${rule.rule_stable_id}`}>
-                        <div><span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{rule.source_label}</small></span><p>{rule.review_required ? "原规则已变化，需要复核" : formatManagedRequirements(rule)}</p></div>
-                        <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>恢复</ControlButton>
+                        <div><span className="vault-managed-rule-title"><strong>{rule.weapon_name}</strong><small>{rule.source_label}</small></span><p>{rule.review_required ? vaultText(copy, "原规则已变化，需要复核") : formatManagedRequirements(copy, rule)}</p></div>
+                        <ControlButton size="compact" variant="secondary" disabled={isBusy || rule.review_required} onClick={() => void restoreManagedRule(rule)}>{vaultText(copy, "恢复")}</ControlButton>
                       </article>
                     ))}
                   </div>
@@ -778,8 +786,8 @@ export function VaultRecommendationDataPanel(props: {
 
               {managementSnapshot.clear_rule_imports.configured ? (
                 <div className="vault-curated-dataset-danger">
-                  <span><strong>清空已导入的推荐规则</strong><small>会移除 {managementSnapshot.clear_rule_imports.source_count} 个导入来源、共 {managementSnapshot.clear_rule_imports.rule_count} 条规则；账号装备、玩家标签、备注、锁定和配装不会改变。</small></span>
-                  <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(ruleImportsConfirmation(managementSnapshot))}>清空规则</ControlButton>
+                  <span><strong>{vaultText(copy, "清空已导入的推荐规则")}</strong><small>{vaultTemplate(copy, "会移除 {sources} 个导入来源、共 {rules} 条规则；账号装备、玩家标签、备注、锁定和配装不会改变。", { sources: managementSnapshot.clear_rule_imports.source_count, rules: managementSnapshot.clear_rule_imports.rule_count })}</small></span>
+                  <ControlButton size="compact" variant="danger" disabled={isBusy} onClick={() => setPendingManagementAction(ruleImportsConfirmation(copy, managementSnapshot))}>{vaultText(copy, "清空规则")}</ControlButton>
                 </div>
               ) : null}
             </>
@@ -789,7 +797,7 @@ export function VaultRecommendationDataPanel(props: {
               title={pendingManagementAction.title}
               description={pendingManagementAction.description}
               confirmLabel={pendingManagementAction.confirmLabel}
-              cancelLabel="取消"
+              cancelLabel={vaultText(copy, "取消")}
               confirmTone="danger"
               isBusy={isBusy}
               onConfirm={() => void confirmManagementAction()}
@@ -800,47 +808,50 @@ export function VaultRecommendationDataPanel(props: {
       ) : null}
 
       <div className="vault-import-action-group">
-        <h4 className="vault-import-action-group-title">导入</h4>
-        <div className="vault-import-action-list" role="group" aria-label="导入推荐数据">
+        <h4 className="vault-import-action-group-title">{vaultText(copy, "导入")}</h4>
+        <div className="vault-import-action-list" role="group" aria-label={vaultText(copy, "导入推荐数据")}>
           {supportsKnowledgeImport ? (
             <div className="vault-import-action-row">
                 <span>
-                  <strong>人工推荐表格</strong>
-                  <small>支持 .csv 与 .xlsx 表格文件；列名照模板写即可，上一版模板与旧版文件仍可导入。没有现成表格时可先下载模板。</small>
+                  <strong>{vaultText(copy, "人工推荐表格")}</strong>
+                  <small>{vaultText(copy, "支持 .csv 与 .xlsx 表格文件；列名照模板写即可，上一版模板与旧版文件仍可导入。没有现成表格时可先下载模板。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
-                  <ControlButton data-knowledge-import="" size="compact" variant="primary" aria-label="导入人工推荐表格" disabled={isBusy} onClick={() => setKnowledgeImportOpen(true)}>导入表格文件</ControlButton>
+                  <ControlButton data-knowledge-import="" size="compact" variant="primary" aria-label={vaultText(copy, "导入人工推荐表格")} disabled={isBusy} onClick={() => setKnowledgeImportOpen(true)}>{vaultText(copy, "导入表格文件")}</ControlButton>
                 </div>
             </div>
           ) : null}
 
           <div className="vault-import-action-row">
             <span>
-              <strong>愿望单文本</strong>
-              <small>从链接同步，或选择本地 .txt / .wishlist 文件。每次导入都要起名并显式选择新建或覆盖，不会静默写入。</small>
+              <strong>{vaultText(copy, "愿望单文本")}</strong>
+              <small>{vaultText(copy, "从链接同步，或选择本地 .txt / .wishlist 文件。每次导入都要起名并显式选择新建或覆盖，不会静默写入。")}</small>
             </span>
             <div className="vault-import-action-buttons">
-              {supportsWishlistLink ? <ControlButton data-dim-link="" size="compact" variant="primary" disabled={isBusy} onClick={() => openDimDialog("link")}>从链接同步</ControlButton> : null}
-              {props.actions.selectDimFile ? <ControlButton data-dim-import="" size="compact" variant="secondary" aria-label="导入愿望单文本文件" disabled={isBusy} onClick={() => openDimDialog("file")}>导入文本文件</ControlButton> : null}
+              {supportsWishlistLink ? <ControlButton data-dim-link="" size="compact" variant="primary" disabled={isBusy} onClick={() => openDimDialog("link")}>{vaultText(copy, "从链接同步")}</ControlButton> : null}
+              {props.actions.selectDimFile ? <ControlButton data-dim-import="" size="compact" variant="secondary" aria-label={vaultText(copy, "导入愿望单文本文件")} disabled={isBusy} onClick={() => openDimDialog("file")}>{vaultText(copy, "导入文本文件")}</ControlButton> : null}
             </div>
           </div>
 
           {blockedImportSources.length ? (
-            <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">来源{blockedImportSources.map((source) => `「${source.label}」`).join("、")}当前{[...new Set(blockedImportSources.map((source) => source.state === "removed" ? "已按来源移除" : "已停用"))].join(" / ")}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。</p>
+            <p className="vault-management-lock" data-ui-kind="callout" data-status="warning">{vaultTemplate(copy, "来源{list}当前{states}。更新或导入只会写入数据，不会静默启用；完成后请在“来源管理”中显式恢复。", {
+              list: blockedImportSources.map((source) => `「${source.label}」`).join("、"),
+              states: [...new Set(blockedImportSources.map((source) => vaultText(copy, source.state === "removed" ? "已按来源移除" : "已停用")))].join(" / ")
+            })}</p>
           ) : null}
         </div>
       </div>
 
       <div className="vault-import-action-group">
-        <h4 className="vault-import-action-group-title">导出</h4>
-        <div className="vault-import-action-list" role="group" aria-label="导出推荐数据">
+        <h4 className="vault-import-action-group-title">{vaultText(copy, "导出")}</h4>
+        <div className="vault-import-action-list" role="group" aria-label={vaultText(copy, "导出推荐数据")}>
           <div className="vault-import-action-row">
             <span>
-              <strong>导出当前推荐</strong>
-              <small>把已导入的推荐导出成表格，改完评级、备注或 Perk 后可以再导入覆盖。</small>
+              <strong>{vaultText(copy, "导出当前推荐")}</strong>
+              <small>{vaultText(copy, "把已导入的推荐导出成表格，改完评级、备注或 Perk 后可以再导入覆盖。")}</small>
             </span>
             <div className="vault-import-action-buttons">
-              {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="secondary" aria-label="导出当前推荐" disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{busyAction === "knowledge-export" ? "导出中" : "导出为 CSV"}</ControlButton> : null}
+              {props.actions.exportKnowledgeCsv ? <ControlButton size="compact" variant="secondary" aria-label={vaultText(copy, "导出当前推荐")} disabled={isBusy} onClick={() => void exportKnowledgeCsv()}>{vaultText(copy, busyAction === "knowledge-export" ? "导出中" : "导出为 CSV")}</ControlButton> : null}
             </div>
           </div>
         </div>
@@ -864,23 +875,23 @@ export function VaultRecommendationDataPanel(props: {
           >
             <header>
               <div>
-                <strong id={importTitleId}>导入人工推荐表格</strong>
-                <span>新建推荐先下载模板填写；已有表格可以直接选择文件。确认前只校验和预览，不会更新当前数据。</span>
+                <strong id={importTitleId}>{vaultText(copy, "导入人工推荐表格")}</strong>
+                <span>{vaultText(copy, "新建推荐先下载模板填写；已有表格可以直接选择文件。确认前只校验和预览，不会更新当前数据。")}</span>
               </div>
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setKnowledgeImportOpen(false)}>关闭</ControlButton>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setKnowledgeImportOpen(false)}>{vaultText(copy, "关闭")}</ControlButton>
             </header>
 
             <div className="vault-import-steps">
               <div className="vault-import-step">
                 <span>
-                  <strong>1. 下载模板（可选）</strong>
-                  <small>没有现成表格时，先下载空白模板填写；中英文列名一致，Hash 等系统字段在导入时自动补齐。</small>
+                  <strong>{vaultText(copy, "1. 下载模板（可选）")}</strong>
+                  <small>{vaultText(copy, "没有现成表格时，先下载空白模板填写；中英文列名一致，Hash 等系统字段在导入时自动补齐。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
                   {props.actions.exportKnowledgeTemplate ? (
                     <>
-                      <ControlButton data-knowledge-template-zh="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{busyAction === "knowledge-template" ? "导出中" : "下载中文模板"}</ControlButton>
-                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{busyAction === "knowledge-template" ? "导出中" : "下载英文模板"}</ControlButton>
+                      <ControlButton data-knowledge-template-zh="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{vaultText(copy, busyAction === "knowledge-template" ? "导出中" : "下载中文模板")}</ControlButton>
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{vaultText(copy, busyAction === "knowledge-template" ? "导出中" : "下载英文模板")}</ControlButton>
                     </>
                   ) : null}
                 </div>
@@ -888,35 +899,36 @@ export function VaultRecommendationDataPanel(props: {
 
               <div className="vault-import-step">
                 <span>
-                  <strong>2. 选择填好的表格文件</strong>
-                  <small>支持 .csv 与 .xlsx；当前模板 12 列，上一版 11 列与旧版 13 列、31 列文件仍可导入。</small>
+                  <strong>{vaultText(copy, "2. 选择填好的表格文件")}</strong>
+                  <small>{vaultText(copy, "支持 .csv 与 .xlsx；当前模板 12 列，上一版 11 列与旧版 13 列、31 列文件仍可导入。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
-                  <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{busyAction === "knowledge-select" ? "校验中" : "选择表格文件"}</ControlButton>
+                  <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{vaultText(copy, busyAction === "knowledge-select" ? "校验中" : "选择表格文件")}</ControlButton>
                 </div>
               </div>
 
               {knowledgePreview ? (
             <div className="vault-wishlist-preview vault-knowledge-import-preview" data-surface="frame" data-ui-kind="state-frame">
               <span><strong>{knowledgePreview.file_name}</strong><small>{knowledgePreview.source_labels.join(" / ")}</small></span>
-              <span><strong>{knowledgePreview.importable_recommendation_count} 条可导入</strong><small>{knowledgePreview.recommendation_count} 条记录 · {knowledgePreview.source_count} 个来源</small></span>
+              <span><strong>{vaultTemplate(copy, "{count} 条可导入", { count: knowledgePreview.importable_recommendation_count })}</strong><small>{vaultTemplate(copy, "{records} 条记录 · {sources} 个来源", { records: knowledgePreview.recommendation_count, sources: knowledgePreview.source_count })}</small></span>
               {knowledgePreview.blocking_issue_count > 0 ? (
                 <div className="vault-knowledge-import-issues" role="alert">
-                  <strong>{knowledgePreview.skipped_row_count} 行异常将忽略</strong>
+                  <strong>{vaultTemplate(copy, "{count} 行异常将忽略", { count: knowledgePreview.skipped_row_count })}</strong>
                   {knowledgePreview.blocking_issues.map((issue) => (
                     <small key={`${issue.row_number}-${issue.field}-${issue.value}`}>
-                      第 {issue.row_number} 行 · {issue.source_label} · {issue.weapon_name} · {issue.field}“{issue.value}”：{issue.message}
+                      {formatKnowledgeIssue(copy, issue)}
                     </small>
                   ))}
                   {knowledgePreview.blocking_issue_count > knowledgePreview.blocking_issues.length
-                    ? <small>这里只显示前 {knowledgePreview.blocking_issues.length} 条异常，其他异常行也会被单独忽略。</small>
+                    ? <small>{vaultTemplate(copy, "这里只显示前 {count} 条异常，其他异常行也会被单独忽略。", { count: knowledgePreview.blocking_issues.length })}</small>
                     : null}
                 </div>
               ) : null}
               <ImportIdentityChoice
+                copy={copy}
                 name={importName}
                 existingNames={existingImportNames}
-                busyLabel={busyAction === "knowledge-confirm" ? "处理中" : ""}
+                busyLabel={vaultText(copy, busyAction === "knowledge-confirm" ? "处理中" : "")}
                 isBusy={isBusy || !knowledgePreview.token || knowledgePreview.importable_recommendation_count === 0}
                 onNameChange={setImportName}
                 onConfirm={(mode) => void confirmKnowledgeImport(mode)}
@@ -946,20 +958,20 @@ export function VaultRecommendationDataPanel(props: {
           >
             <header>
               <div>
-                <strong id={fileTitleId}>导入愿望单文本</strong>
-                <span>选择一份本地愿望单文本（DIM 导出的 .txt 或 .wishlist 文件）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。</span>
+                <strong id={fileTitleId}>{vaultText(copy, "导入愿望单文本")}</strong>
+                <span>{vaultText(copy, "选择一份本地愿望单文本（DIM 导出的 .txt 或 .wishlist 文件）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。")}</span>
               </div>
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>关闭</ControlButton>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>{vaultText(copy, "关闭")}</ControlButton>
             </header>
 
             <div className="vault-import-steps">
               <div className="vault-import-step">
                 <span>
-                  <strong>选择愿望单文本文件</strong>
-                  <small>支持 DIM 导出的 .txt 与 .wishlist；每次导入都要起名并显式选择新建或覆盖，不会静默写入。</small>
+                  <strong>{vaultText(copy, "选择愿望单文本文件")}</strong>
+                  <small>{vaultText(copy, "支持 DIM 导出的 .txt 与 .wishlist；每次导入都要起名并显式选择新建或覆盖，不会静默写入。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
-                  <ControlButton data-dim-file-select="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectDimFile()}>{busyAction === "dim-select" ? "读取中" : "选择文件"}</ControlButton>
+                  <ControlButton data-dim-file-select="" size="compact" variant="primary" disabled={isBusy} onClick={() => void selectDimFile()}>{vaultText(copy, busyAction === "dim-select" ? "读取中" : "选择文件")}</ControlButton>
                 </div>
               </div>
             </div>
@@ -967,10 +979,11 @@ export function VaultRecommendationDataPanel(props: {
             {/* 选到的内容就在框里确认：预览、问题行、起名、新建 / 覆盖——与链接弹框、表格导入弹框和来源行的「同步」同一套。 */}
             {dimFilePreview ? (
               <DimImportPreviewCard
+                copy={copy}
                 preview={dimFilePreview}
                 importName={importName}
                 existingNames={existingImportNames}
-                busyLabel={busyAction === "dim-confirm" ? "处理中" : ""}
+                busyLabel={vaultText(copy, busyAction === "dim-confirm" ? "处理中" : "")}
                 isBusy={isBusy || dimFilePreview.importable_rule_count === 0}
                 onNameChange={setImportName}
                 onConfirm={(mode) => void confirmDimImport(mode)}
@@ -999,36 +1012,37 @@ export function VaultRecommendationDataPanel(props: {
           >
             <header>
               <div>
-                <strong id={linkTitleId}>从链接同步愿望单</strong>
-                <span>粘贴一份愿望单文本的链接（.txt 原始文件地址）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。</span>
+                <strong id={linkTitleId}>{vaultText(copy, "从链接同步愿望单")}</strong>
+                <span>{vaultText(copy, "粘贴一份愿望单文本的链接（.txt 原始文件地址）。读到的内容就在这个框里预览与起名，确认前不会改动当前数据。")}</span>
               </div>
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>关闭</ControlButton>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeDimDialog}>{vaultText(copy, "关闭")}</ControlButton>
             </header>
 
             <div className="vault-wishlist-link-body">
               <label>
-                <span>愿望单文本链接</span>
+                <span>{vaultText(copy, "愿望单文本链接")}</span>
                 <input
                   data-wishlist-link-input=""
                   value={linkInput}
                   placeholder="https://…/wishlist.txt"
-                  aria-label="愿望单文本链接"
+                  aria-label={vaultText(copy, "愿望单文本链接")}
                   disabled={isBusy}
                   onChange={(event) => setLinkInput(event.target.value)}
                   onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void confirmWishlistLink(); } }}
                 />
               </label>
-              <ControlButton data-wishlist-link-read="" size="compact" variant="primary" disabled={isBusy || !linkInput.trim()} onClick={() => void confirmWishlistLink()}>{busyAction === "wishlist-link" ? "读取中" : "读取链接"}</ControlButton>
-              <small>链接会跟着这份来源记下来：以后在「来源管理」里点「同步」，内容有变化时才让你确认覆盖。</small>
+              <ControlButton data-wishlist-link-read="" size="compact" variant="primary" disabled={isBusy || !linkInput.trim()} onClick={() => void confirmWishlistLink()}>{vaultText(copy, busyAction === "wishlist-link" ? "读取中" : "读取链接")}</ControlButton>
+              <small>{vaultText(copy, "链接会跟着这份来源记下来：以后在「来源管理」里点「同步」，内容有变化时才让你确认覆盖。")}</small>
             </div>
 
             {/* 读到的内容就在框里确认：预览、起名、新建 / 覆盖——与表格导入弹框和来源行的「同步」同一套。 */}
             {dimFilePreview ? (
               <DimImportPreviewCard
+                copy={copy}
                 preview={dimFilePreview}
                 importName={importName}
                 existingNames={existingImportNames}
-                busyLabel={busyAction === "dim-confirm" ? "处理中" : ""}
+                busyLabel={vaultText(copy, busyAction === "dim-confirm" ? "处理中" : "")}
                 isBusy={isBusy || dimFilePreview.importable_rule_count === 0}
                 onNameChange={setImportName}
                 onConfirm={(mode) => void confirmDimImport(mode)}
@@ -1053,6 +1067,7 @@ export function VaultRecommendationDataPanel(props: {
  * 页面导入区，同一个组件被工作区宽度撑到两个弹框的 3 倍宽，看着像「起名样式不一样」。
  */
 export function DimImportPreviewCard(props: {
+  copy: VaultCopy;
   preview: VaultDimWishlistImportPreview;
   importName: string;
   existingNames: Set<string>;
@@ -1061,6 +1076,7 @@ export function DimImportPreviewCard(props: {
   onNameChange(value: string): void;
   onConfirm(mode: VaultImportTarget["mode"]): void;
 }) {
+  const copy = props.copy;
   const preview = props.preview;
   return (
     <div className="vault-wishlist-preview" data-surface="frame" data-ui-kind="state-frame">
@@ -1068,47 +1084,43 @@ export function DimImportPreviewCard(props: {
         <strong>{preview.file_name}</strong>
         <small>
           {preview.source_url
-            ? `来自链接：${preview.final_url || preview.source_url}`
-            : preview.title ? `文件内声明：${preview.title}` : "文件未声明标题"}
+            ? vaultTemplate(copy, "来自链接：{url}", { url: preview.final_url || preview.source_url })
+            : preview.title ? vaultTemplate(copy, "文件内声明：{title}", { title: preview.title }) : vaultText(copy, "文件未声明标题")}
         </small>
       </span>
       <span>
-        <strong>{preview.importable_rule_count} 条可导入</strong>
+        <strong>{vaultTemplate(copy, "{count} 条可导入", { count: preview.importable_rule_count })}</strong>
         <small>
-          {preview.rule_count} 条规则 · {preview.weapon_count} 把武器 · {formatModeCounts(preview.mode_counts)}
+          {vaultTemplate(copy, "{rules} 条规则 · {weapons} 把武器 · {modes}", { rules: preview.rule_count, weapons: preview.weapon_count, modes: formatModeCounts(copy, preview.mode_counts) })}
         </small>
       </span>
       {preview.merged_row_count > 0 ? (
         <div className="vault-wishlist-preview-merged">
-          <strong>{preview.merged_row_count} 行是展开写法的冗余</strong>
+          <strong>{vaultTemplate(copy, "{count} 行是展开写法的冗余", { count: preview.merged_row_count })}</strong>
           <small>
-            {preview.merged_weapon_count} 把武器写的是一组「每栏任选其一」，摊开写成了多行；这些行写到的 perk
-            已被同一把枪的其他行覆盖，不写进去也不影响结果。
+            {vaultTemplate(copy, "{count} 把武器写的是一组「每栏任选其一」，摊开写成了多行；这些行写到的 perk 已被同一把枪的其他行覆盖，不写进去也不影响结果。", { count: preview.merged_weapon_count })}
           </small>
         </div>
       ) : null}
       {preview.issue_count > 0 ? (
         <div className="vault-knowledge-import-issues" role="alert">
           <strong>
-            {preview.skipped_row_count} 行有问题将忽略
-            {preview.affected_weapon_count > 0 ? `，涉及 ${preview.affected_weapon_count} 把武器` : ""}
-            {preview.skipped_weapon_count > 0 ? `，其中 ${preview.skipped_weapon_count} 把武器的规则整体跳过` : ""}
+            {vaultTemplate(copy, "{count} 行有问题将忽略", { count: preview.skipped_row_count })}
+            {preview.affected_weapon_count > 0 ? vaultTemplate(copy, "，涉及 {count} 把武器", { count: preview.affected_weapon_count }) : ""}
+            {preview.skipped_weapon_count > 0 ? vaultTemplate(copy, "，其中 {count} 把武器的规则整体跳过", { count: preview.skipped_weapon_count }) : ""}
           </strong>
           {preview.issues.map((issue) => (
             <small key={`${issue.line_number}-${issue.category}-${issue.perk_name}`}>
-              第 {issue.line_number} 行
-              {issue.weapon_name ? ` · ${issue.weapon_name}` : ""}
-              {issue.perk_name ? ` · ${issue.perk_name}` : ""}
-              ：{issue.message}
-              {issue.raw_line ? `（原文：${issue.raw_line}）` : ""}
+              {formatDimIssue(copy, issue)}
             </small>
           ))}
           {preview.issue_count > preview.issues.length
-            ? <small>这里只显示前 {preview.issues.length} 条，其他问题行也会被单独忽略。</small>
+            ? <small>{vaultTemplate(copy, "这里只显示前 {count} 条，其他问题行也会被单独忽略。", { count: preview.issues.length })}</small>
             : null}
         </div>
       ) : null}
       <ImportIdentityChoice
+        copy={copy}
         name={props.importName}
         existingNames={props.existingNames}
         busyLabel={props.busyLabel}
@@ -1120,9 +1132,37 @@ export function DimImportPreviewCard(props: {
   );
 }
 
+/**
+ * 愿望单问题行：`第 N 行 · 武器 · Perk：原因（原文：…）`。
+ *
+ * 拆成「行号 + 若干可缺项的片段」再拼，是因为中英两边的冒号宽度与片段顺序不同；
+ * 直接对中文整串做替换会在英文界面拼出中文标点。zh-CN 的拼接结果与迁移前逐字相同。
+ */
+function formatDimIssue(copy: VaultCopy, issue: VaultDimWishlistImportPreview["issues"][number]): string {
+  const head = [
+    vaultTemplate(copy, "第 {line} 行", { line: issue.line_number }),
+    issue.weapon_name,
+    issue.perk_name
+  ].filter(Boolean).join(" · ");
+  const body = vaultTemplate(copy, "{head}：{message}", { head, message: issue.message });
+  return issue.raw_line ? vaultTemplate(copy, "{body}（原文：{raw}）", { body, raw: issue.raw_line }) : body;
+}
+
+/** 表格导入的问题行：`第 N 行 · 来源 · 武器 · 字段“值”：原因`。 */
+function formatKnowledgeIssue(copy: VaultCopy, issue: VaultWeaponKnowledgeImportPreview["blocking_issues"][number]): string {
+  const head = [
+    vaultTemplate(copy, "第 {line} 行", { line: issue.row_number }),
+    issue.source_label,
+    issue.weapon_name,
+    issue.field
+  ].filter(Boolean).join(" · ");
+  return vaultTemplate(copy, "{head}“{value}”：{message}", { head, value: issue.value, message: issue.message });
+}
+
 // 导入身份 = 用户输入的名字：新建要求名字不撞名，覆盖要求名字命中已有来源，两者互斥。
 // 输入框预填一个默认名（见 suggestedImportSourceName）省去打字，名字本身始终可改。
 function ImportIdentityChoice(props: {
+  copy: VaultCopy;
   name: string;
   existingNames: Set<string>;
   busyLabel: string;
@@ -1130,29 +1170,30 @@ function ImportIdentityChoice(props: {
   onNameChange(value: string): void;
   onConfirm(mode: VaultImportTarget["mode"]): void;
 }) {
+  const copy = props.copy;
   const trimmed = props.name.trim();
   const conflict = trimmed !== "" && props.existingNames.has(trimmed);
   return (
     <div className="vault-import-identity">
       <label>
-        <span>来源名</span>
+        <span>{vaultText(copy, "来源名")}</span>
         <input
           value={props.name}
-          aria-label="推荐来源名"
-          placeholder="给这份来源起一个名字"
+          aria-label={vaultText(copy, "推荐来源名")}
+          placeholder={vaultText(copy, "给这份来源起一个名字")}
           onChange={(event) => props.onNameChange(event.target.value)}
         />
       </label>
       <div className="vault-import-identity-actions">
-        <ControlButton size="compact" variant="secondary" disabled={props.isBusy || !trimmed || conflict} onClick={() => props.onConfirm("create")}>{props.busyLabel || "新建来源"}</ControlButton>
-        <ControlButton size="compact" variant="primary" disabled={props.isBusy || !conflict} onClick={() => props.onConfirm("overwrite")}>{props.busyLabel || "覆盖同名来源"}</ControlButton>
+        <ControlButton size="compact" variant="secondary" disabled={props.isBusy || !trimmed || conflict} onClick={() => props.onConfirm("create")}>{props.busyLabel || vaultText(copy, "新建来源")}</ControlButton>
+        <ControlButton size="compact" variant="primary" disabled={props.isBusy || !conflict} onClick={() => props.onConfirm("overwrite")}>{props.busyLabel || vaultText(copy, "覆盖同名来源")}</ControlButton>
       </div>
       <small className="vault-import-identity-hint">
         {!trimmed
-          ? "先起一个名字：新建与覆盖都用它做身份。"
+          ? vaultText(copy, "先起一个名字：新建与覆盖都用它做身份。")
           : conflict
-            ? `已存在名为「${trimmed}」的来源，只能覆盖（整份全删全增）。`
-            : `「${trimmed}」还没有来源，可以新建。`}
+            ? vaultTemplate(copy, "已存在名为「{name}」的来源，只能覆盖（整份全删全增）。", { name: trimmed })
+            : vaultTemplate(copy, "「{name}」还没有来源，可以新建。", { name: trimmed })}
       </small>
     </div>
   );
@@ -1168,11 +1209,13 @@ export function suggestedImportSourceName(fileName: string): string {
   return fileName.replace(/\.[^.]+$/, "").trim() || fileName.trim();
 }
 
-export function managedSourceStateLabel(source: VaultRecommendationManagedSource): string {
-  if (source.state === "removed") return source.configured ? "已移除，数据已重新导入，等待恢复" : "已按来源移除";
-  if (!source.configured) return "未配置";
-  if (source.state === "disabled") return "已停用，本地数据仍保留";
-  return source.imported_at ? `已启用 · ${formatDateTime(source.imported_at)}` : "已启用";
+export function managedSourceStateLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  if (source.state === "removed") return source.configured ? vaultText(copy, "已移除，数据已重新导入，等待恢复") : vaultText(copy, "已按来源移除");
+  if (!source.configured) return vaultText(copy, "未配置");
+  if (source.state === "disabled") return vaultText(copy, "已停用，本地数据仍保留");
+  return source.imported_at
+    ? vaultTemplate(copy, "已启用 · {time}", { time: copy.formatDateTime(source.imported_at) })
+    : vaultText(copy, "已启用");
 }
 
 /**
@@ -1182,15 +1225,15 @@ export function managedSourceStateLabel(source: VaultRecommendationManagedSource
  * 界面上没有「哪种格式显示成什么」的逻辑，加一种格式这里一行都不用改。
  * 服务层认不出来源类型时格式名是空串，这时只显示状态。
  */
-export function managedSourceMetaLabel(source: VaultRecommendationManagedSource): string {
-  return [source.format_label, managedSourceStateLabel(source)].filter(Boolean).join(" · ");
+export function managedSourceMetaLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  return [source.format_label, managedSourceStateLabel(copy, source)].filter(Boolean).join(" · ");
 }
 
 /**
  * 来源行的第一句：这份来源**自己的规模**——写了多少条规则。
  */
-export function managedSourceRuleLabel(source: VaultRecommendationManagedSource): string {
-  return `${source.rule_count} 条规则`;
+export function managedSourceRuleLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  return vaultTemplate(copy, "{count} 条规则", { count: source.rule_count });
 }
 
 /**
@@ -1204,8 +1247,8 @@ export function managedSourceRuleLabel(source: VaultRecommendationManagedSource)
  * 拼成「1679 条规则 · 列出 422 把武器」时实测 198px，只剩 12px 余量，
  * 规则数一上万就把「武器」挤到下一行——那正是这一栏要修的毛病。三句各占一行，五位数也放得下。
  */
-export function managedSourceWeaponLabel(source: VaultRecommendationManagedSource): string {
-  return `列出 ${source.weapon_count} 把武器`;
+export function managedSourceWeaponLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  return vaultTemplate(copy, "列出 {count} 把武器", { count: source.weapon_count });
 }
 
 /**
@@ -1215,16 +1258,19 @@ export function managedSourceWeaponLabel(source: VaultRecommendationManagedSourc
  * 「全账号」还含角色身上、背包与邮政官。两个数本来就不该相等——
  * 只写一个数，用户拿它去和仓库里的数字对、对不上时只会读成程序算错了。
  */
-export function managedSourceImpactLabel(source: VaultRecommendationManagedSource): string {
-  return `仓库 ${source.vault_instance_count ?? 0} 件 / 全账号 ${source.affected_instance_count ?? 0} 件`;
+export function managedSourceImpactLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  return vaultTemplate(copy, "仓库 {vault} 件 / 全账号 {total} 件", {
+    vault: source.vault_instance_count ?? 0,
+    total: source.affected_instance_count ?? 0
+  });
 }
 
 /**
  * 上面前两句拼成一句，给详情弹框标题用（那儿是一行通排的文字，不设宽度，不存在折行）。
  * 由它们拼出来而不是另写一遍，措辞就只有一处，改了这里不会漏掉那里。
  */
-export function managedSourceScaleLabel(source: VaultRecommendationManagedSource): string {
-  return `${managedSourceRuleLabel(source)} · ${managedSourceWeaponLabel(source)}`;
+export function managedSourceScaleLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
+  return `${managedSourceRuleLabel(copy, source)} · ${managedSourceWeaponLabel(copy, source)}`;
 }
 
 /**
@@ -1232,83 +1278,105 @@ export function managedSourceScaleLabel(source: VaultRecommendationManagedSource
  *
  * 计数只在这一处解释：界面别处不必各写一句，说法不一致时用户只会更糊涂。
  */
-export const managedSourceCountsTitle = "列出：这份来源点名的武器（与你有几件无关）。仓库：勾上它，仓库里能筛出多少件。全账号：再加上角色身上、角色背包与邮政官。";
+export function managedSourceCountsTitle(copy: VaultCopy): string {
+  return vaultText(copy, "列出：这份来源点名的武器（与你有几件无关）。仓库：勾上它，仓库里能筛出多少件。全账号：再加上角色身上、角色背包与邮政官。");
+}
 
 function sourceConfirmation(
+  copy: VaultCopy,
   source: VaultRecommendationManagedSource,
   state: "disabled" | "removed"
 ): ManagementConfirmation {
-  const impact = `${source.rule_count} 条规则、${source.weapon_count} 把武器，当前账号约 ${source.affected_instance_count ?? 0} 件实例受影响`;
+  const impact = vaultTemplate(copy, "{rules} 条规则、{weapons} 把武器，当前账号约 {count} 件实例受影响", {
+    rules: source.rule_count,
+    weapons: source.weapon_count,
+    count: source.affected_instance_count ?? 0
+  });
   if (state === "disabled") {
     return {
       kind: "source",
-      title: `停用 ${source.label}？`,
-      description: `${impact}。规则会停止参与匹配、排序、保护和批量整理；本地数据保留，可立即重新启用。`,
-      confirmLabel: "确认停用",
+      title: vaultTemplate(copy, "停用 {label}？", { label: source.label }),
+      description: vaultTemplate(copy, "{impact}。规则会停止参与匹配、排序、保护和批量整理；本地数据保留，可立即重新启用。", { impact }),
+      confirmLabel: vaultText(copy, "确认停用"),
       source,
       sourceState: state
     };
   }
   return {
     kind: "source",
-    title: `按来源移除 ${source.label}？`,
-    description: `${impact}。本地规则会被删除并保留来源移除记录；重新导入或更新后仍需由你显式恢复。玩家标签、备注、游戏锁定和配装不会改变。`,
-    confirmLabel: "确认按源移除",
+    title: vaultTemplate(copy, "按来源移除 {label}？", { label: source.label }),
+    description: vaultTemplate(copy, "{impact}。本地规则会被删除并保留来源移除记录；重新导入或更新后仍需由你显式恢复。玩家标签、备注、游戏锁定和配装不会改变。", { impact }),
+    confirmLabel: vaultText(copy, "确认按源移除"),
     source,
     sourceState: state
   };
 }
 
-function ruleConfirmation(rule: VaultRecommendationManagedRule): ManagementConfirmation {
+function ruleConfirmation(copy: VaultCopy, rule: VaultRecommendationManagedRule): ManagementConfirmation {
   return {
     kind: "rule",
-    title: `移除 ${rule.weapon_name} 的这条规则？`,
-    description: `${rule.source_label} · ${formatModes(rule.purposes)} · 当前账号影响 ${rule.affected_instance_count ?? 0} 件 · ${formatManagedRequirements(rule)}。只停止这一条规则参与结论，发布方原始数据不被改写，可在“已移除规则”中恢复。`,
-    confirmLabel: "确认移除规则",
+    title: vaultTemplate(copy, "移除 {weapon} 的这条规则？", { weapon: rule.weapon_name }),
+    description: vaultTemplate(copy, "{source} · {modes} · 当前账号影响 {count} 件 · {requirements}。只停止这一条规则参与结论，发布方原始数据不被改写，可在“已移除规则”中恢复。", {
+      source: rule.source_label,
+      modes: formatModes(copy, rule.purposes),
+      count: rule.affected_instance_count ?? 0,
+      requirements: formatManagedRequirements(copy, rule)
+    }),
+    confirmLabel: vaultText(copy, "确认移除规则"),
     rule
   };
 }
 
-function ruleImportsConfirmation(snapshot: VaultRecommendationManagementSnapshot): ManagementConfirmation {
+function ruleImportsConfirmation(copy: VaultCopy, snapshot: VaultRecommendationManagementSnapshot): ManagementConfirmation {
   const clearance = snapshot.clear_rule_imports;
   return {
     kind: "rule-imports",
-    title: "清空已导入的推荐规则？",
-    description: `将删除 ${clearance.source_count} 个导入来源、共 ${clearance.rule_count} 条规则（数据版本 ${shortRevision(snapshot.revision)}）。清空后显示未导入，需要重新导入恢复；账号装备、玩家标签、备注、游戏锁定和配装不会改变。`,
-    confirmLabel: "确认清空规则"
+    title: vaultText(copy, "清空已导入的推荐规则？"),
+    description: vaultTemplate(copy, "将删除 {sources} 个导入来源、共 {rules} 条规则（数据版本 {revision}）。清空后显示未导入，需要重新导入恢复；账号装备、玩家标签、备注、游戏锁定和配装不会改变。", {
+      sources: clearance.source_count,
+      rules: clearance.rule_count,
+      revision: shortRevision(copy, snapshot.revision)
+    }),
+    confirmLabel: vaultText(copy, "确认清空规则")
   };
 }
 
-export function formatManagedRequirements(rule: VaultRecommendationManagedRule): string {
-  if (!rule.requirements.length) return "仅推荐这把武器，没有指定 Perk 组合";
-  return rule.requirements.map((requirement) => `${managedRequirementSlotLabel(requirement.slot)}：${requirement.names.join(" / ") || "未解析"}`).join(" · ");
+export function formatManagedRequirements(copy: VaultCopy, rule: VaultRecommendationManagedRule): string {
+  if (!rule.requirements.length) return vaultText(copy, "仅推荐这把武器，没有指定 Perk 组合");
+  return rule.requirements.map((requirement) => vaultTemplate(copy, "{slot}：{names}", {
+    slot: managedRequirementSlotLabel(copy, requirement.slot),
+    names: requirement.names.join(" / ") || vaultText(copy, "未解析")
+  })).join(" · ");
 }
 
-function managedRequirementSlotLabel(slot: string): string {
-  const labels: Record<string, string> = {
-    perk1: "Perk 1",
-    perk2: "Perk 2",
-    barrel: "第一列",
-    magazine: "第二列",
-    masterwork: "大师",
-    origin: "起源",
-    // 事实层只给中性的槽位键，显示名一律在这里决定。
-    combo: "完整组合"
-  };
-  return labels[slot] ?? slot;
+/**
+ * 事实层只给中性的槽位键，显示名一律在这里决定。
+ * `perk1` / `perk2` 是 DIM 的固定列名，中英界面都照原样显示，所以不进 copy。
+ */
+function managedRequirementSlotLabel(copy: VaultCopy, slot: string): string {
+  switch (slot) {
+    case "perk1": return "Perk 1";
+    case "perk2": return "Perk 2";
+    case "barrel": return vaultText(copy, "第一列");
+    case "magazine": return vaultText(copy, "第二列");
+    case "masterwork": return vaultText(copy, "大师");
+    case "origin": return vaultText(copy, "起源");
+    case "combo": return vaultText(copy, "完整组合");
+    default: return slot;
+  }
 }
 
-export function formatModes(modes: Array<"pve" | "pvp" | "general">): string {
-  const labels = Array.from(new Set(modes)).map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : "通用");
-  return labels.length ? labels.join(" / ") : "未标注模式";
+export function formatModes(copy: VaultCopy, modes: Array<"pve" | "pvp" | "general">): string {
+  const labels = Array.from(new Set(modes)).map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : vaultText(copy, "通用"));
+  return labels.length ? labels.join(" / ") : vaultText(copy, "未标注模式");
 }
 
-function formatModeCounts(counts: Record<"pve" | "pvp" | "general", number>): string {
+function formatModeCounts(copy: VaultCopy, counts: Record<"pve" | "pvp" | "general", number>): string {
   return [
-    counts.pve ? `PVE ${counts.pve}` : "",
-    counts.pvp ? `PVP ${counts.pvp}` : "",
-    counts.general ? `通用 ${counts.general}` : ""
-  ].filter(Boolean).join(" / ") || "未标注模式";
+    counts.pve ? vaultTemplate(copy, "PVE {count}", { count: counts.pve }) : "",
+    counts.pvp ? vaultTemplate(copy, "PVP {count}", { count: counts.pvp }) : "",
+    counts.general ? vaultTemplate(copy, "通用 {count}", { count: counts.general }) : ""
+  ].filter(Boolean).join(" / ") || vaultText(copy, "未标注模式");
 }
 
 /**
@@ -1317,25 +1385,18 @@ function formatModeCounts(counts: Record<"pve" | "pvp" | "general", number>): st
  * 两件事必须分开说：真笔误（跳过行数）和摊开写法的冗余（展开行数）。后者不是问题——
  * 同一把枪的合集在读取期照常成立，把它并进「有问题的行」会让一份正常文件看起来坏了一大半。
  */
-export function dimPreviewNotice(preview: {
+export function dimPreviewNotice(copy: VaultCopy, preview: {
   skipped_row_count: number;
   merged_row_count: number;
 }): string {
   return [
-    preview.skipped_row_count > 0 ? `${preview.skipped_row_count} 行有问题将单独忽略` : "",
-    preview.merged_row_count > 0 ? `${preview.merged_row_count} 行是展开写法的冗余，已并入同一把枪的其他行` : ""
+    preview.skipped_row_count > 0 ? vaultTemplate(copy, "{count} 行有问题将单独忽略", { count: preview.skipped_row_count }) : "",
+    preview.merged_row_count > 0 ? vaultTemplate(copy, "{count} 行是展开写法的冗余，已并入同一把枪的其他行", { count: preview.merged_row_count }) : ""
   ].filter(Boolean).join("；");
 }
 
-export function shortRevision(revision: string): string {
-  return revision ? revision.slice(0, 8) : "未知";
-}
-
-function formatDateTime(value: string): string {
-  const date = new Date(value);
-  return Number.isFinite(date.getTime())
-    ? new Intl.DateTimeFormat("zh-CN", { dateStyle: "medium", timeStyle: "short" }).format(date)
-    : value;
+export function shortRevision(copy: VaultCopy, revision: string): string {
+  return revision ? revision.slice(0, 8) : vaultText(copy, "未知");
 }
 
 function errorMessage(error: unknown, fallback: string): string {

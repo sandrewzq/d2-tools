@@ -212,7 +212,7 @@ const multiIdIdentityFixtures: RuleFixture[] = [
 const csv = [
   header,
   ...ruleFixtures.map((rule) => [
-    rule.weaponName, rule.weaponIds, "", "Aegis推荐", "PvE", "", "",
+    rule.weaponName, rule.weaponIds, "", "示例推荐表", "PvE", "", "",
     "伏特弹", "快速命中", "", "", "S", rule.label
   ].join(","))
 ].join("\n");

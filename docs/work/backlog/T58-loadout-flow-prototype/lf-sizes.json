@@ -1,0 +1,408 @@
+[
+  {
+    "id": "screen-a-read",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "01新建 · 读取当前装备"
+  },
+  {
+    "id": "screen-a-read-result",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "02新建 · 读取结果"
+  },
+  {
+    "id": "screen-a-editor",
+    "w": 1400,
+    "h": 1390,
+    "stageH": 1322,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "03编辑器 · 草稿已填好"
+  },
+  {
+    "id": "screen-a-armor",
+    "w": 1400,
+    "h": 3193,
+    "stageH": 3125,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "04编辑器 · 护甲规划（可选）"
+  },
+  {
+    "id": "screen-a-wear",
+    "w": 1400,
+    "h": 1239,
+    "stageH": 1171,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "05核对能不能穿与落盘"
+  },
+  {
+    "id": "screen-b-dim",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "06新建 · 导入 DIM"
+  },
+  {
+    "id": "screen-b-preview",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "07新建 · DIM 预览确认"
+  },
+  {
+    "id": "screen-b-guide",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "08新建 · AI 攻略导入"
+  },
+  {
+    "id": "screen-b-targets",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "09新建 · AI 装备目标审阅"
+  },
+  {
+    "id": "screen-b-assign",
+    "w": 1400,
+    "h": 848,
+    "stageH": 790,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "10新建 · 目标装备配副本"
+  },
+  {
+    "id": "screen-b-editor",
+    "w": 1400,
+    "h": 1390,
+    "stageH": 1322,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "11编辑器 · 解析结果已填好"
+  },
+  {
+    "id": "screen-b-armor",
+    "w": 1400,
+    "h": 3413,
+    "stageH": 3346,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "12编辑器 · 护甲规划"
+  },
+  {
+    "id": "screen-b-wear",
+    "w": 1400,
+    "h": 1239,
+    "stageH": 1171,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "13核对能不能穿与落盘"
+  },
+  {
+    "id": "screen-c-armor-entry",
+    "w": 1400,
+    "h": 3120,
+    "stageH": 3053,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "14编辑器 · 从护甲开始"
+  },
+  {
+    "id": "screen-c-armor-candidate",
+    "w": 1400,
+    "h": 3313,
+    "stageH": 3246,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "15编辑器 · 挑候选"
+  },
+  {
+    "id": "screen-c-armor-picked",
+    "w": 1400,
+    "h": 1390,
+    "stageH": 1322,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "16编辑器 · 护甲已写进草稿"
+  },
+  {
+    "id": "screen-c-weapons",
+    "w": 1400,
+    "h": 1390,
+    "stageH": 1322,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "17编辑器 · 补武器与子职业"
+  },
+  {
+    "id": "screen-c-wear",
+    "w": 1400,
+    "h": 1239,
+    "stageH": 1171,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "18核对能不能穿与落盘"
+  },
+  {
+    "id": "screen-d-open",
+    "w": 1400,
+    "h": 1028,
+    "stageH": 970,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "19方案库 · 打开一套"
+  },
+  {
+    "id": "screen-d-editor",
+    "w": 1400,
+    "h": 1390,
+    "stageH": 1322,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "20编辑器 · 已保存方案"
+  },
+  {
+    "id": "screen-d-armor",
+    "w": 1400,
+    "h": 3449,
+    "stageH": 3381,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "21编辑器 · 打开护甲规划"
+  },
+  {
+    "id": "screen-d-dirty-mods",
+    "w": 1400,
+    "h": 3759,
+    "stageH": 3346,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "22护甲待重算 · 属性模组"
+  },
+  {
+    "id": "screen-d-dirty-stats",
+    "w": 1400,
+    "h": 3759,
+    "stageH": 3346,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "23护甲待重算 · 六维目标"
+  },
+  {
+    "id": "screen-d-dirty-fragments",
+    "w": 1400,
+    "h": 3838,
+    "stageH": 3425,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "24护甲待重算 · 碎片读数"
+  },
+  {
+    "id": "screen-d-wear",
+    "w": 1400,
+    "h": 1361,
+    "stageH": 1294,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "25核对能不能穿与落盘"
+  },
+  {
+    "id": "screen-shared-start",
+    "w": 1400,
+    "h": 1168,
+    "stageH": 1101,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "26新建 · 起点"
+  },
+  {
+    "id": "screen-shared-picker",
+    "w": 1400,
+    "h": 2023,
+    "stageH": 1955,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "focused",
+    "hasToolbar": false,
+    "hasStatus": false,
+    "frameNestedInToolbar": false,
+    "buttonText": "27编辑器 · 选择装备"
+  },
+  {
+    "id": "screen-shared-in-game",
+    "w": 1400,
+    "h": 2196,
+    "stageH": 2138,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "28游戏内配装"
+  },
+  {
+    "id": "screen-shared-compare",
+    "w": 1400,
+    "h": 844,
+    "stageH": 786,
+    "roots": [
+      "loadout-page"
+    ],
+    "flow": "browse",
+    "hasToolbar": true,
+    "hasStatus": true,
+    "frameNestedInToolbar": false,
+    "buttonText": "29方案对比"
+  }
+]

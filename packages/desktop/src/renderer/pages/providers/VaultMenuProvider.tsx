@@ -31,6 +31,7 @@ export function VaultMenuProvider() {
 
   return (
     <VaultPage
+      interfaceLocale={session.diagnostics.languagePreferences.interfaceLocale}
       account={accountSummary}
       isBungieConfigured={session.state.cards.bungieConfig.status === "ready"}
       isAccountLoggedIn={session.state.cards.account.status === "ready"}

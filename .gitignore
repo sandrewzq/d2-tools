@@ -21,6 +21,10 @@ __pycache__/
 # local runtime / temp outputs
 .local-data/
 
+# 原型截图是本地产物，进仓库的是同一份 HTML 和生成脚本，图按需重生成
+docs/work/backlog/T58-loadout-flow-prototype/lf-*.png
+docs/work/backlog/T58-subclass-prototype/*.png
+
 # brainstorming / superpowers visual companion
 .superpowers/brainstorm/
 

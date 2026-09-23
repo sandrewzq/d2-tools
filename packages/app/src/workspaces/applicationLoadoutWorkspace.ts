@@ -1,5 +1,6 @@
 import type {
   AccountSummary,
+  CharacterLoadoutSlotItemSummary,
   CharacterLoadoutSlotSummary,
   CharacterSummary
 } from "@d2-tools/core/account/summary";
@@ -155,6 +156,11 @@ export type ApplicationLoadoutCompareCell = {
   column_id: string;
   state: "value" | "empty" | "unknown";
   value: string;
+  /**
+   * 计数之外的展开明细。`value` 只报数量，光看数量分不出两边选的是不是同一批星象和碎片；
+   * 明细给出实际的 Plug 列表。判「有没有变」仍然只看 `fingerprint`，跟这里显示成什么样无关。
+   */
+  detail?: string;
   fingerprint: string;
 };
 
@@ -503,7 +509,8 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     subclassConfigurationCount ? "value" : "empty",
     subclassConfigurationCount && plan.subclass_target
       ? subclassConfigurationFingerprint(plan.subclass_target)
-      : "empty"
+      : "empty",
+    subclassConfigurationCount ? formatApplicationSubclassConfigurationDetail(plan) : undefined
   );
   for (const target of plan.item_targets) {
     const slot = normalizeCompareSlot(target.slot);
@@ -661,7 +668,8 @@ function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): Com
       : "unknown",
     subclass?.plug_hashes
       ? (sortedNumbers(subclass.plug_hashes) || "empty")
-      : "unknown"
+      : "unknown",
+    formatInGameSubclassConfigurationDetail(subclass)
   );
   for (const item of reference.slot.items) {
     const slot = normalizeCompareSlot(item.bucket_name ?? item.name);
@@ -743,19 +751,22 @@ function addProjectionValue(
   label: string,
   value: string,
   state: ApplicationLoadoutCompareCell["state"] = "value",
-  fingerprint = value
+  fingerprint = value,
+  detail?: string
 ): void {
   projection.set(key, {
     key,
     section,
     label,
-    cell: { state, value, fingerprint }
+    cell: { state, value, ...(detail ? { detail } : {}), fingerprint }
   });
 }
 
 function formatApplicationSubclassConfiguration(plan: LocalLoadoutPlan): string {
   const target = plan.subclass_target;
   if (!target) return "未配置";
+  // `mod_hashes` 在新代码里一律为空。旧版本存下来的方案可能带着把它当模组写的 hash，
+  // 这里照旧显示，不替用户把已有数据藏起来。
   const parts = [
     target.ability_hashes.length ? `${target.ability_hashes.length} 个技能` : "",
     target.aspect_hashes.length ? `${target.aspect_hashes.length} 个星相` : "",
@@ -763,6 +774,69 @@ function formatApplicationSubclassConfiguration(plan: LocalLoadoutPlan): string 
     target.mod_hashes.length ? `${target.mod_hashes.length} 个子职业模组` : ""
   ].filter(Boolean);
   return parts.join(" · ");
+}
+
+/**
+ * 子职业配置的展开明细。
+ *
+ * 方案侧只有 hash，没有名字（这里拿不到 Manifest），所以两边都按 hash 列出来：
+ * 显示成名字和显示成 hash 混在一张对比表里，反而看不出同一批 Plug 是不是对上了。
+ */
+function formatApplicationSubclassConfigurationDetail(plan: LocalLoadoutPlan): string {
+  const target = plan.subclass_target;
+  if (!target) return "";
+  // `socket_overrides` 收的是全部带索引的 Plug，里面本来就含技能、星相和碎片。
+  // 直接整组当「未分类」列出来会让同一批 Plug 显示两遍，这里把已经归过类的减掉。
+  const classified = new Set([
+    ...target.ability_hashes,
+    ...target.aspect_hashes,
+    ...target.fragment_hashes,
+    ...target.mod_hashes
+  ]);
+  const unclassified = Object.values(target.socket_overrides ?? {})
+    .filter((hash) => !classified.has(hash));
+  return formatSubclassPlugHashGroups([
+    ["技能", target.ability_hashes],
+    ["星相", target.aspect_hashes],
+    ["碎片", target.fragment_hashes],
+    ["子职业模组", target.mod_hashes],
+    ["未分类", unclassified]
+  ]);
+}
+
+function formatSubclassPlugHashGroups(groups: [string, number[]][]): string {
+  return groups
+    .filter(([, hashes]) => hashes.length > 0)
+    .map(([label, hashes]) => `${label} ${sortedNumbers(hashes)}`)
+    .join(" · ");
+}
+
+/**
+ * 游戏内那一列的子职业明细。
+ *
+ * 分类结果来自账号摘要（`subclass_configuration`），拿不到时只能把所有 Plug 混在一起列，
+ * 不猜哪一格是什么。空槽位单独报一句：`plug_hashes` 里没有它们，光比 Plug 列表看不出
+ * 「对面少插了一格」。
+ */
+function formatInGameSubclassConfigurationDetail(
+  subclass: CharacterLoadoutSlotItemSummary | undefined
+): string | undefined {
+  const configuration = subclass?.subclass_configuration;
+  // 整个子职业一个 Plug 都没插时 `plug_hashes` 是空的，但空槽位布局仍要报出来：
+  // 光是「未配置」看不出对面是没插满还是压根没读回来。
+  if (!configuration && !subclass?.plug_hashes?.length) return undefined;
+  const groups = configuration
+    ? formatSubclassPlugHashGroups([
+        ["技能", configuration.abilities.map((plug) => plug.hash)],
+        ["星相", configuration.aspects.map((plug) => plug.hash)],
+        ["碎片", configuration.fragments.map((plug) => plug.hash)],
+        ["未分类", configuration.other.map((plug) => plug.hash)]
+      ])
+    : `已返回 Plug ${sortedNumbers(subclass?.plug_hashes ?? [])}`;
+  const emptyCount = configuration?.empty_socket_indexes.length ?? 0;
+  return emptyCount
+    ? `${groups} · 空槽位 ${emptyCount} 格`
+    : groups;
 }
 
 function subclassConfigurationFingerprint(target: NonNullable<LocalLoadoutPlan["subclass_target"]>): string {

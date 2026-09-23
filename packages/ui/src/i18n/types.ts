@@ -1,5 +1,21 @@
 import type { ShellPageKey } from "../shell/types.js";
 import type { ToolAccess, ToolCategory } from "../directory/toolDirectory.js";
+import type {
+  VaultAmmoFilter,
+  VaultChampionFilter,
+  VaultClassFilter,
+  VaultCraftingFilter,
+  VaultDamageFilter,
+  VaultGearTierFilter,
+  VaultGroupFilter,
+  VaultKnownSlotKey,
+  VaultLockFilter,
+  VaultLocationFilter,
+  VaultRarityFilter,
+  VaultSortKey,
+  VaultTagFilter
+} from "@d2-tools/app/vault";
+import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 
 export type InterfaceLocale = "zh-CN" | "en-US";
 export type BungieManifestLocale = "zh-chs" | "en";
@@ -82,6 +98,7 @@ export type LocaleCopy = {
   shell: ShellCopy;
   home: HomeCopy;
   vault: VaultCopy;
+  itemDetail: ItemDetailCopy;
   loadouts: LoadoutsCopy;
   library: LibraryCopy;
   vendors: VendorsCopy;
@@ -214,12 +231,47 @@ export type HomeCopy = {
 };
 
 export type VaultCopy = {
+  /**
+   * 模板串与一次性文案的兜底表：zh-CN 侧留空，key 就是最终展示的中文原文；
+   * en-US 侧以同一段中文原文为 key 写英文。消费侧统一用 `copy.inline[key] ?? key`。
+   */
+  inline: Record<string, string>;
   title: string;
   subtitle: string;
   emptyTitle: string;
   emptySubtitle: string;
   loading: string;
   loadAccount: string;
+  /**
+   * 时间戳按界面语言格式化。日期写法本身也是语言的一部分，而渲染层只拿得到 copy，
+   * 所以它跟文案一起放在这里，不再各处硬编码 `Intl.DateTimeFormat("zh-CN", …)`。
+   */
+  formatDateTime: (value: string) => string;
+  /**
+   * 枚举标签是下拉项与筛选摘要的唯一来源，UI 按 key 查表，app 不需要知道 locale。
+   * app 侧原来那批 `*Labels` 映射在迁移完成后删除，不留第二份。
+   */
+  labels: {
+    groups: Record<VaultGroupFilter, string>;
+    locations: Record<VaultLocationFilter, string>;
+    tags: Record<VaultTagFilter, string>;
+    sorts: Record<VaultSortKey, string>;
+    locks: Record<VaultLockFilter, string>;
+    ammo: Record<VaultAmmoFilter, string>;
+    rarity: Record<VaultRarityFilter, string>;
+    gearTiers: Record<VaultGearTierFilter, string>;
+    classes: Record<VaultClassFilter, string>;
+    damage: Record<VaultDamageFilter, string>;
+    champions: Record<VaultChampionFilter, string>;
+    crafting: Record<VaultCraftingFilter, string>;
+    armorStats: Record<ArmorStatKey, string>;
+    /**
+     * 槽位名按 `VaultSlotKey` 查表，不再用 bucket 显示名。认不出的桶（`hash:` / `label:` 键）
+     * 查不到表，消费侧回落到 app 给的原始名。
+     */
+    slots: Record<VaultKnownSlotKey, { label: string; short: string }>;
+    slotAll: { label: string; short: string };
+  };
 };
 
 export type LoadoutsCopy = {
@@ -231,6 +283,15 @@ export type LoadoutsCopy = {
   missingItems: string;
   readyItems: string;
   actionableItems: string;
+};
+
+/**
+ * 装备详情用 `inline` 兜底：zh-CN 侧留空、key 就是最终展示的中文原文，
+ * en-US 侧以同一段中文原文为 key 查英文。判别联合的分支结构不做成字段，
+ * 由组件按原三元直接查表，避免把 kind 判断搬进 copy。
+ */
+export type ItemDetailCopy = {
+  inline: Record<string, string>;
 };
 
 export type LibraryCopy = {

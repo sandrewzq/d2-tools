@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailTemplate, itemDetailText } from "@d2-tools/ui";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { api } from "../../api/client";
 import type { ActionLogType } from "@d2-tools/core/actions/log";
@@ -113,6 +115,8 @@ export type ItemWriteActionOptions = {
     describeAttempt?: (detail: AccountItemDetail) => RefreshedItemVerification;
   };
   expectedAccountPatch?: AccountItemActionPatch;
+  /** 没有 `expectedAccountPatch` 的写操作（换 Perk）用它声明留痕归类。 */
+  logType?: ActionLogType;
 };
 
 export type ItemWriteActionOutcome = {
@@ -138,6 +142,7 @@ export function createWriteActionOperationId(): string {
 
 export function useItemDetailWorkspace(input: {
   accountSummary: AccountSummary | null;
+  copy: ItemDetailCopy;
   detailCacheScopeKey: string;
   recommendationRevision?: string;
   cleanupProtectionByItemKey?: ReadonlyMap<string, readonly string[]>;
@@ -152,6 +157,7 @@ export function useItemDetailWorkspace(input: {
   applyAcceptedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   onRecentHistoryChanged: (history: LibraryHistory) => void;
 }) {
+  const copy = input.copy;
   const [communityRecommendations, setCommunityRecommendations] = useState<WeaponRecommendation | null>(null);
   const [communityInstanceEvidence, setCommunityInstanceEvidence] = useState<VaultItemInstanceMatchInfo | null>(null);
   const [communityRecommendationError, setCommunityRecommendationError] = useState("");
@@ -189,6 +195,7 @@ export function useItemDetailWorkspace(input: {
     closeSelectedItemDetail: closeItemDetailCore
   } = useItemDetail({
     cacheScopeKey: input.detailCacheScopeKey,
+    copy: input.copy,
     onOpenStart: ({ item, source, itemKey, isCurrent }) => {
       const workspaceRequestSequence = ++workspaceRequestSequenceRef.current;
       const isCurrentWorkspace = () => (
@@ -363,7 +370,7 @@ export function useItemDetailWorkspace(input: {
       setItemAiResult(result);
     } catch (error) {
       if (workspaceRequestSequenceRef.current !== requestSequence) return;
-      setItemAiError(error instanceof Error ? error.message : "AI 装备解读失败");
+      setItemAiError(error instanceof Error ? error.message : itemDetailText(copy, "AI 装备解读失败"));
     } finally {
       if (workspaceRequestSequenceRef.current === requestSequence) {
         setIsGeneratingItemAi(false);
@@ -385,9 +392,9 @@ export function useItemDetailWorkspace(input: {
 
     try {
       await navigator.clipboard.writeText(text);
-      setItemShareMessage("已复制装备结论");
+      setItemShareMessage(itemDetailText(copy, "已复制装备结论"));
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage(itemDetailText(copy, "复制失败，请检查系统剪贴板权限"));
     }
   }
 
@@ -405,9 +412,9 @@ export function useItemDetailWorkspace(input: {
 
     try {
       await navigator.clipboard.writeText(text);
-      setItemShareMessage("已复制群聊说明");
+      setItemShareMessage(itemDetailText(copy, "已复制群聊说明"));
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage(itemDetailText(copy, "复制失败，请检查系统剪贴板权限"));
     }
   }
 
@@ -424,9 +431,9 @@ export function useItemDetailWorkspace(input: {
       });
       input.setVaultTags(tags);
       setItemNoteDraft(tags.items[selectedItem.item_key]?.note ?? "");
-      setItemNoteMessage("备注已保存");
+      setItemNoteMessage(itemDetailText(copy, "备注已保存"));
     } catch (error) {
-      setItemNoteMessage(error instanceof Error ? error.message : "备注保存失败");
+      setItemNoteMessage(error instanceof Error ? error.message : itemDetailText(copy, "备注保存失败"));
     }
   }
 
@@ -515,7 +522,7 @@ export function useItemDetailWorkspace(input: {
           .catch((error) => {
             if (!isCurrentRecommendation()) return;
             console.warn("社区推荐加载失败：", error);
-            setCommunityRecommendationError("社区推荐读取失败，已保留本地来源与目标判断。");
+            setCommunityRecommendationError(itemDetailText(copy, "社区推荐读取失败，已保留本地来源与目标判断。"));
           })
           .finally(() => {
             if (communityRecommendationRequestsRef.current.get(recommendationCacheKey) === request) {
@@ -537,7 +544,7 @@ export function useItemDetailWorkspace(input: {
       ? input.cleanupProtectionByItemKey?.get(selectedItem.item_key) ?? []
       : [];
     if (protection.length) {
-      setItemNoteMessage(`不能标为清理：${protection.join("、")}`);
+      setItemNoteMessage(itemDetailTemplate(copy, "不能标为清理：{value}", { value: protection.join("、") }));
       return;
     }
 
@@ -547,9 +554,11 @@ export function useItemDetailWorkspace(input: {
         tag
       });
       input.setVaultTags(tags);
-      setItemNoteMessage(tag === "none" ? "已清除本地标记" : "已更新本地标记");
+      setItemNoteMessage(tag === "none"
+        ? itemDetailText(copy, "已清除本地标记")
+        : itemDetailText(copy, "已更新本地标记"));
     } catch (error) {
-      setItemNoteMessage(error instanceof Error ? error.message : "本地标记保存失败");
+      setItemNoteMessage(error instanceof Error ? error.message : itemDetailText(copy, "本地标记保存失败"));
     }
   }
 
@@ -564,9 +573,9 @@ export function useItemDetailWorkspace(input: {
 
     try {
       await navigator.clipboard.writeText(text);
-      setItemShareMessage("已复制命中结论");
+      setItemShareMessage(itemDetailText(copy, "已复制命中结论"));
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage(itemDetailText(copy, "复制失败，请检查系统剪贴板权限"));
     }
   }
 
@@ -582,9 +591,9 @@ export function useItemDetailWorkspace(input: {
 
     try {
       await navigator.clipboard.writeText(text);
-      setItemShareMessage("已复制同名定位清单");
+      setItemShareMessage(itemDetailText(copy, "已复制同名定位清单"));
     } catch {
-      setItemShareMessage("复制失败，请检查系统剪贴板权限");
+      setItemShareMessage(itemDetailText(copy, "复制失败，请检查系统剪贴板权限"));
     }
   }
 
@@ -609,9 +618,9 @@ export function useItemDetailWorkspace(input: {
         `需要确认：${plan.requires_confirmation ? "是" : "否"}`,
         "说明：这只是计划，不会执行 Bungie 写操作。"
       ].join("\n"));
-      input.setItemActionMessage("已复制操作计划。");
+      input.setItemActionMessage(itemDetailText(copy, "已复制操作计划。"));
     } catch (error) {
-      input.setItemActionMessage(error instanceof Error ? error.message : "操作计划生成失败");
+      input.setItemActionMessage(error instanceof Error ? error.message : itemDetailText(copy, "操作计划生成失败"));
     }
   }
 
@@ -619,7 +628,7 @@ export function useItemDetailWorkspace(input: {
     try {
       input.setVaultTags(await services.localData.saveVaultTagsBatch(inputs));
     } catch (error) {
-      input.setAccountError(error instanceof Error ? error.message : "批量标记保存失败");
+      input.setAccountError(error instanceof Error ? error.message : itemDetailText(copy, "批量标记保存失败"));
       throw error;
     }
   }
@@ -643,15 +652,15 @@ export function useItemDetailWorkspace(input: {
       await saveVaultTagsBatch(plan.inputs);
       setItemNoteMessage(
         `${mode === "keep-best-review-rest"
-          ? "已将推荐项保留，其余标记为待定。"
+          ? itemDetailText(copy, "已将推荐项保留，其余标记为待定。")
           : mode === "keep-best-junk-rest"
-            ? "已将推荐项保留，其余标记为清理。"
-            : "已清除这组同名装备的本地标记。"}${plan.protectedCount
-              ? ` ${plan.protectedCount} 件受保护，已保持原状态。`
+            ? itemDetailText(copy, "已将推荐项保留，其余标记为清理。")
+            : itemDetailText(copy, "已清除这组同名装备的本地标记。")}${plan.protectedCount
+              ? itemDetailTemplate(copy, " {count} 件受保护，已保持原状态。", { count: plan.protectedCount })
               : ""}`
       );
     } catch (error) {
-      setItemNoteMessage(error instanceof Error ? error.message : "同名装备批量标记失败");
+      setItemNoteMessage(error instanceof Error ? error.message : itemDetailText(copy, "同名装备批量标记失败"));
     }
   }
 
@@ -679,13 +688,13 @@ export function useItemDetailWorkspace(input: {
       await saveVaultTagsBatch(plan.inputs);
       setItemNoteMessage(
         `${mode === "keep-current-review-rest"
-          ? "已保留当前这件，其余同名装备已标记为待定。"
-          : "已保留当前这件，其余同名装备已标记为清理。"}${plan.protectedCount
-            ? ` ${plan.protectedCount} 件受保护，已保持原状态。`
+          ? itemDetailText(copy, "已保留当前这件，其余同名装备已标记为待定。")
+          : itemDetailText(copy, "已保留当前这件，其余同名装备已标记为清理。")}${plan.protectedCount
+            ? itemDetailTemplate(copy, " {count} 件受保护，已保持原状态。", { count: plan.protectedCount })
             : ""}`
       );
     } catch (error) {
-      setItemNoteMessage(error instanceof Error ? error.message : "同名装备批量标记失败");
+      setItemNoteMessage(error instanceof Error ? error.message : itemDetailText(copy, "同名装备批量标记失败"));
     }
   }
 
@@ -716,29 +725,31 @@ export function useItemDetailWorkspace(input: {
     };
 
     if (!selectedItem || !input.accountSummary) {
-      return { ok: false, refreshed: false, message: "装备详情已关闭或账号数据不可用。" };
+      return { ok: false, refreshed: false, message: itemDetailText(copy, "装备详情已关闭或账号数据不可用。") };
     }
     if (!selectedItem.instance_id) {
-      const message = "这个物品没有实例 ID，不能执行 Bungie 写操作。";
+      const message = itemDetailText(copy, "这个物品没有实例 ID，不能执行 Bungie 写操作。");
       publishMessage(message);
       return { ok: false, refreshed: false, message };
     }
     if (!selectedActionCharacterId) {
-      const message = "请先选择目标角色。";
+      const message = itemDetailText(copy, "请先选择目标角色。");
       publishMessage(message);
       return { ok: false, refreshed: false, message };
     }
     input.setIsRunningItemAction(true);
     const actionStartedAt = performance.now();
     const fallbackOperationId = createWriteActionOperationId();
-    const debugAction = resolveWriteActionLogType(options?.expectedAccountPatch, label);
+    const debugAction = options?.expectedAccountPatch
+      ? resolveWriteActionLogType(options.expectedAccountPatch)
+      : (options?.logType ?? "equip");
     const debugBase = {
       action: debugAction,
       item_name: selectedItem.name,
       item_instance_id: selectedItem.instance_id,
       character_id: selectedActionCharacterId
     } as const;
-    const submittingMessage = `${label}正在提交到 Bungie...`;
+    const submittingMessage = itemDetailTemplate(copy, "{label}正在提交到 Bungie...", { label });
     publishProgress("submitting", submittingMessage);
     if (options?.expectedAccountPatch) {
       input.setAccountOperationFeedback({
@@ -800,7 +811,7 @@ export function useItemDetailWorkspace(input: {
         }
         const message = acceptedOnly.length < acceptedChanges.changes.length
           ? result.message
-          : "武器配置更改已提交。";
+          : itemDetailText(copy, "武器配置更改已提交。");
         if (!acceptedOnly.length) {
           // 一条都没被收下：既不红也不绿。Bungie 只是说这件装备忙，不是判我们失败（见 T80）。
           publishMessage(message);
@@ -830,15 +841,15 @@ export function useItemDetailWorkspace(input: {
         return { ok: true, refreshed: true, message };
       }
       closeSelectedItemDetail();
-      publishMessage(`${result.message} 页面会在下次账号同步时校准。`);
+      publishMessage(itemDetailTemplate(copy, "{message} 页面会在下次账号同步时校准。", { message: result.message }));
       void input.diagnostics.loadActionLog().catch(() => undefined);
       return {
         ok: true,
         refreshed: false,
-        message: `${result.message} 页面会在下次账号同步时校准。`
+        message: itemDetailTemplate(copy, "{message} 页面会在下次账号同步时校准。", { message: result.message })
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : `${label}失败`;
+      const message = error instanceof Error ? error.message : itemDetailTemplate(copy, "{label}失败", { label });
       if (options?.expectedAccountPatch) {
         input.setAccountOperationFeedback({
           tone: "error",
@@ -848,7 +859,7 @@ export function useItemDetailWorkspace(input: {
         });
       }
       if (options?.keepDetailOpen) {
-        publishProgress("refreshing", "操作未完成，正在读取服务器当前配置...");
+        publishProgress("refreshing", itemDetailText(copy, "操作未完成，正在读取服务器当前配置..."));
         await refreshSelectedItemDetail().catch(() => undefined);
       }
       publishMessage(message);
@@ -969,16 +980,13 @@ export function useItemDetailWorkspace(input: {
   }
 
   function resolveWriteActionLogType(
-    patch: AccountItemActionPatch | undefined,
-    label: string
+    patch: AccountItemActionPatch | undefined
   ): ActionLogType {
     if (patch?.kind === "equip") return "equip";
     if (patch?.kind === "transfer") return "transfer";
     if (patch?.kind === "postmaster-pull") return "postmaster-pull";
     if (patch?.kind === "lock") return "set-lock";
-    return label.includes("Perk") || label.includes("配置")
-      ? "insert-socket-plug"
-      : "equip";
+    return "equip";
   }
 
   return {

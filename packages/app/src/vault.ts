@@ -19,9 +19,11 @@ export type {
   VaultFilter,
   VaultFrameFilter,
   VaultFrameOption,
+  VaultFilterFactToken,
   VaultGearTierFilter,
   VaultGroupFilter,
   VaultGroupSummary,
+  VaultKnownSlotKey,
   VaultListWorkspace,
   VaultLocatedItem,
   VaultLocationFilter,
@@ -31,13 +33,13 @@ export type {
   VaultRarityFilter,
   VaultSection,
   VaultSlotFilter,
+  VaultSlotKey,
   VaultSlotSummary,
   VaultSortKey,
   VaultTagFilter,
   VaultViewMode
 } from "./workspaces/vaultList.js";
 export {
-  ammoFilterLabels,
   armorStatLabels,
   buildVaultArmorSetFilters,
   buildVaultContextFacts,
@@ -47,32 +49,23 @@ export {
   buildVaultSections,
   buildVaultSlotFilters,
   countLocalTargetMatches,
-  classFilterLabels,
-  championFilterLabels,
-  craftingFilterLabels,
   createVaultListWorkspace,
-  damageFilterLabels,
   defaultVaultGroupTab,
   filterVaultItems,
-  formatArmorStatsInline,
+  getAccountItemSlotKey,
   getAccountItemSlotLabel,
   getVaultItemLocationLabel,
   getVaultItemKey,
-  gearTierFilterLabels,
   groupSortOrder,
-  lockFilterLabels,
-  locationFilterLabels,
+  isVaultLocatedItem,
   normalizeCoreItem,
   parseVaultQuery,
-  rarityFilterLabels,
-  sortLabels,
   sortVaultItems,
-  tagLabels,
-  vaultGroupLabels,
   vaultGroupOrder
 } from "./workspaces/vaultList.js";
 export type {
   VaultBatchSelectionMode,
+  VaultSelectionSummary,
   VaultVisibleSelectionMode
 } from "./workspaces/vaultSelection.js";
 export {
@@ -102,7 +95,8 @@ export {
 } from "./workspaces/highestPower.js";
 export type {
   DuplicateGroupBatchTagMode,
-  DuplicateGroupSelectionMode
+  DuplicateGroupSelectionMode,
+  VaultActionMessageToken
 } from "./workspaces/vaultActions.js";
 export {
   buildDuplicateGroupBatchActionCopy,

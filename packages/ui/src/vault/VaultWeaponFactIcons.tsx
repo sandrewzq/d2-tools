@@ -2,11 +2,6 @@ import type { AmmoTypeKey } from "@d2-tools/core/account/summary";
 import { GameCombatIcon, gameDamageTypeKey } from "../media/GameCombatIcon.js";
 
 export type VaultChampionType = "barrier" | "overload" | "unstoppable";
-export const championTypeLabels: Record<VaultChampionType, string> = {
-  barrier: "反屏障",
-  overload: "反过载",
-  unstoppable: "反势不可挡"
-};
 
 export function championTypeFromBreakerType(value: number | undefined, summary?: string): VaultChampionType | undefined {
   if (summary === "barrier" || summary === "overload" || summary === "unstoppable") return summary;
@@ -51,12 +46,9 @@ export function VaultSlotTypeIcon(props: {
   return <GameCombatIcon kind="slot" type={props.type} size={props.size} />;
 }
 
-/** 按槽位文案解析动能 / 能量 / 威能，用于槽位筛选的图标与配色。 */
-export function weaponSlotTypeFromLabel(label: string): VaultWeaponSlotType | undefined {
-  if (label.includes("动能")) return "kinetic";
-  if (label.includes("能量")) return "energy";
-  if (label.includes("威能")) return "power";
-  return undefined;
+/** 弹药槽位就是三个已知槽位键，按键判定；显示名会随界面语言变，不能拿它反推。 */
+export function weaponSlotTypeFromKey(key: string): VaultWeaponSlotType | undefined {
+  return key === "kinetic" || key === "energy" || key === "power" ? key : undefined;
 }
 
 /** 锻造标识字形：沿用仓库卡片“锻造”文字的菱形语言，不仿造游戏图标。 */

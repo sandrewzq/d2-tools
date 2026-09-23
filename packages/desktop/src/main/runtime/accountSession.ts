@@ -17,6 +17,7 @@ import {
   loadCachedAccountSnapshot,
   saveCachedAccountSnapshot
 } from "@d2-tools/services/account/snapshotStore";
+import { clearCachedArmorPieces } from "@d2-tools/services/account/armorPiecesStore";
 import { createAccountItemDetailStore } from "@d2-tools/services/account/itemDetailStore";
 import { loadManifestMetadataCache } from "@d2-tools/services/manifest/cache";
 import { loadConfig } from "@d2-tools/services/config/store";
@@ -243,12 +244,14 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
           while (pendingSnapshotSave) {
             const nextSave = pendingSnapshotSave;
             pendingSnapshotSave = null;
-            await measureRuntime("account.refresh.persistence", () => (
-              saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
+            await measureRuntime("account.refresh.persistence", async () => {
+              await saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
                 accountId: nextSave.accountId,
                 ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {})
-              })
-            ));
+              });
+              // 账号数据换了一份，护甲规划器的棋子缓存就跟它对不上了，见 armorPiecesStore。
+              await clearCachedArmorPieces(config.data.data_dir);
+            });
           }
         })().finally(() => {
           snapshotSavePromise = null;

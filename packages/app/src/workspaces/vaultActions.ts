@@ -33,40 +33,47 @@ export type DuplicateGroupSelectionMode =
   | "rest"
   | "junk";
 
+/**
+ * 仓库批量操作的回执片段。
+ *
+ * `packages/app` 不认识界面语言，所以这里只给「是哪一种回执、数字是多少」，
+ * 措辞和成句交给 UI 按 `copy` 现算，见 `vaultActionMessageText`。
+ */
+export type VaultActionMessageToken =
+  | { kind: "bulkMoveResult"; targetLabel: string; successCount: number; failedCount: number }
+  | { kind: "batchTagAction"; tag: VaultTagValue }
+  | { kind: "batchTagLoading"; tag: VaultTagValue }
+  | { kind: "batchTagResult"; itemCount: number }
+  | { kind: "bulkMovePrepare"; itemCount: number }
+  | { kind: "bulkMoveNoSelection" }
+  | { kind: "cleanupNoTarget" }
+  | { kind: "cleanupAction"; action: "unlock" | "transfer" }
+  | { kind: "cleanupActionProgress"; action: "unlock" | "transfer" }
+  | { kind: "cleanupWriteResult"; label: string; successCount: number; failedCount: number };
+
 export function buildVaultBulkMoveResultMessage(
   targetCharacterLabel: string,
   result: BatchItemActionResultLike
-): string {
-  const targetLabel = targetCharacterLabel || "目标角色";
-  if (!result.failed_count) {
-    return `已转移到${targetLabel}：共 ${result.success_count} 件，页面已更新。`;
-  }
-
-  return `部分转移到${targetLabel}：成功 ${result.success_count} 件，失败 ${result.failed_count} 件。可到设置 -> 操作日志查看失败详情。`;
+): VaultActionMessageToken {
+  return {
+    kind: "bulkMoveResult",
+    targetLabel: targetCharacterLabel,
+    successCount: result.success_count,
+    failedCount: result.failed_count
+  };
 }
 
-export function buildVaultBatchTagCopy(tag: VaultTagValue): { action: string; loading: string } {
-  switch (tag) {
-    case "review":
-      return { action: "批量待定", loading: "正在批量标记为待定..." };
-    case "junk":
-      return { action: "批量清理", loading: "正在批量标记为清理..." };
-    case "farm":
-      return { action: "批量待刷", loading: "正在批量标记为待刷..." };
-    case "loadout":
-      return { action: "批量配装用", loading: "正在批量标记为配装用..." };
-    case "none":
-    case "keep":
-    default:
-      return {
-        action: tag === "keep" ? "批量保留" : "批量清除",
-        loading: tag === "keep" ? "正在批量标记为保留..." : "正在批量清除本地标记..."
-      };
-  }
+export function buildVaultBatchTagCopy(
+  tag: VaultTagValue
+): { action: VaultActionMessageToken; loading: VaultActionMessageToken } {
+  return {
+    action: { kind: "batchTagAction", tag },
+    loading: { kind: "batchTagLoading", tag }
+  };
 }
 
-export function buildVaultBatchTagResultMessage(itemCount: number): string {
-  return `已处理 ${itemCount} 件装备。`;
+export function buildVaultBatchTagResultMessage(itemCount: number): VaultActionMessageToken {
+  return { kind: "batchTagResult", itemCount };
 }
 
 export function buildVaultCandidateSelectionMessage(input: {
@@ -78,28 +85,28 @@ export function buildVaultCandidateSelectionMessage(input: {
     : "这一组没有可加入的候选。";
 }
 
-export function buildVaultSelectedBulkMovePrepareMessage(itemCount: number): string {
-  return `正在准备移动 ${itemCount} 件装备...`;
+export function buildVaultSelectedBulkMovePrepareMessage(itemCount: number): VaultActionMessageToken {
+  return { kind: "bulkMovePrepare", itemCount };
 }
 
-export function buildVaultSelectedBulkMoveNoSelectionMessage(): string {
-  return "请先选择要移动的装备。";
+export function buildVaultSelectedBulkMoveNoSelectionMessage(): VaultActionMessageToken {
+  return { kind: "bulkMoveNoSelection" };
 }
 
-export function buildVaultCleanupNoTargetMessage(): string {
-  return "请先选择目标角色。";
+export function buildVaultCleanupNoTargetMessage(): VaultActionMessageToken {
+  return { kind: "cleanupNoTarget" };
 }
 
 export function buildVaultCleanupClipboardUnavailableMessage(): string {
   return "剪贴板不可用，请稍后重试。";
 }
 
-export function buildVaultCleanupActionLabel(action: "unlock" | "transfer"): string {
-  return action === "unlock" ? "批量解锁" : "转移到角色背包";
+export function buildVaultCleanupActionLabel(action: "unlock" | "transfer"): VaultActionMessageToken {
+  return { kind: "cleanupAction", action };
 }
 
-export function buildVaultCleanupActionProgressMessage(action: "unlock" | "transfer"): string {
-  return action === "unlock" ? "正在批量解锁..." : "正在转移到角色背包...";
+export function buildVaultCleanupActionProgressMessage(action: "unlock" | "transfer"): VaultActionMessageToken {
+  return { kind: "cleanupActionProgress", action };
 }
 
 export function buildVaultCleanupClipboardText(items: AccountItemSummary[], tags: VaultTags): string {
@@ -265,10 +272,13 @@ export function buildVaultCleanupWriteResultMessage(input: {
   label: string;
   successCount: number;
   failedCount: number;
-}): string {
-  return input.failedCount
-    ? `${input.label}部分完成：成功 ${input.successCount} 件，失败 ${input.failedCount} 件。`
-    : `${input.label}完成：成功 ${input.successCount} 件。`;
+}): VaultActionMessageToken {
+  return {
+    kind: "cleanupWriteResult",
+    label: input.label,
+    successCount: input.successCount,
+    failedCount: input.failedCount
+  };
 }
 
 export function buildVaultBatchTransferConfirmText(itemCount: number): string {

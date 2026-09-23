@@ -1,7 +1,10 @@
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailText } from "@d2-tools/ui";
 import type { ItemAiAdviceResult } from "../../../api/types";
 import { protocolLabel } from "../../../utils/aiSettings";
 
 export type ItemDetailAiProps = {
+  copy: ItemDetailCopy;
   isGeneratingItemAi: boolean;
   itemAiError: string;
   itemAiResult: ItemAiAdviceResult | null;
@@ -12,16 +15,18 @@ export type ItemDetailAiProps = {
 };
 
 export function ItemDetailAi(props: ItemDetailAiProps) {
+  const copy = props.copy;
+
   return (
     <section className="modal-score-panel">
       <div>
-        <h3>装备操作</h3>
+        <h3>{itemDetailText(copy, "装备操作")}</h3>
         <div className="button-row">
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopySelectedItemSummary}>
-            复制结论
+            {itemDetailText(copy, "复制结论")}
           </button>
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopySelectedItemChatGuide}>
-            生成群聊说明
+            {itemDetailText(copy, "生成群聊说明")}
           </button>
           <button
             type="button"
@@ -29,7 +34,7 @@ export function ItemDetailAi(props: ItemDetailAiProps) {
             disabled={props.isGeneratingItemAi}
             onClick={props.onGenerateItemAiAdvice}
           >
-            {props.isGeneratingItemAi ? "AI 解读中..." : "AI 解读"}
+            {props.isGeneratingItemAi ? itemDetailText(copy, "AI 解读中...") : itemDetailText(copy, "AI 解读")}
           </button>
         </div>
       </div>
@@ -37,24 +42,24 @@ export function ItemDetailAi(props: ItemDetailAiProps) {
       {props.itemAiError ? <p className="status-message status-error">{props.itemAiError}</p> : null}
       {props.itemAiResult?.skipped_reason ? (
         <section className="source-status-card source-status-warning item-ai-skipped-reason" aria-live="polite">
-          <span className="source-status-badge source-status-warning">AI 跳过</span>
+          <span className="source-status-badge source-status-warning">{itemDetailText(copy, "AI 跳过")}</span>
           <p>{props.itemAiResult.skipped_reason}</p>
         </section>
       ) : null}
       {props.itemAiResult?.ai ? (
         <section className="item-ai-panel">
           <div>
-            <h3>AI 装备解读</h3>
+            <h3>{itemDetailText(copy, "AI 装备解读")}</h3>
             <p>{protocolLabel(props.itemAiResult.ai.provider)} / {props.itemAiResult.ai.model}</p>
           </div>
-          <ItemAiSections sections={props.itemAiResult.ai.sections} />
+          <ItemAiSections copy={copy} sections={props.itemAiResult.ai.sections} />
         </section>
       ) : null}
     </section>
   );
 }
 
-function ItemAiSections(props: { sections: NonNullable<ItemAiAdviceResult["ai"]>["sections"] }) {
+function ItemAiSections(props: { copy: ItemDetailCopy; sections: NonNullable<ItemAiAdviceResult["ai"]>["sections"] }) {
   const hasSections = props.sections.facts.length
     || props.sections.analysis.length
     || props.sections.suggestions.length
@@ -64,10 +69,10 @@ function ItemAiSections(props: { sections: NonNullable<ItemAiAdviceResult["ai"]>
   }
   return (
     <div className="ai-section-grid">
-      <SimpleAiSection title="事实" items={props.sections.facts} />
-      <SimpleAiSection title="分析" items={props.sections.analysis} />
-      <SimpleAiSection title="建议" items={props.sections.suggestions} />
-      <SimpleAiSection title="操作提醒" items={props.sections.action_reminders} />
+      <SimpleAiSection title={itemDetailText(props.copy, "事实")} items={props.sections.facts} />
+      <SimpleAiSection title={itemDetailText(props.copy, "分析")} items={props.sections.analysis} />
+      <SimpleAiSection title={itemDetailText(props.copy, "建议")} items={props.sections.suggestions} />
+      <SimpleAiSection title={itemDetailText(props.copy, "操作提醒")} items={props.sections.action_reminders} />
     </div>
   );
 }

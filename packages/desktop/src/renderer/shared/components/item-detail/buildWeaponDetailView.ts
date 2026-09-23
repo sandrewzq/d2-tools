@@ -235,8 +235,10 @@ function withManifestSourceStatus(
       {
         id: `manifest:${item.hash}:missing`,
         kind: "manifest_hint",
-        label: "历史获取途径",
-        description: item.source.description || "Bungie 官方资料没有标注这件武器的历史获取途径。"
+        // 兜底句交给 UI：`WeaponDetailContent` 用的就是逐字相同的这两句，key 已在 `ItemDetailCopy` 里。
+        // 这里只透传真实内容，空串也转 `undefined`，不然 UI 的 `??` 不触发。
+        label: undefined,
+        description: item.source.description || undefined
       }
     ]
   };
@@ -328,7 +330,10 @@ function buildRollSelectionColumns(item: SelectedItemDetail): WeaponPerkSelectio
     .map((socket) => ({
       key: `roll:${socket.socket_index}`,
       socket_index: socket.socket_index,
-      label: socket.label,
+      // 栏位身份由 core 判定好的 `slot` 决定，不在这里按插件分类重猜：这条路径的列名
+      // 原本就是 core 的 `weaponRollSlotLabel` 词表（`枪管/瞄具`、`第二列`、`大师`），
+      // 按插件分类重猜会变成 `枪管`、`弹匣`、`插槽 N`，zh-CN 就不是原话了。措辞由 UI 按 `copy` 现算。
+      label: { kind: "roll_slot" as const, slot: socket.slot },
       role: toColumnRole(socket.slot),
       candidates: socket.owned_plugs.map((plug) => ({
         hash: plug.hash,
@@ -877,10 +882,11 @@ function sortConfigurationColumns<T extends { role: WeaponPerkColumnRole; socket
   return [...columns].sort((left, right) => left.socket_index - right.socket_index);
 }
 
+// 同名武器特性列按出现次序编号；只给「第几个」，`Perk 1` / `Perk 2` 的写法由 UI 按 `copy` 现算。
 function labelTraitColumns(columns: WeaponPerkSelectionColumn[]): WeaponPerkSelectionColumn[] {
   let traitIndex = 0;
   return columns.map((column) => column.role === "trait"
-    ? { ...column, label: `Perk ${++traitIndex}` }
+    ? { ...column, label: { kind: "perk_index" as const, index: ++traitIndex } }
     : column);
 }
 

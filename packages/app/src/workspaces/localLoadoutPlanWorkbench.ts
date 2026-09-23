@@ -1,8 +1,21 @@
-import type { AccountItemSummary, AccountSummary, CharacterSummary } from "@d2-tools/core/account/summary";
+import type {
+  AccountItemSummary,
+  AccountSummary,
+  CharacterLoadoutSlotItemSummary,
+  CharacterSummary
+} from "@d2-tools/core/account/summary";
+import {
+  classifyBucket,
+  hasArtifactPlugs,
+  hasSubclassPlugs,
+  isLoadoutPlanTargetItem
+} from "@d2-tools/core/items/classification";
 import {
   createLocalLoadoutPlanFromEquippedItems,
+  createSubclassTargetFromPlugs,
   matchLocalLoadoutPlan,
   type CreateLocalLoadoutPlanInput,
+  type LoadoutPlanItemTarget,
   type LocalLoadoutPlan,
   type LocalLoadoutPlanItemMatch,
   type LocalLoadoutPlanItemMatchStatus,
@@ -72,42 +85,98 @@ export function createLocalLoadoutPlanDraftFromInGameLoadout(input: {
       .filter((item) => item.instance_id)
       .map((item) => [item.instance_id as string, item] as const)
   );
+  const subclassItem = input.slot.items.find(isSubclassSlotItem);
+  const subclassTarget = subclassItem
+    ? createSubclassTargetFromPlugs({
+        subclass_hash: subclassItem.item_hash,
+        plugs: subclassItem.plugs ?? []
+      })
+    : undefined;
   return {
     name: `${input.slot.name} 本地副本`,
     class_name: input.character.class_name,
     target_character_id: input.character.character_id,
     source: { kind: "bungie-loadout", label: `Bungie 槽位 ${input.slot.index + 1}` },
-    item_targets: input.slot.items.filter((slotItem) => !slotItem.subclass_configuration && !/子职业|subclass/i.test(slotItem.bucket_name ?? "")).map((slotItem, index) => {
-      const item = slotItem.instance_id ? itemsByInstanceId.get(slotItem.instance_id) : undefined;
-      return {
+    item_targets: input.slot.items
+      .filter((slotItem) => !isSubclassSlotItem(slotItem))
+      .map((slotItem, index) => ({
+        slotItem,
+        index,
+        item: slotItem.instance_id ? itemsByInstanceId.get(slotItem.instance_id) : undefined
+      }))
+      // 装饰槽和赛季神器不进目标。Bungie 的 `CharacterLoadouts` 只回实例 ID 和 plug hash，
+      // 槽位本身没有 Bucket，判据只能靠反查到的账号实例；反查不回来的再按插槽内容判神器
+      // （神器插件全落在 `artifact_perks` 上），剩下的原样保留——认不出的时候误杀一件真武器，
+      // 比多显示一行糟。
+      .filter(({ item, slotItem }) => {
+        if (hasArtifactPlugs(slotItem.plugs ?? [])) return false;
+        return !item || isLoadoutPlanTargetItem(item);
+      })
+      .map(({ slotItem, index, item }) => ({
         slot: slotItem.bucket_name ?? item?.bucket_name ?? `Bungie 装备 ${index + 1}`,
         item_hash: slotItem.item_hash ?? item?.hash,
         ...(slotItem.instance_id ? { selected_instance_id: slotItem.instance_id } : {}),
         plug_hashes: slotItem.plug_hashes ?? []
-      };
-    }),
-    ...(input.slot.items.find((slotItem) => slotItem.subclass_configuration || /子职业|subclass/i.test(slotItem.bucket_name ?? ""))?.subclass_configuration
-      ? (() => {
-          const item = input.slot.items.find((slotItem) => slotItem.subclass_configuration || /子职业|subclass/i.test(slotItem.bucket_name ?? ""))!;
-          const config = item.subclass_configuration!;
-          return {
-              subclass_target: {
-              ...(item.item_hash ? { subclass_hash: item.item_hash } : {}),
-              ...(item.plugs?.length ? { socket_overrides: Object.fromEntries(item.plugs.flatMap((plug) => typeof plug.socket_index === "number" ? [[String(plug.socket_index), plug.hash] as const] : [])) } : {}),
-              ability_hashes: config.abilities.map((plug) => plug.hash),
-              aspect_hashes: config.aspects.map((plug) => plug.hash),
-              fragment_hashes: config.fragments.map((plug) => plug.hash),
-              mod_hashes: config.other.map((plug) => plug.hash)
-            }
-          };
-        })()
-      : {})
+      })),
+    ...(subclassTarget ? { subclass_target: subclassTarget } : {})
   };
+}
+
+/**
+ * 这条游戏内槽位物品是不是子职业。
+ *
+ * `subclass_configuration` 是账号摘要读准后给出的结论，优先信它。它缺失时（槽位里的实例
+ * 反查不回账号物品）退回看插槽内容：`bucket_name` 是显示名，跟着接口语言变，
+ * 之前拿 `/子职业|subclass/` 去匹配它，英文账号下这条判断根本不成立。
+ */
+function isSubclassSlotItem(item: CharacterLoadoutSlotItemSummary): boolean {
+  return Boolean(item.subclass_configuration) || hasSubclassPlugs(item.plugs ?? []);
 }
 
 export function toLocalLoadoutPlanDraft(plan: LocalLoadoutPlan): CreateLocalLoadoutPlanInput {
   const { id: _id, created_at: _createdAt, updated_at: _updatedAt, ...draft } = plan;
   return draft;
+}
+
+/**
+ * 用账号快照把草稿里按 hash 落位的装备目标补成真实 Bucket，并把不该进配装的槽位挡掉。
+ *
+ * DIM 的配装链接 payload 里每件只有 `id` 和 `hash`（可选 `socketOverrides`），没有槽位字段
+ * ——`dimImport` 读的 `bucketName` 在真实链接里不存在，于是每一件都落成「DIM 装备 N」，
+ * 编辑器里八个标准槽位全空、所有装备挤进「其他装备目标」。判据不能靠 DIM 的槽位名，只能
+ * 按 item hash 反查账号实例。
+ *
+ * 查不到的保持原样：认不出来的时候误杀一件真武器，比多显示一行糟。
+ */
+export function resolveLocalLoadoutPlanDraftSlots(
+  draft: CreateLocalLoadoutPlanInput,
+  accountSummary: AccountSummary | null
+): CreateLocalLoadoutPlanInput {
+  if (!accountSummary) return draft;
+  const locatedByHash = new Map<number, AccountItemSummary>();
+  for (const item of getLocalLoadoutPlanAccountItems(accountSummary)) {
+    if (!locatedByHash.has(item.hash)) locatedByHash.set(item.hash, item);
+  }
+
+  let changed = false;
+  const itemTargets: LoadoutPlanItemTarget[] = [];
+  for (const target of draft.item_targets) {
+    const located = target.item_hash === undefined ? undefined : locatedByHash.get(target.item_hash);
+    if (located && !isLoadoutPlanTargetItem(located)) {
+      changed = true;
+      continue;
+    }
+    const slotName = located
+      ? classifyBucket(located.equipment_bucket_hash ?? located.bucket_hash)?.name
+      : undefined;
+    if (slotName && slotName !== target.slot) {
+      changed = true;
+      itemTargets.push({ ...target, slot: slotName });
+      continue;
+    }
+    itemTargets.push(target);
+  }
+  return changed ? { ...draft, item_targets: itemTargets } : draft;
 }
 
 export function selectLocalLoadoutPlanWorkbench(

@@ -62,6 +62,7 @@ export {
   createLocalLoadoutPlanDraftFromInGameLoadout,
   createLocalLoadoutPlanDraftFromCharacter,
   getLocalLoadoutPlanAccountItems,
+  resolveLocalLoadoutPlanDraftSlots,
   selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "./workspaces/localLoadoutPlanWorkbench.js";

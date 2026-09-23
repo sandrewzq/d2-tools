@@ -12,6 +12,13 @@ import {
   type ArmorPieceSnapshot
 } from "@d2-tools/core/armor";
 import { createServiceError } from "@d2-tools/services";
+import {
+  loadCachedArmorPieces,
+  saveCachedArmorPieces,
+  type ArmorPiecesIdentity
+} from "@d2-tools/services/account/armorPiecesStore";
+import { loadConfig } from "@d2-tools/services/config/store";
+import { loadOAuthToken } from "@d2-tools/services/oauth/tokenStore";
 import type {
   ArmorPlannerJob,
   ArmorPlannerSourceRevision
@@ -49,19 +56,18 @@ export async function planArmorWorkspaceInRuntime<Job extends ArmorPlannerWorksp
   }
 
   const needsAccount = request.job.mode !== "theoretical";
-  let account = needsAccount ? await getArmorPlannerAccountSummary("cached") : null;
-  let pieces = account
-    ? normalizeAccountArmorPieces(account, manifest.ruleset)
-    : [];
-  if (account && armorSnapshotNeedsRefresh(pieces)) {
-    account = await getArmorPlannerAccountSummary("refresh");
-    pieces = normalizeAccountArmorPieces(account, manifest.ruleset);
-  }
+  const resolved = needsAccount
+    ? await resolveArmorPieces(manifest)
+    : { pieces: [] as ArmorPieceSnapshot[], membershipId: undefined, degraded: false };
+  const pieces = resolved.pieces;
+  const accountRefreshDegraded = resolved.degraded;
   const resolvedJob = resolvePlannerJob(request.job, manifest.ruleset, manifest.armor_set_catalog, pieces);
   const sources: ArmorPlannerSourceRevision = {
     manifest: manifest.manifest_version,
     ruleset: manifest.source_revision,
-    ...(account ? { account: accountSourceRevision(account.destiny_membership_id, pieces) } : {})
+    ...(resolved.membershipId
+      ? { account: accountSourceRevision(resolved.membershipId, pieces) }
+      : {})
   };
   const response = await planArmorInWorker({
     scope_id: request.scopeId,
@@ -80,7 +86,124 @@ export async function planArmorWorkspaceInRuntime<Job extends ArmorPlannerWorksp
     expiresAt: response.expires_at,
     sources,
     ruleset: rulesetContext(manifest.ruleset),
-    result: response.result as ArmorPlannerWorkspaceJobResult<Job>
+    result: withAccountRefreshWarning(
+      response.result as ArmorPlannerWorkspaceJobResult<Job>,
+      accountRefreshDegraded
+    )
+  };
+}
+
+/**
+ * 账号护甲数据刷新的整体时限。
+ *
+ * 链路里每一步各有 30 秒超时（`packages/services/src/bungie/client.ts:73`），但**整段没有上限**：
+ * token、membership、profile、资料库串起来最坏是几分钟，而求解必须等它结束。玩家看到的就是一个
+ * 不能取消、也没有进度的「计算中」。超过这个时限就退回上一次同步的账号继续算，把降级写进
+ * `warnings` 让界面说明原因 —— 宁可给一份基于旧数据的结果，也不要无限等。
+ */
+const accountRefreshDeadlineMs = 20_000;
+
+async function refreshArmorSnapshotWithinDeadline(
+  fallback: Awaited<ReturnType<typeof getArmorPlannerAccountSummary>>
+): Promise<{ account: Awaited<ReturnType<typeof getArmorPlannerAccountSummary>>; degraded: boolean }> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const refreshed = await Promise.race([
+      getArmorPlannerAccountSummary("refresh").then((account) => ({ account })),
+      new Promise<null>((resolve) => {
+        timer = setTimeout(() => resolve(null), accountRefreshDeadlineMs);
+      })
+    ]);
+    if (refreshed) return { account: refreshed.account, degraded: false };
+    console.warn(
+      `[armor-planner] 账号护甲数据刷新超过 ${accountRefreshDeadlineMs} ms，本次改用上次同步的账号数据。`
+    );
+  } catch (error) {
+    console.warn("[armor-planner] 账号护甲数据刷新失败，本次改用上次同步的账号数据。", error);
+  } finally {
+    clearTimeout(timer);
+  }
+  return { account: fallback, degraded: true };
+}
+
+/**
+ * 拿到这次求解要用的护甲棋子。
+ *
+ * 先读本地棋子缓存，没有才走账号摘要那条老路，拿到结果顺手落盘。账号摘要是「当前账号的完整
+ * profile」，一次全量 GetProfile；命中本地缓存时这一步整个跳过，连带的「先 `cached` 再
+ * `refresh`」两次拉取也一并消失。缓存只在这份账号数据里有效，超过 `armorPiecesMaxAgeMs`
+ * 就作废重取。
+ */
+async function resolveArmorPieces(
+  manifest: Awaited<ReturnType<typeof getArmorPlannerManifestData>>
+): Promise<{ pieces: ArmorPieceSnapshot[]; membershipId?: string; degraded: boolean }> {
+  const identity = armorPiecesIdentity(manifest);
+  if (identity) {
+    const cached = await loadCachedArmorPieces(identity.dataDir, identity.cacheKey);
+    if (cached) {
+      return {
+        pieces: cached.pieces,
+        membershipId: cached.destiny_membership_id,
+        degraded: false
+      };
+    }
+  }
+
+  let account = await getArmorPlannerAccountSummary("cached");
+  let pieces = normalizeAccountArmorPieces(account, manifest.ruleset);
+  let degraded = false;
+  if (armorSnapshotNeedsRefresh(pieces)) {
+    const refreshed = await refreshArmorSnapshotWithinDeadline(account);
+    account = refreshed.account;
+    degraded = refreshed.degraded;
+    pieces = normalizeAccountArmorPieces(account, manifest.ruleset);
+  }
+  if (identity && !degraded) {
+    // 落盘不参与这次求解，失败也不该挡住结果。
+    void saveCachedArmorPieces(
+      identity.dataDir,
+      identity.cacheKey,
+      { destinyMembershipId: account.destiny_membership_id, pieces }
+    ).catch(() => undefined);
+  }
+  return { pieces, membershipId: account.destiny_membership_id, degraded };
+}
+
+/**
+ * 棋子缓存的账号作用域。取不到账号身份就不落盘、也不读缓存 —— 缓存按账号隔离，
+ * 换个账号绝不能拿上一个人的护甲去算。
+ */
+function armorPiecesIdentity(
+  manifest: Awaited<ReturnType<typeof getArmorPlannerManifestData>>
+): { dataDir: string; cacheKey: ArmorPiecesIdentity } | undefined {
+  const dataDir = loadConfig().data.data_dir;
+  const accountId = loadOAuthToken(dataDir)?.membership_id;
+  if (!accountId) return undefined;
+  return {
+    dataDir,
+    cacheKey: {
+      accountId,
+      manifestVersion: manifest.manifest_version,
+      rulesetId: manifest.ruleset.ruleset_id,
+      rulesetVersion: manifest.ruleset.version
+    }
+  };
+}
+
+/**
+ * 降级只影响账号数据的来源，不改变求解本身。结果类型四种都带 `warnings`，界面上已有渲染位置
+ * （`LoadoutsPageContentView` 的警告区），所以直接挂进原有通道，不新开提示位。
+ */
+function withAccountRefreshWarning<Job extends ArmorPlannerWorkspaceJob>(
+  result: ArmorPlannerWorkspaceJobResult<Job>,
+  degraded: boolean
+): ArmorPlannerWorkspaceJobResult<Job> {
+  if (!degraded) return result;
+  const warnings = (result as { warnings?: string[] }).warnings;
+  if (!Array.isArray(warnings)) return result;
+  return {
+    ...result,
+    warnings: [...warnings, "账号护甲数据未能刷新，本次结果基于上次同步的账号数据。"]
   };
 }
 

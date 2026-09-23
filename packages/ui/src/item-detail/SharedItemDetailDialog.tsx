@@ -6,6 +6,9 @@ import {
   type RefObject
 } from "react";
 import { createPortal } from "react-dom";
+import type { ItemDetailCopy } from "../i18n/types.js";
+import { itemDetailTemplate, itemDetailText } from "./itemDetailCopy.js";
+import { ItemDetailVendorContext } from "./ItemDetailVendorContext.js";
 
 export type SharedItemDetailView = {
   name: string;
@@ -27,6 +30,7 @@ export type VendorOfferContext = {
 
 export type SharedItemDetailDialogProps = {
   detail: SharedItemDetailView;
+  copy: ItemDetailCopy;
   vendorContext?: VendorOfferContext;
   closeLabel: string;
   returnFocusRef?: RefObject<HTMLElement | null>;
@@ -50,16 +54,20 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
   const initialFocus = useRef<HTMLElement | null>(
     typeof document === "undefined" ? null : document.activeElement as HTMLElement | null
   );
-  const canonicalTitle = props.variant === "armor"
-    ? "护甲档案"
-    : props.variant === "weapon"
-      ? "武器档案"
-      : "装备档案";
-  const canonicalDescription = props.variant === "armor"
-    ? "真实属性、获取来源、护甲配置、目标匹配、强化状态和账号实例"
-    : props.variant === "weapon"
-      ? "查看当前 Roll、真实属性、获取来源、推荐 Roll 和升级状态"
-      : "正在读取完整定义与装备状态";
+  const canonicalTitle = itemDetailText(props.copy,
+    props.variant === "armor"
+      ? "护甲档案"
+      : props.variant === "weapon"
+        ? "武器档案"
+        : "装备档案"
+  );
+  const canonicalDescription = itemDetailText(props.copy,
+    props.variant === "armor"
+      ? "真实属性、获取来源、护甲配置、目标匹配、强化状态和账号实例"
+      : props.variant === "weapon"
+        ? "查看当前 Roll、真实属性、获取来源、推荐 Roll 和升级状态"
+        : "正在读取完整定义与装备状态"
+  );
 
   useEffect(() => {
     const overlayRoot = backdropRef.current;
@@ -155,30 +163,16 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
               aria-label={props.closeLabel}
               onClick={props.onClose}
             >
-              关闭
+              {itemDetailText(props.copy, "关闭")}
             </button>
           </>
         )}
         {props.vendorContext ? (
-          <section className="shared-item-detail-vendor" role="region" aria-label="商人售卖信息">
-            <strong>{props.vendorContext.vendorName}</strong>
-            <span>{props.vendorContext.costLabel}</span>
-            <span>{props.vendorContext.affordabilityLabel}</span>
-            <span>{props.vendorContext.characterLabel}</span>
-            <span>{props.vendorContext.refreshLabel}</span>
-            {props.vendorContext.ownershipLabel ? (
-              <span>账号状态：{props.vendorContext.ownershipLabel}</span>
-            ) : null}
-            {props.vendorContext.ownershipLocationLabel ? (
-              <span>实例位置：{props.vendorContext.ownershipLocationLabel}</span>
-            ) : null}
-            {props.vendorContext.ownershipAsOfLabel ? (
-              <span>账号数据：{props.vendorContext.ownershipAsOfLabel}</span>
-            ) : null}
-            {props.vendorContext.rollLabels?.length ? (
-              <span>当前售卖 Perk：{props.vendorContext.rollLabels.join(" / ")}</span>
-            ) : null}
-          </section>
+          <ItemDetailVendorContext
+            context={props.vendorContext}
+            text={(key) => itemDetailText(props.copy, key)}
+            template={(key, values) => itemDetailTemplate(props.copy, key, values)}
+          />
         ) : null}
         <div className="shared-item-detail-body" data-scroll-region="page">{props.sections}</div>
       </section>
@@ -190,7 +184,7 @@ export function SharedItemDetailDialog(props: SharedItemDetailDialogProps) {
     : createPortal(dialog, portalTarget);
 }
 
-export function SharedItemDetailLoading() {
+export function SharedItemDetailLoading(props: { copy: ItemDetailCopy }) {
   return (
     <div className="shared-item-detail-loading-state" role="status" aria-live="polite">
       <div className="shared-item-detail-loading-identity">
@@ -213,7 +207,7 @@ export function SharedItemDetailLoading() {
         <section><span /><span /><span /><span /></section>
         <section><span /><span /><span /></section>
       </div>
-      <p>正在读取装备定义与实时状态...</p>
+      <p>{itemDetailText(props.copy, "正在读取装备定义与实时状态...")}</p>
     </div>
   );
 }

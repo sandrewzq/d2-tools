@@ -28,8 +28,8 @@ import type {
  * 全在弹框里，页面上不再出现预览卡（`pagePreviewCard()` 现在恒为 null，钉的就是这件事）。
  */
 
-const linkUrl = "https://example.invalid/DIMLGpigWeaponWishlist%20by%20moc.txt";
-const finalUrl = "https://raw.githubusercontent.com/example/wishlist/main/DIMLGpigWeaponWishlist by moc.txt";
+const linkUrl = "https://example.invalid/示例愿望单%20by%20作者.txt";
+const finalUrl = "https://raw.githubusercontent.com/example/wishlist/main/示例愿望单 by 作者.txt";
 
 /** 页内导入区里那张预览卡。T68 之后四条路都不该有——它只该出现在弹框里。 */
 function pagePreviewCard(): Element | null {
@@ -53,7 +53,7 @@ describe("从链接同步愿望单", () => {
     // 读完**不收弹框**：预览、起名与新建 / 覆盖都在框里，页面上不再另放一张。
     expect(store.readLinks).toEqual([linkUrl]);
     expect(screen.getByRole("dialog", { name: "从链接同步愿望单" })).toBeTruthy();
-    expect(within(dialog).getByText("DIMLGpigWeaponWishlist by moc.txt")).toBeTruthy();
+    expect(within(dialog).getByText("示例愿望单 by 作者.txt")).toBeTruthy();
     expect(within(dialog).getByText(`来自链接：${finalUrl}`)).toBeTruthy();
     // 提示里给的是校验后的可导入条数之外的整份口径：48 条规则、42 条真正会写进去。
     expect(within(dialog).getByText("已从链接读取 48 条愿望单规则；确认名字后选择新建或覆盖。")).toBeTruthy();
@@ -62,8 +62,8 @@ describe("从链接同步愿望单", () => {
 
     // 默认名 = 链接末段文件名去扩展名，用户还可以改。
     const nameField = within(dialog).getByLabelText("推荐来源名");
-    expect(nameField).toHaveValue("DIMLGpigWeaponWishlist by moc");
-    expect(within(dialog).getByText("「DIMLGpigWeaponWishlist by moc」还没有来源，可以新建。")).toBeTruthy();
+    expect(nameField).toHaveValue("示例愿望单 by 作者");
+    expect(within(dialog).getByText("「示例愿望单 by 作者」还没有来源，可以新建。")).toBeTruthy();
 
     // 读到预览还没写库：确认之前存储是空的。
     expect(store.imports).toEqual([]);
@@ -72,12 +72,12 @@ describe("从链接同步愿望单", () => {
     await waitFor(() => expect(store.imports).toHaveLength(1));
     expect(store.imports[0]).toEqual({
       token: "link-token",
-      target: { name: "DIMLGpigWeaponWishlist by moc", mode: "create" }
+      target: { name: "示例愿望单 by 作者", mode: "create" }
     });
     // 确认完弹框才收掉。
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "从链接同步愿望单" })).toBeNull());
     expect(pagePreviewCard()).toBeNull();
-    expect(await screen.findByText(/来源「DIMLGpigWeaponWishlist by moc」已新建 · 42 条规则。/)).toBeTruthy();
+    expect(await screen.findByText(/来源「示例愿望单 by 作者」已新建 · 42 条规则。/)).toBeTruthy();
   });
 
   it("读完链接把弹框关掉：这次导入就此放下，页面上不冒出卡片，也不写库", async () => {
@@ -89,7 +89,7 @@ describe("从链接同步愿望单", () => {
     const dialog = screen.getByRole("dialog", { name: "从链接同步愿望单" });
     await user.type(within(dialog).getByLabelText("愿望单文本链接"), linkUrl);
     await user.click(within(dialog).getByRole("button", { name: "读取链接" }));
-    expect(within(dialog).getByLabelText("推荐来源名")).toHaveValue("DIMLGpigWeaponWishlist by moc");
+    expect(within(dialog).getByLabelText("推荐来源名")).toHaveValue("示例愿望单 by 作者");
 
     await user.click(within(dialog).getByRole("button", { name: "关闭" }));
 
@@ -328,7 +328,7 @@ describe("从链接同步愿望单", () => {
     await user.click(await screen.findByRole("button", { name: "导入愿望单文本文件" }));
     const dialog = screen.getByRole("dialog", { name: "导入愿望单文本" });
     await user.click(within(dialog).getByRole("button", { name: "选择文件" }));
-    expect(await within(dialog).findByLabelText("推荐来源名")).toHaveValue("DIMLGpigWeaponWishlist by moc");
+    expect(await within(dialog).findByLabelText("推荐来源名")).toHaveValue("示例愿望单 by 作者");
 
     await user.click(within(dialog).getByRole("button", { name: "关闭" }));
 
@@ -408,7 +408,7 @@ function linkPreview(
 ): VaultDimWishlistImportPreview {
   return {
     token: "link-token",
-    file_name: "DIMLGpigWeaponWishlist by moc.txt",
+    file_name: "示例愿望单 by 作者.txt",
     title: "",
     rule_count: 48,
     weapon_count: 30,

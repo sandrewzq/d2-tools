@@ -17,8 +17,12 @@ export type ArmorDetailEntryKind = "library" | "vendor" | "vault" | "account" | 
 export type ArmorDetailObjectContext = {
   kind: ArmorDetailObjectKind;
   entry: ArmorDetailEntryKind;
-  entry_label: string;
-  object_label: string;
+  /**
+   * 身份标签。`packages/app` 不认识界面语言，所以这里只负责**透传调用方注入的标签**；
+   * 调用方不传时（`undefined`）由 UI 按 `entry` / `kind` 自己查表。
+   */
+  entry_label?: string;
+  object_label?: string;
   object_id?: string;
   read_only: boolean;
 };
@@ -37,9 +41,9 @@ export type ArmorDetailIdentity = {
   armor_set?: EquipableItemSetSummary;
 };
 
+/** 属性名不做成字段：`key` 已经唯一确定它是哪一条，措辞由 UI 按 `copy` 现查。 */
 export type ArmorStatTrack = {
   key: ArmorStatKey;
-  label: string;
   value: number;
   base?: number;
   mod?: number;
@@ -61,11 +65,22 @@ export type ArmorAbilityGroup = {
   selected_option_hash?: number;
 };
 
+/**
+ * 插槽的列名。`packages/app` 不认识界面语言，所以这里只给「是哪一种插槽」或
+ * 「第几个部位模组位」，措辞由 UI 按 `copy` 现算。
+ */
+export type ArmorSocketLabel =
+  | { kind: "upgrade" }
+  | { kind: "special" }
+  | { kind: "activity_mod" }
+  | { kind: "tuning_mod" }
+  | { kind: "slot"; index: number };
+
 export type ArmorSocket = {
   key: string;
   hash: number;
   socket_index?: number;
-  label: string;
+  label: ArmorSocketLabel;
   name: string;
   description?: string;
   icon?: string;
@@ -77,6 +92,7 @@ export type ArmorSourceEntry = {
   label: string;
   description: string;
   available_now?: boolean;
+  /** 调用方给的现成状态标签；没有时由 UI 按 `copy` 现算。 */
   status_label?: string;
 };
 
@@ -111,7 +127,11 @@ export type ArmorDetailInstance = {
   name: string;
   icon?: string;
   power?: number;
-  location: string;
+  /**
+   * 实例所在位置。`source_label` 是调用方给的现成标签；没有时留空，
+   * 由 UI 按 `source_kind` 现查（`已装备` / `角色背包` / `邮政官` / `仓库`）。
+   */
+  location?: string;
   source_kind: SelectedItemSourceKind;
   source_character_id?: string;
   locked?: boolean;
@@ -219,14 +239,6 @@ export type BuildArmorDetailViewModelInput = {
 };
 
 const statOrder: ArmorStatKey[] = ["health", "melee", "grenade", "super", "class", "weapon"];
-const statLabels: Record<ArmorStatKey, string> = {
-  health: "生命值",
-  melee: "近战",
-  grenade: "手雷",
-  super: "超能",
-  class: "职业",
-  weapon: "武器"
-};
 
 export function buildArmorDetailViewModel(input: BuildArmorDetailViewModelInput): ArmorDetailViewModel {
   const item = input.item;
@@ -253,7 +265,6 @@ export function buildArmorDetailViewModel(input: BuildArmorDetailViewModelInput)
     context,
     stats: stats ? statOrder.map((key) => ({
       key,
-      label: statLabels[key],
       value: stats[key],
       base: breakdown?.[key].base,
       mod: breakdown?.[key].mod
@@ -310,8 +321,8 @@ function buildObjectContext(
   return {
     kind,
     entry,
-    entry_label: override?.entry_label ?? entryLabel(entry),
-    object_label: override?.object_label ?? objectLabel(kind),
+    entry_label: override?.entry_label,
+    object_label: override?.object_label,
     object_id: override?.object_id ?? item.instance_id,
     read_only: override?.read_only ?? kind !== "account_item"
   };
@@ -324,20 +335,6 @@ function inferEntry(item: ArmorDetailSelectedItemLike, kind: ArmorDetailObjectKi
   return "library";
 }
 
-function entryLabel(entry: ArmorDetailEntryKind): string {
-  if (entry === "vendor") return "商人";
-  if (entry === "vault") return "仓库";
-  if (entry === "account") return "账号";
-  if (entry === "loadout") return "配装";
-  return "资料库";
-}
-
-function objectLabel(kind: ArmorDetailObjectKind): string {
-  if (kind === "vendor_offer") return "当前售卖";
-  if (kind === "account_item") return "当前装备";
-  return "资料库版本";
-}
-
 function sourceSummaryToSources(source: ItemSourceSummary): ArmorDetailSources {
   if (source.status !== "ready") return { status: "unknown", entries: [] };
   return {
@@ -345,8 +342,7 @@ function sourceSummaryToSources(source: ItemSourceSummary): ArmorDetailSources {
     entries: [{
       id: `source:${source.source_kind ?? "item"}:${source.source_hash ?? source.linked_definition_hash ?? "hint"}`,
       label: source.label,
-      description: source.description,
-      status_label: "来源已记录"
+      description: source.description
     }]
   };
 }
@@ -394,14 +390,14 @@ function armorPlugKind(plug: AccountItemPlugSummary): ArmorSocket["kind"] {
   return "mod";
 }
 
-function armorPlugLabel(plug: AccountItemPlugSummary, index: number): string {
+function armorPlugLabel(plug: AccountItemPlugSummary, index: number): ArmorSocketLabel {
   const kind = armorPlugKind(plug);
-  if (kind === "upgrade") return "护甲升级";
-  if (kind === "special") return "特殊插槽";
+  if (kind === "upgrade") return { kind: "upgrade" };
+  if (kind === "special") return { kind: "special" };
   const value = `${plug.category_identifier ?? ""} ${plug.item_type ?? ""} ${plug.name}`.toLocaleLowerCase();
-  if (includesAny(value, ["activity", "raid", "seasonal", "活动", "突袭", "赛季"])) return "通用／活动模组位";
-  if (includesAny(value, ["tuning", "adjustment", "artifice", "stat mod", "调整", "诡计", "属性模组"])) return "调整模组位";
-  return `部位模组位 ${index}`;
+  if (includesAny(value, ["activity", "raid", "seasonal", "活动", "突袭", "赛季"])) return { kind: "activity_mod" };
+  if (includesAny(value, ["tuning", "adjustment", "artifice", "stat mod", "调整", "诡计", "属性模组"])) return { kind: "tuning_mod" };
+  return { kind: "slot", index };
 }
 
 function toArmorDetailInstance(
@@ -415,7 +411,7 @@ function toArmorDetailInstance(
     name: item.name,
     icon: item.icon,
     power: item.power,
-    location: item.source_label ?? sourceLabel(item.source_kind),
+    location: item.source_label,
     source_kind: item.source_kind,
     source_character_id: item.source_character_id,
     locked: item.locked,
@@ -425,13 +421,6 @@ function toArmorDetailInstance(
     energy: item.armor_energy,
     plug_names: item.socket_plugs.filter(isVisibleArmorPlug).map((plug) => plug.name)
   };
-}
-
-function sourceLabel(kind: SelectedItemSourceKind): string {
-  if (kind === "equipped") return "已装备";
-  if (kind === "inventory") return "角色背包";
-  if (kind === "postmaster") return "邮政官";
-  return "仓库";
 }
 
 function includesAny(value: string, segments: readonly string[]): boolean {

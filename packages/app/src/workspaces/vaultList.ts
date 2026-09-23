@@ -7,12 +7,47 @@ import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 
 export type VaultGroupFilter = EquipmentGroupKey | "all";
 export type VaultSlotFilter = string | "all";
+/**
+ * 槽位身份。仓库的槽位筛选、分区和排序都按它比，不再比显示名——显示名会随界面语言变，
+ * 认不出的 bucket 还要回落到游戏数据语言，拿它当标识迟早对不上。
+ *
+ * 前 8 个是装备槽，和 `packages/core/src/account/power.ts` 的 `bucketHashToSlot` 一致；
+ * 后面是仓库里能出现的其它规范桶。`hash:<n>` 是认不出的桶，`label:<名字>` 是连 bucket
+ * hash 都没有的条目（沿用旧分组，不把它们并到一起）。
+ */
+export type VaultKnownSlotKey =
+  | "kinetic"
+  | "energy"
+  | "power"
+  | "helmet"
+  | "gauntlets"
+  | "chest"
+  | "legs"
+  | "class-item"
+  | "subclass"
+  | "ghost"
+  | "vehicle"
+  | "ship"
+  | "emblem"
+  | "clan-banner"
+  | "finisher"
+  | "emote";
+
+export type VaultSlotKey = VaultKnownSlotKey | `hash:${number}` | `label:${string}`;
 export type VaultLocationFilter = "vault" | "all" | "current_inventory" | "current_equipped" | "current_postmaster" | "other_characters";
 export type VaultItemSourceKind = "equipped" | "inventory" | "vault" | "postmaster";
 export type VaultLocatedItem = AccountItemSummary & {
   source_character_id?: string;
   source_kind: VaultItemSourceKind;
   source_label: string;
+  /**
+   * 位置名原文（`仓库` / `已装备` / `背包` / `邮政官`）和角色职业名分开给。
+   *
+   * `source_label` 是拼好的显示串，供剪贴板清单和验收报告这类不看界面语言的输出用；
+   * 界面侧要按 `interfaceLocale` 翻译位置名，所以得拿得到零件，不能只拿拼好的那句。
+   */
+  source_location_label: string;
+  source_character_class?: string;
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
 };
@@ -67,25 +102,27 @@ type ParsedVaultQuery = {
 
 export type VaultGroupSummary = {
   key: VaultGroupFilter;
-  label: string;
   count: number;
 };
 
 export type VaultSlotSummary = {
   key: VaultSlotFilter;
   label: string;
+  /** 槽位所属大类，工具栏按当前浏览的分类过滤槽位按钮。`all` 行是 `all`。 */
+  group: EquipmentGroupKey | "all";
   count: number;
 };
 
 export type VaultLocationSummary = {
   key: VaultLocationFilter;
-  label: string;
   count: number;
 };
 
 export type VaultSection = {
+  /** `VaultSlotKey`，不是显示名：分区身份不能跟着界面语言变。 */
   key: string;
   label: string;
+  group: EquipmentGroupKey;
   count: number;
   items: AccountItemSummary[];
 };
@@ -107,7 +144,8 @@ export type VaultArmorSetOption = {
 export type VaultListWorkspace = {
   armorSetFilters: VaultArmorSetOption[];
   availableFrameFilters: VaultFrameOption[];
-  contextFacts: string[];
+  /** 结构化筛选事实，成句由 UI 侧按界面语言拼，见 `vaultContextFactLine`。 */
+  contextFacts: VaultFilterFactToken[];
   filteredItems: AccountItemSummary[];
   groups: VaultGroupSummary[];
   localTargetMatchCount: number;
@@ -115,25 +153,8 @@ export type VaultListWorkspace = {
   slotFilters: VaultSlotSummary[];
 };
 
-export const vaultGroupLabels: Record<VaultGroupFilter, string> = {
-  all: "全部",
-  weapons: "武器",
-  armor: "护甲",
-  equipment: "装备",
-  other: "其他"
-};
-
 export const vaultGroupOrder: VaultGroupFilter[] = ["all", "weapons", "armor", "equipment", "other"];
 export const defaultVaultGroupTab: VaultGroupFilter = "weapons";
-
-export const locationFilterLabels: Record<VaultLocationFilter, string> = {
-  vault: "仓库整理",
-  all: "定位结果",
-  current_inventory: "当前背包",
-  current_equipped: "当前已装备",
-  current_postmaster: "当前邮政官",
-  other_characters: "其他角色"
-};
 
 const visibleVaultLocationFilters: Array<Exclude<VaultLocationFilter, "all">> = [
   "vault",
@@ -143,92 +164,10 @@ const visibleVaultLocationFilters: Array<Exclude<VaultLocationFilter, "all">> = 
   "other_characters"
 ];
 
-export const tagLabels: Record<VaultTagFilter, string> = {
-  all: "全部标记",
-  keep: "保留",
-  review: "待定",
-  junk: "清理",
-  farm: "待刷",
-  loadout: "配装用",
-  untagged: "未标记",
-  noted: "有备注",
-  target: "目标命中"
-};
-
-export const sortLabels: Record<VaultSortKey, string> = {
-  recommendation: "按推荐权重",
-  name: "按名称",
-  group: "按分组",
-  tier: "按品质",
-  power: "按光等",
-  "armor-total": "按护甲总值",
-  health: "按生命值",
-  melee: "按近战",
-  grenade: "按手雷",
-  super: "按超能",
-  class: "按职业",
-  weapon: "按武器"
-};
-
-export const lockFilterLabels: Record<VaultLockFilter, string> = {
-  all: "全部",
-  locked: "已锁定",
-  unlocked: "未锁定"
-};
-
-export const ammoFilterLabels: Record<VaultAmmoFilter, string> = {
-  all: "全部弹药",
-  primary: "主弹",
-  special: "特殊",
-  heavy: "重弹"
-};
-
-export const rarityFilterLabels: Record<VaultRarityFilter, string> = {
-  all: "全部",
-  legendary: "传说",
-  exotic: "异域"
-};
-
-export const gearTierFilterLabels: Record<VaultGearTierFilter, string> = {
-  all: "全部",
-  "0": "T0",
-  "1": "T1",
-  "2": "T2",
-  "3": "T3",
-  "4": "T4",
-  "5": "T5"
-};
-
-export const classFilterLabels: Record<VaultClassFilter, string> = {
-  all: "全部",
-  titan: "泰坦",
-  hunter: "猎人",
-  warlock: "术士"
-};
-
-export const damageFilterLabels: Record<VaultDamageFilter, string> = {
-  all: "全部",
-  kinetic: "动能",
-  arc: "电弧",
-  solar: "烈日",
-  void: "虚空",
-  stasis: "冰影",
-  strand: "缚丝"
-};
-
-export const championFilterLabels: Record<VaultChampionFilter, string> = {
-  all: "全部",
-  barrier: "反屏障",
-  overload: "反过载",
-  unstoppable: "反势不可挡"
-};
-
-export const craftingFilterLabels: Record<VaultCraftingFilter, string> = {
-  all: "全部",
-  crafted: "可锻造",
-  uncrafted: "非锻造"
-};
-
+/**
+ * 护甲属性名。仓库侧已迁到 `VaultCopy.labels`，这张表只剩 `VaultTargetRulesPanel` 在用，
+ * 那个组件目前是孤儿，等 S10 决定去留时一并处理。
+ */
 export const armorStatLabels: Record<ArmorStatKey, string> = {
   health: "生命值",
   melee: "近战",
@@ -293,9 +232,7 @@ export function createVaultListWorkspace(input: {
       armorSetLabel: armorSetFilters.find((option) => option.key === filter.armorSet)?.label,
       frameFilter: filter.frame ?? "all",
       frameLabel: availableFrameFilters.find((option) => option.key === filter.frame)?.label,
-      armorStatRules: filter.armorStatRules ?? [],
-      filteredCount: filteredItems.length,
-      totalCount: input.items.length
+      armorStatRules: filter.armorStatRules ?? []
     }),
     filteredItems,
     groups: buildVaultGroups(input.items),
@@ -395,7 +332,6 @@ export function parseVaultQuery(query: string): ParsedVaultQuery {
 export function buildVaultGroups(items: AccountItemSummary[]): VaultGroupSummary[] {
   return vaultGroupOrder.map((key) => ({
     key,
-    label: vaultGroupLabels[key],
     count: key === "all" ? items.length : items.filter((item) => item.group_key === key).length
   }));
 }
@@ -405,10 +341,11 @@ export function buildVaultSlotFilters(items: AccountItemSummary[]): VaultSlotSum
   // 顺序沿用 `buildVaultSections` 的固定槽位次序（`slotRank`），**不按件数排**：
   // 筛选按钮的位置不该随库存数量变来变去，武器三槽也必须是动能 → 能量 → 威能。
   return [
-    { key: "all", label: "全部位置", count: items.length },
+    { key: "all", label: "全部位置", group: "all", count: items.length },
     ...sections.map((section) => ({
       key: section.key,
       label: section.label,
+      group: section.group,
       count: section.count
     }))
   ];
@@ -430,12 +367,11 @@ export function buildVaultLocationFilters(
   return visibleVaultLocationFilters
     .map((key, index) => ({
       key,
-      label: locationFilterLabels[key],
       count: counts.get(key) ?? 0,
       order: index
     }))
     .sort((left, right) => right.count - left.count || left.order - right.order)
-    .map((option) => ({ key: option.key, label: option.label, count: option.count }));
+    .map((option) => ({ key: option.key, count: option.count }));
 }
 
 export function buildVaultFrameFilters(items: AccountItemSummary[]): VaultFrameOption[] {
@@ -484,11 +420,11 @@ export function buildVaultArmorSetFilters(
 export function buildVaultSections(items: AccountItemSummary[]): VaultSection[] {
   const sectionMap = new Map<string, VaultSection>();
   for (const item of items) {
-    const label = getAccountItemSlotLabel(item);
-    const key = label;
+    const key = getAccountItemSlotKey(item);
     const section = sectionMap.get(key) ?? {
       key,
-      label,
+      label: getAccountItemSlotLabel(item),
+      group: item.group_key,
       count: 0,
       items: []
     };
@@ -619,12 +555,41 @@ export function countLocalTargetMatches(items: AccountItemSummary[], rules?: Loc
   return summarizeLocalTargetMatches(items.map(normalizeCoreItem), rules ?? undefined).matched_count;
 }
 
+/**
+ * 筛选摘要的一个片段。
+ *
+ * `packages/app` 不认识界面语言，所以这里只给「是哪一个筛选项、值是什么」，
+ * 措辞和成句交给 UI 按 `copy` 现算。
+ */
+export type VaultFilterFactToken =
+  | { kind: "group"; group: VaultGroupFilter }
+  | { kind: "query_tag"; tag: VaultTagFilter; group: VaultGroupFilter }
+  | { kind: "query_locked"; locked: boolean }
+  | { kind: "query_type"; group: VaultGroupFilter }
+  | { kind: "query_text"; text: string }
+  | { kind: "tag"; tag: VaultTagFilter; group: VaultGroupFilter }
+  | { kind: "lock"; lock: VaultLockFilter }
+  | { kind: "slot"; label: string }
+  | { kind: "location"; location: VaultLocationFilter }
+  | { kind: "ammo"; ammo: VaultAmmoFilter }
+  | { kind: "crafting"; crafting: VaultCraftingFilter }
+  | { kind: "itemType"; value: string }
+  | { kind: "rarity"; rarity: VaultRarityFilter }
+  | { kind: "gearTier"; tier: VaultGearTierFilter }
+  | { kind: "class"; className: VaultClassFilter }
+  | { kind: "damage"; damage: VaultDamageFilter }
+  | { kind: "armorSet"; label: string }
+  | { kind: "frame"; label: string }
+  | { kind: "armorStats"; count: number };
+
 export function buildVaultContextFacts(input: {
   group: VaultGroupFilter;
   query: string;
   tagFilter: VaultTagFilter;
   lockFilter: VaultLockFilter;
   slotFilter: VaultSlotFilter;
+  /** `VaultSlotFilter` 现在是槽位键，摘要串要显示名时由 UI 侧查表后传进来。 */
+  slotLabel?: string;
   locationFilter?: VaultLocationFilter;
   ammoFilter: VaultAmmoFilter;
   craftingFilter?: VaultCraftingFilter;
@@ -638,43 +603,80 @@ export function buildVaultContextFacts(input: {
   frameFilter: VaultFrameFilter;
   frameLabel?: string;
   armorStatRules: VaultArmorStatRule[];
-  filteredCount: number;
-  totalCount: number;
-}): string[] {
+}): VaultFilterFactToken[] {
   const parsedQuery = parseVaultQuery(input.query);
-  const filters = [
-    vaultGroupLabels[input.group],
-    parsedQuery.tag ? `查询标签：${vaultTagFilterLabel(parsedQuery.tag, input.group)}` : "",
-    parsedQuery.locked !== undefined ? `查询锁定：${parsedQuery.locked ? lockFilterLabels.locked : lockFilterLabels.unlocked}` : "",
-    parsedQuery.type ? `查询类型：${vaultGroupLabels[parsedQuery.type]}` : "",
-    parsedQuery.text.trim() ? `搜索：${parsedQuery.text.trim()}` : "",
-    input.tagFilter !== "all" ? vaultTagFilterLabel(input.tagFilter, input.group) : "",
-    input.lockFilter !== "all" ? lockFilterLabels[input.lockFilter] : "",
-    input.slotFilter !== "all" ? `位置：${input.slotFilter}` : "",
-    input.locationFilter && input.locationFilter !== "all" ? `所在位置：${locationFilterLabels[input.locationFilter]}` : "",
-    input.ammoFilter !== "all" ? ammoFilterLabels[input.ammoFilter] : "",
-    input.craftingFilter && input.craftingFilter !== "all" ? `锻造状态：${craftingFilterLabels[input.craftingFilter]}` : "",
-    input.itemTypeFilter && input.itemTypeFilter !== "all" ? `类型：${input.itemTypeFilter}` : "",
-    input.rarityFilter && input.rarityFilter !== "all" ? `稀有度：${rarityFilterLabels[input.rarityFilter]}` : "",
-    input.gearTierFilter && input.gearTierFilter !== "all" ? `装备阶级：${gearTierFilterLabels[input.gearTierFilter]}` : "",
-    input.classFilter && input.classFilter !== "all" ? `职业：${classFilterLabels[input.classFilter]}` : "",
-    input.damageFilter && input.damageFilter !== "all" ? `伤害属性：${damageFilterLabels[input.damageFilter]}` : "",
-    input.armorSetFilter && input.armorSetFilter !== "all" ? `护甲套装：${input.armorSetLabel ?? input.armorSetFilter}` : "",
-    input.frameFilter && input.frameFilter !== "all" ? `武器框架：${input.frameLabel ?? input.frameFilter}` : "",
-    input.armorStatRules.length ? `护甲属性条件：${input.armorStatRules.length} 条` : ""
-  ].filter(Boolean);
-
   return [
-    `仓库筛选：${filters.join(" / ") || "默认筛选"}，命中 ${input.filteredCount} / ${input.totalCount} 件。`
+    { kind: "group", group: input.group },
+    ...(parsedQuery.tag ? [{ kind: "query_tag" as const, tag: parsedQuery.tag, group: input.group }] : []),
+    ...(parsedQuery.locked !== undefined ? [{ kind: "query_locked" as const, locked: parsedQuery.locked }] : []),
+    ...(parsedQuery.type ? [{ kind: "query_type" as const, group: parsedQuery.type }] : []),
+    ...(parsedQuery.text.trim() ? [{ kind: "query_text" as const, text: parsedQuery.text.trim() }] : []),
+    ...(input.tagFilter !== "all" ? [{ kind: "tag" as const, tag: input.tagFilter, group: input.group }] : []),
+    ...(input.lockFilter !== "all" ? [{ kind: "lock" as const, lock: input.lockFilter }] : []),
+    ...(input.slotFilter !== "all" ? [{ kind: "slot" as const, label: input.slotLabel ?? input.slotFilter }] : []),
+    ...(input.locationFilter && input.locationFilter !== "all"
+      ? [{ kind: "location" as const, location: input.locationFilter }]
+      : []),
+    ...(input.ammoFilter !== "all" ? [{ kind: "ammo" as const, ammo: input.ammoFilter }] : []),
+    ...(input.craftingFilter && input.craftingFilter !== "all"
+      ? [{ kind: "crafting" as const, crafting: input.craftingFilter }]
+      : []),
+    ...(input.itemTypeFilter && input.itemTypeFilter !== "all"
+      ? [{ kind: "itemType" as const, value: input.itemTypeFilter }]
+      : []),
+    ...(input.rarityFilter && input.rarityFilter !== "all"
+      ? [{ kind: "rarity" as const, rarity: input.rarityFilter }]
+      : []),
+    ...(input.gearTierFilter && input.gearTierFilter !== "all"
+      ? [{ kind: "gearTier" as const, tier: input.gearTierFilter }]
+      : []),
+    ...(input.classFilter && input.classFilter !== "all"
+      ? [{ kind: "class" as const, className: input.classFilter }]
+      : []),
+    ...(input.damageFilter && input.damageFilter !== "all"
+      ? [{ kind: "damage" as const, damage: input.damageFilter }]
+      : []),
+    ...(input.armorSetFilter && input.armorSetFilter !== "all"
+      ? [{ kind: "armorSet" as const, label: input.armorSetLabel ?? input.armorSetFilter }]
+      : []),
+    ...(input.frameFilter && input.frameFilter !== "all"
+      ? [{ kind: "frame" as const, label: input.frameLabel ?? input.frameFilter }]
+      : []),
+    ...(input.armorStatRules.length ? [{ kind: "armorStats" as const, count: input.armorStatRules.length }] : [])
   ];
-}
-
-function vaultTagFilterLabel(tag: VaultTagFilter, group: VaultGroupFilter): string {
-  return tag === "untagged" && group === "weapons" ? "未整理" : tagLabels[tag];
 }
 
 export function getVaultItemKey(item: AccountItemSummary): string {
   return item.instance_id ?? `hash:${item.hash}`;
+}
+
+/** 和 `@d2-tools/core` 的 `bucketLabels` 同一批 hash，键名对齐 `bucketHashToSlot` 的写法。 */
+const vaultSlotKeyByBucketHash: Record<number, VaultSlotKey> = {
+  1498876634: "kinetic",
+  2465295065: "energy",
+  953998645: "power",
+  3448274439: "helmet",
+  3551918588: "gauntlets",
+  14239492: "chest",
+  20886954: "legs",
+  1585787867: "class-item",
+  3284755031: "subclass",
+  4023194814: "ghost",
+  2025709351: "vehicle",
+  284967655: "ship",
+  4274335291: "emblem",
+  4292445962: "clan-banner",
+  3683254069: "finisher",
+  1107761855: "emote"
+};
+
+export function getAccountItemSlotKey(item: AccountItemSummary): VaultSlotKey {
+  const hash = item.equipment_bucket_hash;
+  if (typeof hash === "number") {
+    return vaultSlotKeyByBucketHash[hash] ?? `hash:${hash}`;
+  }
+  // 没有 bucket hash 的条目沿用旧的分组（按名字），不为它们凭空造一个桶。
+  return `label:${getAccountItemSlotLabel(item)}`;
 }
 
 export function getAccountItemSlotLabel(item: AccountItemSummary): string {
@@ -685,7 +687,7 @@ export function getVaultItemLocationLabel(item: AccountItemSummary): string {
   return isVaultLocatedItem(item) ? item.source_label : "仓库";
 }
 
-export function formatArmorStatsInline(item: AccountItemSummary): string | undefined {
+function formatArmorStatsInline(item: AccountItemSummary): string | undefined {
   if (!item.armor_stats) {
     return undefined;
   }
@@ -803,7 +805,7 @@ function matchesLock(item: AccountItemSummary, lock: VaultLockFilter): boolean {
 }
 
 function matchesSlot(item: AccountItemSummary, slot: VaultSlotFilter): boolean {
-  return slot === "all" || getAccountItemSlotLabel(item) === slot;
+  return slot === "all" || getAccountItemSlotKey(item) === slot;
 }
 
 function matchesLocation(
@@ -842,7 +844,7 @@ function visibleVaultLocationForItem(
   return sourceKind === "inventory" ? "current_inventory" : undefined;
 }
 
-function isVaultLocatedItem(item: AccountItemSummary): item is VaultLocatedItem {
+export function isVaultLocatedItem(item: AccountItemSummary): item is VaultLocatedItem {
   return "source_kind" in item && typeof item.source_kind === "string" && "source_label" in item;
 }
 
@@ -903,38 +905,70 @@ function damageTypeForItem(item: AccountItemSummary): Exclude<VaultDamageFilter,
 }
 
 function compareVaultSections(left: VaultSection, right: VaultSection): number {
-  return slotRank(left.label) - slotRank(right.label)
+  return slotRank(left.key, left.label) - slotRank(right.key, right.label)
     || left.label.localeCompare(right.label, "zh-Hans-CN");
 }
 
-function slotRank(label: string): number {
-  const order = [
-    "动能武器",
-    "能量武器",
-    "威能武器",
-    "头盔",
-    "臂铠",
-    "胸甲",
-    "腿甲",
-    "职业物品",
-    "职业分支",
-    "机灵",
-    "飞船",
-    "载具",
-    "徽标",
-    "公会战旗",
-    "终结技",
-    "动作",
-    "记忆水晶",
-    "任务与追踪",
-    "材料与货币",
-    "消耗品",
-    "模组与外观",
-    "收藏与纪念",
-    "未识别物品"
-  ];
-  const index = order.indexOf(label);
-  return index === -1 ? 999 : index;
+const vaultSlotOrder = [
+  "kinetic",
+  "energy",
+  "power",
+  "helmet",
+  "gauntlets",
+  "chest",
+  "legs",
+  "class-item",
+  "subclass",
+  "ghost",
+  "ship",
+  "vehicle",
+  "emblem",
+  "clan-banner",
+  "finisher",
+  "emote"
+];
+
+/** `vaultSlotOrder` 那批槽位的中文显示名，一一对应。给没有 bucket hash 的条目兜底用。 */
+const vaultSlotLabelOrder = [
+  "动能武器",
+  "能量武器",
+  "威能武器",
+  "头盔",
+  "臂铠",
+  "胸甲",
+  "腿甲",
+  "职业物品",
+  "职业分支",
+  "机灵",
+  "飞船",
+  "载具",
+  "徽标",
+  "公会战旗",
+  "终结技",
+  "动作"
+];
+
+/** 没有 bucket hash 的条目没有槽位键可言，沿用旧次序，别让它们的相对顺序跟着变。 */
+const untrackedSlotOrder = [
+  "记忆水晶",
+  "任务与追踪",
+  "材料与货币",
+  "消耗品",
+  "模组与外观",
+  "收藏与纪念",
+  "未识别物品"
+];
+
+/** 已知槽位按固定次序排；认不出的桶排在它们之后，组内再按显示名比。 */
+function slotRank(key: string, label: string): number {
+  const slotIndex = vaultSlotOrder.indexOf(key);
+  if (slotIndex !== -1) return slotIndex;
+  // `label:<名字>` 的条目只有显示名能认槽位。不给它们按名字兜底，这批会被拼音序打散，
+  // 「能量武器 → 威能武器 → 头盔」变成「能量武器 → 头盔 → 威能武器」。
+  const labelIndex = vaultSlotLabelOrder.indexOf(label);
+  if (labelIndex !== -1) return labelIndex;
+  const untrackedIndex = untrackedSlotOrder.indexOf(label);
+  return vaultSlotOrder.length + (untrackedIndex === -1 ? untrackedSlotOrder.length : untrackedIndex);
 }
 
 function inferOtherSlotName(item: AccountItemSummary): string {

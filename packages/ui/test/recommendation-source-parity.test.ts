@@ -13,6 +13,7 @@ import {
   getVaultCommunityInstanceKey
 } from "../src/recommendationMatchView.js";
 import { buildVaultCleanupProtectionIndex } from "../src/vault/vaultCleanupProtection.js";
+import { vaultCopy } from "../src/i18n/copy/vault.js";
 
 /**
  * T56 不变量 I1 的守卫测试。
@@ -190,6 +191,7 @@ describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来�
       const item = weaponItem();
       const key = getVaultCommunityInstanceKey(item);
       return buildVaultCleanupProtectionIndex({
+        copy: vaultCopy["zh-CN"],
         items: [item],
         tags: { items: {} },
         recommendationCardSummary: new Map([

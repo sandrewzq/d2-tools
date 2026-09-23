@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { LoadoutsPageContentView, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
+import { LoadoutsPageContentView, type InterfaceLocale, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type {
   AccountSummary,
@@ -49,6 +49,8 @@ import {
 
 export type LoadoutsPageProps = {
   accountSummary: AccountSummary | null;
+  /** 子职业术语（技能 / 星象 / 碎片 / 空槽位）按界面语言查表；页面其余文案仍是中文。 */
+  interfaceLocale?: InterfaceLocale;
   isLoadingAccount: boolean;
   isShowingCachedAccount: boolean;
   accountError: string;
@@ -435,6 +437,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
   return (
     <LoadoutsPageContentView
       accountSummary={props.accountSummary}
+      interfaceLocale={props.interfaceLocale}
       model={model}
       actions={actions}
       compareTemplateId={props.compareTemplateId}

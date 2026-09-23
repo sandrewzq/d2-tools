@@ -408,7 +408,7 @@ function createV10Database(dataDir: string): { database: DatabaseSync; sourceId:
     ) STRICT;
   `);
   // 真的写一行进去：删表断言才有对象，不是「本来就没有」的恒真。
-  raw.prepare("INSERT INTO recommendation_sources(id, source_key, label) VALUES (1, 'aegis', 'Aegis推荐')").run();
+  raw.prepare("INSERT INTO recommendation_sources(id, source_key, label) VALUES (1, 'legacy-csv', '旧版推荐表')").run();
   raw.prepare(`
     INSERT INTO weapon_recommendations(id, rule_stable_id, identity_key, normalized_weapon_name, weapon_name, source_id)
     VALUES (1, 'old-rule', 'hash:1001', '测试步枪', '测试步枪', 1)

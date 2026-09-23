@@ -5,7 +5,10 @@ import {
   ammoTypeKey,
   bucketLabels,
   classifyBucket,
+  classifySubclassPlug,
+  hasSubclassPlugs,
   isPostmasterBucketHash,
+  isSubclassBucket,
   postmasterBucketHash,
   pursuitBucketHash,
   pursuitCategoryHashes,
@@ -327,7 +330,15 @@ export type CharacterLoadoutSlotItemSummary = {
     abilities: AccountItemPlugSummary[];
     aspects: AccountItemPlugSummary[];
     fragments: AccountItemPlugSummary[];
+    /**
+     * 分类名没认出来的插槽内容。子职业没有模组插槽，这一组不是模组；
+     * 界面上要么单列一组「其他配置」，要么按原始 socket 索引显示，不要再当成模组写出去。
+     */
     other: AccountItemPlugSummary[];
+    /** `plugItemHashes` 的总槽位数。空槽位没有 plug，只能靠长度知道该画几格。 */
+    socket_count: number;
+    /** 空槽位下标：`plugItemHashes` 里没有有效 plug 的位置。 */
+    empty_socket_indexes: number[];
   };
 };
 
@@ -1921,11 +1932,13 @@ function summarizeCharacterLoadouts(
       item_count: loadoutItems.length,
       items: loadoutItems.map((item) => {
         const matched = itemsByInstanceId.get(item.itemInstanceId as string);
-        const plugItemHashes = (item.plugItemHashes ?? []).filter(isValidLoadoutPlugHash);
-        const plugs = (item.plugItemHashes ?? []).flatMap((hash, socketIndex) => {
+        const rawPlugHashes = item.plugItemHashes ?? [];
+        const plugItemHashes = rawPlugHashes.filter(isValidLoadoutPlugHash);
+        const plugs = rawPlugHashes.flatMap((hash, socketIndex) => {
           if (!isValidLoadoutPlugHash(hash)) return [];
           const definition = itemDefinitions[String(hash)] as DefinitionRecord | undefined;
           if (isEmptyWeaponMasterworkPlugDefinition(definition)) return [];
+          const modifiers = summarizePlugInvestmentStats(definition);
           return [{
             hash,
             socket_index: socketIndex,
@@ -1933,15 +1946,25 @@ function summarizeCharacterLoadouts(
             icon: normalizeBungieAssetUrl(definition?.displayProperties?.icon),
             description: definition?.displayProperties?.description,
             category_identifier: definition?.plug?.plugCategoryIdentifier,
-            item_type: definition?.itemTypeDisplayName
+            item_type: definition?.itemTypeDisplayName,
+            // 游戏内配装这条链原来只有 hash 位置和名字，拼不出星象/碎片加了多少属性。
+            // 当前装备那条链（`summarizeSelectedPlugPreviews`）一直带着它，这里补齐同一份。
+            ...(Object.keys(modifiers.armor).length ? { armor_stat_modifiers: modifiers.armor } : {})
           }];
         });
-        const subclassConfiguration = plugs.length && (matched?.bucket_hash === 3284755031 || matched?.equipment_bucket_hash === 3284755031)
+        // 不再要求 `plugs.length`：整件子职业一个插槽都没插时，槽位布局仍要画得出来。
+        const subclassConfiguration = rawPlugHashes.length && isSubclassLoadoutItem(matched, plugs)
           ? {
               abilities: plugs.filter((plug) => classifySubclassPlug(plug) === "ability"),
               aspects: plugs.filter((plug) => classifySubclassPlug(plug) === "aspect"),
               fragments: plugs.filter((plug) => classifySubclassPlug(plug) === "fragment"),
-              other: plugs.filter((plug) => classifySubclassPlug(plug) === "other")
+              other: plugs.filter((plug) => classifySubclassPlug(plug) === "other"),
+              // 空槽位原来被 `isValidLoadoutPlugHash` 直接滤掉，界面上连「这里有个空星相槽」
+              // 都看不出来。槽位数和空位下标一起带上，显示层才有得画。
+              socket_count: rawPlugHashes.length,
+              empty_socket_indexes: rawPlugHashes.flatMap(
+                (hash, socketIndex) => isValidLoadoutPlugHash(hash) ? [] : [socketIndex]
+              )
             }
           : undefined;
         return {
@@ -1961,12 +1984,22 @@ function summarizeCharacterLoadouts(
   });
 }
 
-function classifySubclassPlug(plug: AccountItemPlugSummary): "ability" | "aspect" | "fragment" | "other" {
-  const value = `${plug.category_identifier ?? ""} ${plug.item_type ?? ""} ${plug.name}`.toLocaleLowerCase();
-  if (/aspect|星相/.test(value)) return "aspect";
-  if (/fragment|碎片/.test(value)) return "fragment";
-  if (/ability|super|grenade|melee|movement|class|技能|超能|手雷|近战|职业/.test(value)) return "ability";
-  return "other";
+/**
+ * 这件游戏内配装物品是不是子职业。
+ *
+ * 实例能反查回账号物品时看 Bucket。反查不到时（`CharacterLoadouts` 只给实例 ID，账号快照里
+ * 没有这一件）没有 Bucket 可看，退回看插槽内容：子职业那批 plug 分类名是它独有的
+ * （`hunter.arc.supers`、`shared.prism.fragments` 这类，没有同名的武器或护甲分类），
+ * 认出任意一格就仍按子职业处理。原来只认 Bucket，未定位的子职业整块丢掉，界面上只剩「未定位实例」。
+ */
+function isSubclassLoadoutItem(
+  matched: AccountItemSummary | undefined,
+  plugs: AccountItemPlugSummary[]
+): boolean {
+  if (matched) {
+    return isSubclassBucket(matched.bucket_hash) || isSubclassBucket(matched.equipment_bucket_hash);
+  }
+  return hasSubclassPlugs(plugs);
 }
 
 function isValidLoadoutItemInstanceId(instanceId: string | undefined): boolean {

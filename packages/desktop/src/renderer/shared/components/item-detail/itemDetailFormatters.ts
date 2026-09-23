@@ -1,3 +1,5 @@
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailTemplate, itemDetailText } from "@d2-tools/ui";
 import type { VaultTagValue } from "../../../api/types";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
@@ -17,43 +19,53 @@ export function getItemSourceStatusTone(item: Pick<SelectedItemDetail, "is_detai
   return "neutral";
 }
 
-export function formatAccountItemMeta(item: SameNameItemSummary): string {
+export function formatAccountItemMeta(copy: ItemDetailCopy, item: SameNameItemSummary): string {
   return [
-    "source_label" in item ? `来源：${item.source_label}` : undefined,
+    "source_label" in item ? itemDetailTemplate(copy, "来源：{value}", { value: item.source_label ?? "" }) : undefined,
     item.bucket_name,
     item.tier,
-    item.power ? `光等 ${item.power}` : undefined,
-    formatArmorStatsSummary(item),
-    item.locked ? "已锁定" : undefined
+    item.power ? itemDetailTemplate(copy, "光等 {value}", { value: item.power }) : undefined,
+    formatArmorStatsSummary(copy, item),
+    item.locked ? itemDetailText(copy, "已锁定") : undefined
   ].filter(Boolean).join(" / ");
 }
 
-export function formatArmorStatsSummary(item: Pick<SelectedItemDetail | SameNameItemSummary, "armor_stats">): string | undefined {
+export function formatArmorStatsSummary(
+  copy: ItemDetailCopy,
+  item: Pick<SelectedItemDetail | SameNameItemSummary, "armor_stats">
+): string | undefined {
   if (!item.armor_stats) {
     return undefined;
   }
 
   return [
-    `总值 ${item.armor_stats.total}`,
-    `生命值 ${item.armor_stats.health}`,
-    `职业 ${item.armor_stats.class}`,
-    `手雷 ${item.armor_stats.grenade}`
+    itemDetailTemplate(copy, "总值 {value}", { value: item.armor_stats.total }),
+    itemDetailTemplate(copy, "生命值 {value}", { value: item.armor_stats.health }),
+    itemDetailTemplate(copy, "职业 {value}", { value: item.armor_stats.class }),
+    itemDetailTemplate(copy, "手雷 {value}", { value: item.armor_stats.grenade })
   ].join(" / ");
 }
 
-export function formatArmorEnergySummary(energy: SelectedItemDetail["armor_energy"]): string | undefined {
+export function formatArmorEnergySummary(
+  copy: ItemDetailCopy,
+  energy: SelectedItemDetail["armor_energy"]
+): string | undefined {
   if (!energy) {
     return undefined;
   }
 
-  return `已用 ${energy.used} / ${energy.capacity}，剩余 ${energy.unused}`;
+  return itemDetailTemplate(copy, "已用 {used} / {capacity}，剩余 {unused}", {
+    used: energy.used,
+    capacity: energy.capacity,
+    unused: energy.unused
+  });
 }
 
-export function formatVaultTagLabel(tag: VaultTagValue): string {
-  if (tag === "keep") return "保留";
-  if (tag === "review") return "待定";
-  if (tag === "farm") return "待刷";
-  if (tag === "loadout") return "配装用";
-  if (tag === "junk") return "清理";
-  return "未标记";
+export function formatVaultTagLabel(copy: ItemDetailCopy, tag: VaultTagValue): string {
+  if (tag === "keep") return itemDetailText(copy, "保留");
+  if (tag === "review") return itemDetailText(copy, "待定");
+  if (tag === "farm") return itemDetailText(copy, "待刷");
+  if (tag === "loadout") return itemDetailText(copy, "配装用");
+  if (tag === "junk") return itemDetailText(copy, "清理");
+  return itemDetailText(copy, "未标记");
 }

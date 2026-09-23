@@ -1,6 +1,7 @@
 import { api } from "../../api/client";
 import type { AccountItemActionPatch, AccountItemSummary, AccountSummary, BatchItemActionResult, ItemActionResult, VaultTags, VaultTagValue } from "../../api/types";
 import { services } from "../../api/services";
+import { vaultActionMessageText, vaultTemplate, vaultText, type VaultCopy } from "@d2-tools/ui";
 import {
   buildVaultCleanupActionLabel,
   buildVaultCleanupNoTargetMessage,
@@ -11,11 +12,14 @@ import {
 import { startRendererPerformanceSpan } from "../../shared/performance/rendererPerformanceDiagnostics";
 
 export function useVaultWriteActions(input: {
+  copy: VaultCopy;
   accountSummary: AccountSummary | null;
   setVaultTags: (tags: VaultTags) => void;
   setAccountError: (message: string) => void;
   applyAcceptedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
 }) {
+  const copy = input.copy;
+
   async function saveVaultTag(item: AccountItemSummary, tag: VaultTagValue) {
     try {
       input.setVaultTags(await services.localData.saveVaultTag({
@@ -23,7 +27,7 @@ export function useVaultWriteActions(input: {
         tag
       }));
     } catch (error) {
-      input.setAccountError(error instanceof Error ? error.message : "本地标记保存失败");
+      input.setAccountError(error instanceof Error ? error.message : vaultText(copy, "本地标记保存失败"));
     }
   }
 
@@ -31,7 +35,7 @@ export function useVaultWriteActions(input: {
     try {
       input.setVaultTags(await services.localData.saveVaultTagsBatch(inputs));
     } catch (error) {
-      input.setAccountError(error instanceof Error ? error.message : "批量标记保存失败");
+      input.setAccountError(error instanceof Error ? error.message : vaultText(copy, "批量标记保存失败"));
       throw error;
     }
   }
@@ -44,15 +48,15 @@ export function useVaultWriteActions(input: {
     filterItem: (item: AccountItemSummary) => boolean = () => true
   ): Promise<string> {
     if (!input.accountSummary) {
-      return "请先同步装备数据。";
+      return vaultText(copy, "请先同步装备数据。");
     }
     if (!targetCharacterId) {
-      return buildVaultCleanupNoTargetMessage();
+      return vaultActionMessageText(copy, buildVaultCleanupNoTargetMessage());
     }
 
     const actionableItems = selectVaultActionableItems(items, filterItem);
     if (!actionableItems.length) {
-      return "没有可执行的装备。可能已经全部解锁，或缺少实例 ID。";
+      return vaultText(copy, "没有可执行的装备。可能已经全部解锁，或缺少实例 ID。");
     }
     let successCount = 0;
     let failedCount = 0;
@@ -70,16 +74,16 @@ export function useVaultWriteActions(input: {
       input.applyAcceptedAccountActionPatches(accountPatches);
     }
 
-    const resultMessage = buildVaultCleanupWriteResultMessage({ label, successCount, failedCount });
+    const resultMessage = vaultActionMessageText(copy, buildVaultCleanupWriteResultMessage({ label, successCount, failedCount }));
     const missingPatchCount = Math.max(0, successCount - accountPatches.length);
     return missingPatchCount
-      ? `${resultMessage} 另有 ${missingPatchCount} 项会在下次账号同步后显示。`
+      ? vaultTemplate(copy, "{message} 另有 {count} 项会在下次账号同步后显示。", { message: resultMessage, count: missingPatchCount })
       : resultMessage;
   }
 
   async function handleVaultCleanupUnlock(items: AccountItemSummary[], targetCharacterId: string): Promise<string> {
     return runVaultCleanupWriteAction(
-      buildVaultCleanupActionLabel("unlock"),
+      vaultActionMessageText(copy, buildVaultCleanupActionLabel("unlock")),
       items,
       targetCharacterId,
       (item) => api.setItemLockState({
@@ -98,17 +102,19 @@ export function useVaultWriteActions(input: {
     targetCharacterId: string,
     state = true
   ): Promise<string> {
-    const actionLabel = state ? "加锁" : "解锁";
+    const actionLabel = state ? vaultText(copy, "加锁") : vaultText(copy, "解锁");
     if (!input.accountSummary) {
-      throw new Error("请先同步装备数据。");
+      throw new Error(vaultText(copy, "请先同步装备数据。"));
     }
     if (!targetCharacterId) {
-      throw new Error(buildVaultCleanupNoTargetMessage());
+      throw new Error(vaultActionMessageText(copy, buildVaultCleanupNoTargetMessage()));
     }
     if (!item.instance_id) {
-      throw new Error(`这件装备缺少实例 ID，无法${actionLabel}。`);
+      throw new Error(vaultTemplate(copy, "这件装备缺少实例 ID，无法{action}。", { action: actionLabel }));
     }
-    if (item.locked === state) return `这件装备已经${state ? "锁定" : "解锁"}。`;
+    if (item.locked === state) {
+      return vaultTemplate(copy, "这件装备已经{state}。", { state: vaultText(copy, state ? "锁定" : "解锁") });
+    }
 
     const account = input.accountSummary;
     const requestSpan = startRendererPerformanceSpan("vault-item-write.request", {
@@ -128,10 +134,10 @@ export function useVaultWriteActions(input: {
       if (result.account_patch) {
         input.applyAcceptedAccountActionPatches([result.account_patch]);
       }
-      const message = result.message || `已提交${actionLabel}：${item.name}`;
+      const message = result.message || vaultTemplate(copy, "已提交{action}：{item}", { action: actionLabel, item: item.name });
       return result.account_patch
         ? message
-        : `${message} 页面会在下次账号同步时校准。`;
+        : vaultTemplate(copy, "{message} 页面会在下次账号同步时校准。", { message });
     } catch (error) {
       requestSpan.end({ status: "error" });
       throw error;
@@ -144,17 +150,17 @@ export function useVaultWriteActions(input: {
 
   async function runVaultBatchTransfer(items: AccountItemSummary[], targetCharacterId: string): Promise<BatchItemActionResult> {
     if (!input.accountSummary) {
-      throw new Error("请先同步装备数据。");
+      throw new Error(vaultText(copy, "请先同步装备数据。"));
     }
     const account = input.accountSummary;
 
     if (!targetCharacterId) {
-      throw new Error(buildVaultCleanupNoTargetMessage());
+      throw new Error(vaultActionMessageText(copy, buildVaultCleanupNoTargetMessage()));
     }
 
     const actionableItems = selectVaultActionableItems(items);
     if (!actionableItems.length) {
-      throw new Error("没有可执行的装备。可能缺少实例 ID。");
+      throw new Error(vaultText(copy, "没有可执行的装备。可能缺少实例 ID。"));
     }
     const requestSpan = startRendererPerformanceSpan("vault-item-write.request", {
       action: actionableItems.length === 1 ? "quick-transfer" : "batch-transfer",
@@ -187,12 +193,15 @@ export function useVaultWriteActions(input: {
       return missingPatchCount
         ? {
             ...result,
-            message: `${result.message} 另有 ${missingPatchCount} 项会在下次账号同步后显示。`
+            message: vaultTemplate(copy, "{message} 另有 {count} 项会在下次账号同步后显示。", {
+              message: result.message,
+              count: missingPatchCount
+            })
           }
         : result;
     } catch (error) {
       requestSpan.end({ status: "error" });
-      throw error instanceof Error ? error : new Error("批量转移失败");
+      throw error instanceof Error ? error : new Error(vaultText(copy, "批量转移失败"));
     }
   }
 

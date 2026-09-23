@@ -201,8 +201,8 @@ async function importCsv(
 
 const twoSourceCsv = [
   unifiedHeader,
-  unifiedRow("Aegis推荐", "清怪首选", "PvE", "伏特弹", "快速命中", "S", "清怪手感最好"),
-  unifiedRow("LGpig推荐", "PvP手感", "PvP", "伏特弹", "快速命中", "A")
+  unifiedRow("示例推荐表A", "清怪首选", "PvE", "伏特弹", "快速命中", "S", "清怪手感最好"),
+  unifiedRow("示例推荐表B", "PvP手感", "PvP", "伏特弹", "快速命中", "A")
 ].join("\n");
 
 describe("curated recommendation CSV pipeline", () => {
@@ -212,7 +212,7 @@ describe("curated recommendation CSV pipeline", () => {
     expect(preview.importable_recommendation_count).toBe(2);
     expect(preview.weapon_count).toBe(1);
     expect(preview.source_count).toBe(2);
-    expect([...preview.source_labels].sort()).toEqual(["Aegis推荐", "LGpig推荐"]);
+    expect([...preview.source_labels].sort()).toEqual(["示例推荐表A", "示例推荐表B"]);
     expect(preview.blocking_issue_count).toBe(0);
     expect(preview.skipped_row_count).toBe(0);
   });
@@ -239,8 +239,8 @@ describe("curated recommendation CSV pipeline", () => {
     // 库里只存 Hash，导出必须由调用方传入定义池把名字反解出来（DD4）。
     const exported = exportWeaponRecommendationPlayerCsv(dir, runtimeDefinitions);
     expect(exported).toContain("测试步枪");
-    expect(exported).toContain("Aegis推荐");
-    expect(exported).toContain("LGpig推荐");
+    expect(exported).toContain("示例推荐表A");
+    expect(exported).toContain("示例推荐表B");
     expect(exported).toContain("伏特弹");
   });
 
@@ -253,7 +253,7 @@ describe("curated recommendation CSV pipeline", () => {
     const records = recommendation?.source_records ?? [];
     expect(records).toHaveLength(2);
     // 契约：来源名来自数据，不来自代码兜底。
-    expect(records.map((record) => record.source_label).sort()).toEqual(["Aegis推荐", "LGpig推荐"]);
+    expect(records.map((record) => record.source_label).sort()).toEqual(["示例推荐表A", "示例推荐表B"]);
     // 契约：CSV 的栏位是导入期固化的真实栏位，不是读取期猜出来的假槽位。
     for (const record of records) {
       expect(record.requirements.map((requirement) => requirement.slot)).toEqual(["perk1", "perk2"]);
@@ -262,8 +262,8 @@ describe("curated recommendation CSV pipeline", () => {
     }
     // 用途跟着来源走，不跟着数组下标走：按来源名取，不把记录顺序当契约。
     const purposesByLabel = new Map(records.map((record) => [record.source_label, record.purposes]));
-    expect(purposesByLabel.get("Aegis推荐")).toContain("pve");
-    expect(purposesByLabel.get("LGpig推荐")).toContain("pvp");
+    expect(purposesByLabel.get("示例推荐表A")).toContain("pve");
+    expect(purposesByLabel.get("示例推荐表B")).toContain("pvp");
     // 契约：过了导入期校验的要求必须解析出候选。只在名称上通过、候选为空的「假要求」
     // 会进分母却不贡献任何 hash，两侧键集一旦分叉就会冒出来——这里把它钉死。
     for (const requirement of records.flatMap((record) => record.requirements)) {
@@ -282,7 +282,7 @@ describe("curated recommendation CSV pipeline", () => {
     expect(snapshot.sources.map((entry) => entry.label)).toEqual([importName]);
     expect(snapshot.sources[0]?.rule_count).toBe(2);
     expect(loadRecommendationSources(dir, "csv").map((source) => source.label).sort())
-      .toEqual(["Aegis推荐", "LGpig推荐"]);
+      .toEqual(["示例推荐表A", "示例推荐表B"]);
     // 「清空导入的推荐规则」这个动作的对象摘要也由存储派生，不是硬编码。
     expect(snapshot.clear_rule_imports).toEqual({ configured: true, source_count: 1, rule_count: 2 });
   });
@@ -295,7 +295,7 @@ describe("curated recommendation CSV pipeline", () => {
     const csv = [
       unifiedHeader,
       [
-        "Aegis推荐", "测试步枪", "清怪首选", "PvE", "不限制", "不限", "任意",
+        "示例推荐表A", "测试步枪", "清怪首选", "PvE", "不限制", "不限", "任意",
         "伏特弹", "快速命中", "any", "S", ""
       ].join(",")
     ].join("\n");
@@ -324,7 +324,7 @@ describe("curated recommendation CSV pipeline", () => {
     const csv = [
       unifiedHeader,
       [
-        "Aegis推荐", "大师测试步枪", "精确弹药流", "PvE", "", "", "大师杰作：精确弹药",
+        "示例推荐表A", "大师测试步枪", "精确弹药流", "PvE", "", "", "大师杰作：精确弹药",
         "伏特弹", "快速命中", "", "S", ""
       ].join(",")
     ].join("\n");
@@ -351,7 +351,7 @@ describe("curated recommendation CSV pipeline", () => {
     const aliasedCsv = [
       unifiedHeader,
       [
-        "Aegis推荐", "大师测试步枪", "精确弹药流", "PvE", "", "", "精确弹药",
+        "示例推荐表A", "大师测试步枪", "精确弹药流", "PvE", "", "", "精确弹药",
         "伏特弹", "快速命中", "", "S", ""
       ].join(",")
     ].join("\n");
@@ -370,7 +370,7 @@ describe("curated recommendation CSV pipeline", () => {
     const csv = [
       unifiedHeader,
       [
-        "Aegis推荐", "大师测试步枪", "精确弹药流", "PvE", "", "", "",
+        "示例推荐表A", "大师测试步枪", "精确弹药流", "PvE", "", "", "",
         "精密枪管", "快速命中", "", "S", ""
       ].join(",")
     ].join("\n");
@@ -384,7 +384,7 @@ describe("curated recommendation CSV pipeline", () => {
   it("blocks a row whose perk name is not an official perk of the weapon", () => {
     const csv = [
       unifiedHeader,
-      unifiedRow("Aegis推荐", "清怪首选", "PvE", "伏特弹", "并不存在的特性", "S")
+      unifiedRow("示例推荐表A", "清怪首选", "PvE", "伏特弹", "并不存在的特性", "S")
     ].join("\n");
     const preview = previewWeaponRecommendationCsv(csv, "推荐.csv", semanticDefinitions);
 
@@ -398,7 +398,7 @@ describe("curated recommendation CSV pipeline", () => {
   it("rejects an import whose only rows were blocked", async () => {
     const csv = [
       unifiedHeader,
-      unifiedRow("Aegis推荐", "清怪首选", "PvE", "伏特弹", "并不存在的特性", "S")
+      unifiedRow("示例推荐表A", "清怪首选", "PvE", "伏特弹", "并不存在的特性", "S")
     ].join("\n");
     const { dir, path } = writeCsv(csv);
     const preview = previewWeaponRecommendationCsv(csv, path, semanticDefinitions);
@@ -446,7 +446,7 @@ describe("import identity: 命名 + 新建 / 覆盖（D5）", () => {
     // 覆盖成一份只剩一个来源的文件：旧的两个来源实例必须整份消失，不是被标记为 removed。
     const singleSourceCsv = [
       unifiedHeader,
-      unifiedRow("Sayalarry推荐", "新口径", "PvE", "伏特弹", "快速命中", "S")
+      unifiedRow("示例推荐表", "新口径", "PvE", "伏特弹", "快速命中", "S")
     ].join("\n");
     const overwritePath = join(dir, "覆盖.csv");
     writeFileSync(overwritePath, singleSourceCsv, "utf8");
@@ -456,7 +456,7 @@ describe("import identity: 命名 + 新建 / 覆盖（D5）", () => {
     // 覆盖跑完时来源状态由存储决定，不能留下「被移除的差量」——差量合并正是被废除的旧语义。
     expect(snapshot.removed_rules).toEqual([]);
     expect(snapshot.clear_rule_imports).toEqual({ configured: true, source_count: 1, rule_count: 1 });
-    expect(loadRecommendationSources(dir, "csv").map((source) => source.label)).toEqual(["Sayalarry推荐"]);
+    expect(loadRecommendationSources(dir, "csv").map((source) => source.label)).toEqual(["示例推荐表"]);
 
     const documents = listRecommendationDocuments(dir);
     expect(documents).toHaveLength(1);
@@ -522,7 +522,7 @@ describe("definition pool for curated tables", () => {
   const playerHeader = "武器,武器ID,英文名称,推荐来源,用途,第一列,第二列,Perk 1,Perk 2,大师,起源特性,评级,备注";
 
   function playerRow(weapon: string, itemId: string): string {
-    return [weapon, itemId, "", "Aegis推荐", "", "", "", "", "", "", "", "", ""].join(",");
+    return [weapon, itemId, "", "示例推荐表A", "", "", "", "", "", "", "", "", ""].join(",");
   }
 
   /** 搜索只做模糊那一份的证明（`6001`），同名全集另算（`5001` / `5002`，后者是被折叠掉的版本）。 */

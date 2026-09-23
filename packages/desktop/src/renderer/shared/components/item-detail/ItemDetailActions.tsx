@@ -1,3 +1,5 @@
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailTemplate, itemDetailText } from "@d2-tools/ui";
 import type {
   AccountSummary,
   ItemActionPlanInput,
@@ -11,6 +13,7 @@ import { resolveAccountItemViewLocation } from "../../domain/account/itemActionS
 
 export type ItemDetailActionsProps = {
   accountSummary: AccountSummary | null;
+  copy: ItemDetailCopy;
   isRunningItemAction: boolean;
   selectedActionCharacterId: string;
   selectedItem: SelectedItemDetail;
@@ -25,6 +28,7 @@ export type ItemDetailActionsProps = {
 
 export function ItemDetailActions(props: ItemDetailActionsProps) {
   const selectedItem = props.selectedItem;
+  const copy = props.copy;
   const liveLocation = resolveAccountItemViewLocation(props.accountSummary, selectedItem.instance_id);
   const sourceKind = liveLocation?.kind ?? selectedItem.source_kind;
   const sourceCharacterId = liveLocation && "characterId" in liveLocation
@@ -42,19 +46,22 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
   return (
     <section className="item-action-panel">
       <div>
-        <h3>装备操作</h3>
-        <p>Bungie 返回成功后页面立即更新，账号资料在后台自动对账。</p>
+        <h3>{itemDetailText(copy, "装备操作")}</h3>
+        <p>{itemDetailText(copy, "Bungie 返回成功后页面立即更新，账号资料在后台自动对账。")}</p>
       </div>
       {props.accountSummary?.characters.length ? (
         <label className="compact-field">
-          目标角色
+          {itemDetailText(copy, "目标角色")}
           <select
             value={props.selectedActionCharacterId}
             onChange={(event) => props.onSelectedActionCharacterIdChange(event.target.value)}
           >
             {props.accountSummary.characters.map((character) => (
               <option key={character.character_id} value={character.character_id}>
-                {character.class_name} / 光等 {character.light ?? "-"}
+                {itemDetailTemplate(copy, "{className} / 光等 {light}", {
+                  className: character.class_name,
+                  light: character.light ?? "-"
+                })}
               </option>
             ))}
           </select>
@@ -67,7 +74,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
           disabled={props.isRunningItemAction || selectedItem.locked === undefined}
           hidden={isPostmasterItem}
           onClick={() => void props.onRunItemWriteAction(
-            selectedItem.locked ? "解锁" : "锁定",
+            selectedItem.locked ? itemDetailText(copy, "解锁") : itemDetailText(copy, "锁定"),
             () => api.setItemLockState({
               membership_type: props.accountSummary?.membership_type ?? 0,
               character_id: props.selectedActionCharacterId,
@@ -84,7 +91,11 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             }
           )}
         >
-          {selectedItem.locked === undefined ? "锁定状态未知" : selectedItem.locked ? "解锁" : "锁定"}
+          {selectedItem.locked === undefined
+            ? itemDetailText(copy, "锁定状态未知")
+            : selectedItem.locked
+              ? itemDetailText(copy, "解锁")
+              : itemDetailText(copy, "锁定")}
         </button>
         {!isVaultItem && !isPostmasterItem ? (
           <button
@@ -92,7 +103,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction || isAlreadyEquippedToTarget}
             onClick={() => void props.onRunItemWriteAction(
-              "装备到角色",
+              itemDetailText(copy, "装备到角色"),
               () => api.equipItem({
                 membership_type: props.accountSummary?.membership_type ?? 0,
                 character_id: props.selectedActionCharacterId,
@@ -108,7 +119,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               }
             )}
           >
-            {isAlreadyEquippedToTarget ? "已装备到角色" : "装备到角色"}
+            {isAlreadyEquippedToTarget ? itemDetailText(copy, "已装备到角色") : itemDetailText(copy, "装备到角色")}
           </button>
         ) : null}
         {!isPostmasterItem ? (
@@ -128,14 +139,14 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                 transfer_to_vault: !isVaultItem
               })}
             >
-              复制转移计划
+              {itemDetailText(copy, "复制转移计划")}
             </button>
             <button
               type="button"
               data-ui-kind="button" data-control-variant="secondary"
               disabled={props.isRunningItemAction}
               onClick={() => void props.onRunItemWriteAction(
-                isVaultItem ? "取出到角色" : "移入仓库",
+                isVaultItem ? itemDetailText(copy, "取出到角色") : itemDetailText(copy, "移入仓库"),
                 () => api.transferItem({
                   membership_type: props.accountSummary?.membership_type ?? 0,
                   character_id: resolveItemTransferCharacterId({
@@ -164,7 +175,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                 }
               )}
             >
-              {isVaultItem ? "取出到角色" : "移入仓库"}
+              {isVaultItem ? itemDetailText(copy, "取出到角色") : itemDetailText(copy, "移入仓库")}
             </button>
           </>
         ) : null}
@@ -174,7 +185,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
             data-ui-kind="button" data-control-variant="secondary"
             disabled={props.isRunningItemAction}
             onClick={() => void props.onRunItemWriteAction(
-              "从邮政官取回",
+              itemDetailText(copy, "从邮政官取回"),
               () => api.pullFromPostmaster({
                 membership_type: props.accountSummary?.membership_type ?? 0,
                 character_id: sourceCharacterId ?? props.selectedActionCharacterId,
@@ -193,7 +204,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
               }
             )}
           >
-            取回到角色背包
+            {itemDetailText(copy, "取回到角色背包")}
           </button>
         ) : null}
       </div>

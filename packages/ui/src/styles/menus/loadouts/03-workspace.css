@@ -827,6 +827,60 @@
 .app-shell .loadout-in-game-item-extra dt { color: var(--text-muted); font-size: var(--font-caption); font-weight: 700; }
 .app-shell .loadout-in-game-item-extra dd { margin: 4px 0 0; overflow-wrap: anywhere; color: var(--text-body); font-size: var(--font-caption); line-height: 1.5; }
 
+/* 子职业构筑。四组固定顺序（超能与技能 / 星象 / 碎片 / 其他配置），空组留着并画成虚线框，
+   空槽位单列一行。这块类名一直没有定义，分组只能吃默认排版，图标和空位也画不出来。 */
+.app-shell .loadout-in-game-subclass-detail > dd { display: grid; gap: 8px; }
+
+.app-shell .loadout-in-game-subclass-detail section {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  background: var(--surface-subtle);
+}
+
+.app-shell .loadout-in-game-subclass-detail section[data-empty] { border-style: dashed; }
+
+.app-shell .loadout-in-game-subclass-detail section > strong {
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+  font-weight: 700;
+}
+
+.app-shell .loadout-plug-chip-list { display: flex; min-width: 0; flex-wrap: wrap; gap: 4px; }
+
+.app-shell .loadout-plug-chip {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 2px;
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-indicator);
+  color: var(--chip-text);
+  background: var(--chip-bg);
+  font-size: var(--font-caption);
+}
+
+.app-shell .loadout-plug-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.app-shell .loadout-plug-empty { color: var(--text-muted); font-size: var(--font-caption); }
+
+.app-shell .loadout-in-game-item-empty {
+  margin: 0;
+  padding: 8px 10px;
+  color: var(--text-muted);
+  font-size: var(--font-caption);
+}
+
 .app-shell .loadout-detail-footer,
 .app-shell .loadout-compare-controls {
   border-top: 1px solid var(--border-subtle);
@@ -2098,6 +2152,7 @@
 .app-shell .loadout-compare-table-row[data-changed="true"] > strong { box-shadow: inset 3px 0 var(--accent-primary); }
 .app-shell .loadout-compare-table-row > span[data-state="unknown"] { color: var(--text-muted); background: var(--surface-recessed); font-style: italic; }
 .app-shell .loadout-compare-table-row > span[data-state="empty"] { color: var(--text-muted); }
+.app-shell .loadout-compare-cell-detail { display: block; margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-subtle); color: var(--text-muted); font-size: var(--font-caption); line-height: 1.5; overflow-wrap: anywhere; }
 
 @container product-workspace (max-width: 1280px) {
   .app-shell .loadout-editor-decision-workspace { grid-template-columns: minmax(0, 1fr) 260px; }

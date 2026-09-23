@@ -114,7 +114,7 @@ describe("从链接读愿望单文本", () => {
 
 describe("从链接取文件名", () => {
   it("取末段、还原百分号转义、去掉查询串与末尾斜杠", () => {
-    expect(wishlistFileNameFromUrl("https://example.invalid/DIMLGpigWeaponWishlist%20by%20moc.txt")).toBe("DIMLGpigWeaponWishlist by moc.txt");
+    expect(wishlistFileNameFromUrl("https://example.invalid/示例愿望单%20by%20作者.txt")).toBe("示例愿望单 by 作者.txt");
     expect(wishlistFileNameFromUrl("https://example.invalid/作者/推荐表.txt?raw=1")).toBe("推荐表.txt");
     expect(wishlistFileNameFromUrl("https://example.invalid/dir/")).toBe("愿望单文本");
     expect(wishlistFileNameFromUrl("https://example.invalid")).toBe("愿望单文本");

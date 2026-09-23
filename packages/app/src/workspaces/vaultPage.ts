@@ -113,13 +113,15 @@ function locateCharacterItem(
   item: AccountItemSummary,
   character: { character_id: string; class_name: string },
   sourceKind: Exclude<VaultItemSourceKind, "vault">,
-  sourceLabel: string
+  sourceLocationLabel: string
 ): VaultLocatedItem {
   return getCachedLocatedItem(item, `${character.character_id}:${sourceKind}`, () => ({
     ...item,
     source_character_id: character.character_id,
     source_kind: sourceKind,
-    source_label: `${character.class_name} · ${sourceLabel}`,
+    source_label: `${character.class_name} · ${sourceLocationLabel}`,
+    source_location_label: sourceLocationLabel,
+    source_character_class: character.class_name,
     ...(sourceKind === "postmaster" ? { is_postmaster_item: true } : {})
   }));
 }
@@ -127,12 +129,13 @@ function locateCharacterItem(
 function locateVaultItem(
   item: AccountItemSummary,
   sourceKind: "vault",
-  sourceLabel: string
+  sourceLocationLabel: string
 ): VaultLocatedItem {
   return getCachedLocatedItem(item, sourceKind, () => ({
     ...item,
     source_kind: sourceKind,
-    source_label: sourceLabel,
+    source_label: sourceLocationLabel,
+    source_location_label: sourceLocationLabel,
     is_vault_item: true
   }));
 }

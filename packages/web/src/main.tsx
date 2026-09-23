@@ -21,6 +21,9 @@ import {
   WeaponDetailContent,
   getLocaleCopy,
   getVendorEquipmentKind,
+  itemDetailEntryLabel,
+  itemDetailTemplate,
+  itemDetailText,
   type HomeWeeklyActivityReward,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
@@ -315,7 +318,7 @@ function WebApp() {
 
   function openWebAccountItem(item: AccountItemSummary, entry: "account" | "vault") {
     if (item.group_key !== "weapons" && item.group_key !== "armor") return;
-    const entryLabel = entry === "vault" ? "仓库" : "账号";
+    const entryLabel = itemDetailEntryLabel(itemDetailCopy, entry);
     const target = createAccountItemDetailTarget(item, entryLabel);
 
     setWeeklyRewardDetail(null);
@@ -327,7 +330,7 @@ function WebApp() {
           kind: "account_item",
           entry,
           entry_label: entryLabel,
-          object_label: "账号护甲实例",
+          object_label: itemDetailText(itemDetailCopy, "账号护甲实例"),
           object_id: item.instance_id,
           read_only: true
         }
@@ -342,7 +345,7 @@ function WebApp() {
         kind: "account_instance",
         entry,
         entry_label: entryLabel,
-        object_label: "账号武器实例",
+        object_label: itemDetailText(itemDetailCopy, "账号武器实例"),
         object_id: item.instance_id,
         read_only: true
       }
@@ -363,7 +366,7 @@ function WebApp() {
           kind: "vendor_offer",
           entry: "vendor",
           entry_label: context.vendorName,
-          object_label: "商人售卖护甲",
+          object_label: itemDetailText(itemDetailCopy, "商人售卖护甲"),
           object_id: String(item.itemHash),
           read_only: true
         }
@@ -378,7 +381,7 @@ function WebApp() {
         kind: "vendor_offer",
         entry: "vendor",
         entry_label: context.vendorName,
-        object_label: "商人售卖武器",
+        object_label: itemDetailText(itemDetailCopy, "商人售卖武器"),
         object_id: String(item.itemHash),
         read_only: true
       }
@@ -409,6 +412,8 @@ function WebApp() {
       isMounted = false;
     };
   }, [adapter]);
+
+  const itemDetailCopy = getLocaleCopy(preferences.interfaceLocale).itemDetail;
 
   return (
     <>
@@ -508,6 +513,7 @@ function WebApp() {
           ) : null}
           {activePage === "vault" ? (
             <VaultPageContentView
+              interfaceLocale={preferences.interfaceLocale}
               items={vaultModel.vaultItems}
               currentCharacterId={vaultModel.currentCharacterId}
               characterTabs={vaultModel.characterTabs}
@@ -814,10 +820,11 @@ function WebApp() {
         detail={{ name: armorDetailModel.identity.name }}
         variant="armor"
         subtitle={`${armorDetailModel.context.entry_label} · ${armorDetailModel.context.object_label}`}
-        objectContext="只读查看"
-        closeLabel="关闭护甲详情"
+        objectContext={itemDetailText(itemDetailCopy, "只读查看")}
+        copy={itemDetailCopy}
+        closeLabel={itemDetailText(itemDetailCopy, "关闭护甲详情")}
         onClose={() => setArmorDetailModel(null)}
-        sections={<ArmorDetailContent model={armorDetailModel} />}
+        sections={<ArmorDetailContent copy={itemDetailCopy} model={armorDetailModel} />}
       />
     ) : null}
     {weaponDetailModel ? (
@@ -825,23 +832,25 @@ function WebApp() {
         detail={{ name: weaponDetailModel.identity.name }}
         variant="weapon"
         subtitle={`${weaponDetailModel.context.entry_label} · ${weaponDetailModel.context.object_label}`}
-        objectContext="只读查看"
-        closeLabel="关闭武器详情"
+        objectContext={itemDetailText(itemDetailCopy, "只读查看")}
+        copy={itemDetailCopy}
+        closeLabel={itemDetailText(itemDetailCopy, "关闭武器详情")}
         onClose={() => setWeaponDetailModel(null)}
-        sections={<WeaponDetailContent model={weaponDetailModel} />}
+        sections={<WeaponDetailContent copy={itemDetailCopy} model={weaponDetailModel} />}
       />
     ) : null}
     {weeklyRewardDetail ? (
       <SharedItemDetailDialog
         detail={{ name: weeklyRewardDetail.name }}
         variant={weeklyRewardDetail.armor ? "armor" : "weapon"}
-        subtitle={`本周活动奖励 · ${weeklyRewardDetail.itemType ?? "装备定义"}`}
-        objectContext="资料库定义"
-        closeLabel="关闭奖励详情"
+        subtitle={itemDetailTemplate(itemDetailCopy, "本周活动奖励 · {type}", { type: weeklyRewardDetail.itemType ?? itemDetailText(itemDetailCopy, "装备定义") })}
+        objectContext={itemDetailText(itemDetailCopy, "资料库定义")}
+        copy={itemDetailCopy}
+        closeLabel={itemDetailText(itemDetailCopy, "关闭奖励详情")}
         onClose={() => setWeeklyRewardDetail(null)}
         sections={weeklyRewardDetail.armor
-          ? <ArmorDetailContent model={weeklyRewardDetail.armor} />
-          : <WeaponDetailContent model={weeklyRewardDetail.weapon!} />}
+          ? <ArmorDetailContent copy={itemDetailCopy} model={weeklyRewardDetail.armor} />
+          : <WeaponDetailContent copy={itemDetailCopy} model={weeklyRewardDetail.weapon!} />}
       />
     ) : null}
     </>

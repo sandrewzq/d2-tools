@@ -113,6 +113,8 @@ import type {
   RecommendationSourceMatch,
   VaultItemInstanceMatchInfo
 } from "@d2-tools/core/community-perks";
+import type { VaultCopy } from "./i18n/types.js";
+import { vaultText } from "./vault/vaultCopy.js";
 
 export type VaultRecommendationSourceSummary = {
   /**
@@ -364,12 +366,13 @@ export function getVaultRecommendationFilterFact(
 }
 
 export function vaultRecommendationPrimaryFilterLabel(
+  copy: VaultCopy,
   filter: VaultRecommendationPrimaryFilter
 ): string {
-  if (filter === "all") return "全部";
-  if (filter === "unrequired") return "未要求";
-  if (filter === "uncheckable") return "无法判断";
-  if (filter === "uncovered") return "未收录";
+  if (filter === "all") return vaultText(copy, "全部");
+  if (filter === "unrequired") return vaultText(copy, "未要求");
+  if (filter === "uncheckable") return vaultText(copy, "无法判断");
+  if (filter === "uncovered") return vaultText(copy, "未收录");
   return filter;
 }
 

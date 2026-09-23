@@ -9,6 +9,7 @@ import type {
 } from "../src/renderer/api/types.js";
 import { useVaultWriteActions } from "../src/renderer/features/vault/useVaultWriteActions.js";
 import { useLoadoutWriteActions } from "../src/renderer/features/loadouts/useLoadoutWriteActions.js";
+import { localeCopy } from "@d2-tools/ui";
 
 const apiMock = vi.hoisted(() => ({
   setItemLockState: vi.fn(),
@@ -125,6 +126,7 @@ function vaultInput(input: {
   applyAcceptedAccountActionPatches: ReturnType<typeof vi.fn>;
 }) {
   return {
+    copy: localeCopy["zh-CN"].vault,
     accountSummary: accountSummary(),
     setVaultTags: vi.fn(),
     setAccountError: vi.fn(),

@@ -31,6 +31,7 @@ export type {
   ArmorDetailViewModel,
   ArmorRecommendation,
   ArmorSocket,
+  ArmorSocketLabel,
   ArmorSourceEntry,
   ArmorStatTrack,
   BuildArmorDetailViewModelInput
@@ -45,6 +46,7 @@ export type {
   WeaponDetailChampionEffect,
   WeaponDetailConfiguration,
   WeaponDetailDamage,
+  WeaponDetailEntryKind,
   WeaponEnhancementSummary,
   WeaponDetailIdentity,
   WeaponDetailInstance,
@@ -61,6 +63,7 @@ export type {
   WeaponPerkPoolKind,
   WeaponPerkSelectionColumn,
   WeaponSocketPlugLike,
+  WeaponSocketColumnLabel,
   WeaponRecommendation,
   WeaponRecommendationPerkCandidate,
   WeaponSourceEntry,

@@ -3,6 +3,8 @@ import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { VaultTags, VaultTagValue } from "@d2-tools/core/vault/tags";
 import { matchesLoadoutTemplateItem, type LoadoutTemplateLookup } from "@d2-tools/app/loadouts";
 import type { VaultSection } from "@d2-tools/app/vault";
+import type { VaultCopy } from "../i18n/types.js";
+import { vaultTemplate, vaultText } from "./vaultCopy.js";
 import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
 import { getVaultItemKey } from "@d2-tools/app/vault";
 import {
@@ -20,6 +22,7 @@ export const INITIAL_VAULT_RENDER_LIMIT = 200;
 const VAULT_RENDER_INCREMENT = 200;
 
 export function VaultItemSections(props: {
+  copy: VaultCopy;
   sections: VaultSection[];
   itemCollectionStore: VaultItemCollectionStore;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
@@ -87,6 +90,7 @@ export function VaultItemSections(props: {
   const renderCard = useCallback((itemKey: string, index: number, fallbackItem?: AccountItemSummary) => {
     return (
       <VaultItemCard
+        copy={props.copy}
         itemKey={itemKey}
         itemCollectionStore={props.itemCollectionStore}
         fallbackItem={fallbackItem}
@@ -108,7 +112,7 @@ export function VaultItemSections(props: {
         onQuickAction={handleQuickAction}
       />
     );
-  }, [handleQuickAction, handleSelectItem, handleToggleSelected, props.currentCharacterId, props.currentCharacterLabel, props.highlightedItemKeys, props.isOrganizing, props.itemCollectionStore, props.openingItemKey, props.preferredRecommendationSourceId, props.quickActionStore, props.quickActionsDisabled, props.recommendationSummaryByInstance, props.selectedKeys, props.tags]);
+  }, [handleQuickAction, handleSelectItem, handleToggleSelected, props.copy, props.currentCharacterId, props.currentCharacterLabel, props.highlightedItemKeys, props.isOrganizing, props.itemCollectionStore, props.openingItemKey, props.preferredRecommendationSourceId, props.quickActionStore, props.quickActionsDisabled, props.recommendationSummaryByInstance, props.selectedKeys, props.tags]);
   const renderStoredCard = useCallback(
     (itemKey: string, index: number) => renderCard(itemKey, index),
     [renderCard]
@@ -125,21 +129,29 @@ export function VaultItemSections(props: {
   }, [canUseKeyedWeaponGrid, props.focusRequest]);
 
   if (!props.sections.length) {
-    return <p className="status-message status-neutral">{props.emptyMessage ?? "没有匹配的仓库物品。"}</p>;
+    return <p className="status-message status-neutral">{props.emptyMessage ?? vaultText(props.copy, "没有匹配的仓库物品。")}</p>;
   }
 
   return (
     <div ref={sectionListRef} className="vault-section-list">
       {!canUseKeyedWeaponGrid && totalItemCount > INITIAL_VAULT_RENDER_LIMIT ? (
         <div className="vault-render-limit-message">
-          <span>{props.isSearchActive ? "搜索结果" : "当前范围"}先显示 {renderedItemCount} / {totalItemCount} 件，避免一次挂载全部装备。</span>
+          <span>{vaultTemplate(
+            props.copy,
+            "{scope}先显示 {shown} / {total} 件，避免一次挂载全部装备。",
+            {
+              scope: props.isSearchActive ? vaultText(props.copy, "搜索结果") : vaultText(props.copy, "当前范围"),
+              shown: renderedItemCount,
+              total: totalItemCount
+            }
+          )}</span>
           {renderedItemCount < totalItemCount ? (
             <button
               data-ui-kind="button" data-control-variant="secondary"
               type="button"
               onClick={() => setVisibleItemLimit((current) => current + VAULT_RENDER_INCREMENT)}
             >
-              加载更多
+              {vaultText(props.copy, "加载更多")}
             </button>
           ) : null}
         </div>
@@ -165,6 +177,7 @@ export function VaultItemSections(props: {
 }
 
 const VaultItemCard = memo(function VaultItemCard(props: {
+  copy: VaultCopy;
   itemKey: string;
   itemCollectionStore: VaultItemCollectionStore;
   fallbackItem?: AccountItemSummary;
@@ -200,6 +213,7 @@ const VaultItemCard = memo(function VaultItemCard(props: {
   const tagValue: VaultTagValue = props.tags.items[props.itemKey]?.tag ?? "none";
   return (
     <VaultListItem
+      copy={props.copy}
       item={item}
       imagePriority={props.imagePriority}
       tagValue={tagValue}

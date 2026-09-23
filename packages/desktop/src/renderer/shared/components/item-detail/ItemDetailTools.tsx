@@ -1,5 +1,7 @@
 import { evaluateLocalTargets } from "@d2-tools/core/analysis/targets";
 import { evaluateEquipmentTargets } from "@d2-tools/core/targets/equipmentTargets";
+import type { ItemDetailCopy } from "@d2-tools/ui";
+import { itemDetailTemplate, itemDetailText } from "@d2-tools/ui";
 import type {
   AccountSummary,
   EquipmentTargetStore,
@@ -29,6 +31,7 @@ import { ItemDetailSameName } from "./ItemDetailSameName";
 
 export type ItemDetailToolsProps = {
   accountSummary: AccountSummary | null;
+  copy: ItemDetailCopy;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
   isGeneratingItemAi: boolean;
@@ -72,14 +75,16 @@ export type ItemDetailToolsProps = {
 
 export function ItemDetailTools(props: ItemDetailToolsProps) {
   const selectedItem = props.selectedItem;
+  const copy = props.copy;
 
   return (
-    <section className="item-detail-tool-area item-tool-panel" aria-label="装备详情工具区">
+    <section className="item-detail-tool-area item-tool-panel" aria-label={itemDetailText(copy, "装备详情工具区")}>
       <div className="item-detail-tool-grid">
         <section className="item-detail-tool-section item-detail-tool-overview">
-          <h3>概览</h3>
-          <ItemDetailOverview selectedItem={selectedItem} />
+          <h3>{itemDetailText(copy, "概览")}</h3>
+          <ItemDetailOverview copy={copy} selectedItem={selectedItem} />
           <ItemDetailTargetMatch
+            copy={copy}
             localTargetRules={props.localTargetRules}
             equipmentTargetStore={props.equipmentTargetStore}
             selectedItem={selectedItem}
@@ -87,10 +92,11 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
             onCopyTargetInsight={props.onCopyTargetInsight}
             onSaveSelectedItemTag={props.onSaveSelectedItemTag}
           />
-          <ItemDetailPerks selectedItem={selectedItem} />
+          <ItemDetailPerks copy={copy} selectedItem={selectedItem} />
         </section>
         <section className="item-detail-tool-section item-detail-tool-compare">
           <ItemDetailSameName
+            copy={copy}
             sameNameItems={props.sameNameItems}
             selectedItem={selectedItem}
             vaultTags={props.vaultTags}
@@ -101,13 +107,15 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
           />
         </section>
         <section className="item-detail-tool-section item-detail-tool-actions">
-          <h3>操作</h3>
+          <h3>{itemDetailText(copy, "操作")}</h3>
           <ItemLocalTagPanel
+            copy={copy}
             selectedItem={selectedItem}
             vaultTags={props.vaultTags}
             onSaveSelectedItemTag={props.onSaveSelectedItemTag}
           />
           <ItemNotePanel
+            copy={copy}
             itemNoteDraft={props.itemNoteDraft}
             itemNoteMessage={props.itemNoteMessage}
             onSaveSelectedItemNote={props.onSaveSelectedItemNote}
@@ -115,6 +123,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
           />
           <ItemDetailActions
             accountSummary={props.accountSummary}
+            copy={copy}
             isRunningItemAction={props.isRunningItemAction}
             selectedActionCharacterId={props.selectedActionCharacterId}
             selectedItem={selectedItem}
@@ -123,6 +132,7 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
             onSelectedActionCharacterIdChange={props.onSelectedActionCharacterIdChange}
           />
           <ItemDetailAi
+            copy={copy}
             isGeneratingItemAi={props.isGeneratingItemAi}
             itemAiError={props.itemAiError}
             itemAiResult={props.itemAiResult}
@@ -137,23 +147,24 @@ export function ItemDetailTools(props: ItemDetailToolsProps) {
   );
 }
 
-function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
+function ItemDetailOverview(props: { copy: ItemDetailCopy; selectedItem: SelectedItemDetail }) {
   const selectedItem = props.selectedItem;
+  const copy = props.copy;
   const sourceTone = getItemSourceStatusTone(selectedItem);
 
   return (
     <>
       {selectedItem.is_detail_loading ? (
         <section className="source-status-card source-status-pending item-detail-loading" aria-live="polite">
-          <span className="source-status-badge source-status-pending">详情加载</span>
-          <strong>正在打开详情...</strong>
-          <span>先显示基础信息，来源、perk 和详细说明会继续加载。</span>
+          <span className="source-status-badge source-status-pending">{itemDetailText(copy, "详情加载")}</span>
+          <strong>{itemDetailText(copy, "正在打开详情...")}</strong>
+          <span>{itemDetailText(copy, "先显示基础信息，来源、perk 和详细说明会继续加载。")}</span>
         </section>
       ) : null}
       {selectedItem.description ? <p className="item-detail-description">{selectedItem.description}</p> : null}
       <section className={`source-status-card source-status-${sourceTone} daily-source ${selectedItem.is_detail_loading ? "item-detail-loading" : "source-ready"}`}>
         <span className={`source-status-badge source-status-${sourceTone}`}>
-          {selectedItem.is_detail_loading ? "来源读取中" : "来源"}
+          {selectedItem.is_detail_loading ? itemDetailText(copy, "来源读取中") : itemDetailText(copy, "来源")}
         </span>
         <strong>{selectedItem.source.label}</strong>
         <span>{selectedItem.source.description}</span>
@@ -163,6 +174,7 @@ function ItemDetailOverview(props: { selectedItem: SelectedItemDetail }) {
 }
 
 function ItemDetailTargetMatch(props: {
+  copy: ItemDetailCopy;
   localTargetRules: LocalTargetRules;
   equipmentTargetStore: EquipmentTargetStore;
   selectedItem: SelectedItemDetail;
@@ -170,6 +182,7 @@ function ItemDetailTargetMatch(props: {
   onCopyTargetInsight: () => void;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
 }) {
+  const copy = props.copy;
   const accountItem = selectedItemToAccountItem(props.selectedItem);
   if (!accountItem) {
     return null;
@@ -183,7 +196,7 @@ function ItemDetailTargetMatch(props: {
   }
 
   const tag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
-  const matchSources = formatTargetMatchSources({
+  const matchSources = formatTargetMatchSources(copy, {
     localTargetMatched: localTarget.matched,
     equipmentTargetMatched: equipmentTarget.matched
   });
@@ -191,12 +204,12 @@ function ItemDetailTargetMatch(props: {
   return (
     <section className="target-match-panel matched">
       <div className="target-match-header">
-        <span className="source-status-badge source-status-ready">目标命中</span>
-        <strong>{equipmentTarget.matched ? "装备目标命中" : "本地目标命中"}</strong>
+        <span className="source-status-badge source-status-ready">{itemDetailText(copy, "目标命中")}</span>
+        <strong>{equipmentTarget.matched ? itemDetailText(copy, "装备目标命中") : itemDetailText(copy, "本地目标命中")}</strong>
       </div>
       <div className="target-match-meta">
-        <span>命中来源：{matchSources.join(" / ")}</span>
-        <span>本地标记：{formatVaultTagLabel(tag)}</span>
+        <span>{itemDetailTemplate(copy, "命中来源：{value}", { value: matchSources.join(" / ") })}</span>
+        <span>{itemDetailTemplate(copy, "本地标记：{value}", { value: formatVaultTagLabel(copy, tag) })}</span>
         {localTarget.matched ? <span>{localTarget.labels.join(" / ")}</span> : null}
         {equipmentTarget.matched ? <span>{equipmentTarget.labels.join(" / ")}</span> : null}
       </div>
@@ -206,77 +219,82 @@ function ItemDetailTargetMatch(props: {
       </ul>
       <div className="button-row">
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopyTargetInsight}>
-          复制命中结论
+          {itemDetailText(copy, "复制命中结论")}
         </button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>标记待刷</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>标记配装用</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>{itemDetailText(copy, "标记待刷")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>{itemDetailText(copy, "标记配装用")}</button>
       </div>
       <small>{equipmentTarget.matched ? equipmentTarget.disclaimer : localTarget.disclaimer}</small>
-      <small>命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。</small>
+      <small>{itemDetailText(copy, "命中后不会自动收藏、加标签或改动装备；你需要手动选择标记或写操作。")}</small>
     </section>
   );
 }
 
-function formatTargetMatchSources(input: {
+function formatTargetMatchSources(copy: ItemDetailCopy, input: {
   localTargetMatched: boolean;
   equipmentTargetMatched: boolean;
 }): string[] {
   const sources = [];
   if (input.localTargetMatched) {
-    sources.push("本地目标规则");
+    sources.push(itemDetailText(copy, "本地目标规则"));
   }
   if (input.equipmentTargetMatched) {
-    sources.push("装备目标库");
+    sources.push(itemDetailText(copy, "装备目标库"));
   }
-  return sources.length ? sources : ["未命中"];
+  return sources.length ? sources : [itemDetailText(copy, "未命中")];
 }
 
 function ItemLocalTagPanel(props: {
+  copy: ItemDetailCopy;
   selectedItem: SelectedItemDetail;
   vaultTags: VaultTags;
   onSaveSelectedItemTag: (tag: VaultTagValue) => void;
 }) {
+  const copy = props.copy;
   const currentTag = props.vaultTags.items[props.selectedItem.item_key]?.tag ?? "none";
 
   return (
     <section className="item-local-tag-panel">
       <div className="item-local-tag-header">
-        <span>本地标记</span>
+        <span>{itemDetailText(copy, "本地标记")}</span>
         <strong className={`vault-tag-current tag-${currentTag}`}>
-          {formatVaultTagLabel(currentTag)}
+          {formatVaultTagLabel(copy, currentTag)}
         </strong>
       </div>
       <div className="button-row">
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("keep")}>保留</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("review")}>待定</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>待刷</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>配装用</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("junk")}>清理</button>
-        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("none")}>清除</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("keep")}>{formatVaultTagLabel(copy, "keep")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("review")}>{formatVaultTagLabel(copy, "review")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("farm")}>{formatVaultTagLabel(copy, "farm")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("loadout")}>{formatVaultTagLabel(copy, "loadout")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("junk")}>{formatVaultTagLabel(copy, "junk")}</button>
+        <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onSaveSelectedItemTag("none")}>{itemDetailText(copy, "清除")}</button>
       </div>
     </section>
   );
 }
 
 function ItemNotePanel(props: {
+  copy: ItemDetailCopy;
   itemNoteDraft: string;
   itemNoteMessage: string;
   onSaveSelectedItemNote: () => void;
   onSetItemNoteDraft: (value: string) => void;
 }) {
+  const copy = props.copy;
+
   return (
     <section className="item-note-panel">
-      <label htmlFor="item-note-draft">本地备注</label>
+      <label htmlFor="item-note-draft">{itemDetailText(copy, "本地备注")}</label>
       <textarea
         id="item-note-draft"
         value={props.itemNoteDraft}
         onChange={(event) => props.onSetItemNoteDraft(event.target.value)}
-        placeholder="例如：留给电猎清杂 / 等队友复查 PVP 手感 / 同名已有更好 roll"
+        placeholder={itemDetailText(copy, "例如：留给电猎清杂 / 等队友复查 PVP 手感 / 同名已有更好 roll")}
         rows={3}
       />
       <div className="button-row">
         <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onSaveSelectedItemNote}>
-          保存备注
+          {itemDetailText(copy, "保存备注")}
         </button>
         {props.itemNoteMessage ? <span className="muted-copy">{props.itemNoteMessage}</span> : null}
       </div>

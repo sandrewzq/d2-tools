@@ -51,6 +51,10 @@
       "types": "./dist/account/cacheMetrics.d.ts",
       "import": "./dist/account/cacheMetrics.js"
     },
+    "./account/armorPiecesStore": {
+      "types": "./dist/account/armorPiecesStore.d.ts",
+      "import": "./dist/account/armorPiecesStore.js"
+    },
     "./cache/maintenance": {
       "types": "./dist/cache/maintenance.d.ts",
       "import": "./dist/cache/maintenance.js"

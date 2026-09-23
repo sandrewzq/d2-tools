@@ -1,4 +1,6 @@
 import { GameAssetImage } from "../media/GameAssetImage.js";
+import type { ItemDetailCopy } from "../i18n/types.js";
+import { itemDetailText } from "./itemDetailCopy.js";
 
 export type EquipmentDetailVersionOption = {
   hash: number;
@@ -6,6 +8,7 @@ export type EquipmentDetailVersionOption = {
 };
 
 export type EquipmentDetailContextLedgerProps = {
+  copy: ItemDetailCopy;
   entryLabel: string;
   currentViewLabel: string;
   locationLabel: string;
@@ -32,10 +35,10 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
 
   return (
     <dl className={["equipment-detail-context-ledger", props.slotLabel && "has-slot-fact"].filter(Boolean).join(" ")}>
-      <ContextFact label="入口" value={props.entryLabel} />
-      <ContextFact label="当前查看" value={props.currentViewLabel} current />
-      <ContextFact label={props.locationFieldLabel ?? "位置"} value={props.locationLabel} />
-      {props.slotLabel ? <ContextFact label={props.slotFieldLabel ?? "装备槽位"} value={props.slotLabel} /> : null}
+      <ContextFact label={itemDetailText(props.copy, "入口")} value={props.entryLabel} />
+      <ContextFact label={itemDetailText(props.copy, "当前查看")} value={props.currentViewLabel} current />
+      <ContextFact label={props.locationFieldLabel ?? itemDetailText(props.copy, "位置")} value={props.locationLabel} />
+      {props.slotLabel ? <ContextFact label={props.slotFieldLabel ?? itemDetailText(props.copy, "装备槽位")} value={props.slotLabel} /> : null}
       {props.showVersionField !== false ? <div className="equipment-detail-version-field">
         <dt data-ui-part="label" data-text-tone="meta" data-info-priority="support">{props.versionFieldLabel}</dt>
         <dd data-ui-part="value" data-text-tone="primary" data-info-priority="context">
@@ -45,7 +48,7 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
           >
             {canSelectVersion ? (
               <select
-                aria-label="选择装备版本"
+                aria-label={itemDetailText(props.copy, "选择装备版本")}
                 value={props.selectedVersionHash}
                 onChange={(event) => props.onSelectVersion?.(Number(event.target.value))}
               >
@@ -58,8 +61,8 @@ export function EquipmentDetailContextLedger(props: EquipmentDetailContextLedger
               <span className="equipment-detail-version-watermark">
                 <GameAssetImage
                   src={props.watermarkIcon}
-                  alt="当前官方版本水印"
-                  title="当前官方发布版本水印"
+                  alt={itemDetailText(props.copy, "当前官方版本水印")}
+                  title={itemDetailText(props.copy, "当前官方发布版本水印")}
                   loading="eager"
                 />
               </span>

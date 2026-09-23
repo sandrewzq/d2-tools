@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import type { ItemDetailCopy } from "../i18n/types.js";
+import { itemDetailText } from "./itemDetailCopy.js";
 
 export type DetailInstanceAction = {
   key: string;
@@ -17,6 +19,7 @@ export type DetailInstanceTagAction = {
 };
 
 export type DetailInstanceActionPanelProps = {
+  copy: ItemDetailCopy;
   title: string;
   subtitle: string;
   eyebrow?: string;
@@ -40,9 +43,10 @@ export type DetailInstanceActionPanelProps = {
 };
 
 export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps) {
+  const copy = props.copy;
   const tagControls = (
     <div className="detail-instance-tag-group">
-      <span>本地标记</span>
+      <span>{itemDetailText(copy, "本地标记")}</span>
       <div>
         {props.tags.map((tag) => (
           <button
@@ -63,8 +67,8 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
   const noteControls = (
     <>
       <textarea
-        aria-label={props.noteLabel ?? "实例备注"}
-        placeholder="记录用途、搭配或后续处理计划"
+        aria-label={props.noteLabel ?? itemDetailText(copy, "实例备注")}
+        placeholder={itemDetailText(copy, "记录用途、搭配或后续处理计划")}
         value={props.note}
         onChange={(event) => props.onNoteChange(event.target.value)}
       />
@@ -89,22 +93,22 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
     <div className="detail-instance-actions">
       <div className="detail-instance-current">
         <div>
-          <span>{props.eyebrow ?? "当前实例"}</span>
+          <span>{props.eyebrow ?? itemDetailText(copy, "当前实例")}</span>
           <h3>{props.title}</h3>
           <p>{props.subtitle}</p>
         </div>
-        <strong>{props.currentBadge ?? "正在查看"}</strong>
+        <strong>{props.currentBadge ?? itemDetailText(copy, "正在查看")}</strong>
       </div>
 
       {props.statusLabels.length ? (
-        <div className="detail-instance-status-list" aria-label="实例状态">
+        <div className="detail-instance-status-list" aria-label={itemDetailText(copy, "实例状态")}>
           {props.statusLabels.map((label) => <span key={label}>{label}</span>)}
         </div>
       ) : null}
 
       {props.targetOptions?.length && props.targetValue && props.onTargetChange ? (
         <label className="detail-instance-target">
-          <span>{props.targetLabel ?? "目标角色"}</span>
+          <span>{props.targetLabel ?? itemDetailText(copy, "目标角色")}</span>
           <select
             disabled={props.disabled}
             value={props.targetValue}
@@ -137,8 +141,8 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
       {props.collapseAuxiliary ? (
         <details className="detail-instance-more">
           <summary>
-            <span>标签、备注与复用</span>
-            {props.noteDirty ? <strong>备注未保存</strong> : null}
+            <span>{itemDetailText(copy, "标签、备注与复用")}</span>
+            {props.noteDirty ? <strong>{itemDetailText(copy, "备注未保存")}</strong> : null}
           </summary>
           <div>{tagControls}{noteControls}</div>
         </details>
@@ -147,8 +151,8 @@ export function DetailInstanceActionPanel(props: DetailInstanceActionPanelProps)
           {tagControls}
           <details className="detail-instance-more">
             <summary>
-              <span>备注与复用</span>
-              {props.noteDirty ? <strong>备注未保存</strong> : null}
+              <span>{itemDetailText(copy, "备注与复用")}</span>
+              {props.noteDirty ? <strong>{itemDetailText(copy, "备注未保存")}</strong> : null}
             </summary>
             <div>{noteControls}</div>
           </details>

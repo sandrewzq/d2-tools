@@ -106,15 +106,16 @@ describe("architecture maintenance guardrails", () => {
     );
     // 悬停与读屏共用同一句话，且这句话说的是要求几项、命中几项——不是把档位名念一遍。
     expect(flat).toContain(
-      "aria-label={`${option.sourceLabel}${formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}`}"
+      "aria-label={`${option.sourceLabel}${formatVaultRecommendationMetricOptionDescription(copy, filterOption.key, filterOption.count)}`}"
     );
-    expect(flat).toContain("title={formatVaultRecommendationMetricOptionDescription(filterOption.key, filterOption.count)}");
-    expect(descriptionBody.replace(/\s+/g, " ")).toContain("要求 ${required} 项，命中 ${matched} 项，${count} 件");
+    expect(flat).toContain("title={formatVaultRecommendationMetricOptionDescription(copy, filterOption.key, filterOption.count)}");
+    expect(descriptionBody.replace(/\s+/g, " ")).toContain("要求 {required} 项，命中 {matched} 项，{count} 件");
     // 旧的档位说法（「命中 x/y」）与组标签「perk 命中」拼在一起会念成「perk 命中 命中 1/2」；
     // 那个函数删掉后就别再回来。
     expect(vaultView).not.toContain("formatVaultRecommendationMetricOptionLabel");
     // 可见文字仍是裸的命中档 + 独立数量徽标：分段组左边已经挂着可见标签「perk 命中」。
-    expect(chipMarkup.replace(/\s+/g, " ")).toContain(`<span>{filterOption.key === "all" ? "全部" : filterOption.key}</span>`);
+    // 档位名是数据（`2/2`），只有「全部」是固定文案，走 copy 查表，所以字面量外面套着查表调用。
+    expect(chipMarkup.replace(/\s+/g, " ")).toContain(`<span>{filterOption.key === "all" ? vaultText(copy, "全部") : filterOption.key}</span>`);
     expect(chipMarkup).not.toContain("命中 ");
   });
 
@@ -186,8 +187,8 @@ describe("architecture maintenance guardrails", () => {
     // 界面那一侧：冗余一段与问题框是两段，红框里的数字只取问题行数。
     const wishlistPanel = readFileSync(join(repoRoot, "packages", "ui", "src", "vault", "VaultWishlistManager.tsx"), "utf8");
     expect(wishlistPanel).toMatch(/^\s*\{preview\.merged_row_count > 0 \? \($/m);
-    expect(wishlistPanel).toMatch(/^\s*<strong>\{preview\.merged_row_count\} 行是展开写法的冗余<\/strong>$/m);
-    expect(wishlistPanel).toMatch(/^\s*\{preview\.skipped_row_count\} 行有问题将忽略$/m);
+    expect(wishlistPanel).toMatch(/^\s*<strong>\{vaultTemplate\(copy, "\{count\} 行是展开写法的冗余", \{ count: preview\.merged_row_count \}\)\}<\/strong>$/m);
+    expect(wishlistPanel).toMatch(/^\s*\{vaultTemplate\(copy, "\{count\} 行有问题将忽略", \{ count: preview\.skipped_row_count \}\)\}$/m);
   });
 
   it("keeps the link dialog laid out by its own rule instead of the removed paste channel", () => {
@@ -292,9 +293,9 @@ describe("architecture maintenance guardrails", () => {
       expect(source, `${panel} 没走共用的确认弹框`).toContain("<ConfirmationDialog");
       // 框里的按钮取「确认 + 行上那个动作」。与触发它的行内按钮同名时，同一个名字在页面上
       // 出现两次：遮罩挡得住点击，挡不住查询与读屏，说「点删除」就不知道点的是哪一个。
-      const labels = source.match(/confirmLabel: "[^"]*"/g) ?? [];
+      const labels = source.match(/confirmLabel: vaultText\(copy, "[^"]*"\)/g) ?? [];
       expect(labels.length, `${panel} 里没有找到确认按钮文案`).toBeGreaterThan(0);
-      expect(labels.filter((label) => !label.startsWith('confirmLabel: "确认'))).toEqual([]);
+      expect(labels.filter((label) => !label.startsWith('confirmLabel: vaultText(copy, "确认'))).toEqual([]);
     }
   });
 
@@ -369,8 +370,10 @@ describe("architecture maintenance guardrails", () => {
       "条目盒子几何（栅格、最小高度、内边距）必须定义在 .weapon-detail-perk-entry-box 上，占位与骨架才吃得到"
     ).toBe(true);
     // 空态仍然在自己的列壳里、带列名：改动前那个裸 div 没有表头，整格比邻列高出表头那一格。
+    // 列名现在走 copy 查表，所以字面量外面可能套一层查表调用；两种形态都算过，别的一律不算。
+    // 占位组件自己的 props 不参与判断（`copy` 之外还会长别的），只认它紧接着 `<div>` 且是空态。
     expect(detail, "固有能力空态丢了列名，整格会比邻列高一格").toMatch(
-      /<h4>固有能力<\/h4>\s*<div>\s*<WeaponPerkPlaceholder\s+variant="empty"/
+      /<h4>\{?(?:[A-Za-z][\w.]*\([^)]*,\s*)?"固有能力"\)?\}?<\/h4>\s*<div>\s*<WeaponPerkPlaceholder\b[^>]*variant="empty"/
     );
     // 骨架的图标位与真图标同形（36 圆），不是老骨架的 38 方形。
     const barRule = perkCss.match(/\.weapon-detail-perk-entry-bar-art\s*\{[^}]*\}/)?.[0] ?? "";
@@ -609,7 +612,7 @@ describe("architecture maintenance guardrails", () => {
     const definitions = sourceFilesUnder([join("packages", "ui", "src")])
       .map((file) => readFileSync(join(repoRoot, file), "utf8"))
       .join("\n")
-      .match(/^export function managedSource(?:Rule|Weapon|Scale|Impact)Label\(/gm) ?? [];
+      .match(/^export function managedSource(?:Rule|Weapon|Scale|Impact)Label\(\s*copy: VaultCopy,/gm) ?? [];
     expect(definitions, "共用的来源行文案函数必须各只有一份定义").toHaveLength(4);
 
     for (const panel of ["VaultRecommendationSourceManager.tsx", "VaultWishlistManager.tsx"]) {
@@ -617,11 +620,11 @@ describe("architecture maintenance guardrails", () => {
       // 按行锚定「说明与那几行数字是同一处」：只断言「文件里出现过 title=…」会被详情弹框标题
       // 那一处蒙混过去——行上不挂了它照样绿（这一条第一版就是这么写的，改坏没杀掉）。
       expect(source, `${panel} 的计数行没挂悬停说明`).toMatch(
-        /title=\{managedSourceCountsTitle\}><b>\{managedSourceRuleLabel\(source\)\}<\/b><small>\{managedSourceWeaponLabel\(source\)\}<\/small><small>\{managedSourceImpactLabel\(source\)\}<\/small>/
+        /title=\{managedSourceCountsTitle\(copy\)\}><b>\{managedSourceRuleLabel\(copy, source\)\}<\/b><small>\{managedSourceWeaponLabel\(copy, source\)\}<\/small><small>\{managedSourceImpactLabel\(copy, source\)\}<\/small>/
       );
       // 行上必须用拆开的短句，不能图省事把弹框标题那句拼回来的长句塞进定宽的数字栏——
       // 那正是「上万条规则就把「武器」挤到下一行」那一版（也是这一条守卫上一版没按住的）。
-      expect(source, `${panel} 的数字栏又用了一句长的`).not.toContain("<b>{managedSourceScaleLabel(source)}</b>");
+      expect(source, `${panel} 的数字栏又用了一句长的`).not.toContain("<b>{managedSourceScaleLabel(copy, source)}</b>");
       // 旧写法（一个数、且不提范围）不许再拼出来——它正是「292 和 305 对不上」那一版。
       expect(source, `${panel} 又自己拼了来源行文案`).not.toContain("把武器 · 当前账号影响");
     }
@@ -629,7 +632,7 @@ describe("architecture maintenance guardrails", () => {
     // 详情弹框标题也是同一套说法，不是只有列表行这么写；那儿不设宽度，可以用拼好的长句。
     const sourceManager = readFileSync(join(repoRoot, "packages", "ui", "src", "vault", "VaultRecommendationSourceManager.tsx"), "utf8");
     expect(sourceManager).toMatch(
-      /title=\{managedSourceCountsTitle\}>\{managedSourceMetaLabel\(props\.source\)\} · \{managedSourceScaleLabel\(props\.source\)\}/
+      /title=\{managedSourceCountsTitle\(copy\)\}>\{managedSourceMetaLabel\(copy, props\.source\)\} · \{managedSourceScaleLabel\(copy, props\.source\)\}/
     );
 
     // 新加的这个数也要进「要不要换掉旧数组」那份手写清单：漏了它，行还渲染、数字却是上一次的——

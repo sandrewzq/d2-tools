@@ -230,8 +230,8 @@ describe("community perk recommendations", () => {
       source_label: "人工来源",
       source_records: [{
         rule_stable_id: `curated-${curatedMode}`,
-        source_id: "aegis",
-        source_label: "Aegis推荐",
+        source_id: "community-sample",
+        source_label: "示例推荐表",
         purposes: [curatedMode],
         requirements: [{
           slot: "perk1",
@@ -367,7 +367,7 @@ describe("community perk recommendations", () => {
       { slot: "perk1", candidates: [["10"], ["11"]] }
     ]);
 
-    // 小棒猪式的「前缀展开」：长行是短行的超集，去掉冗余后正好是 1 栏 × 2 栏。
+    // 来源表里的「前缀展开」：长行是短行的超集，去掉冗余后正好是 1 栏 × 2 栏。
     expect(reduceCombosToColumnPool([
       [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [20] }, { slot: "perk2", hashes: [21] }],
       [{ slot: "perk1", hashes: [10] }, { slot: "perk2", hashes: [20] }],

@@ -59,11 +59,13 @@ export type {
   AccountCopy,
   BungieManifestLocale,
   InterfaceLocale,
+  ItemDetailCopy,
   LocaleCopy,
   ProductPreferences,
   SettingsCopy,
   VendorsCopy,
-  ShellCopy
+  ShellCopy,
+  VaultCopy
 } from "./i18n/types.js";
 export { getLibraryRandomPerkGroups, getLibraryWeaponPerkColumns, LibraryDefinitionDialog, LibraryPageContentView } from "./library/LibraryPageContentView.js";
 export type { LibraryPageActions, LibraryPageContentViewProps } from "./library/LibraryPageContentView.js";
@@ -80,6 +82,18 @@ export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
 export { SharedItemDetailDialog, SharedItemDetailLoading } from "./item-detail/SharedItemDetailDialog.js";
+export { itemDetailTemplate, itemDetailText } from "./item-detail/itemDetailCopy.js";
+export {
+  armorSocketLabelText,
+  armorStatLabel,
+  itemDetailEntryLabel,
+  itemDetailSourceLocationLabel,
+  weaponAmmoLabel,
+  weaponCraftingLabel,
+  weaponSocketColumnLabelText,
+  weaponStatLabel
+} from "./item-detail/itemDetailLabels.js";
+export { ItemDetailVendorContext } from "./item-detail/ItemDetailVendorContext.js";
 export type {
   SharedItemDetailDialogProps,
   SharedItemDetailView,
@@ -152,6 +166,7 @@ export type {
   VendorsPageModelView
 } from "./vendors/VendorsPageContentView.js";
 export { VaultPageContentView } from "./vault/VaultPageContentView.js";
+export { vaultActionMessageText, vaultTemplate, vaultText } from "./vault/vaultCopy.js";
 export { VaultArmorFilterPanel } from "./vault/VaultArmorFilterPanel.js";
 export { VaultFilterToolbar } from "./vault/VaultFilterToolbar.js";
 export { VaultItemSections } from "./vault/VaultItemSections.js";

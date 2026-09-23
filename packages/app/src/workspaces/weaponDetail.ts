@@ -2,6 +2,7 @@ import type {
   AccountItemPlugSummary,
   AccountItemSummary,
   AccountWeaponCraftingSummary,
+  AccountWeaponRollSlot,
   AmmoTypeKey,
   WeaponFrameSummary,
   WeaponStatKey,
@@ -24,8 +25,12 @@ export type WeaponDetailEntryKind = "library" | "vendor" | "vault" | "account" |
 export type WeaponDetailObjectContext = {
   kind: WeaponDetailObjectKind;
   entry: WeaponDetailEntryKind;
-  entry_label: string;
-  object_label: string;
+  /**
+   * 身份标签。`packages/app` 不认识界面语言，所以这里只负责**透传调用方注入的标签**；
+   * 调用方不传时（`undefined`）由 UI 按 `entry` / `kind` 自己查表。
+   */
+  entry_label?: string;
+  object_label?: string;
   object_id?: string;
   location_label?: string;
   read_only: boolean;
@@ -46,18 +51,20 @@ export type WeaponDetailIdentity = {
   champion?: WeaponDetailChampionEffect;
   release?: ItemReleaseSummary;
   definition_version?: ItemDefinitionVersionSummary;
-  /** 锻造标识：账号实例为 crafted，资料库定义为 craftable；只做锻造，不标强化。 */
+  /**
+   * 锻造标识：账号实例为 crafted，资料库定义为 craftable；只做锻造，不标强化。
+   * 标识文案由 `kind` 决定，措辞由 UI 按 `copy` 现查。
+   */
   crafting?: {
     kind: "crafted" | "craftable";
-    label: string;
     overlay?: string;
     background?: string;
   };
 };
 
+/** 弹药类型名由 `key` 决定，措辞由 UI 按 `copy` 现查。 */
 export type WeaponDetailAmmo = {
   key: AmmoTypeKey;
-  label: string;
   icon?: string;
 };
 
@@ -94,9 +101,9 @@ export type WeaponStatModifier = {
   amount: number;
 };
 
+/** 属性名不做成字段：`key` 已经唯一确定它是哪一条，措辞由 UI 按 `copy` 现查。 */
 export type WeaponStatTrack = {
   key: WeaponStatKey;
-  label: string;
   direction: WeaponStatDirection;
   availability: WeaponStatAvailability;
   standard_value?: number;
@@ -138,10 +145,43 @@ export type WeaponOwnedPerkCandidate = WeaponPerkCandidate & {
   unresolved_in_definition_pool: boolean;
 };
 
+/**
+ * 插槽列的列名。
+ *
+ * `packages/app` 不认识界面语言，所以这里只给「是哪一种列」或「第几个插槽」，
+ * 措辞由 UI 按 `copy` 现算，见 UI 侧的 `weaponSocketColumnLabelText`。
+ *
+ * 几段中文原文相同的分支合并成一个成员（`sword0.guard` 与 `grip` 都写「握把」，
+ * 分类兜底里的「枪管 / 弹匣 / 起源特性」与分类命中时同字），合并后 zh-CN 输出逐字不变。
+ */
+export type WeaponSocketColumnLabel =
+  | { kind: "core_upgrade" }
+  | { kind: "sword_core" }
+  | { kind: "grip" }
+  | { kind: "bowstring" }
+  | { kind: "arrow" }
+  | { kind: "haft" }
+  | { kind: "sight" }
+  | { kind: "blade" }
+  | { kind: "guard" }
+  | { kind: "battery" }
+  | { kind: "stock" }
+  | { kind: "role"; role: Exclude<WeaponPerkColumnRole, "other"> }
+  /** 同名武器特性列按出现次序编号（`Perk 1` / `Perk 2`），编号由 app 定、写法由 UI 定。 */
+  | { kind: "perk_index"; index: number }
+  | { kind: "slot"; index: number }
+  /**
+   * 账号 Roll 快照自带的栏位名（core 的 `weaponRollSlotLabel` 词表）。
+   *
+   * 这一路栏位身份已经由 core 判好，不能再按插件分类重猜：`barrel` 在快照里写的是
+   * `枪管/瞄具` 而不是 `枪管`，`magazine` 写 `第二列`，`masterwork` 写 `大师`。
+   */
+  | { kind: "roll_slot"; slot: AccountWeaponRollSlot };
+
 export type WeaponPerkPoolColumn = {
   key: string;
   socket_index: number;
-  label: string;
+  label: WeaponSocketColumnLabel;
   role: WeaponPerkColumnRole;
   candidates: WeaponPerkCandidate[];
   source_kinds?: ItemPlugSourceKind[];
@@ -150,7 +190,8 @@ export type WeaponPerkPoolColumn = {
 export type WeaponPerkSelectionColumn = {
   key: string;
   socket_index: number;
-  label: string;
+  /** 同 `WeaponPerkPoolColumn.label`：只说是哪一列，措辞由 UI 按 `copy` 现算。 */
+  label: WeaponSocketColumnLabel;
   role: WeaponPerkColumnRole;
   /**
    * 这一列对应哪个来源栏位（`barrel` / `magazine` / `masterwork` / `perk1` / `perk2` / `origin`）。
@@ -182,8 +223,12 @@ export type WeaponSourceKind = "vendor_offer" | "activity_reward" | "live_status
 export type WeaponSourceEntry = {
   id: string;
   kind: WeaponSourceKind;
-  label: string;
-  description: string;
+  /**
+   * 来源名与说明。资料库没有给出获取途径时留空，占位文案由 UI 按 `copy` 现算
+   * （见 `WeaponDetailContent` 的 `历史获取途径` / `Bungie 官方资料没有标注…`）。
+   */
+  label?: string;
+  description?: string;
   icon?: string;
   available_now?: boolean;
   updated_at?: string;
@@ -309,7 +354,11 @@ export type WeaponDetailInstance = {
   name: string;
   icon?: string;
   power?: number;
-  location: string;
+  /**
+   * 实例所在位置。`source_label` 是调用方给的现成标签；没有时留空，
+   * 由 UI 按 `source_kind` 现查（`已装备` / `角色背包` / `邮政官` / `仓库`）。
+   */
+  location?: string;
   source_kind: SelectedItemSourceKind;
   source_character_id?: string;
   locked?: boolean;
@@ -442,23 +491,20 @@ const weaponStatOrder: readonly WeaponStatKey[] = [
   "rounds_per_minute"
 ];
 
-const weaponStatMetadata: Record<WeaponStatKey, {
-  label: string;
-  direction: WeaponStatDirection;
-}> = {
-  impact: { label: "伤害", direction: "higher" },
-  range: { label: "射程", direction: "higher" },
-  stability: { label: "稳定性", direction: "higher" },
-  handling: { label: "操控性", direction: "higher" },
-  reload_speed: { label: "装填速度", direction: "higher" },
-  aim_assistance: { label: "辅助瞄准", direction: "higher" },
-  recoil_direction: { label: "后坐方向", direction: "higher" },
-  airborne_effectiveness: { label: "空中效率", direction: "higher" },
-  ammo_generation: { label: "弹药生成", direction: "higher" },
-  magazine: { label: "弹匣", direction: "higher" },
-  rounds_per_minute: { label: "射速", direction: "neutral" },
-  charge_time: { label: "蓄力时间", direction: "lower" },
-  draw_time: { label: "拉弓时间", direction: "lower" }
+const weaponStatDirection: Record<WeaponStatKey, WeaponStatDirection> = {
+  impact: "higher",
+  range: "higher",
+  stability: "higher",
+  handling: "higher",
+  reload_speed: "higher",
+  aim_assistance: "higher",
+  recoil_direction: "higher",
+  airborne_effectiveness: "higher",
+  ammo_generation: "higher",
+  magazine: "higher",
+  rounds_per_minute: "neutral",
+  charge_time: "lower",
+  draw_time: "lower"
 };
 
 export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInput): WeaponDetailViewModel {
@@ -492,12 +538,11 @@ export function buildWeaponDetailViewModel(input: BuildWeaponDetailViewModelInpu
       crafting: item.crafting?.kind === "crafted"
         ? {
             kind: "crafted",
-            label: "锻造",
             overlay: item.crafting.overlay,
             background: item.crafting.background
           }
         : item.craftable
-          ? { kind: "craftable", label: "可锻造" }
+          ? { kind: "craftable" }
           : undefined
     },
     context,
@@ -560,13 +605,12 @@ export function buildWeaponStatTracks(input: {
       || input.pending_stats?.[key] !== undefined
     ))
     .map((key) => {
-      const { label, direction } = weaponStatMetadata[key];
+      const direction = weaponStatDirection[key];
       const standardValue = input.definition_stats?.[key];
       const currentValue = input.current_stats?.[key];
       const pendingValue = input.pending_stats?.[key];
       return {
         key,
-        label,
         direction,
         availability: currentValue !== undefined
           ? "ready"
@@ -604,7 +648,7 @@ export function perkGroupsToPoolColumns(groups: readonly ItemPerkGroup[]): Weapo
   return [...columns]
     .sort((left, right) => left.socket_index - right.socket_index)
     .map((column) => column.role === "trait"
-      ? { ...column, label: `Perk ${++traitIndex}` }
+      ? { ...column, label: { kind: "perk_index" as const, index: ++traitIndex } }
       : column);
 }
 
@@ -638,7 +682,7 @@ export function weaponSocketColumnLabel(
   plugs: readonly WeaponSocketPlugLike[],
   role: WeaponPerkColumnRole,
   socketIndex: number
-): string {
+): WeaponSocketColumnLabel {
   const category = plugs
     .map((plug) => plug.category_identifier?.toLocaleLowerCase() ?? "")
     .filter(Boolean)
@@ -648,27 +692,25 @@ export function weaponSocketColumnLabel(
     .filter(Boolean)
     .join(" ");
 
-  if (isWeaponCoreUpgradeCategory(category) || itemTypes.includes("能量核心")) return "核心升级";
-  if (includesAny(category, ["sword0.blade", "sword0_blade"]) || itemTypes.includes("柄芯")) return "柄芯";
-  if (includesAny(category, ["sword0.guard", "sword0_guard"])) return "握把";
-  if (category.includes("origin") || includesAny(itemTypes, ["起源特性", "原始特性", "origin trait"])) return "起源特性";
-  if (includesAny(category, ["bowstring", "bow.string"]) || itemTypes.includes("弓弦")) return "弓弦";
-  if (category.includes("arrow") || itemTypes.includes("箭杆")) return "箭杆";
-  if (category.includes("haft") || itemTypes.includes("偃月杆")) return "偃月杆";
-  if (includesAny(category, ["scope", "sight"]) || itemTypes.includes("瞄具")) return "瞄具";
-  if (category.includes("barrel") || itemTypes.includes("枪管")) return "枪管";
-  if (category.includes("blade") || itemTypes.includes("剑刃")) return "剑刃";
-  if (category.includes("guard") || itemTypes.includes("护手")) return "护手";
-  if (category.includes("batter") || itemTypes.includes("电池")) return "电池";
-  if (category.includes("magazine") || itemTypes.includes("弹匣")) return "弹匣";
-  if (category.includes("stock") || itemTypes.includes("枪托")) return "枪托";
-  if (category.includes("grip") || itemTypes.includes("握把")) return "握把";
-  if (role === "intrinsic") return "固有能力";
-  if (role === "barrel") return "枪管";
-  if (role === "magazine") return "弹匣";
-  if (role === "origin") return "起源特性";
-  if (role === "trait") return "武器特性";
-  return `插槽 ${socketIndex + 1}`;
+  if (isWeaponCoreUpgradeCategory(category) || itemTypes.includes("能量核心")) return { kind: "core_upgrade" };
+  if (includesAny(category, ["sword0.blade", "sword0_blade"]) || itemTypes.includes("柄芯")) return { kind: "sword_core" };
+  if (includesAny(category, ["sword0.guard", "sword0_guard"])) return { kind: "grip" };
+  if (category.includes("origin") || includesAny(itemTypes, ["起源特性", "原始特性", "origin trait"])) return { kind: "role", role: "origin" };
+  if (includesAny(category, ["bowstring", "bow.string"]) || itemTypes.includes("弓弦")) return { kind: "bowstring" };
+  if (category.includes("arrow") || itemTypes.includes("箭杆")) return { kind: "arrow" };
+  if (category.includes("haft") || itemTypes.includes("偃月杆")) return { kind: "haft" };
+  if (includesAny(category, ["scope", "sight"]) || itemTypes.includes("瞄具")) return { kind: "sight" };
+  if (category.includes("barrel") || itemTypes.includes("枪管")) return { kind: "role", role: "barrel" };
+  if (category.includes("blade") || itemTypes.includes("剑刃")) return { kind: "blade" };
+  if (category.includes("guard") || itemTypes.includes("护手")) return { kind: "guard" };
+  if (category.includes("batter") || itemTypes.includes("电池")) return { kind: "battery" };
+  if (category.includes("magazine") || itemTypes.includes("弹匣")) return { kind: "role", role: "magazine" };
+  if (category.includes("stock") || itemTypes.includes("枪托")) return { kind: "stock" };
+  if (category.includes("grip") || itemTypes.includes("握把")) return { kind: "grip" };
+  if (role === "intrinsic" || role === "barrel" || role === "magazine" || role === "origin" || role === "trait") {
+    return { kind: "role", role };
+  }
+  return { kind: "slot", index: socketIndex + 1 };
 }
 
 export function isWeaponSystemPlug(plug: WeaponSocketPlugLike): boolean {
@@ -722,8 +764,8 @@ function buildObjectContext(
   return {
     kind,
     entry,
-    entry_label: override?.entry_label ?? entryLabel(entry),
-    object_label: override?.object_label ?? objectLabel(kind),
+    entry_label: override?.entry_label,
+    object_label: override?.object_label,
     object_id: override?.object_id ?? item.instance_id,
     location_label: override?.location_label,
     read_only: override?.read_only ?? kind !== "account_instance"
@@ -740,28 +782,9 @@ function inferEntry(
   return "library";
 }
 
-function entryLabel(entry: WeaponDetailEntryKind): string {
-  if (entry === "vendor") return "商人";
-  if (entry === "vault") return "仓库";
-  if (entry === "account") return "账号";
-  if (entry === "loadout") return "配装";
-  return "资料库";
-}
-
-function objectLabel(kind: WeaponDetailObjectKind): string {
-  if (kind === "vendor_offer") return "商人售卖";
-  if (kind === "account_instance") return "账号实例";
-  return "资料库定义";
-}
-
 function ammoFromKey(key: AmmoTypeKey | undefined): WeaponDetailAmmo | undefined {
   if (!key) return undefined;
-  const labels: Record<AmmoTypeKey, string> = {
-    primary: "主要弹药",
-    special: "特殊弹药",
-    heavy: "重型弹药"
-  };
-  return { key, label: labels[key] };
+  return { key };
 }
 
 function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources {
@@ -771,8 +794,8 @@ function sourceSummaryToSources(source: ItemSourceSummary): WeaponDetailSources 
       entries: [{
         id: "manifest:missing",
         kind: "manifest_hint",
-        label: "历史获取途径",
-        description: source.description || "Bungie 官方资料没有标注这件武器的历史获取途径。"
+        // 空串也交给 UI 兜底：这里只透传有内容的说明，空值按「没有标注」处理。
+        description: source.description || undefined
       }]
     };
   }
@@ -840,7 +863,7 @@ function toWeaponDetailInstance(
     name: item.name,
     icon: item.icon,
     power: item.power,
-    location: item.source_label ?? selectedItemSourceLabel(item.source_kind),
+    location: item.source_label,
     source_kind: item.source_kind,
     source_character_id: item.source_character_id,
     locked: item.locked,
@@ -857,13 +880,6 @@ function toWeaponDetailInstance(
     })),
     plug_names: configurationPlugs.map((plug) => plug.name)
   };
-}
-
-function selectedItemSourceLabel(kind: SelectedItemSourceKind): string {
-  if (kind === "equipped") return "已装备";
-  if (kind === "inventory") return "角色背包";
-  if (kind === "postmaster") return "邮政官";
-  return "仓库";
 }
 
 function difference(value: number | undefined, baseline: number | undefined): number | undefined {

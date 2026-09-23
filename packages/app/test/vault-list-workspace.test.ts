@@ -91,7 +91,11 @@ describe("vault list workspace", () => {
     expect(workspace.groups.find((group) => group.key === "weapons")?.count).toBe(1);
     expect(workspace.slotFilters.some((slot) => slot.label === "能量武器")).toBe(true);
     expect(workspace.localTargetMatchCount).toBe(1);
-    expect(workspace.contextFacts).toEqual(["仓库筛选：全部 / 查询标签：保留 / 搜索：hand，命中 1 / 3 件。"]);
+    expect(workspace.contextFacts).toEqual([
+      { kind: "group", group: "all" },
+      { kind: "query_tag", tag: "keep", group: "all" },
+      { kind: "query_text", text: "hand" }
+    ]);
   });
 
   it("keeps frame candidates constrained by the active slot filter", () => {
@@ -103,6 +107,7 @@ describe("vault list workspace", () => {
         group_key: "weapons",
         item_type: "Scout Rifle",
         tier: "Legendary",
+        equipment_bucket_hash: 1498876634,
         bucket_name: "动能武器",
         weapon_frame: { key: "precision", name: "精准框架" }
       }),
@@ -113,6 +118,7 @@ describe("vault list workspace", () => {
         group_key: "weapons",
         item_type: "Hand Cannon",
         tier: "Legendary",
+        equipment_bucket_hash: 2465295065,
         bucket_name: "能量武器",
         weapon_frame: { key: "adaptive", name: "适配框架" }
       })
@@ -125,7 +131,7 @@ describe("vault list workspace", () => {
         query: "",
         tag: "all",
         lock: "all",
-        slot: "能量武器",
+        slot: "energy",
         ammo: "all",
         armorStatRules: [],
         frames: []
@@ -175,7 +181,10 @@ describe("vault list workspace", () => {
 
     expect(workspace.filteredItems.map((entry) => entry.name)).toEqual(["保留胸甲"]);
     expect(workspace.contextFacts).toEqual([
-      "仓库筛选：全部 / 查询标签：保留 / 查询锁定：已锁定 / 查询类型：护甲，命中 1 / 1 件。"
+      { kind: "group", group: "all" },
+      { kind: "query_tag", tag: "keep", group: "all" },
+      { kind: "query_locked", locked: true },
+      { kind: "query_type", group: "armor" }
     ]);
   });
 });

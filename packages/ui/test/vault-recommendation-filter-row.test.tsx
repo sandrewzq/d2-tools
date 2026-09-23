@@ -22,12 +22,12 @@ import type {
  * 归队那一步必须真的走到（否则 Bug #92 的教训会在这里原地复发）。
  */
 
-const AEGIS_KEY = "document:doc-aegis";
-const YXC_KEY = "document:doc-yxc";
-const AEGIS_FACT_KEY = `${AEGIS_KEY}:inst`;
-const YXC_FACT_KEY = `${YXC_KEY}:inst`;
-const AEGIS_LABEL = "Aegis清单";
-const YXC_LABEL = "YXC清单";
+const LIST_A_KEY = "document:doc-a";
+const LIST_B_KEY = "document:doc-b";
+const LIST_A_FACT_KEY = `${LIST_A_KEY}:inst`;
+const LIST_B_FACT_KEY = `${LIST_B_KEY}:inst`;
+const LIST_A_LABEL = "清单A";
+const LIST_B_LABEL = "清单B";
 
 function weapon(instanceId: string, hash: number, name: string): AccountItemSummary {
   return { hash, instance_id: instanceId, name, group_key: "weapons", socket_plugs: [] };
@@ -70,15 +70,15 @@ function cardSummary(item: AccountItemSummary, sources: SourceFixture[]): Recomm
   };
 }
 
-function aegis(perkMatched: number, matched: number): SourceFixture {
-  return { factKey: AEGIS_FACT_KEY, label: AEGIS_LABEL, perkMatched, perkRequired: 2, matched, required: 6 };
+function listA(perkMatched: number, matched: number): SourceFixture {
+  return { factKey: LIST_A_FACT_KEY, label: LIST_A_LABEL, perkMatched, perkRequired: 2, matched, required: 6 };
 }
 
-function yxc(perkMatched: number, matched: number): SourceFixture {
-  return { factKey: YXC_FACT_KEY, label: YXC_LABEL, perkMatched, perkRequired: 2, matched, required: 2 };
+function listB(perkMatched: number, matched: number): SourceFixture {
+  return { factKey: LIST_B_FACT_KEY, label: LIST_B_LABEL, perkMatched, perkRequired: 2, matched, required: 2 };
 }
 
-// 四把武器，Aegis 全覆盖、YXC 只覆盖前两把：于是 A 行有「全部 4 / 2/2 2 / 1/2 1 / 0/2 1」，
+// 四把武器，清单A 全覆盖、清单B 只覆盖前两把：于是 A 行有「全部 4 / 2/2 2 / 1/2 1 / 0/2 1」，
 // 完整档是 6/6、5/6、3/6、0/6 各一件；选 2/2 + 完整 6/6 之后只剩「送魂者」。
 function fixtures() {
   const sentSoul = weapon("i1", 1001, "送魂者");
@@ -87,15 +87,15 @@ function fixtures() {
   const gjallarhorn = weapon("i4", 1004, "加拉尔号角");
   const items = [sentSoul, ace, wolf, gjallarhorn];
   const cardSummaries = new Map<string, RecommendationCardSummary>([
-    ["i1", cardSummary(sentSoul, [aegis(2, 6), yxc(2, 2)])],
-    ["i2", cardSummary(ace, [aegis(2, 5), yxc(2, 2)])],
-    ["i3", cardSummary(wolf, [aegis(1, 3)])],
-    ["i4", cardSummary(gjallarhorn, [aegis(0, 0)])]
+    ["i1", cardSummary(sentSoul, [listA(2, 6), listB(2, 2)])],
+    ["i2", cardSummary(ace, [listA(2, 5), listB(2, 2)])],
+    ["i3", cardSummary(wolf, [listA(1, 3)])],
+    ["i4", cardSummary(gjallarhorn, [listA(0, 0)])]
   ]);
   const managedSources: VaultRecommendationManagedSource[] = [
     {
-      source_key: AEGIS_KEY,
-      label: AEGIS_LABEL,
+      source_key: LIST_A_KEY,
+      label: LIST_A_LABEL,
       format_label: "推荐表格",
       state: "active",
       configured: true,
@@ -105,11 +105,11 @@ function fixtures() {
       imported_at: "2026-09-17T00:00:00.000Z",
       vault_instance_count: 4,
       affected_instance_count: 4,
-      fact_keys: [AEGIS_FACT_KEY, AEGIS_KEY]
+      fact_keys: [LIST_A_FACT_KEY, LIST_A_KEY]
     },
     {
-      source_key: YXC_KEY,
-      label: YXC_LABEL,
+      source_key: LIST_B_KEY,
+      label: LIST_B_LABEL,
       format_label: "推荐表格",
       state: "active",
       configured: true,
@@ -119,7 +119,7 @@ function fixtures() {
       imported_at: "2026-09-17T00:00:00.000Z",
       vault_instance_count: 2,
       affected_instance_count: 2,
-      fact_keys: [YXC_FACT_KEY, YXC_KEY]
+      fact_keys: [LIST_B_FACT_KEY, LIST_B_KEY]
     }
   ];
   const actions: VaultWishlistActions = {
@@ -157,17 +157,17 @@ async function mountBrowse() {
       onSaveTagBatch={() => undefined}
     />
   );
-  const toggle = await screen.findByRole("button", { name: /Aegis清单，覆盖 4 件/ });
+  const toggle = await screen.findByRole("button", { name: /清单A，覆盖 4 件/ });
   const user = userEvent.setup();
   await user.click(toggle);
-  const group = await screen.findByRole("group", { name: `${AEGIS_LABEL}perk 命中筛选` });
+  const group = await screen.findByRole("group", { name: `${LIST_A_LABEL}perk 命中筛选` });
   const chip = (key: string) => {
     const label = within(group).getByText(key);
     const button = label.closest("button");
     if (!button) throw new Error(`没有找到 ${key} 这一段`);
     return button;
   };
-  const completeSelect = () => screen.getByLabelText(`${AEGIS_LABEL}完整命中筛选`) as HTMLSelectElement;
+  const completeSelect = () => screen.getByLabelText(`${LIST_A_LABEL}完整命中筛选`) as HTMLSelectElement;
   return { user, chip, completeSelect, group };
 }
 
@@ -219,7 +219,7 @@ describe("Bug #99：来源行的分段按钮与完整下拉", () => {
     expect(partial.textContent).toBe("1/21");
     // 悬停与读屏说的是这一档的两个数：要求 2 项、命中 1 项（分子分母各有出处）。
     expect(partial.getAttribute("title")).toBe("要求 2 项，命中 1 项，1 件");
-    expect(partial.getAttribute("aria-label")).toBe(`${AEGIS_LABEL}要求 2 项，命中 1 项，1 件`);
+    expect(partial.getAttribute("aria-label")).toBe(`${LIST_A_LABEL}要求 2 项，命中 1 项，1 件`);
     expect(partial.getAttribute("title")).not.toContain("命中 命中");
     expect(partial.getAttribute("aria-label")).not.toContain("命中 命中");
   });

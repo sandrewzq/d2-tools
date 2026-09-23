@@ -17,8 +17,8 @@ const INSTANCE_KEY = "document:aaa:bbb";
 function fact(sourceId: string, matchedPerkCount: number): VaultRecommendationSourceSummary {
   return {
     sourceId,
-    sourceLabel: "Sayalarry推荐表",
-    shortLabel: "Sayalarry推荐表",
+    sourceLabel: "示例推荐表",
+    shortLabel: "示例推荐表",
     state: "core",
     matched: matchedPerkCount,
     available: 2,

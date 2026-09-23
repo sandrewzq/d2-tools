@@ -224,7 +224,13 @@ export function cloneArmorStatValues(
 export function addArmorStatValues(...blocks: readonly ArmorStatValues[]): ArmorStatValues {
   const result = createEmptyArmorStatValues();
   for (const block of blocks) {
-    for (const stat of armorStatKeys) result[stat] += block[stat];
+    // 逐个属性写死：属性键是静态的，省掉遍历 armorStatKeys 和动态取值。
+    result.health += block.health;
+    result.melee += block.melee;
+    result.grenade += block.grenade;
+    result.super += block.super;
+    result.class += block.class;
+    result.weapon += block.weapon;
   }
   return result;
 }

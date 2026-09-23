@@ -60,20 +60,36 @@ export function applyVisibleVaultSelection(
   return next;
 }
 
+/**
+ * 选中摘要只给结构，不给成句。
+ *
+ * `packages/app` 不认识界面语言（也不该认识：`packages/ui` 依赖 app，反过来不行），
+ * 所以这里判断完是哪一种情况就把计数交出去，由 UI 按 `copy` 成句。
+ */
+export type VaultSelectionSummary =
+  | { kind: "none" }
+  | { kind: "all-visible"; total: number }
+  | { kind: "partial"; total: number; visible: number; hidden: number };
+
 export function buildVaultSelectionSummary(input: {
   selectedTotalCount: number;
   selectedVisibleCount: number;
-}): string {
+}): VaultSelectionSummary {
   if (!input.selectedTotalCount) {
-    return "未选择任何装备。";
+    return { kind: "none" };
   }
 
   const hiddenCount = Math.max(0, input.selectedTotalCount - input.selectedVisibleCount);
   if (!hiddenCount) {
-    return `已选 ${input.selectedTotalCount} 件，全部都在当前结果中。`;
+    return { kind: "all-visible", total: input.selectedTotalCount };
   }
 
-  return `已选 ${input.selectedTotalCount} 件，其中当前结果 ${input.selectedVisibleCount} 件，另外 ${hiddenCount} 件来自其他筛选结果。`;
+  return {
+    kind: "partial",
+    total: input.selectedTotalCount,
+    visible: input.selectedVisibleCount,
+    hidden: hiddenCount
+  };
 }
 
 export function selectMarkedCleanupItems(items: AccountItemSummary[], tags: VaultTags): AccountItemSummary[] {

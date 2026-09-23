@@ -4,6 +4,15 @@ import { WeaponPerkEntry, WeaponPerkPlaceholder } from "./WeaponPerkEntry.js";
 import { GameCombatIcon } from "../../media/GameCombatIcon.js";
 import { formatStandardDateTime } from "../../time/formatTime.js";
 import { EquipmentDetailContextLedger } from "../EquipmentDetailContextLedger.js";
+import type { ItemDetailCopy } from "../../i18n/types.js";
+import { itemDetailTemplate, itemDetailText } from "../itemDetailCopy.js";
+import {
+  itemDetailEntryLabel,
+  weaponAmmoLabel,
+  weaponCraftingLabel,
+  weaponSocketColumnLabelText,
+  weaponStatLabel
+} from "../itemDetailLabels.js";
 import type {
   WeaponDetailViewModel,
   WeaponPerkCandidate,
@@ -66,6 +75,7 @@ export type WeaponConfigurationWriteFeedback = {
 
 export type WeaponDetailContentProps = {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
   recommendationEvidence?: {
@@ -245,9 +255,9 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
       data-state={model.loading ? "loading" : "normal"}
       aria-busy={model.loading}
     >
-      <WeaponIdentity model={model} onSelectVersion={props.actions?.selectVersion} />
+      <WeaponIdentity model={model} copy={props.copy} onSelectVersion={props.actions?.selectVersion} />
 
-      <nav className="weapon-detail-nav" data-ui-kind="section-navigation" aria-label="武器详情章节">
+      <nav className="weapon-detail-nav" data-ui-kind="section-navigation" aria-label={itemDetailText(props.copy, "武器详情章节")}>
         <div>
           {sectionLabels.map((item) => (
             <button
@@ -261,7 +271,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
               onClick={() => changeSection(item.key)}
             >
               {/* 章节名跟推荐区一致：有账号实例事实时叫「推荐 Roll」，资料库定义 / 商人售卖只有来源规则，叫「推荐资料」。 */}
-              {item.key === "recommendations" && model.context.kind !== "account_instance" ? "推荐资料" : item.label}
+              {item.key === "recommendations" && model.context.kind !== "account_instance" ? itemDetailText(props.copy, "推荐资料") : itemDetailText(props.copy, item.label)}
             </button>
           ))}
         </div>
@@ -274,7 +284,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           aria-expanded={instanceRailOpen}
           aria-controls={`${sectionIdPrefix}-instance-rail`}
           onClick={() => setInstanceRailOpen((value) => !value)}
-        >武器操作</button>
+        >{itemDetailText(props.copy, "武器操作")}</button>
       </nav>
 
       <div className="weapon-detail-workspace" data-surface="split">
@@ -283,6 +293,7 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           <section ref={(node) => { sectionRefs.current.recommendations = node; }} id={`${sectionIdPrefix}-recommendations`} className="weapon-detail-section weapon-detail-recommendation-section">
             <RecommendationSection
               model={model}
+              copy={props.copy}
               evidence={props.recommendationEvidence}
               actions={props.actions}
               configurationWriteFeedback={props.configurationWriteFeedback}
@@ -291,12 +302,14 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           <section ref={(node) => { sectionRefs.current.configuration = node; }} id={`${sectionIdPrefix}-configuration`} className="weapon-detail-section">
             <ConfigurationSection
               model={model}
+              copy={props.copy}
               actions={props.actions}
               configurationWriteFeedback={props.configurationWriteFeedback}
             />
           </section>
           <FullPoolSection
             model={model}
+            copy={props.copy}
             poolOpen={poolOpen}
             canLoadFullRoll={Boolean(props.actions?.loadConfiguration)}
             onRequestFullRoll={() => { setPoolRequested(true); void props.actions?.loadConfiguration?.(); }}
@@ -304,17 +317,18 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           />
           <section ref={(node) => { sectionRefs.current.overview = node; }} id={`${sectionIdPrefix}-overview`} className="weapon-detail-section">
             {mountedSections.has("overview")
-              ? <OverviewSection model={model} onOpenSource={props.actions?.openSource} />
-              : <DeferredWeaponSection label="属性与获取" />}
+              ? <OverviewSection model={model} copy={props.copy} onOpenSource={props.actions?.openSource} />
+              : <DeferredWeaponSection copy={props.copy} label={itemDetailText(props.copy, "属性与获取")} />}
           </section>
           <section ref={(node) => { sectionRefs.current.upgrades = node; }} id={`${sectionIdPrefix}-upgrades`} className="weapon-detail-section">
             {mountedSections.has("upgrades")
-              ? <UpgradeSection model={model} />
-              : <DeferredWeaponSection label="升级与锻造" />}
+              ? <UpgradeSection model={model} copy={props.copy} />
+              : <DeferredWeaponSection copy={props.copy} label={itemDetailText(props.copy, "升级与锻造")} />}
           </section>
           {/* 正文最后一个子元素：待提交面板吸在正文底部，推荐区里选完就能直接提交（T73）。 */}
           <WeaponWriteDock
             model={model}
+            copy={props.copy}
             actions={props.actions}
             configurationWriteFeedback={props.configurationWriteFeedback}
           />
@@ -326,19 +340,19 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
           data-surface="drawer"
           data-ui-kind="drawer"
           data-scroll-region="pane"
-          aria-label="当前武器操作"
+          aria-label={itemDetailText(props.copy, "当前武器操作")}
           onKeyDown={handleInstanceRailKeyDown}
         >
           <header className="weapon-detail-rail-drawer-head">
-            <div><span>武器操作</span><strong>当前装备</strong></div>
+            <div><span>{itemDetailText(props.copy, "武器操作")}</span><strong>{itemDetailText(props.copy, "当前装备")}</strong></div>
             <button
               ref={instanceRailCloseRef}
               type="button"
               className="weapon-detail-rail-close"
               data-ui-kind="button"
               data-control-variant="quiet"
-              aria-label="关闭武器操作"
-              title="关闭"
+              aria-label={itemDetailText(props.copy, "关闭武器操作")}
+              title={itemDetailText(props.copy, "关闭")}
               onClick={() => setInstanceRailOpen(false)}
             >×</button>
           </header>
@@ -346,8 +360,8 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
             <div className="weapon-detail-instance-actions">{props.instanceActions}</div>
           ) : (
             <div className="weapon-detail-instance-readonly">
-              <h3>当前内容仅供查看</h3>
-              <p>资料库定义和商人售卖内容没有可执行的实例操作。</p>
+              <h3>{itemDetailText(props.copy, "当前内容仅供查看")}</h3>
+              <p>{itemDetailText(props.copy, "资料库定义和商人售卖内容没有可执行的实例操作。")}</p>
             </div>
           )}
         </aside>
@@ -357,16 +371,16 @@ export function WeaponDetailContent(props: WeaponDetailContentProps) {
         className={["weapon-detail-rail-scrim", instanceRailOpen && "is-open"].filter(Boolean).join(" ")}
         data-ui-kind="button"
         data-control-variant="quiet"
-        aria-label="关闭武器操作"
+        aria-label={itemDetailText(props.copy, "关闭武器操作")}
         onClick={() => setInstanceRailOpen(false)}
       />
     </article>
   );
 }
 
-function DeferredWeaponSection(props: { label: string }) {
+function DeferredWeaponSection(props: { copy: ItemDetailCopy; label: string }) {
   return (
-    <div className="weapon-detail-deferred-section" role="status" aria-label={`${props.label}将在接近视口时载入`}>
+    <div className="weapon-detail-deferred-section" role="status" aria-label={itemDetailTemplate(props.copy, "{label}将在接近视口时载入", { label: props.label })}>
       <span aria-hidden="true" />
       <span aria-hidden="true" />
     </div>
@@ -375,24 +389,27 @@ function DeferredWeaponSection(props: { label: string }) {
 
 function WeaponIdentity(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   onSelectVersion?: (hash: number) => void;
 }) {
   const { identity, context, versions } = props.model;
   const currentDefinition = versions.find((version) => version.is_current) ?? versions[0];
-  const releaseLabel = identity.release?.description ?? "官方发布版本未标注";
-  const definitionVersionLabel = identity.definition_version?.label ?? "定义版本资料未返回";
+  const releaseLabel = identity.release?.description ?? itemDetailText(props.copy, "官方发布版本未标注");
+  const definitionVersionLabel = identity.definition_version?.label ?? itemDetailText(props.copy, "定义版本资料未返回");
   const watermarks = identity.definition_version?.watermark_icons ?? [];
+  /** 入口标签：调用方注入优先，没注入时按入口种类现查，和迁移前 app 直接给的标签一致。 */
+  const entryLabelText = context.entry_label ?? itemDetailEntryLabel(props.copy, context.entry);
   const locationLabel = context.kind === "account_instance"
-    ? context.location_label ?? context.entry_label
+    ? context.location_label ?? entryLabelText
     : context.kind === "vendor_offer"
-      ? "商人当前售卖"
-      : "资料库";
+      ? itemDetailText(props.copy, "商人当前售卖")
+      : itemDetailText(props.copy, "资料库");
   const canSelectDefinitionVersion = context.kind === "definition" && versions.length > 1 && Boolean(props.onSelectVersion);
   const versionLabel = context.kind === "account_instance"
-    ? "装备版本"
+    ? itemDetailText(props.copy, "装备版本")
     : context.kind === "vendor_offer"
-      ? "售卖版本"
-      : "发布版本";
+      ? itemDetailText(props.copy, "售卖版本")
+      : itemDetailText(props.copy, "发布版本");
   return (
     <header className="weapon-detail-identity" data-surface="section">
       <div className="weapon-detail-identity-main">
@@ -408,10 +425,10 @@ function WeaponIdentity(props: {
         <div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
           <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.item_type, identity.frame?.name].filter(Boolean).join(" · ")}</p>
-          <div className="weapon-detail-facts" aria-label="武器摘要">
+          <div className="weapon-detail-facts" aria-label={itemDetailText(props.copy, "武器摘要")}>
             {identity.tier ? <Fact label={identity.tier} tone={identity.is_exotic ? "rarity-exotic" : "rarity"} /> : null}
             {identity.slot ? <Fact label={identity.slot} tone="slot" /> : null}
-            {identity.ammo ? <Fact label={identity.ammo.label} iconKind="ammo" iconType={identity.ammo.key} tone={`ammo-${identity.ammo.key}`} /> : null}
+            {identity.ammo ? <Fact label={weaponAmmoLabel(props.copy, identity.ammo.key)} iconKind="ammo" iconType={identity.ammo.key} tone={`ammo-${identity.ammo.key}`} /> : null}
             {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} iconKind="damage" iconType={identity.damage.key} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
             {identity.champion ? (
               <Fact
@@ -419,23 +436,28 @@ function WeaponIdentity(props: {
                 icon={identity.champion.icon}
                 iconKind="champion"
                 iconType={identity.champion.key}
-                title={`${identity.champion.label}：${identity.champion.effect_label}。${identity.champion.description ?? ""}`}
+                title={itemDetailTemplate(props.copy, "{label}：{effect}。{description}", {
+                  label: identity.champion.label,
+                  effect: identity.champion.effect_label,
+                  description: identity.champion.description ?? ""
+                })}
                 tone={`champion-${identity.champion.key}`}
               />
             ) : null}
-            {identity.crafting ? <Fact label={identity.crafting.label} tone={`crafting-${identity.crafting.kind}`} /> : null}
+            {identity.crafting ? <Fact label={weaponCraftingLabel(props.copy, identity.crafting.kind)} tone={`crafting-${identity.crafting.kind}`} /> : null}
           </div>
         </div>
       </div>
 
       <div className="weapon-detail-identity-context">
         <EquipmentDetailContextLedger
-          entryLabel={context.entry_label}
-          currentViewLabel={weaponObjectLabel(context.kind)}
+          copy={props.copy}
+          entryLabel={entryLabelText}
+          currentViewLabel={weaponObjectLabel(props.copy, context.kind)}
           locationLabel={locationLabel}
-          locationFieldLabel="所在位置"
-          slotLabel={identity.slot ?? identity.item_type ?? "武器"}
-          slotFieldLabel="武器槽位"
+          locationFieldLabel={itemDetailText(props.copy, "所在位置")}
+          slotLabel={identity.slot ?? identity.item_type ?? itemDetailText(props.copy, "武器")}
+          slotFieldLabel={itemDetailText(props.copy, "武器槽位")}
           versionFieldLabel={versionLabel}
           versionValue={currentDefinition?.label ?? releaseLabel}
           versionOptions={canSelectDefinitionVersion
@@ -448,17 +470,17 @@ function WeaponIdentity(props: {
           onSelectVersion={canSelectDefinitionVersion ? props.onSelectVersion : undefined}
         />
         <details className="weapon-detail-definition-details">
-          <summary>武器定义信息</summary>
+          <summary>{itemDetailText(props.copy, "武器定义信息")}</summary>
           <div>
-            <dl><dt>官方描述</dt><dd>{identity.description || "当前资料库未返回描述"}</dd></dl>
-            <dl><dt>发布版本</dt><dd>{releaseLabel}</dd></dl>
-            <dl><dt>发布类型</dt><dd>{releaseKindLabel(identity.release?.kind)}</dd></dl>
-            <dl><dt>定义版本</dt><dd>{definitionVersionLabel}</dd></dl>
-            <dl><dt>光等上限编号</dt><dd>{identity.definition_version?.power_cap_hash ?? "资料未返回"}</dd></dl>
-            <dl><dt>版本水印</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={`官方版本水印 ${index + 1}`} title="官方定义版本水印" loading="lazy" />)}</span> : "资料未返回"}</dd></dl>
-            <dl><dt>装备编号</dt><dd>{identity.hash}</dd></dl>
-            <dl><dt>数据来源</dt><dd>资料库定义{context.kind === "account_instance" ? " + 当前装备" : context.kind === "vendor_offer" ? " + 商人当前售卖" : ""}</dd></dl>
-            <dl><dt>操作方式</dt><dd>{context.read_only ? "只读查看" : "可管理装备"}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "官方描述")}</dt><dd>{identity.description || itemDetailText(props.copy, "当前资料库未返回描述")}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "发布版本")}</dt><dd>{releaseLabel}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "发布类型")}</dt><dd>{releaseKindLabel(props.copy, identity.release?.kind)}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "定义版本")}</dt><dd>{definitionVersionLabel}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "光等上限编号")}</dt><dd>{identity.definition_version?.power_cap_hash ?? itemDetailText(props.copy, "资料未返回")}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "版本水印")}</dt><dd>{watermarks.length ? <span className="weapon-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={itemDetailTemplate(props.copy, "官方版本水印 {index}", { index: index + 1 })} title={itemDetailText(props.copy, "官方定义版本水印")} loading="lazy" />)}</span> : itemDetailText(props.copy, "资料未返回")}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "装备编号")}</dt><dd>{identity.hash}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "数据来源")}</dt><dd>{itemDetailText(props.copy, "资料库定义")}{context.kind === "account_instance" ? itemDetailText(props.copy, " + 当前装备") : context.kind === "vendor_offer" ? itemDetailText(props.copy, " + 商人当前售卖") : ""}</dd></dl>
+            <dl><dt>{itemDetailText(props.copy, "操作方式")}</dt><dd>{context.read_only ? itemDetailText(props.copy, "只读查看") : itemDetailText(props.copy, "可管理装备")}</dd></dl>
           </div>
         </details>
       </div>
@@ -466,19 +488,19 @@ function WeaponIdentity(props: {
   );
 }
 
-function weaponObjectLabel(kind: WeaponDetailViewModel["context"]["kind"]): string {
-  if (kind === "account_instance") return "这件武器";
-  if (kind === "vendor_offer") return "本次售卖";
-  return "资料库武器";
+function weaponObjectLabel(copy: ItemDetailCopy, kind: WeaponDetailViewModel["context"]["kind"]): string {
+  if (kind === "account_instance") return itemDetailText(copy, "这件武器");
+  if (kind === "vendor_offer") return itemDetailText(copy, "本次售卖");
+  return itemDetailText(copy, "资料库武器");
 }
 
-function releaseKindLabel(kind: ItemReleaseKind | undefined): string {
-  if (kind === "season") return "赛季";
-  if (kind === "annual") return "年度资料片";
-  if (kind === "dlc") return "内容包";
-  if (kind === "core") return "常规版本";
-  if (kind === "update") return "版本更新";
-  return "官方未标注";
+function releaseKindLabel(copy: ItemDetailCopy, kind: ItemReleaseKind | undefined): string {
+  if (kind === "season") return itemDetailText(copy, "赛季");
+  if (kind === "annual") return itemDetailText(copy, "年度资料片");
+  if (kind === "dlc") return itemDetailText(copy, "内容包");
+  if (kind === "core") return itemDetailText(copy, "常规版本");
+  if (kind === "update") return itemDetailText(copy, "版本更新");
+  return itemDetailText(copy, "官方未标注");
 }
 
 function Fact(props: {
@@ -526,40 +548,42 @@ function DataBlockHeading(props: { id?: string; title: string; source: string })
 
 function OverviewSection(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   onOpenSource?: (source: WeaponSourceEntry) => void;
 }) {
   const preferCurrentValues = props.model.context.kind !== "definition"
     && props.model.stats.some((stat) => stat.current_value !== undefined);
   const statSource = preferCurrentValues
-    ? props.model.context.kind === "vendor_offer" ? "当前售卖数值" : "当前数值"
-    : "资料库数值";
+    ? props.model.context.kind === "vendor_offer" ? itemDetailText(props.copy, "当前售卖数值") : itemDetailText(props.copy, "当前数值")
+    : itemDetailText(props.copy, "资料库数值");
   return (
     <>
-      <SectionHeading eyebrow="属性与获取" title="武器数值与获取方式" description="属性只保留当前可用数值；获取入口区分当前状态与历史记录。" />
+      <SectionHeading eyebrow={itemDetailText(props.copy, "属性与获取")} title={itemDetailText(props.copy, "武器数值与获取方式")} description={itemDetailText(props.copy, "属性只保留当前可用数值；获取入口区分当前状态与历史记录。")} />
       <div className="weapon-detail-overview-grid">
         <section className="weapon-detail-block" aria-labelledby="weapon-stat-title">
           <DataBlockHeading
             id="weapon-stat-title"
-            title="武器属性"
-            source={`${statSource} · ${props.model.stats.length} 项`}
+            title={itemDetailText(props.copy, "武器属性")}
+            source={itemDetailTemplate(props.copy, "{source} · {count} 项", { source: statSource, count: props.model.stats.length })}
           />
           {props.model.stats.length ? (
             <dl className="weapon-detail-stats">
               {props.model.stats.map((stat) => (
                 <StatValue
                   key={stat.key}
+                  copy={props.copy}
                   stat={stat}
                   preferCurrent={preferCurrentValues}
                 />
               ))}
             </dl>
-          ) : <EmptyState text="当前定义没有可显示的武器属性。" />}
+          ) : <EmptyState text={itemDetailText(props.copy, "当前定义没有可显示的武器属性。")} />}
         </section>
         <section className="weapon-detail-block" aria-labelledby="weapon-source-title">
           <DataBlockHeading
             id="weapon-source-title"
-            title="获取方式"
-            source={`依据：游戏官方资料与当前商人、活动数据${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
+            title={itemDetailText(props.copy, "获取方式")}
+            source={`${itemDetailText(props.copy, "依据：游戏官方资料与当前商人、活动数据")}${props.model.sources.updated_at ? ` · ${formatUpdatedAt(props.model.sources.updated_at)}` : ""}`}
           />
           {props.model.sources.entries.length ? (
             <div className="weapon-detail-source-list">
@@ -573,12 +597,12 @@ function OverviewSection(props: {
                 >
                   <div className="weapon-detail-source-identity">
                     <GameAssetImage src={source.icon} alt="" loading="lazy" />
-                    <strong data-ui-part="value" data-text-tone="primary" data-info-priority="context">{source.label}</strong>
+                    <strong data-ui-part="value" data-text-tone="primary" data-info-priority="context">{source.label ?? itemDetailText(props.copy, "历史获取途径")}</strong>
                   </div>
                   <div className="weapon-detail-source-copy">
-                    <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{source.description}</p>
+                    <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{source.description ?? itemDetailText(props.copy, "Bungie 官方资料没有标注这件武器的历史获取途径。")}</p>
                     {source.offer?.purchase_requirements?.length ? <small>{source.offer.purchase_requirements.join(" / ")}</small> : null}
-                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || "当前条件未满足，游戏没有返回具体限制。"}</small> : null}
+                    {source.offer?.can_purchase === false ? <small data-text-tone="status" data-status="warning">{source.offer.failure_messages.join(" / ") || itemDetailText(props.copy, "当前条件未满足，游戏没有返回具体限制。")}</small> : null}
                   </div>
                   <div className="weapon-detail-source-meta">
                     <span
@@ -593,19 +617,19 @@ function OverviewSection(props: {
                             ? "warning"
                             : undefined}
                     >
-                      {sourceEntryStatusLabel(source)}
+                      {sourceEntryStatusLabel(props.copy, source)}
                     </span>
                     {source.offer?.inventory_path ? <span>{source.offer.inventory_path}</span> : null}
                     {source.offer?.price_labels.length ? <span>{source.offer.price_labels.join(" + ")}</span> : null}
                     {source.offer?.refresh_at ? <span>{formatStandardDateTime(source.offer.refresh_at)}</span> : null}
-                    {source.updated_at ? <span>更新于 {formatUpdatedAt(source.updated_at)}</span> : null}
-                    {props.onOpenSource ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenSource?.(source)}>查看</button> : null}
+                    {source.updated_at ? <span>{itemDetailTemplate(props.copy, "更新于 {time}", { time: formatUpdatedAt(source.updated_at) })}</span> : null}
+                    {props.onOpenSource ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenSource?.(source)}>{itemDetailText(props.copy, "查看")}</button> : null}
                   </div>
                 </article>
               ))}
             </div>
-          ) : <EmptyState text="暂时没有足够数据确认这件武器的获取方式。" />}
-          <p className="weapon-detail-data-note" data-ui-kind="callout" data-callout-tone="info">{sourceStatusDescription(props.model.sources.status)}</p>
+          ) : <EmptyState text={itemDetailText(props.copy, "暂时没有足够数据确认这件武器的获取方式。")} />}
+          <p className="weapon-detail-data-note" data-ui-kind="callout" data-callout-tone="info">{sourceStatusDescription(props.copy, props.model.sources.status)}</p>
         </section>
       </div>
     </>
@@ -613,10 +637,11 @@ function OverviewSection(props: {
 }
 
 function StatValue(props: {
+  copy: ItemDetailCopy;
   stat: WeaponStatTrack;
   preferCurrent: boolean;
 }) {
-  const { stat } = props;
+  const { copy, stat } = props;
   const primaryValue = props.preferCurrent
     ? stat.current_value ?? stat.standard_value
     : stat.standard_value ?? stat.current_value;
@@ -626,7 +651,7 @@ function StatValue(props: {
     : primaryValue ?? "—";
   return (
     <div className="weapon-detail-stat-row" data-pending={pendingValue !== undefined ? "true" : undefined}>
-      <dt>{stat.label}</dt>
+      <dt>{weaponStatLabel(copy, stat.key)}</dt>
       <dd>{value}</dd>
     </div>
   );
@@ -650,6 +675,7 @@ function canStageWeaponPerks(model: WeaponDetailViewModel): boolean {
 
 function ConfigurationSection(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   actions?: WeaponDetailContentActions;
   configurationWriteFeedback?: WeaponConfigurationWriteFeedback;
 }) {
@@ -703,38 +729,38 @@ function ConfigurationSection(props: {
   // 这一段只用来禁用「换 Perk」的点击（写入进行中不许再改选择）；待提交面板本身在 WeaponWriteDock。
   const isBusy = (props.configurationWriteFeedback?.status ?? "idle") === "submitting"
     || (props.configurationWriteFeedback?.status ?? "idle") === "refreshing";
-  const loadingCopy = configurationLoadingCopy(context.kind, isDefinitionLoading, isInstanceLoading);
+  const loadingCopy = configurationLoadingCopy(props.copy, context.kind, isDefinitionLoading, isInstanceLoading);
   const title = isConfigurationLoading && !hasConfigurationData
     ? loadingCopy.title
     : isFixedExotic
-    ? "固定配置"
+    ? itemDetailText(props.copy, "固定配置")
     : context.kind === "definition"
-      ? isVariableExotic ? "异域配置候选" : "完整 Perk 池"
+      ? isVariableExotic ? itemDetailText(props.copy, "异域配置候选") : itemDetailText(props.copy, "完整 Perk 池")
       : context.kind === "vendor_offer"
-        ? "当前售卖 Roll"
-        : "本件 Roll";
+        ? itemDetailText(props.copy, "当前售卖 Roll")
+        : itemDetailText(props.copy, "本件 Roll");
   const description = isConfigurationPending
     ? loadingCopy.description
     : isFixedExotic
-    ? "固有能力与其余固定 Perk 使用同一配置网格，不提供随机池筛选、推荐 Roll 命中或远程切换。"
+    ? itemDetailText(props.copy, "固有能力与其余固定 Perk 使用同一配置网格，不提供随机池筛选、推荐 Roll 命中或远程切换。")
     : isVariableExotic
       ? context.kind === "account_instance"
-        ? "只展示这件武器真实拥有的异域配置选项；可写项以游戏返回的插槽状态为准。"
-        : "展示当前异域定义或商人售卖可确认的配置，不把它称为普通传说武器掉落池。"
+        ? itemDetailText(props.copy, "只展示这件武器真实拥有的异域配置选项；可写项以游戏返回的插槽状态为准。")
+        : itemDetailText(props.copy, "展示当前异域定义或商人售卖可确认的配置，不把它称为普通传说武器掉落池。")
       : context.kind === "account_instance"
-        ? "只允许切换这件武器真实拥有且可应用的 Perk。"
-        : "当前查看内容为只读，不提供远程配置操作。";
+        ? itemDetailText(props.copy, "只允许切换这件武器真实拥有且可应用的 Perk。")
+        : itemDetailText(props.copy, "当前查看内容为只读，不提供远程配置操作。");
   const operationLabel = canWriteConfiguration
-    ? "可远程切换 · 需要联网"
+    ? itemDetailText(props.copy, "可远程切换 · 需要联网")
     : props.actions?.loadConfiguration
-      ? "当前 Roll 已显示 · 完整配置按需读取"
+      ? itemDetailText(props.copy, "当前 Roll 已显示 · 完整配置按需读取")
     : context.kind === "account_instance" && configuration.kind === "fixed"
-      ? "固定配置 · 只读"
-      : "只读";
+      ? itemDetailText(props.copy, "固定配置 · 只读")
+      : itemDetailText(props.copy, "只读");
   return (
     <>
       <SectionHeading
-        eyebrow="当前配置"
+        eyebrow={itemDetailText(props.copy, "当前配置")}
         title={title}
         description={description}
       />
@@ -747,28 +773,29 @@ function ConfigurationSection(props: {
       {hasConfigurationData ? (
         <div className="weapon-detail-config-grid" aria-busy={isConfigurationPending}>
           {configuration.intrinsic
-            ? <PerkColumn label="固有能力" role="intrinsic" contextLabel="固有能力" candidates={[configuration.intrinsic]} emphasis="selected" />
+            ? <PerkColumn copy={props.copy} label={itemDetailText(props.copy, "固有能力")} role="intrinsic" contextLabel={itemDetailText(props.copy, "固有能力")} candidates={[configuration.intrinsic]} emphasis="selected" />
             : isConfigurationPending
-              ? <ConfigurationLoadingColumn label="固有能力" />
-              : <IntrinsicEmptyColumn failed={definitionRequestState === "failed"} />}
+              ? <ConfigurationLoadingColumn copy={props.copy} label={itemDetailText(props.copy, "固有能力")} />
+              : <IntrinsicEmptyColumn copy={props.copy} failed={definitionRequestState === "failed"} />}
           {columns.map((column) => (
             <PerkColumn
               key={column.key}
-              label={column.label}
+              copy={props.copy}
+              label={weaponSocketColumnLabelText(props.copy, column.label)}
               role={column.role}
-              contextLabel="当前配置"
+              contextLabel={itemDetailText(props.copy, "当前配置")}
               emphasis="selected"
               candidates={column.candidates}
               interactive={showSelection && canWriteConfiguration && !isBusy}
               onSelect={(perk) => props.actions?.stagePerk?.(column as WeaponPerkSelectionColumn, perk)}
             />
           ))}
-          {isConfigurationPending && columns.length === 0 ? <ConfigurationLoadingColumn /> : null}
+          {isConfigurationPending && columns.length === 0 ? <ConfigurationLoadingColumn copy={props.copy} /> : null}
         </div>
       ) : isConfigurationPending ? (
-        <ConfigurationLoadingGrid />
+        <ConfigurationLoadingGrid copy={props.copy} />
       ) : (
-        <EmptyState text={configurationEmptyText(context.kind)} />
+        <EmptyState text={configurationEmptyText(props.copy, context.kind)} />
       )}
     </>
   );
@@ -785,6 +812,7 @@ function ConfigurationSection(props: {
  */
 function WeaponWriteDock(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   actions?: WeaponDetailContentProps["actions"];
   configurationWriteFeedback?: WeaponDetailContentProps["configurationWriteFeedback"];
 }) {
@@ -800,7 +828,7 @@ function WeaponWriteDock(props: {
     ? "pending"
     : writeFeedback.status;
   if (!canWriteConfiguration || panelState === "idle") return null;
-  const panelContent = configurationPanelContent(panelState, pendingChangeCount, writeFeedback.message);
+  const panelContent = configurationPanelContent(props.copy, panelState, pendingChangeCount, writeFeedback.message);
   return (
     <div className="weapon-detail-write-dock">
       <div
@@ -820,25 +848,25 @@ function WeaponWriteDock(props: {
         <div className="weapon-detail-write-actions">
           {panelState === "pending" ? (
             <>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>应用 {pendingChangeCount} 项更改</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>{itemDetailText(props.copy, "取消选择")}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>{itemDetailTemplate(props.copy, "应用 {count} 项更改", { count: pendingChangeCount })}</button>
             </>
           ) : null}
           {panelState === "error" ? (
             <>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取</button>
-              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>{itemDetailText(props.copy, "取消选择")}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => void props.actions?.refreshConfiguration?.()}>{itemDetailText(props.copy, "重新读取")}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>{itemDetailText(props.copy, "保留选择重试")}</button>
             </>
           ) : null}
           {panelState === "deferred" ? (
             <>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>取消选择</button>
-              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>重新读取配置</button>
-              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>保留选择重试</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.actions?.cancelPendingPerks}>{itemDetailText(props.copy, "取消选择")}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => void props.actions?.refreshConfiguration?.()}>{itemDetailText(props.copy, "重新读取配置")}</button>
+              <button type="button" data-ui-kind="button" data-control-variant="secondary" disabled={!configuration.can_apply_changes} onClick={() => void props.actions?.applyPendingPerks?.()}>{itemDetailText(props.copy, "保留选择重试")}</button>
             </>
           ) : null}
-          {isBusy ? <span className="weapon-detail-write-busy-label">处理中</span> : null}
+          {isBusy ? <span className="weapon-detail-write-busy-label">{itemDetailText(props.copy, "处理中")}</span> : null}
         </div>
       </div>
     </div>
@@ -851,6 +879,7 @@ function WeaponWriteDock(props: {
  */
 function FullPoolSection(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   poolOpen: boolean;
   canLoadFullRoll: boolean;
   onRequestFullRoll?: () => void;
@@ -883,26 +912,26 @@ function FullPoolSection(props: {
               props.onTogglePool?.();
             }}
           >
-            <strong>{props.poolOpen ? "收起完整掉落池" : "查看完整掉落池"}</strong>
-            <span>{props.poolOpen ? "收起" : configuration.pool_columns.length ? `展开 ${countPool(configuration.pool_columns)} 个候选` : "读取全部候选"}</span>
+            <strong>{props.poolOpen ? itemDetailText(props.copy, "收起完整掉落池") : itemDetailText(props.copy, "查看完整掉落池")}</strong>
+            <span>{props.poolOpen ? itemDetailText(props.copy, "收起") : configuration.pool_columns.length ? itemDetailTemplate(props.copy, "展开 {count} 个候选", { count: countPool(configuration.pool_columns) }) : itemDetailText(props.copy, "读取全部候选")}</span>
           </button>
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
-              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} contextLabel="完整掉落池" candidates={column.candidates} emphasis="selected" />)}
-            </div><p className="weapon-detail-note">这里只展示可能掉落的候选，不标记当前已选状态；这件武器未拥有的 Perk 不能远程安装。</p></>
+              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} copy={props.copy} label={weaponSocketColumnLabelText(props.copy, column.label)} role={column.role} contextLabel={itemDetailText(props.copy, "完整掉落池")} candidates={column.candidates} emphasis="selected" />)}
+            </div><p className="weapon-detail-note">{itemDetailText(props.copy, "这里只展示可能掉落的候选，不标记当前已选状态；这件武器未拥有的 Perk 不能远程安装。")}</p></>
           ) : null}
         </section>
       ) : null}
       {showExoticPool ? (
         <section className="weapon-detail-full-pool">
           <button type="button" data-ui-kind="button" data-control-variant="secondary" aria-expanded={props.poolOpen} onClick={() => props.onTogglePool?.()}>
-            <strong>{props.poolOpen ? "收起异域配置候选" : "查看异域配置候选"}</strong>
-            <span>{props.poolOpen ? "收起" : `展开 ${countPool(configuration.pool_columns)} 个候选`}</span>
+            <strong>{props.poolOpen ? itemDetailText(props.copy, "收起异域配置候选") : itemDetailText(props.copy, "查看异域配置候选")}</strong>
+            <span>{props.poolOpen ? itemDetailText(props.copy, "收起") : itemDetailTemplate(props.copy, "展开 {count} 个候选", { count: countPool(configuration.pool_columns) })}</span>
           </button>
           {props.poolOpen ? (
             <><div className="weapon-detail-pool-grid">
-              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} label={column.label} role={column.role} contextLabel="异域配置候选" candidates={column.candidates} emphasis="selected" />)}
-            </div><p className="weapon-detail-note">这些是当前资料库可确认的特殊异域随机配置候选，不代表这件武器已经拥有，也不属于普通传说武器掉落池。</p></>
+              {configuration.pool_columns.map((column) => <PerkColumn key={column.key} copy={props.copy} label={weaponSocketColumnLabelText(props.copy, column.label)} role={column.role} contextLabel={itemDetailText(props.copy, "异域配置候选")} candidates={column.candidates} emphasis="selected" />)}
+            </div><p className="weapon-detail-note">{itemDetailText(props.copy, "这些是当前资料库可确认的特殊异域随机配置候选，不代表这件武器已经拥有，也不属于普通传说武器掉落池。")}</p></>
           ) : null}
         </section>
       ) : null}
@@ -911,6 +940,7 @@ function FullPoolSection(props: {
 }
 
 function configurationSummaryItems(
+  copy: ItemDetailCopy,
   model: WeaponDetailViewModel,
   pendingChangeCount: number,
   operationLabel: string,
@@ -935,31 +965,32 @@ function configurationSummaryItems(
 
   if (model.context.kind === "account_instance") {
     return [
-      { label: "当前查看", value: "这件武器" },
-      { label: "本件 Roll", value: currentRoll.join(" / ") || (isInstanceLoading ? "正在读取" : "当前配置未返回") },
-      { label: "可切换", value: switchableColumns ? `${switchableColumns} 个插槽` : isInstanceLoading ? "正在核对" : canLoadConfiguration ? "展开后核对" : "没有可远程切换项" },
-      { label: "配置状态", value: pendingChangeCount ? `${pendingChangeCount} 项待应用` : isDefinitionLoading || isInstanceLoading ? "读取中" : operationLabel }
+      { label: itemDetailText(copy, "当前查看"), value: itemDetailText(copy, "这件武器") },
+      { label: itemDetailText(copy, "本件 Roll"), value: currentRoll.join(" / ") || (isInstanceLoading ? itemDetailText(copy, "正在读取") : itemDetailText(copy, "当前配置未返回")) },
+      { label: itemDetailText(copy, "可切换"), value: switchableColumns ? itemDetailTemplate(copy, "{count} 个插槽", { count: switchableColumns }) : isInstanceLoading ? itemDetailText(copy, "正在核对") : canLoadConfiguration ? itemDetailText(copy, "展开后核对") : itemDetailText(copy, "没有可远程切换项") },
+      { label: itemDetailText(copy, "配置状态"), value: pendingChangeCount ? itemDetailTemplate(copy, "{count} 项待应用", { count: pendingChangeCount }) : isDefinitionLoading || isInstanceLoading ? itemDetailText(copy, "读取中") : operationLabel }
     ];
   }
 
   if (model.context.kind === "vendor_offer") {
     return [
-      { label: "当前查看", value: "当前售卖" },
-      { label: "售卖 Roll", value: currentRoll.join(" / ") || (isDefinitionLoading ? "正在读取" : "售卖配置未返回") },
-      { label: "配置类型", value: isDefinitionLoading && !currentRoll.length ? "正在判断" : configurationKindLabel(model.configuration.kind) },
-      { label: "操作状态", value: isDefinitionLoading ? "读取中" : "购买前只读" }
+      { label: itemDetailText(copy, "当前查看"), value: itemDetailText(copy, "当前售卖") },
+      { label: itemDetailText(copy, "售卖 Roll"), value: currentRoll.join(" / ") || (isDefinitionLoading ? itemDetailText(copy, "正在读取") : itemDetailText(copy, "售卖配置未返回")) },
+      { label: itemDetailText(copy, "配置类型"), value: isDefinitionLoading && !currentRoll.length ? itemDetailText(copy, "正在判断") : configurationKindLabel(copy, model.configuration.kind) },
+      { label: itemDetailText(copy, "操作状态"), value: isDefinitionLoading ? itemDetailText(copy, "读取中") : itemDetailText(copy, "购买前只读") }
     ];
   }
 
   return [
-    { label: "当前查看", value: "资料库版本" },
-    { label: "配置范围", value: candidateCount ? `${model.configuration.pool_columns.length} 个插槽 · ${candidateCount} 个候选` : isDefinitionLoading ? "正在读取" : "配置候选未返回" },
-    { label: "配置类型", value: isDefinitionLoading && !candidateCount ? "正在判断" : configurationKindLabel(model.configuration.kind) },
-    { label: "操作状态", value: isDefinitionLoading ? "读取中" : "只读查看" }
+    { label: itemDetailText(copy, "当前查看"), value: itemDetailText(copy, "资料库版本") },
+    { label: itemDetailText(copy, "配置范围"), value: candidateCount ? itemDetailTemplate(copy, "{slots} 个插槽 · {count} 个候选", { slots: model.configuration.pool_columns.length, count: candidateCount }) : isDefinitionLoading ? itemDetailText(copy, "正在读取") : itemDetailText(copy, "配置候选未返回") },
+    { label: itemDetailText(copy, "配置类型"), value: isDefinitionLoading && !candidateCount ? itemDetailText(copy, "正在判断") : configurationKindLabel(copy, model.configuration.kind) },
+    { label: itemDetailText(copy, "操作状态"), value: isDefinitionLoading ? itemDetailText(copy, "读取中") : itemDetailText(copy, "只读查看") }
   ];
 }
 
 function configurationLoadingCopy(
+  copy: ItemDetailCopy,
   kind: WeaponDetailViewModel["context"]["kind"],
   isDefinitionLoading: boolean,
   isInstanceLoading: boolean
@@ -967,59 +998,59 @@ function configurationLoadingCopy(
   if (kind === "account_instance") {
     if (isDefinitionLoading && isInstanceLoading) {
       return {
-        title: "本件 Roll",
-        description: "正在读取这件武器的当前选择、可切换项和完整 Perk 信息。",
-        status: "正在读取本件 Roll 和可切换项；已确认内容会先显示，其余内容随后补齐。"
+        title: itemDetailText(copy, "本件 Roll"),
+        description: itemDetailText(copy, "正在读取这件武器的当前选择、可切换项和完整 Perk 信息。"),
+        status: itemDetailText(copy, "正在读取本件 Roll 和可切换项；已确认内容会先显示，其余内容随后补齐。")
       };
     }
     if (isInstanceLoading) {
       return {
-        title: "本件 Roll",
-        description: "完整 Perk 池已经可用，正在核对这件武器实际拥有的配置。",
-        status: "正在读取本件 Roll；完整掉落池只表示可能候选，不代表这件武器已经拥有。"
+        title: itemDetailText(copy, "本件 Roll"),
+        description: itemDetailText(copy, "完整 Perk 池已经可用，正在核对这件武器实际拥有的配置。"),
+        status: itemDetailText(copy, "正在读取本件 Roll；完整掉落池只表示可能候选，不代表这件武器已经拥有。")
       };
     }
     return {
-      title: "本件 Roll",
-      description: "这件武器的当前选择已经可用，正在补齐资料库 Perk 信息。",
-      status: "本件 Roll 已读取，正在补齐 Perk 名称、说明和完整候选。"
+      title: itemDetailText(copy, "本件 Roll"),
+      description: itemDetailText(copy, "这件武器的当前选择已经可用，正在补齐资料库 Perk 信息。"),
+      status: itemDetailText(copy, "本件 Roll 已读取，正在补齐 Perk 名称、说明和完整候选。")
     };
   }
   if (kind === "vendor_offer") {
     return {
-      title: "当前售卖 Roll",
-      description: "正在读取商人本次售卖配置和对应的 Perk 信息。",
-      status: "正在读取当前售卖 Roll；完成前不会用完整掉落池代替本次售卖配置。"
+      title: itemDetailText(copy, "当前售卖 Roll"),
+      description: itemDetailText(copy, "正在读取商人本次售卖配置和对应的 Perk 信息。"),
+      status: itemDetailText(copy, "正在读取当前售卖 Roll；完成前不会用完整掉落池代替本次售卖配置。")
     };
   }
   return {
-    title: "Perk 配置",
-    description: "正在读取这个版本的完整 Perk 池。",
-    status: "正在读取这个版本的固有能力和完整 Perk 池。"
+    title: itemDetailText(copy, "Perk 配置"),
+    description: itemDetailText(copy, "正在读取这个版本的完整 Perk 池。"),
+    status: itemDetailText(copy, "正在读取这个版本的固有能力和完整 Perk 池。")
   };
 }
 
-function configurationEmptyText(kind: WeaponDetailViewModel["context"]["kind"]): string {
-  if (kind === "account_instance") return "读取完成，但游戏没有返回这件武器的可显示配置。";
-  if (kind === "vendor_offer") return "读取完成，但当前售卖内容没有返回可显示的 Roll。";
-  return "读取完成，但资料库没有返回这个版本的 Perk 配置。";
+function configurationEmptyText(copy: ItemDetailCopy, kind: WeaponDetailViewModel["context"]["kind"]): string {
+  if (kind === "account_instance") return itemDetailText(copy, "读取完成，但游戏没有返回这件武器的可显示配置。");
+  if (kind === "vendor_offer") return itemDetailText(copy, "读取完成，但当前售卖内容没有返回可显示的 Roll。");
+  return itemDetailText(copy, "读取完成，但资料库没有返回这个版本的 Perk 配置。");
 }
 
-function ConfigurationLoadingGrid() {
+function ConfigurationLoadingGrid(props: { copy: ItemDetailCopy }) {
   return (
     <div className="weapon-detail-config-grid is-loading" aria-hidden="true">
-      {Array.from({ length: 4 }, (_, index) => <ConfigurationLoadingColumn key={index} />)}
+      {Array.from({ length: 4 }, (_, index) => <ConfigurationLoadingColumn key={index} copy={props.copy} />)}
     </div>
   );
 }
 
-function ConfigurationLoadingColumn(props: { label?: string }) {
+function ConfigurationLoadingColumn(props: { copy: ItemDetailCopy; label?: string }) {
   return (
     // 用真列的外壳与真表头，只有内容位置画骨架：列高、表头高、卡片几何都和真列逐像素相同。
     <section className="weapon-detail-perk-column weapon-detail-perk-column-loading" aria-hidden="true">
       <h4>{props.label ?? <span />}</h4>
       <div>
-        <WeaponPerkPlaceholder variant="loading" />
+        <WeaponPerkPlaceholder copy={props.copy} variant="loading" />
       </div>
     </section>
   );
@@ -1032,14 +1063,16 @@ function ConfigurationLoadingColumn(props: { label?: string }) {
  * 两种文案必须分得开——「未返回」是定义真的读完了，「未能读取」是这次定义没拿到，
  * 后者不该让用户以为这件武器没有固有能力。
  */
-function IntrinsicEmptyColumn(props: { failed?: boolean }) {
+function IntrinsicEmptyColumn(props: { copy: ItemDetailCopy; failed?: boolean }) {
+  const { copy } = props;
   return (
     <section className="weapon-detail-perk-column role-intrinsic">
-      <h4>固有能力</h4>
+      <h4>{itemDetailText(copy, "固有能力")}</h4>
       <div>
         <WeaponPerkPlaceholder
+          copy={copy}
           variant="empty"
-          text={props.failed ? "固有能力未能读取" : "未返回固有能力"}
+          text={props.failed ? itemDetailText(copy, "固有能力未能读取") : itemDetailText(copy, "未返回固有能力")}
         />
       </div>
     </section>
@@ -1047,6 +1080,7 @@ function IntrinsicEmptyColumn(props: { failed?: boolean }) {
 }
 
 function configurationPanelContent(
+  copy: ItemDetailCopy,
   state: WeaponConfigurationWriteFeedback["status"] | "pending",
   pendingChangeCount: number,
   message?: string
@@ -1054,34 +1088,34 @@ function configurationPanelContent(
   switch (state) {
     case "pending":
       return {
-        title: `已选择 ${pendingChangeCount} 项更改`,
-        step: "待提交",
-        message: "确认后才会写入游戏；写入成功前，当前配置保持不变。"
+        title: itemDetailTemplate(copy, "已选择 {count} 项更改", { count: pendingChangeCount }),
+        step: itemDetailText(copy, "待提交"),
+        message: itemDetailText(copy, "确认后才会写入游戏；写入成功前，当前配置保持不变。")
       };
     case "submitting":
-      return { title: "正在提交武器配置", step: "提交中", message: message ?? "正在将 Perk 更改提交到游戏服务..." };
+      return { title: itemDetailText(copy, "正在提交武器配置"), step: itemDetailText(copy, "提交中"), message: message ?? itemDetailText(copy, "正在将 Perk 更改提交到游戏服务...") };
     case "refreshing":
-      return { title: "正在同步最新配置", step: "同步中", message: message ?? "正在读取游戏返回的最新装备状态..." };
+      return { title: itemDetailText(copy, "正在同步最新配置"), step: itemDetailText(copy, "同步中"), message: message ?? itemDetailText(copy, "正在读取游戏返回的最新装备状态...") };
     case "submitted":
       return {
-        title: "武器配置更改已提交",
-        step: "待核对",
-        message: message ?? "当前显示的是本地状态；账号同步后以服务器为准。"
+        title: itemDetailText(copy, "武器配置更改已提交"),
+        step: itemDetailText(copy, "待核对"),
+        message: message ?? itemDetailText(copy, "当前显示的是本地状态；账号同步后以服务器为准。")
       };
     case "reloaded":
       return {
-        title: "已读取服务器当前配置",
-        step: "已读取",
-        message: message ?? "显示的是刚刚从服务器读到的内容。"
+        title: itemDetailText(copy, "已读取服务器当前配置"),
+        step: itemDetailText(copy, "已读取"),
+        message: message ?? itemDetailText(copy, "显示的是刚刚从服务器读到的内容。")
       };
     case "deferred":
       return {
-        title: "这件装备还有变更在处理中",
-        step: "待重试",
-        message: message ?? "Bungie 还没有处理完上一次更改，这次没有提交。稍后重新读取配置再试。"
+        title: itemDetailText(copy, "这件装备还有变更在处理中"),
+        step: itemDetailText(copy, "待重试"),
+        message: message ?? itemDetailText(copy, "Bungie 还没有处理完上一次更改，这次没有提交。稍后重新读取配置再试。")
       };
     case "error":
-      return { title: "武器配置未更新", step: "需要处理", message: message ?? "提交失败。你可以保留选择重试。" };
+      return { title: itemDetailText(copy, "武器配置未更新"), step: itemDetailText(copy, "需要处理"), message: message ?? itemDetailText(copy, "提交失败。你可以保留选择重试。") };
     default:
       return { title: "", step: "", message: "" };
   }
@@ -1109,17 +1143,20 @@ function configurationPanelTone(
  * 于是同一行两列对同一件事给出不同的词（「本件命中」/「符合」、「推荐候选」/「本件拥有」），
  * 读的人要多花一次换算（T72 方案 C）。判定的分支不变，只是把话说成同一套。
  */
-const perkStatusWord = {
-  hitActive: "符合 · 当前",
-  hit: "符合",
-  missed: "未拥有",
-  active: "当前启用",
-  notRequired: "来源未要求",
-  uncheckable: "无法判断",
-  pending: "待应用"
-} as const;
+function perkStatusWord(copy: ItemDetailCopy) {
+  return {
+    hitActive: itemDetailText(copy, "符合 · 当前"),
+    hit: itemDetailText(copy, "符合"),
+    missed: itemDetailText(copy, "未拥有"),
+    active: itemDetailText(copy, "当前启用"),
+    notRequired: itemDetailText(copy, "来源未要求"),
+    uncheckable: itemDetailText(copy, "无法判断"),
+    pending: itemDetailText(copy, "待应用")
+  };
+}
 
 function PerkColumn(props: {
+  copy: ItemDetailCopy;
   label: string;
   role: WeaponPerkColumnRole;
   candidates: readonly WeaponPerkCandidate[];
@@ -1140,15 +1177,16 @@ function PerkColumn(props: {
           // 推荐对照区里选中的那格写「待应用」，配置列里同一批选中也必须写「待应用」，不能一个说「已选」
           // 一个说「待应用」。剩下两个词说的是另一个问题（换成它要不要额外条件），只在配置列里出现。
           const stateLabel = selection
-            ? selection.pending ? perkStatusWord.pending : selection.selected ? perkStatusWord.active : selection.can_apply ? "本件拥有 · 可切换" : "本件拥有"
+            ? selection.pending ? perkStatusWord(props.copy).pending : selection.selected ? perkStatusWord(props.copy).active : selection.can_apply ? itemDetailText(props.copy, "本件拥有 · 可切换") : itemDetailText(props.copy, "本件拥有")
             : undefined;
-          const statusLabel = [stateLabel, perk.enhanced_of_hash ? "强化版本" : undefined].filter(Boolean).join(" · ");
+          const statusLabel = [stateLabel, perk.enhanced_of_hash ? itemDetailText(props.copy, "强化版本") : undefined].filter(Boolean).join(" · ");
           const statusDetail = selection
-            ? selection.pending ? "本件拥有，已选中，等待写入" : selection.selected ? "本件拥有，当前启用" : selection.can_apply ? "本件拥有，可以切换成它" : "本件拥有"
-            : perk.enhanced_of_hash ? "强化版本" : "";
+            ? selection.pending ? itemDetailText(props.copy, "本件拥有，已选中，等待写入") : selection.selected ? itemDetailText(props.copy, "本件拥有，当前启用") : selection.can_apply ? itemDetailText(props.copy, "本件拥有，可以切换成它") : itemDetailText(props.copy, "本件拥有")
+            : perk.enhanced_of_hash ? itemDetailText(props.copy, "强化版本") : "";
           return (
             <WeaponPerkEntry
               key={perk.hash}
+              copy={props.copy}
               name={perk.name}
               description={perk.description}
               icon={perk.icon}
@@ -1164,7 +1202,7 @@ function PerkColumn(props: {
               pressed={Boolean(selection?.selected || selection?.pending)}
             />
           );
-        }) : <EmptyState text="此列没有返回候选。" />}
+        }) : <EmptyState text={itemDetailText(props.copy, "此列没有返回候选。")} />}
       </div>
     </section>
   );
@@ -1185,6 +1223,7 @@ function PerkColumn(props: {
  */
 function RecommendationSection(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   evidence?: WeaponDetailContentProps["recommendationEvidence"];
   actions?: WeaponDetailContentProps["actions"];
   configurationWriteFeedback?: WeaponDetailContentProps["configurationWriteFeedback"];
@@ -1201,23 +1240,24 @@ function RecommendationSection(props: {
   return (
     <>
       <SectionHeading
-        eyebrow={isAccountInstance ? "推荐判断" : "推荐资料"}
-        title={isAccountInstance ? "这件武器的推荐 Roll" : "这把武器的来源推荐"}
+        eyebrow={isAccountInstance ? itemDetailText(props.copy, "推荐判断") : itemDetailText(props.copy, "推荐资料")}
+        title={isAccountInstance ? itemDetailText(props.copy, "这件武器的推荐 Roll") : itemDetailText(props.copy, "这把武器的来源推荐")}
         description={isAccountInstance
           ? isFixedExotic
-            ? "固定异域不进行随机 Roll 核对；推荐来源只保留拥有状态、催化剂进度与使用建议。"
-            : "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。"
-          : "按数据源原始形式展示：只列出来源要求的栏位与候选，不核对本件是否拥有。"}
+            ? itemDetailText(props.copy, "固定异域不进行随机 Roll 核对；推荐来源只保留拥有状态、催化剂进度与使用建议。")
+            : itemDetailText(props.copy, "先看各来源的核心 Perk 与完整匹配，再按需展开逐栏依据；所有来源同级，按符合程度排序。")
+          : itemDetailText(props.copy, "按数据源原始形式展示：只列出来源要求的栏位与候选，不核对本件是否拥有。")}
       />
       {isAccountInstance ? (
         <InstanceRecommendationEvidence
           model={model}
+          copy={props.copy}
           evidence={props.evidence}
           canStagePerks={canStagePerks}
           onStagePerk={stagePerk}
         />
       ) : (
-        <DefinitionRecommendationSources model={model} />
+        <DefinitionRecommendationSources model={model} copy={props.copy} />
       )}
     </>
   );
@@ -1226,6 +1266,7 @@ function RecommendationSection(props: {
 /** 事实层：账号实例的推荐来源证据卡。命中与启用状态来自事实层，这里不自行判定。 */
 function InstanceRecommendationEvidence(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   evidence?: WeaponDetailContentProps["recommendationEvidence"];
   canStagePerks: boolean;
   onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
@@ -1235,16 +1276,16 @@ function InstanceRecommendationEvidence(props: {
   const sourceMatches = evidence
     ? evidence.sourceMatches.slice().sort((left, right) => (
         recommendationMatchRank(right) - recommendationMatchRank(left)
-        || recommendationSourceLabel(left.source_id, left.source_label).localeCompare(
-          recommendationSourceLabel(right.source_id, right.source_label),
+        || recommendationSourceLabel(props.copy, left.source_id, left.source_label).localeCompare(
+          recommendationSourceLabel(props.copy, right.source_id, right.source_label),
           "zh-Hans-CN"
         )
       ))
     : [];
   if (!sourceMatches.length) {
     return <EmptyState text={evidence?.status === "loading"
-      ? "正在读取这把武器的推荐 Roll。"
-      : "这把武器暂时没有可核对的推荐 Roll。"} />;
+      ? itemDetailText(props.copy, "正在读取这把武器的推荐 Roll。")
+      : itemDetailText(props.copy, "这把武器暂时没有可核对的推荐 Roll。")} />;
   }
   return (
     <div
@@ -1257,6 +1298,7 @@ function InstanceRecommendationEvidence(props: {
         <RecommendationSourceEvidenceCard
           key={`${sourceMatch.source_id}:${sourceMatch.source_label}`}
           model={props.model}
+          copy={props.copy}
           sourceMatch={sourceMatch}
           canStagePerks={props.canStagePerks}
           onStagePerk={props.onStagePerk}
@@ -1273,17 +1315,17 @@ function InstanceRecommendationEvidence(props: {
  * 每张来源卡只说来源自己写的那句说明（`reason`）。两者不互相兜底——原来把免责声明塞进
  * 每条来源的 `reason` 里当 fallback，同一句话就在每张卡上重复了一遍。
  */
-function DefinitionRecommendationSources(props: { model: WeaponDetailViewModel }) {
+function DefinitionRecommendationSources(props: { model: WeaponDetailViewModel; copy: ItemDetailCopy }) {
   const { model } = props;
   const targets = model.recommendations;
-  if (!targets.length) return <EmptyState text="这把武器暂时没有来源推荐资料。" />;
+  if (!targets.length) return <EmptyState text={itemDetailText(props.copy, "这把武器暂时没有来源推荐资料。")} />;
   return (
     <div className="weapon-detail-recommendations">
       {model.recommendation_disclaimer ? (
         <p className="weapon-detail-recommendation-disclaimer" data-ui-kind="callout" data-callout-tone="info">{model.recommendation_disclaimer}</p>
       ) : null}
       {targets.map((target) => (
-        <DefinitionRecommendationSourceCard key={target.id} model={model} recommendation={target} />
+        <DefinitionRecommendationSourceCard key={target.id} model={model} copy={props.copy} recommendation={target} />
       ))}
     </div>
   );
@@ -1298,12 +1340,13 @@ function DefinitionRecommendationSources(props: { model: WeaponDetailViewModel }
  */
 function DefinitionRecommendationSourceCard(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   recommendation: WeaponRecommendation;
 }) {
   const { model, recommendation } = props;
   const isFixedExotic = model.identity.is_exotic && model.configuration.kind === "fixed";
   const sourcePurposeLabel = (recommendation.purposes?.length ? recommendation.purposes : [recommendation.mode])
-    .map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : "通用")
+    .map((mode) => mode === "pve" ? "PVE" : mode === "pvp" ? "PVP" : itemDetailText(props.copy, "通用"))
     .filter((mode, index, values) => values.indexOf(mode) === index)
     .join(" / ");
   return (
@@ -1315,9 +1358,9 @@ function DefinitionRecommendationSourceCard(props: {
         </div>
         <div className="weapon-detail-definition-source-meta">
           <span className="ui-badge status-neutral" data-ui-kind="status-chip">
-            {recommendation.presentation === "perk_pool" ? "候选池" : "完整组合"}
+            {recommendation.presentation === "perk_pool" ? itemDetailText(props.copy, "候选池") : itemDetailText(props.copy, "完整组合")}
           </span>
-          {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">查看原始来源</a> : <span>本地数据</span>}
+          {recommendation.external_url ? <a href={recommendation.external_url} target="_blank" rel="noreferrer">{itemDetailText(props.copy, "查看原始来源")}</a> : <span>{itemDetailText(props.copy, "本地数据")}</span>}
         </div>
       </header>
       {recommendation.reason ? (
@@ -1329,22 +1372,23 @@ function DefinitionRecommendationSourceCard(props: {
             <section key={option.column_key} className="weapon-detail-definition-column">
               <header>
                 <strong>{option.column_key}</strong>
-                <span>{option.names.length > 1 ? `${option.names.length} 个候选` : "指定"}</span>
+                <span>{option.names.length > 1 ? itemDetailTemplate(props.copy, "{count} 个候选", { count: option.names.length }) : itemDetailText(props.copy, "指定")}</span>
               </header>
-              <div className="weapon-detail-perk-entries" role="group" aria-label={`${option.column_key}来源候选`}>
+              <div className="weapon-detail-perk-entries" role="group" aria-label={itemDetailTemplate(props.copy, "{column}来源候选", { column: option.column_key })}>
                 {/* 候选带图标就画图标；只解析出名字的来源（`candidates` 为空）退化成纯名字条目，
                     与「这条来源到底给了什么」保持一致——这里不替来源补它没给的东西。 */}
                 {sourceCandidateEntries(option).map((candidate) => (
                   <WeaponPerkEntry
                     key={`${option.column_key}:${candidate.name}`}
+                    copy={props.copy}
                     name={candidate.name}
                     englishName={candidate.englishName}
                     description={candidate.description}
                     icon={candidate.icon}
                     unknown={!candidate.icon}
-                    contextLabel="来源候选"
-                    statusDetail="数据源对这一栏给出的候选；资料库对象没有本件，因此不核对是否拥有。"
-                    ariaLabel={`${candidate.name}，来源候选，${option.column_key}`}
+                    contextLabel={itemDetailText(props.copy, "来源候选")}
+                    statusDetail={itemDetailText(props.copy, "数据源对这一栏给出的候选；资料库对象没有本件，因此不核对是否拥有。")}
+                    ariaLabel={itemDetailTemplate(props.copy, "{name}，来源候选，{column}", { name: candidate.name, column: option.column_key })}
                   />
                 ))}
               </div>
@@ -1353,8 +1397,8 @@ function DefinitionRecommendationSourceCard(props: {
         </div>
       ) : (
         <p className="weapon-detail-match-empty">{isFixedExotic
-          ? "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。"
-          : "该来源没有指定随机 Perk 目标。"}</p>
+          ? itemDetailText(props.copy, "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。")
+          : itemDetailText(props.copy, "该来源没有指定随机 Perk 目标。")}</p>
       )}
     </article>
   );
@@ -1369,23 +1413,24 @@ function sourceCandidateEntries(
 
 function RecommendationSourceEvidenceCard(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   sourceMatch: RecommendationSourceMatch;
   canStagePerks: boolean;
   onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
 }) {
   const source = props.sourceMatch;
   const [open, setOpen] = useState(false);
-  const sourceLabel = recommendationSourceLabel(source.source_id, source.source_label);
+  const sourceLabel = recommendationSourceLabel(props.copy, source.source_id, source.source_label);
   const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
   const specifiedSlots = source.slots.filter((slot) => slot.state !== "source_not_specified");
   const unrequestedSlotLabels = source.slots
     .filter((slot) => slot.state === "source_not_specified")
     .map((slot) => slot.label);
   const metadata = [
-    source.purposes.length ? `用途：${source.purposes.map(recommendationPurposeLabel).join(" / ")}` : undefined,
-    source.rating ? `评级：${source.rating}` : undefined,
-    source.ranking ? `排名：${source.ranking}` : undefined,
-    source.page_updated_at ? `更新时间：${formatUpdatedAt(source.page_updated_at)}` : undefined
+    source.purposes.length ? itemDetailTemplate(props.copy, "用途：{value}", { value: source.purposes.map((purpose) => recommendationPurposeLabel(props.copy, purpose)).join(" / ") }) : undefined,
+    source.rating ? itemDetailTemplate(props.copy, "评级：{value}", { value: source.rating }) : undefined,
+    source.ranking ? itemDetailTemplate(props.copy, "排名：{value}", { value: source.ranking }) : undefined,
+    source.page_updated_at ? itemDetailTemplate(props.copy, "更新时间：{value}", { value: formatUpdatedAt(source.page_updated_at) }) : undefined
   ].filter((entry): entry is string => Boolean(entry));
   return (
     <details
@@ -1397,33 +1442,33 @@ function RecommendationSourceEvidenceCard(props: {
       <summary>
         <span>
           <strong>{sourceLabel}</strong>
-          <small>{metadata.join(" · ") || "来源没有提供额外元数据"}</small>
+          <small>{metadata.join(" · ") || itemDetailText(props.copy, "来源没有提供额外元数据")}</small>
         </span>
         <span className="weapon-detail-source-score" role="group" aria-label={presentation.summary}>
           {presentation.requirementCount > 0 ? (
             <>
               <span data-score-kind="perk">
-                <small>核心 Perk</small>
+                <small>{itemDetailText(props.copy, "核心 Perk")}</small>
                 <strong>{presentation.perkRequirementCount > 0
                   ? `${presentation.matchedPerkCount}/${presentation.perkRequirementCount}`
-                  : "未要求"}</strong>
+                  : itemDetailText(props.copy, "未要求")}</strong>
               </span>
               <span data-score-kind="complete">
-                <small>完整匹配</small>
+                <small>{itemDetailText(props.copy, "完整匹配")}</small>
                 <strong>{presentation.matchedRequirementCount}/{presentation.requirementCount}</strong>
               </span>
               {presentation.uncheckableRequirementCount > 0 ? (
                 <span data-score-kind="pending">
-                  <small>无法判断</small>
-                  <strong>{presentation.uncheckableRequirementCount} 项</strong>
+                  <small>{itemDetailText(props.copy, "无法判断")}</small>
+                  <strong>{itemDetailTemplate(props.copy, "{count} 项", { count: presentation.uncheckableRequirementCount })}</strong>
                 </span>
               ) : null}
             </>
           ) : (
             <span data-score-kind="weapon-only">
-              <small>推荐范围</small>
-              <strong>仅推荐武器</strong>
-              <em>未指定 Roll</em>
+              <small>{itemDetailText(props.copy, "推荐范围")}</small>
+              <strong>{itemDetailText(props.copy, "仅推荐武器")}</strong>
+              <em>{itemDetailText(props.copy, "未指定 Roll")}</em>
             </span>
           )}
         </span>
@@ -1432,29 +1477,30 @@ function RecommendationSourceEvidenceCard(props: {
         <div className="weapon-detail-source-evidence-body">
           {source.note ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{source.note}</p> : null}
           <div className="weapon-detail-source-trace">
-            {source.source_location ? <span>原表位置：{source.source_location}</span> : null}
+            {source.source_location ? <span>{itemDetailTemplate(props.copy, "原表位置：{value}", { value: source.source_location })}</span> : null}
             {source.source_url
-              ? <a href={source.source_url} target="_blank" rel="noreferrer">查看原始来源</a>
-              : <span>原始链接未提供</span>}
+              ? <a href={source.source_url} target="_blank" rel="noreferrer">{itemDetailText(props.copy, "查看原始来源")}</a>
+              : <span>{itemDetailText(props.copy, "原始链接未提供")}</span>}
           </div>
           {source.state === "weapon_only" || !specifiedSlots.length ? (
-            <p className="weapon-detail-match-empty">该来源推荐这把武器，但没有指定需要核对的枪管、第二列、大师、Perk 或起源特性，因此不作 Roll 对照。</p>
+            <p className="weapon-detail-match-empty">{itemDetailText(props.copy, "该来源推荐这把武器，但没有指定需要核对的枪管、第二列、大师、Perk 或起源特性，因此不作 Roll 对照。")}</p>
           ) : (
             <>
-              <div className="weapon-detail-source-slot-list" aria-label={`${sourceLabel}推荐项核对`}>
+              <div className="weapon-detail-source-slot-list" aria-label={itemDetailTemplate(props.copy, "{source}推荐项核对", { source: sourceLabel })}>
                 {/* 栏头（T72 方案 B）：逐行的「来源要求 / 本件拥有」收成这里一处，列模板与槽位行逐像素相同，
                     吸附在滚动口顶部；两半的图例也只在这里说一次。窄屏两半纵向堆叠时这一条隐去、
                     每个半区恢复自己的表头（媒体查询里切换）。两类表头任一时刻只有一类是可见的，
                     所以读屏也只会听到一次列名与图例，这里不额外 aria-hidden。 */}
                 <div className="weapon-detail-source-slot-columns">
-                  <span>栏位</span>
-                  <span>来源要求<em>多候选满足其一即可</em></span>
-                  <span>本件拥有<em>环＝当前启用，叉＝来源没要</em></span>
+                  <span>{itemDetailText(props.copy, "栏位")}</span>
+                  <span>{itemDetailText(props.copy, "来源要求")}<em>{itemDetailText(props.copy, "多候选满足其一即可")}</em></span>
+                  <span>{itemDetailText(props.copy, "本件拥有")}<em>{itemDetailText(props.copy, "环＝当前启用，叉＝来源没要")}</em></span>
                 </div>
                 {specifiedSlots.map((slot) => (
                   <RecommendationSourceSlotRow
                     key={slot.slot}
                     model={props.model}
+                    copy={props.copy}
                     slot={slot}
                     canStagePerks={props.canStagePerks}
                     onStagePerk={props.onStagePerk}
@@ -1463,7 +1509,7 @@ function RecommendationSourceEvidenceCard(props: {
               </div>
               {unrequestedSlotLabels.length ? (
                 <p className="weapon-detail-source-unrequested">
-                  <strong>其他栏位未要求</strong>
+                  <strong>{itemDetailText(props.copy, "其他栏位未要求")}</strong>
                   <span>{unrequestedSlotLabels.join("、")}</span>
                 </p>
               ) : null}
@@ -1477,6 +1523,7 @@ function RecommendationSourceEvidenceCard(props: {
 
 // 来源证据卡专用的「来源要求 ｜ 本件拥有」两列对照：只有账号实例这一条路径有第二列可填。
 function RecommendationSlotComparison(props: {
+  copy: ItemDetailCopy;
   label: string;
   state: RecommendationSourceSlotMatch["state"];
   stateLabel: string;
@@ -1489,11 +1536,11 @@ function RecommendationSlotComparison(props: {
   const { label, state, sourceCandidates, instanceOwned } = props;
   // 两列同一套短状态词（见 perkStatusWord）：同一件事在整页只用一个说法。
   const sourceStatus = (candidate: RecommendationPerkVisual) => candidate.hit
-    ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
-    : state === "uncheckable" ? perkStatusWord.uncheckable : perkStatusWord.missed;
+    ? candidate.active ? perkStatusWord(props.copy).hitActive : perkStatusWord(props.copy).hit
+    : state === "uncheckable" ? perkStatusWord(props.copy).uncheckable : perkStatusWord(props.copy).missed;
   const ownedStatus = (candidate: RecommendationPerkVisual) => candidate.hit
-    ? candidate.active ? perkStatusWord.hitActive : perkStatusWord.hit
-    : candidate.active ? perkStatusWord.active : perkStatusWord.notRequired;
+    ? candidate.active ? perkStatusWord(props.copy).hitActive : perkStatusWord(props.copy).hit
+    : candidate.active ? perkStatusWord(props.copy).active : perkStatusWord(props.copy).notRequired;
   return (
     <div
       className="weapon-detail-source-slot"
@@ -1506,16 +1553,17 @@ function RecommendationSlotComparison(props: {
       </header>
       <div className="weapon-detail-source-slot-comparison">
         <section>
-          <header><span>来源要求</span>{sourceCandidates.length > 1 ? <small>满足其中一个即可</small> : null}</header>
+          <header><span>{itemDetailText(props.copy, "来源要求")}</span>{sourceCandidates.length > 1 ? <small>{itemDetailText(props.copy, "满足其中一个即可")}</small> : null}</header>
           {sourceCandidates.length ? (
-            <div className="weapon-detail-perk-entries" role="group" aria-label={`${label}来源要求`}>
+            <div className="weapon-detail-perk-entries" role="group" aria-label={itemDetailTemplate(props.copy, "{label}来源要求", { label })}>
               {sourceCandidates.map((candidate) => {
                 const statusDetail = candidate.hit
-                  ? candidate.active ? "本件已拥有，当前已启用" : "本件已拥有，当前未启用"
-                  : state === "uncheckable" ? "当前无法确认本件是否拥有" : "本件没有这个推荐项";
+                  ? candidate.active ? itemDetailText(props.copy, "本件已拥有，当前已启用") : itemDetailText(props.copy, "本件已拥有，当前未启用")
+                  : state === "uncheckable" ? itemDetailText(props.copy, "当前无法确认本件是否拥有") : itemDetailText(props.copy, "本件没有这个推荐项");
                 return (
                   <WeaponPerkEntry
                     key={candidate.key}
+                    copy={props.copy}
                     name={candidate.name}
                     englishName={candidate.englishName}
                     description={candidate.description}
@@ -1524,10 +1572,10 @@ function RecommendationSlotComparison(props: {
                     selected={candidate.active === true}
                     muted={state === "match" && candidate.hit !== true}
                     unknown={candidate.unresolved}
-                    contextLabel="来源推荐"
+                    contextLabel={itemDetailText(props.copy, "来源推荐")}
                     statusLabel={sourceStatus(candidate)}
                     statusDetail={statusDetail}
-                    ariaLabel={recommendationPerkAriaLabel(candidate, "来源推荐", statusDetail)}
+                    ariaLabel={recommendationPerkAriaLabel(props.copy, candidate, itemDetailText(props.copy, "来源推荐"), statusDetail)}
                   />
                 );
               })}
@@ -1535,19 +1583,20 @@ function RecommendationSlotComparison(props: {
           ) : <p>{props.sourceCandidateFallback}</p>}
         </section>
         <section>
-          <header><span>本件拥有</span><small>环＝当前启用，叉＝来源没要</small></header>
+          <header><span>{itemDetailText(props.copy, "本件拥有")}</span><small>{itemDetailText(props.copy, "环＝当前启用，叉＝来源没要")}</small></header>
           {instanceOwned.length ? (
-            <div className="weapon-detail-perk-entries" role="group" aria-label={`${label}本件拥有`}>
+            <div className="weapon-detail-perk-entries" role="group" aria-label={itemDetailTemplate(props.copy, "{label}本件拥有", { label })}>
               {instanceOwned.map((candidate) => {
                 const staged = candidate.pending === true;
                 const statusDetail = staged
-                  ? "本件拥有，已选中，等待写入"
+                  ? itemDetailText(props.copy, "本件拥有，已选中，等待写入")
                   : candidate.hit
-                    ? candidate.active ? "符合来源要求，当前已启用" : "符合来源要求，当前未启用"
-                    : candidate.active ? "当前已启用，但不在该来源候选中" : "本件拥有，但不在该来源候选中";
+                    ? candidate.active ? itemDetailText(props.copy, "符合来源要求，当前已启用") : itemDetailText(props.copy, "符合来源要求，当前未启用")
+                    : candidate.active ? itemDetailText(props.copy, "当前已启用，但不在该来源候选中") : itemDetailText(props.copy, "本件拥有，但不在该来源候选中");
                 return (
                   <WeaponPerkEntry
                     key={candidate.key}
+                    copy={props.copy}
                     name={candidate.name}
                     englishName={candidate.englishName}
                     description={candidate.description}
@@ -1560,13 +1609,13 @@ function RecommendationSlotComparison(props: {
                     // 也该是同一枚叉——「符合」说的是你**拥有**来源要的那项（哪怕没装），不等于你装的就是它。
                     mismatch={candidate.hit !== true && candidate.active === true}
                     muted={state === "match" && candidate.hit !== true}
-                    contextLabel="本件拥有"
-                    statusLabel={staged ? perkStatusWord.pending : ownedStatus(candidate)}
+                    contextLabel={itemDetailText(props.copy, "本件拥有")}
+                    statusLabel={staged ? perkStatusWord(props.copy).pending : ownedStatus(candidate)}
                     statusDetail={statusDetail}
-                    ariaLabel={recommendationPerkAriaLabel(candidate, "本件拥有", statusDetail)}
+                    ariaLabel={recommendationPerkAriaLabel(props.copy, candidate, itemDetailText(props.copy, "本件拥有"), statusDetail)}
                     // 换 Perk 是批量的：这里只把这一项放进同一批待提交项，提交仍在同一处写面板（T73）。
                     action={candidate.onToggleSelect && (staged || candidate.canApply === true)
-                      ? { label: staged ? "取消选择" : "选择", onActivate: candidate.onToggleSelect }
+                      ? { label: staged ? itemDetailText(props.copy, "取消选择") : itemDetailText(props.copy, "选择"), onActivate: candidate.onToggleSelect }
                       : undefined}
                   />
                 );
@@ -1581,13 +1630,14 @@ function RecommendationSlotComparison(props: {
 
 function RecommendationSourceSlotRow(props: {
   model: WeaponDetailViewModel;
+  copy: ItemDetailCopy;
   slot: RecommendationSourceSlotMatch;
   /** 可远程切换（账号实例 + 非固定配置 + 写入空闲）时，本件拥有条目才能在浮层里选择 */
   canStagePerks: boolean;
   onStagePerk?: (column: WeaponPerkSelectionColumn, perk: WeaponPerkCandidate) => void;
 }) {
   const { model, slot } = props;
-  const sourceCandidates = recommendationSourceCandidates(model, slot);
+  const sourceCandidates = recommendationSourceCandidates(props.copy, model, slot);
   const presentation = presentRecommendationSlotMatch(slot.state, {
     hasInstanceOwned: slot.instance_owned.length > 0,
     hasCurrentEnabled: slot.current_enabled.length > 0
@@ -1608,6 +1658,7 @@ function RecommendationSourceSlotRow(props: {
   };
   return (
     <RecommendationSlotComparison
+      copy={props.copy}
       label={slot.label}
       state={slot.state}
       stateLabel={presentation.label}
@@ -1617,7 +1668,7 @@ function RecommendationSourceSlotRow(props: {
         hit: recommendationPerkMatches(model, candidate, slot.instance_owned),
         active: recommendationPerkMatches(model, candidate, slot.current_enabled)
       }))}
-      sourceCandidateFallback={slot.state === "source_not_specified" ? "未指定" : "要求名称未返回"}
+      sourceCandidateFallback={slot.state === "source_not_specified" ? itemDetailText(props.copy, "未指定") : itemDetailText(props.copy, "要求名称未返回")}
       instanceOwned={slot.instance_owned.map((plug) => {
         const visual = recommendationOwnedPerk(model, plug);
         const stage = stageSelection(plug);
@@ -1640,16 +1691,14 @@ function recommendationSourceMatchState(source: RecommendationSourceMatch): Reco
   return source.state;
 }
 
-function recommendationPurposeLabel(purpose: RecommendationSourceMatch["purposes"][number]): string {
-  return purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : "通用";
+function recommendationPurposeLabel(copy: ItemDetailCopy, purpose: RecommendationSourceMatch["purposes"][number]): string {
+  return purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : itemDetailText(copy, "通用");
 }
 
-function recommendationSourceLabel(sourceId: string, fallback: string): string {
-  if (sourceId === "aegis") return "Aegis推荐";
-  if (sourceId === "lgpig") return "LGpig推荐";
-  if (sourceId === "yxcrallxy") return "YXCRALLXY推荐表";
-  if (sourceId === "sayalarry") return "Sayalarry推荐表";
-  return fallback || sourceId || "推荐来源";
+// 显示的就是来源自己存的名字，不在代码里认来源。第三方来源名一旦写死在这里，
+// 等于把具体来源固化进产品，也和「未确认再分发许可的资料只作本地输入」相冲突。
+function recommendationSourceLabel(copy: ItemDetailCopy, sourceId: string, fallback: string): string {
+  return fallback || sourceId || itemDetailText(copy, "推荐来源");
 }
 
 // 所有来源同级：先看符合程度，平级再按来源名，不按来源类型排权重。
@@ -1685,40 +1734,41 @@ type RecommendationPerkVisual = {
 
 /** 推荐区条目的无障碍标签：名称、身份、命中与启用状态、完整状态各说一次。 */
 function recommendationPerkAriaLabel(
+  copy: ItemDetailCopy,
   perk: Pick<RecommendationPerkVisual, "name" | "hit" | "active">,
   contextLabel: string,
   statusDetail: string
 ): string {
-  return [perk.name, contextLabel, perk.hit ? "命中推荐" : undefined, perk.active ? "当前启用" : undefined, statusDetail].filter(Boolean).join("，");
+  return [perk.name, contextLabel, perk.hit ? itemDetailText(copy, "命中推荐") : undefined, perk.active ? itemDetailText(copy, "当前启用") : undefined, statusDetail].filter(Boolean).join("，");
 }
 
-function UpgradeSection({ model }: { model: WeaponDetailViewModel }) {
+function UpgradeSection({ model, copy }: { model: WeaponDetailViewModel; copy: ItemDetailCopy }) {
   const { upgrades } = model;
   const objectSource = model.context.kind === "account_instance"
-    ? "当前装备"
+    ? itemDetailText(copy, "当前装备")
     : model.context.kind === "vendor_offer"
-      ? "商人当前售卖"
-      : "资料库定义";
+      ? itemDetailText(copy, "商人当前售卖")
+      : itemDetailText(copy, "资料库定义");
   const rows = [
-    upgrades.masterwork ? { key: "masterwork", label: "大师杰作", current: `${upgrades.masterwork.name}${upgrades.masterwork.level ? ` · ${upgrades.masterwork.level} 级` : ""}`, detail: `${upgrades.masterwork.complete ? "已完成" : "未完成"}${upgrades.masterwork.stat_amount ? ` · 属性 ${upgrades.masterwork.stat_amount > 0 ? "+" : ""}${upgrades.masterwork.stat_amount}` : ""}`, source: objectSource } : null,
-    upgrades.mod ? { key: "mod", label: "武器模组", current: upgrades.mod.name, detail: upgrades.mod.description, source: objectSource } : null,
-    upgrades.catalyst ? { key: "catalyst", label: "催化剂", current: upgrades.catalyst.name, detail: catalystStateLabel(model), source: upgrades.catalyst.acquired === undefined ? "资料库定义" : "账号进度 + 资料库定义" } : null,
-    upgrades.enhancement ? { key: "enhancement", label: "强化阶级", current: upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? `当前 ${upgrades.enhancement.level} 阶` : "当前装备强化状态", source: objectSource } : null,
-    upgrades.crafting_level !== undefined ? { key: "crafting", label: "锻造等级", current: `${upgrades.crafting_level} 级`, detail: upgrades.enhanced ? "已包含强化能力" : "未强化", source: objectSource } : null
+    upgrades.masterwork ? { key: "masterwork", label: itemDetailText(copy, "大师杰作"), current: `${upgrades.masterwork.name}${upgrades.masterwork.level ? itemDetailTemplate(copy, " · {level} 级", { level: upgrades.masterwork.level }) : ""}`, detail: `${upgrades.masterwork.complete ? itemDetailText(copy, "已完成") : itemDetailText(copy, "未完成")}${upgrades.masterwork.stat_amount ? itemDetailTemplate(copy, " · 属性 {value}", { value: `${upgrades.masterwork.stat_amount > 0 ? "+" : ""}${upgrades.masterwork.stat_amount}` }) : ""}`, source: objectSource } : null,
+    upgrades.mod ? { key: "mod", label: itemDetailText(copy, "武器模组"), current: upgrades.mod.name, detail: upgrades.mod.description, source: objectSource } : null,
+    upgrades.catalyst ? { key: "catalyst", label: itemDetailText(copy, "催化剂"), current: upgrades.catalyst.name, detail: catalystStateLabel(copy, model), source: upgrades.catalyst.acquired === undefined ? itemDetailText(copy, "资料库定义") : itemDetailText(copy, "账号进度 + 资料库定义") } : null,
+    upgrades.enhancement ? { key: "enhancement", label: itemDetailText(copy, "强化阶级"), current: upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? itemDetailTemplate(copy, "当前 {level} 阶", { level: upgrades.enhancement.level }) : itemDetailText(copy, "当前装备强化状态"), source: objectSource } : null,
+    upgrades.crafting_level !== undefined ? { key: "crafting", label: itemDetailText(copy, "锻造等级"), current: itemDetailTemplate(copy, "{level} 级", { level: upgrades.crafting_level }), detail: upgrades.enhanced ? itemDetailText(copy, "已包含强化能力") : itemDetailText(copy, "未强化"), source: objectSource } : null
   ].filter((row): row is NonNullable<typeof row> => Boolean(row));
   if (!rows.length) return null;
   return (
     <>
-      <SectionHeading eyebrow="升级与锻造" title={upgrades.catalyst ? "催化剂、杰作与当前进度" : "大师杰作、模组与强化"} description="这件武器的状态与版本能力分别标明来源，不把未返回的信息补成结论。" />
-      <DataBlockHeading title="升级状态" source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? "资料库定义" : "账号进度 + 资料库定义 · 当前读取") : objectSource} />
+      <SectionHeading eyebrow={itemDetailText(copy, "升级与锻造")} title={upgrades.catalyst ? itemDetailText(copy, "催化剂、杰作与当前进度") : itemDetailText(copy, "大师杰作、模组与强化")} description={itemDetailText(copy, "这件武器的状态与版本能力分别标明来源，不把未返回的信息补成结论。")} />
+      <DataBlockHeading title={itemDetailText(copy, "升级状态")} source={upgrades.catalyst ? (upgrades.catalyst.acquired === undefined ? itemDetailText(copy, "资料库定义") : itemDetailText(copy, "账号进度 + 资料库定义 · 当前读取")) : objectSource} />
       <div className={["weapon-detail-upgrade-layout", !upgrades.catalyst && "without-catalyst"].filter(Boolean).join(" ")}>
-        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header><GameAssetImage className="game-definition-icon" src={upgrades.catalyst.icon} alt="" loading="lazy" /><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>获取：{upgrades.catalyst.acquisition}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
+        {upgrades.catalyst ? <article className="weapon-detail-catalyst"><header><GameAssetImage className="game-definition-icon" src={upgrades.catalyst.icon} alt="" loading="lazy" /><div><strong>{upgrades.catalyst.name}</strong><span>{upgrades.catalyst.objective || catalystStateLabel(copy, model)}</span></div></header>{upgrades.catalyst.acquired !== undefined ? <progress value={upgrades.catalyst.progress ?? (upgrades.catalyst.complete ? 100 : 0)} max={100} /> : null}{upgrades.catalyst.acquisition ? <p>{itemDetailTemplate(copy, "获取：{value}", { value: upgrades.catalyst.acquisition })}</p> : null}{upgrades.catalyst.effects.length ? <ul>{upgrades.catalyst.effects.map((effect) => <li key={effect}>{effect}</li>)}</ul> : null}</article> : null}
         {rows.length ? (
-          <div className="weapon-detail-upgrade-table" role="table" aria-label="升级与锻造状态">
-            <div role="row"><strong role="columnheader">项目</strong><strong role="columnheader">当前查看</strong><strong role="columnheader">状态</strong><strong role="columnheader">数据来源</strong></div>
+          <div className="weapon-detail-upgrade-table" role="table" aria-label={itemDetailText(copy, "升级与锻造状态")}>
+            <div role="row"><strong role="columnheader">{itemDetailText(copy, "项目")}</strong><strong role="columnheader">{itemDetailText(copy, "当前查看")}</strong><strong role="columnheader">{itemDetailText(copy, "状态")}</strong><strong role="columnheader">{itemDetailText(copy, "数据来源")}</strong></div>
             {rows.map((row) => <div key={row.key} role="row"><strong role="cell">{row.label}</strong><span role="cell">{row.current}</span><span role="cell">{row.detail}</span><span role="cell">{row.source}</span></div>)}
           </div>
-        ) : <EmptyState text="这件武器没有可显示的升级或附加能力。" />}
+        ) : <EmptyState text={itemDetailText(copy, "这件武器没有可显示的升级或附加能力。")} />}
       </div>
     </>
   );
@@ -1728,40 +1778,40 @@ function EmptyState({ text }: { text: string }) {
   return <p className="weapon-detail-empty">{text}</p>;
 }
 
-function sourceEntryStatusLabel(source: WeaponDetailViewModel["sources"]["entries"][number]): string {
+function sourceEntryStatusLabel(copy: ItemDetailCopy, source: WeaponDetailViewModel["sources"]["entries"][number]): string {
   if (source.kind === "vendor_offer" && source.available_now === true) {
-    if (source.offer?.can_purchase === true) return "当前可购买";
-    if (source.offer?.can_purchase === false) return "当前有入口 · 条件未满足";
-    return "当前有获取入口";
+    if (source.offer?.can_purchase === true) return itemDetailText(copy, "当前可购买");
+    if (source.offer?.can_purchase === false) return itemDetailText(copy, "当前有入口 · 条件未满足");
+    return itemDetailText(copy, "当前有获取入口");
   }
-  if (source.kind === "activity_reward" && source.available_now === true) return "当前活动奖励";
-  if (source.available_now === true) return "当前有获取入口";
+  if (source.kind === "activity_reward" && source.available_now === true) return itemDetailText(copy, "当前活动奖励");
+  if (source.available_now === true) return itemDetailText(copy, "当前有获取入口");
   if (source.kind === "live_status") {
-    return source.available_now === false ? "暂未发现入口" : "当前状态未确认";
+    return source.available_now === false ? itemDetailText(copy, "暂未发现入口") : itemDetailText(copy, "当前状态未确认");
   }
-  if (source.kind === "manifest_hint") return "官方历史资料";
-  return "开放时间未确认";
+  if (source.kind === "manifest_hint") return itemDetailText(copy, "官方历史资料");
+  return itemDetailText(copy, "开放时间未确认");
 }
 
-function sourceStatusDescription(status: WeaponDetailViewModel["sources"]["status"]): string {
-  if (status === "ready") return "已确认当前获取入口；价格、条件和刷新时间以对应商人或活动数据为准。";
-  if (status === "partial") return "历史获取途径和当前获取状态分开显示；“暂未发现入口”不代表永久无法获得。";
-  return "当前数据不足，暂时无法确认获取方式；不会回退显示已经过期的商人库存。";
+function sourceStatusDescription(copy: ItemDetailCopy, status: WeaponDetailViewModel["sources"]["status"]): string {
+  if (status === "ready") return itemDetailText(copy, "已确认当前获取入口；价格、条件和刷新时间以对应商人或活动数据为准。");
+  if (status === "partial") return itemDetailText(copy, "历史获取途径和当前获取状态分开显示；“暂未发现入口”不代表永久无法获得。");
+  return itemDetailText(copy, "当前数据不足，暂时无法确认获取方式；不会回退显示已经过期的商人库存。");
 }
 
-function catalystStateLabel(model: WeaponDetailViewModel): string {
+function catalystStateLabel(copy: ItemDetailCopy, model: WeaponDetailViewModel): string {
   const catalyst = model.upgrades.catalyst;
   if (!catalyst) return "";
-  if (catalyst.complete) return "已完成并生效";
-  if (catalyst.acquired === true) return catalyst.progress !== undefined ? `进行中 · ${catalyst.progress}%` : "已获得 · 进度未返回";
-  if (catalyst.acquired === false) return "尚未获得";
-  return "仅显示催化剂定义";
+  if (catalyst.complete) return itemDetailText(copy, "已完成并生效");
+  if (catalyst.acquired === true) return catalyst.progress !== undefined ? itemDetailTemplate(copy, "进行中 · {value}%", { value: catalyst.progress }) : itemDetailText(copy, "已获得 · 进度未返回");
+  if (catalyst.acquired === false) return itemDetailText(copy, "尚未获得");
+  return itemDetailText(copy, "仅显示催化剂定义");
 }
 
-function configurationKindLabel(kind: WeaponDetailViewModel["configuration"]["kind"]) {
-  if (kind === "fixed") return "固定 Perk";
-  if (kind === "variable_exotic") return "可变异域配置";
-  return "随机 Roll";
+function configurationKindLabel(copy: ItemDetailCopy, kind: WeaponDetailViewModel["configuration"]["kind"]) {
+  if (kind === "fixed") return itemDetailText(copy, "固定 Perk");
+  if (kind === "variable_exotic") return itemDetailText(copy, "可变异域配置");
+  return itemDetailText(copy, "随机 Roll");
 }
 
 function countPool(columns: readonly WeaponPerkPoolColumn[]) {
@@ -1773,6 +1823,7 @@ function formatUpdatedAt(value: string): string {
 }
 
 function recommendationSourceCandidates(
+  copy: ItemDetailCopy,
   model: WeaponDetailViewModel,
   slot: RecommendationSourceSlotMatch
 ): RecommendationPerkVisual[] {
@@ -1791,7 +1842,7 @@ function recommendationSourceCandidates(
       key,
       hash: candidate.hash ?? existing?.hash,
       hashes,
-      name: candidate.name || existing?.name || "未知 Perk",
+      name: candidate.name || existing?.name || itemDetailText(copy, "未知 Perk"),
       englishName: candidate.englishName ?? existing?.englishName,
       description: candidate.description ?? existing?.description,
       icon: candidate.icon ?? existing?.icon,

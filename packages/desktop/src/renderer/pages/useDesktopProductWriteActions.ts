@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
+import { getLocaleCopy, type InterfaceLocale } from "@d2-tools/ui";
 import type {
   AccountSummary,
   AccountItemActionPatch,
@@ -41,6 +42,8 @@ export function useDesktopProductWriteActions(input: {
   accountSummary: AccountSummary | null;
   applyAcceptedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   diagnostics: DiagnosticsBridge;
+  /** 仓库写操作的回执要跟着界面语言，locale 由页面层传进来。 */
+  interfaceLocale: InterfaceLocale;
   loadoutLibrary: LoadoutLibraryBridge;
   setAccountError: (message: string) => void;
   setVaultTags: (tags: VaultTags) => void;
@@ -88,6 +91,7 @@ export function useDesktopProductWriteActions(input: {
   });
 
   const vaultWriteActions = useVaultWriteActions({
+    copy: getLocaleCopy(input.interfaceLocale).vault,
     accountSummary: input.accountSummary,
     setVaultTags: input.setVaultTags,
     setAccountError: input.setAccountError,

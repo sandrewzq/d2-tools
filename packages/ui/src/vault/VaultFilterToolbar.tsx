@@ -1,14 +1,5 @@
 import type { ReactNode } from "react";
 import {
-  ammoFilterLabels,
-  classFilterLabels,
-  championFilterLabels,
-  craftingFilterLabels,
-  damageFilterLabels,
-  gearTierFilterLabels,
-  lockFilterLabels,
-  rarityFilterLabels,
-  sortLabels,
   type VaultAmmoFilter,
   type VaultArmorSetFilter,
   type VaultArmorSetOption,
@@ -36,17 +27,12 @@ import {
   VaultCraftingGlyph,
   VaultDamageTypeIcon,
   VaultSlotTypeIcon,
-  weaponSlotTypeFromLabel
+  weaponSlotTypeFromKey
 } from "./VaultWeaponFactIcons.js";
+import type { VaultCopy } from "../i18n/types.js";
+import { vaultSlotShortLabel, vaultTemplate, vaultText } from "./vaultCopy.js";
 
 export type VaultArmorSetCatalogStatus = "loading" | "ready" | "error";
-
-const dispositionOptions: Array<{ key: Extract<VaultTagFilter, "all" | "keep" | "review" | "junk">; label: string }> = [
-  { key: "all", label: "全部" },
-  { key: "keep", label: "保留" },
-  { key: "review", label: "待定" },
-  { key: "junk", label: "清理" }
-];
 
 const damageTypeIds: Record<string, number> = {
   kinetic: 1,
@@ -60,6 +46,7 @@ const damageTypeIds: Record<string, number> = {
 type VaultAmmoType = Exclude<VaultAmmoFilter, "all">;
 
 export function VaultFilterToolbar(props: {
+  copy: VaultCopy;
   query: string;
   sortKey: VaultSortKey;
   tagFilter: VaultTagFilter;
@@ -107,18 +94,36 @@ export function VaultFilterToolbar(props: {
   onGroupChange: (value: VaultGroupFilter) => void;
   onFrameFilterChange: (value: VaultFrameFilter) => void;
 }) {
+  const copy = props.copy;
   const isWeaponMode = props.group === "weapons";
   const isArmorMode = props.group === "armor";
   const visibleGroups = props.groups.filter((item) => item.key === "weapons" || item.key === "armor" || item.key === "equipment");
   const visibleSlotFilters = props.slotFilters.filter((item) => {
+    // 槽位按 `VaultSlotKey` 比，`group` 由 `buildVaultSlotFilters` 从 `item.group_key` 带出来，
+    // 不再靠关键词猜显示名是不是某个槽位。
     if (item.key === "all") return true;
-    if (isWeaponMode) return ["动能武器", "能量武器", "威能武器"].includes(item.label);
-    if (isArmorMode) return ["头盔", "臂铠", "胸甲", "腿甲", "职业物品"].includes(item.label);
+    if (isWeaponMode || isArmorMode) return item.group === props.group;
     return true;
   });
+  const allFilterLabel = vaultText(copy, "全部");
+  const dispositionOptions: Array<{ key: Extract<VaultTagFilter, "all" | "keep" | "review" | "junk">; label: string }> = [
+    { key: "all", label: allFilterLabel },
+    { key: "keep", label: copy.labels.tags.keep },
+    { key: "review", label: copy.labels.tags.review },
+    { key: "junk", label: copy.labels.tags.junk }
+  ];
+  // 弹药与勇士分段控件用的是短名：「全部弹药」在按钮里缩成「全部」，「反屏障」缩成「屏障」。
+  const ammoOptions: Array<[string, string]> = Object.entries(copy.labels.ammo)
+    .map(([key, label]) => [key, key === "all" ? allFilterLabel : label]);
+  const championOptions: Array<[string, string]> = [
+    ["all", allFilterLabel],
+    ["barrier", vaultText(copy, "屏障")],
+    ["overload", vaultText(copy, "过载")],
+    ["unstoppable", vaultText(copy, "势不可挡")]
+  ];
 
   return (
-    <aside className="vault-filter-workbench" aria-label="仓库筛选" data-surface="section" data-contract-id="vault.filters">
+    <aside className="vault-filter-workbench" aria-label={vaultText(copy, "仓库筛选")} data-surface="section" data-contract-id="vault.filters">
       <div className="vault-filter-search">
         <label className="vault-search-field">
           <svg className="vault-search-field-icon" aria-hidden="true" viewBox="0 0 24 24">
@@ -127,10 +132,10 @@ export function VaultFilterToolbar(props: {
           </svg>
           <input
             type="search"
-            aria-label="搜索仓库装备"
+            aria-label={vaultText(copy, "搜索仓库装备")}
             value={props.query}
             onChange={(event) => props.onQueryChange(event.target.value)}
-            placeholder="搜索名称、Perk、标签或备注"
+            placeholder={vaultText(copy, "搜索名称、Perk、标签或备注")}
           />
         </label>
         <button
@@ -141,29 +146,29 @@ export function VaultFilterToolbar(props: {
           data-has-active-filters={props.activeFilterCount ? "true" : "false"}
           disabled={!props.activeFilterCount}
           aria-label={props.activeFilterCount
-            ? `重置全部筛选，共 ${props.activeFilterCount} 项；包括左侧条件和推荐命中筛选`
-            : "当前没有需要重置的筛选条件"}
+            ? vaultTemplate(copy, "重置全部筛选，共 {count} 项；包括左侧条件和推荐命中筛选", { count: props.activeFilterCount })
+            : vaultText(copy, "当前没有需要重置的筛选条件")}
           title={props.activeFilterCount
-            ? "清除左侧条件和推荐命中筛选"
-            : "当前没有需要重置的筛选条件"}
+            ? vaultText(copy, "清除左侧条件和推荐命中筛选")
+            : vaultText(copy, "当前没有需要重置的筛选条件")}
           onClick={props.onResetFilters}
         >
           <svg className="vault-filter-reset-icon" aria-hidden="true" viewBox="0 0 24 24">
             <path d="M20 11a8 8 0 1 0-2.3 5.7" />
             <path d="M20 4v7h-7" />
           </svg>
-          <span>重置</span>
+          <span>{vaultText(copy, "重置")}</span>
           <small className="vault-filter-reset-count" aria-hidden="true">{props.activeFilterCount}</small>
         </button>
       </div>
 
       <FilterBlock>
         <div className="vault-filter-label-field">
-          <span>物品类型</span>
-          <div className="vault-filter-option-grid vault-filter-category-grid" role="group" aria-label="物品类型">
+          <span>{vaultText(copy, "物品类型")}</span>
+          <div className="vault-filter-option-grid vault-filter-category-grid" role="group" aria-label={vaultText(copy, "物品类型")}>
             {visibleGroups.map((item) => (
               <button type="button" key={item.key} aria-pressed={props.group === item.key} onClick={() => props.onGroupChange(item.key)}>
-                <span>{item.label}</span><small>{item.count}</small>
+                <span>{copy.labels.groups[item.key]}</span><small>{item.count}</small>
               </button>
             ))}
           </div>
@@ -174,10 +179,10 @@ export function VaultFilterToolbar(props: {
         <>
           <FilterBlock>
             <div className="vault-filter-label-field">
-              <span>槽位</span>
-              <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label="武器槽位">
+              <span>{vaultText(copy, "槽位")}</span>
+              <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label={vaultText(copy, "武器槽位")}>
                 {visibleSlotFilters.map((item) => {
-                  const slotType = weaponSlotTypeFromLabel(item.label);
+                  const slotType = weaponSlotTypeFromKey(item.key);
                   return (
                     <button
                       type="button"
@@ -187,7 +192,7 @@ export function VaultFilterToolbar(props: {
                       onClick={() => props.onSlotFilterChange(item.key)}
                     >
                       {slotType ? <VaultSlotTypeIcon type={slotType} size="compact" /> : null}
-                      <span>{shortSlotLabel(item.label)}</span><small>{item.count}</small>
+                      <span>{vaultSlotShortLabel(copy, item.key, item.label)}</span><small>{item.count}</small>
                     </button>
                   );
                 })}
@@ -197,9 +202,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="弹药"
+              label={vaultText(copy, "弹药")}
               value={props.ammoFilter}
-              options={Object.entries(ammoFilterLabels).map(([key, label]) => [key, label.replace("全部弹药", "全部")])}
+              options={ammoOptions}
               icon={(key) => isVaultAmmoType(key) ? <VaultAmmoTypeIcon type={key} size="compact" /> : null}
               tone={(key) => key === "all" ? undefined : `ammo-${key}`}
               onChange={(value) => props.onAmmoFilterChange(value as VaultAmmoFilter)}
@@ -208,9 +213,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="伤害"
+              label={vaultText(copy, "伤害")}
               value={props.damageFilter}
-              options={Object.entries(damageFilterLabels)}
+              options={Object.entries(copy.labels.damage)}
               icon={(key) => key === "all" ? null : <VaultDamageTypeIcon damageType={damageTypeIds[key]} size="compact" />}
               tone={(key) => key === "all" ? undefined : `damage-${key}`}
               wrap
@@ -220,9 +225,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="反勇士"
+              label={vaultText(copy, "反勇士")}
               value={props.championFilter}
-              options={Object.entries(championFilterLabels).map(([key, label]) => [key, label.replace("反", "")])}
+              options={championOptions}
               icon={(key) => key === "all" ? null : <VaultChampionTypeIcon type={key as "barrier" | "overload" | "unstoppable"} src={props.championIcons?.[key as "barrier" | "overload" | "unstoppable"]} size="compact" />}
               tone={(key) => key === "all" ? undefined : `champion-${key}`}
               wrap
@@ -232,9 +237,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="阶级"
+              label={vaultText(copy, "阶级")}
               value={props.gearTierFilter}
-              options={Object.entries(gearTierFilterLabels)}
+              options={Object.entries(copy.labels.gearTiers)}
               compact
               onChange={(value) => props.onGearTierFilterChange(value as VaultGearTierFilter)}
             />
@@ -242,9 +247,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="稀有度"
+              label={vaultText(copy, "稀有度")}
               value={props.rarityFilter}
-              options={Object.entries(rarityFilterLabels)}
+              options={Object.entries(copy.labels.rarity)}
               tone={(key) => key === "legendary" ? "rarity-legendary" : key === "exotic" ? "rarity-exotic" : undefined}
               onChange={(value) => props.onRarityFilterChange(value as VaultRarityFilter)}
             />
@@ -252,9 +257,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="锻造"
+              label={vaultText(copy, "锻造")}
               value={props.craftingFilter}
-              options={Object.entries(craftingFilterLabels)}
+              options={Object.entries(copy.labels.crafting)}
               icon={(key) => key === "all" ? null : <VaultCraftingGlyph kind={key as "crafted" | "uncrafted"} />}
               tone={(key) => key === "all" ? undefined : `crafting-${key}`}
               onChange={(value) => props.onCraftingFilterChange(value as VaultCraftingFilter)}
@@ -263,9 +268,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <label className="vault-filter-field">
-              <span>武器类型</span>
-              <select aria-label="武器类型" value={props.itemTypeFilter} onChange={(event) => props.onItemTypeFilterChange(event.target.value)}>
-                <option value="all">全部类型</option>
+              <span>{vaultText(copy, "武器类型")}</span>
+              <select aria-label={vaultText(copy, "武器类型")} value={props.itemTypeFilter} onChange={(event) => props.onItemTypeFilterChange(event.target.value)}>
+                <option value="all">{vaultText(copy, "全部类型")}</option>
                 {props.itemTypeFilters.map((item) => <option key={item.key} value={item.key}>{item.label} {item.count}</option>)}
               </select>
             </label>
@@ -273,14 +278,14 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <label className="vault-filter-field">
-              <span>武器框架</span>
+              <span>{vaultText(copy, "武器框架")}</span>
               <select
-                aria-label="武器框架"
+                aria-label={vaultText(copy, "武器框架")}
                 value={props.frameFilter || "all"}
                 disabled={!props.availableFrameFilters.length}
                 onChange={(event) => props.onFrameFilterChange(event.target.value)}
               >
-                <option value="all">{props.availableFrameFilters.length ? "全部框架" : "当前范围没有可用的武器框架"}</option>
+                <option value="all">{props.availableFrameFilters.length ? vaultText(copy, "全部框架") : vaultText(copy, "当前范围没有可用的武器框架")}</option>
                 {props.availableFrameFilters.map((item) => (
                   <option key={item.key} value={item.key}>{item.label} {item.count}</option>
                 ))}
@@ -294,11 +299,11 @@ export function VaultFilterToolbar(props: {
         <>
           <FilterBlock>
             <div className="vault-filter-label-field">
-              <span>部位</span>
-              <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label="护甲部位">
+              <span>{vaultText(copy, "部位")}</span>
+              <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label={vaultText(copy, "护甲部位")}>
                 {visibleSlotFilters.map((item) => (
                   <button type="button" key={item.key} aria-pressed={props.slotFilter === item.key} onClick={() => props.onSlotFilterChange(item.key)}>
-                    <span>{shortSlotLabel(item.label)}</span><small>{item.count}</small>
+                    <span>{vaultSlotShortLabel(copy, item.key, item.label)}</span><small>{item.count}</small>
                   </button>
                 ))}
               </div>
@@ -307,18 +312,18 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="职业"
+              label={vaultText(copy, "职业")}
               value={props.classFilter}
-              options={Object.entries(classFilterLabels)}
+              options={Object.entries(copy.labels.classes)}
               onChange={(value) => props.onClassFilterChange(value as VaultClassFilter)}
             />
           </FilterBlock>
 
           <FilterBlock>
             <SegmentedFilter
-              label="阶级"
+              label={vaultText(copy, "阶级")}
               value={props.gearTierFilter}
-              options={Object.entries(gearTierFilterLabels)}
+              options={Object.entries(copy.labels.gearTiers)}
               compact
               onChange={(value) => props.onGearTierFilterChange(value as VaultGearTierFilter)}
             />
@@ -326,9 +331,9 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <SegmentedFilter
-              label="稀有度"
+              label={vaultText(copy, "稀有度")}
               value={props.rarityFilter}
-              options={Object.entries(rarityFilterLabels)}
+              options={Object.entries(copy.labels.rarity)}
               tone={(key) => key === "legendary" ? "rarity-legendary" : key === "exotic" ? "rarity-exotic" : undefined}
               onChange={(value) => props.onRarityFilterChange(value as VaultRarityFilter)}
             />
@@ -336,15 +341,15 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <label className="vault-filter-field">
-              <span>护甲套装</span>
+              <span>{vaultText(copy, "护甲套装")}</span>
               <select
                 value={props.armorSetFilter}
                 disabled={props.armorSetCatalogStatus !== "ready" || !props.armorSetFilters.length}
                 onChange={(event) => props.onArmorSetFilterChange(event.target.value)}
               >
-                <option value="all">{armorSetCatalogLabel(props.armorSetCatalogStatus, props.armorSetFilters.length)}</option>
+                <option value="all">{armorSetCatalogLabel(copy, props.armorSetCatalogStatus, props.armorSetFilters.length)}</option>
                 {props.armorSetFilters.map((item) => (
-                  <option key={item.key} value={item.key}>{item.label}（持有 {item.count}）</option>
+                  <option key={item.key} value={item.key}>{item.label}{vaultTemplate(copy, "（持有 {count}）", { count: item.count })}</option>
                 ))}
               </select>
             </label>
@@ -352,6 +357,7 @@ export function VaultFilterToolbar(props: {
 
           <FilterBlock>
             <VaultArmorFilterPanel
+              copy={copy}
               rules={props.armorStatRules}
               onAddRule={props.onAddArmorStatRule}
               onClearRules={props.onClearArmorStatRules}
@@ -365,11 +371,11 @@ export function VaultFilterToolbar(props: {
       {!isWeaponMode && !isArmorMode ? (
         <FilterBlock>
           <div className="vault-filter-label-field">
-            <span>位置</span>
-            <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label="物品位置">
+            <span>{vaultText(copy, "位置")}</span>
+            <div className="vault-filter-option-grid vault-filter-slot-grid" role="group" aria-label={vaultText(copy, "物品位置")}>
               {visibleSlotFilters.map((item) => (
                 <button type="button" key={item.key} aria-pressed={props.slotFilter === item.key} onClick={() => props.onSlotFilterChange(item.key)}>
-                  <span>{shortSlotLabel(item.label)}</span><small>{item.count}</small>
+                  <span>{vaultSlotShortLabel(copy, item.key, item.label)}</span><small>{item.count}</small>
                 </button>
               ))}
             </div>
@@ -379,17 +385,17 @@ export function VaultFilterToolbar(props: {
 
       <FilterBlock>
         <SegmentedFilter
-          label="锁定"
+          label={vaultText(copy, "锁定")}
           value={props.lockFilter}
-          options={Object.entries(lockFilterLabels)}
+          options={Object.entries(copy.labels.locks)}
           onChange={(value) => props.onLockFilterChange(value as VaultLockFilter)}
         />
       </FilterBlock>
 
       <FilterBlock>
         <div className="vault-filter-label-field">
-          <span>玩家标记</span>
-          <div className="vault-filter-option-grid vault-disposition-grid" role="group" aria-label="玩家标记">
+          <span>{vaultText(copy, "玩家标记")}</span>
+          <div className="vault-filter-option-grid vault-disposition-grid" role="group" aria-label={vaultText(copy, "玩家标记")}>
             {dispositionOptions.map((item) => (
               <button type="button" key={item.key} aria-pressed={props.tagFilter === item.key} onClick={() => props.onTagFilterChange(item.key)}>
                 {item.label}
@@ -401,18 +407,18 @@ export function VaultFilterToolbar(props: {
 
       <FilterBlock>
         <label className="vault-filter-field">
-          <span>结果排序</span>
+          <span>{vaultText(copy, "结果排序")}</span>
           <select
-            aria-label="结果排序"
-            title={props.sortKey === "recommendation" ? "推荐权重：优先级 → 比较 → 未收录" : "结果排序规则"}
+            aria-label={vaultText(copy, "结果排序")}
+            title={props.sortKey === "recommendation" ? vaultText(copy, "推荐权重：优先级 → 比较 → 未收录") : vaultText(copy, "结果排序规则")}
             value={props.sortKey}
             onChange={(event) => props.onSortKeyChange(event.target.value as VaultSortKey)}
           >
-            {(Object.keys(sortLabels) as VaultSortKey[]).map((key) => <option key={key} value={key}>{sortLabels[key]}</option>)}
+            {(Object.keys(copy.labels.sorts) as VaultSortKey[]).map((key) => <option key={key} value={key}>{copy.labels.sorts[key]}</option>)}
           </select>
         </label>
         {props.sortKey === "recommendation" ? (
-          <p className="vault-filter-sort-note">权重：优先级 → 比较 → 未收录</p>
+          <p className="vault-filter-sort-note">{vaultText(copy, "权重：优先级 → 比较 → 未收录")}</p>
         ) : null}
       </FilterBlock>
 
@@ -448,16 +454,12 @@ function SegmentedFilter(props: {
   );
 }
 
-function shortSlotLabel(label: string): string {
-  return label.replace("武器", "").replace("物品", "").replace("全部位置", "全部");
-}
-
 function isVaultAmmoType(value: string): value is VaultAmmoType {
   return value === "primary" || value === "special" || value === "heavy";
 }
 
-function armorSetCatalogLabel(status: VaultArmorSetCatalogStatus, count: number): string {
-  if (status === "loading") return "套装目录加载中";
-  if (status === "error") return "套装目录不可用";
-  return count ? "全部套装" : "暂无套装目录";
+function armorSetCatalogLabel(copy: VaultCopy, status: VaultArmorSetCatalogStatus, count: number): string {
+  if (status === "loading") return vaultText(copy, "套装目录加载中");
+  if (status === "error") return vaultText(copy, "套装目录不可用");
+  return count ? vaultText(copy, "全部套装") : vaultText(copy, "暂无套装目录");
 }

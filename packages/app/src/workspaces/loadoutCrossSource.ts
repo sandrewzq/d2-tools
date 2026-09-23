@@ -34,7 +34,10 @@ type ComparableItem = {
 export function normalizeCompareSlot(rawSlot: string): { key: string; label: string } {
   const value = rawSlot.trim().toLocaleLowerCase();
   const knownSlots: Array<{ key: string; label: string; patterns: RegExp[] }> = [
-    { key: "subclass", label: "子职业", patterns: [/子职业/, /subclass/] },
+    // 「职业分支」是 `bucketLabels`（`packages/core/src/items/classification.ts`）给子职业 bucket
+    // 起的名字，比对表里的 `subclass` 必须在同一次归一化里认得出它。少了这一条，
+    // `compareSubclassToPlan` 找不到子职业，跨来源的「内容一致」永远判不出来。
+    { key: "subclass", label: "子职业", patterns: [/子职业/, /职业分支/, /subclass/] },
     { key: "kinetic", label: "动能武器", patterns: [/动能/, /kinetic/] },
     { key: "energy", label: "能量武器", patterns: [/能量武器/, /^energy/] },
     { key: "power", label: "威能武器", patterns: [/威能/, /重武器/, /power weapon/, /heavy/] },

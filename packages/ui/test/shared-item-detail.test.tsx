@@ -11,6 +11,7 @@ describe("shared item detail dialog", () => {
     render(
       <SharedItemDetailDialog
         detail={{ name: "鹰月" }}
+        copy={getLocaleCopy("zh-CN").itemDetail}
         closeLabel="关闭装备详情"
         onClose={() => undefined}
         sections={<p>装备主体</p>}
@@ -26,6 +27,7 @@ describe("shared item detail dialog", () => {
     render(
       <SharedItemDetailDialog
         detail={{ name: "鹰月" }}
+        copy={getLocaleCopy("zh-CN").itemDetail}
         vendorContext={{
           vendorName: "仄",
           costLabel: "41 / 97 奇异硬币",
@@ -54,6 +56,7 @@ describe("shared item detail dialog", () => {
     const view = render(
       <SharedItemDetailDialog
         detail={{ name: "鹰月" }}
+        copy={getLocaleCopy("zh-CN").itemDetail}
         closeLabel="关闭装备详情"
         returnFocusRef={returnFocusRef}
         onClose={onClose}
@@ -92,6 +95,7 @@ describe("vendor library definition detail", () => {
           refreshLabel: "刚刚刷新"
         }}
         copy={getLocaleCopy("zh-CN").library}
+        itemDetailCopy={getLocaleCopy("zh-CN").itemDetail}
         onClose={() => undefined}
       />
     );

@@ -55,12 +55,12 @@ describe("weapon detail view", () => {
     }))).toEqual([
       {
         socket_index: 3,
-        label: "Perk 1",
+        label: { kind: "perk_index", index: 1 },
         candidate_hashes: firstTraits.map((candidate) => candidate.hash)
       },
       {
         socket_index: 4,
-        label: "Perk 2",
+        label: { kind: "perk_index", index: 2 },
         candidate_hashes: secondTraits.map((candidate) => candidate.hash)
       }
     ]);
@@ -103,16 +103,16 @@ describe("weapon detail view", () => {
       socket_index: column.socket_index,
       label: column.label
     }))).toEqual([
-      { socket_index: 1, label: "柄芯" },
-      { socket_index: 2, label: "握把" },
-      { socket_index: 3, label: "Perk 1" },
-      { socket_index: 11, label: "核心升级" },
-      { socket_index: 12, label: "Perk 2" }
+      { socket_index: 1, label: { kind: "sword_core" } },
+      { socket_index: 2, label: { kind: "grip" } },
+      { socket_index: 3, label: { kind: "perk_index", index: 1 } },
+      { socket_index: 11, label: { kind: "core_upgrade" } },
+      { socket_index: 12, label: { kind: "perk_index", index: 2 } }
     ]);
     expect(model?.configuration.selection_columns.map((column) => column.socket_index))
       .toEqual([1, 2, 3, 11, 12]);
     expect(model?.configuration.selection_columns.find((column) => column.socket_index === 11))
-      .toMatchObject({ label: "核心升级", candidates: [{ hash: core.hash, selected: true }] });
+      .toMatchObject({ label: { kind: "core_upgrade" }, candidates: [{ hash: core.hash, selected: true }] });
   });
 
   // 打开详情时 sockets 来自 buildPreviewSocketsFromWeaponRoll：快照只有「拥有哪些插件、当前装的是哪个」，

@@ -22,7 +22,7 @@ import type {
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import { getActiveApplicationLoadoutScreen, getLocalLoadoutPlanAccountItems } from "@d2-tools/app/loadouts";
-import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
+import type { AccountItemSummary, AccountSummary, CharacterLoadoutSlotItemSummary } from "@d2-tools/core/account/summary";
 import { armorSlots, type ArmorClass, type ArmorSetConstraint, type ArmorSlot } from "@d2-tools/core/armor";
 import type { ArmorSetCatalogEntry } from "@d2-tools/core/items/equipableItemSet";
 import {
@@ -30,6 +30,7 @@ import {
   loadoutPlanArmorStatKeys,
   matchLocalLoadoutPlan,
   normalizeLoadoutPlanArmorStatModSlotRules,
+  summarizeEquippedSubclassStatBonuses,
   summarizeLoadoutPlanArmorStatModRules,
   type CreateLocalLoadoutPlanInput,
   type LoadoutPlanArmorConstraints,
@@ -45,7 +46,9 @@ import type {
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { LoadoutTemplateAnalysis } from "@d2-tools/core/loadouts/analysis";
 import type { LoadoutActionFeedbackState } from "./loadoutActionFeedback.js";
-import type { InterfaceLocale } from "../i18n/types.js";
+import type { LoadoutsCopy, InterfaceLocale } from "../i18n/types.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import { loadoutTemplate, loadoutText } from "./loadoutCopy.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { useGuardedNavigation, useNavigationGuard } from "../navigation/NavigationGuard.js";
@@ -202,6 +205,9 @@ const loadoutModes: LoadoutMode[] = ["in-game", "local"];
 type LoadoutCreateFlow = "none" | "dim" | "guide";
 
 export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
+  // 子职业术语（技能 / 星象 / 碎片 / 空槽位）走 copy 查表，英文界面不再回落中文。
+  // 页面其余文案仍是写死的中文，整页迁移另开切片。
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
   const [mode, setMode] = useState<LoadoutMode>("local");
   const [selectedCharacterId, setSelectedCharacterId] = useState("");
   const [createFlow, setCreateFlow] = useState<LoadoutCreateFlow>("none");
@@ -426,6 +432,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
             <InGameWorkspace
               activeCharacter={activeCharacter}
               entries={inGameEntries}
+              copy={copy}
               isRunningItemAction={props.isRunningItemAction}
               model={props.model}
               actions={props.actions}
@@ -453,6 +460,7 @@ export function LoadoutsPageContentView(props: LoadoutsPageContentViewProps) {
 function InGameWorkspace(props: {
   activeCharacter: AccountSummary["characters"][number] | null;
   entries: LoadoutEntryView[];
+  copy: LoadoutsCopy;
   isRunningItemAction: boolean;
   model: LoadoutsPageModel;
   actions: LoadoutsPageActions;
@@ -507,6 +515,7 @@ function InGameWorkspace(props: {
           <InGameLoadoutSlotDetail
             detail={detail}
             slots={slots}
+            copy={props.copy}
             isRunningItemAction={props.isRunningItemAction}
             actions={props.actions}
             onOpenSlotPicker={() => setIsSlotPickerVisible((visible) => !visible)}
@@ -538,6 +547,7 @@ function InGameWorkspace(props: {
 function InGameLoadoutSlotDetail(props: {
   detail: Extract<LoadoutsPageModel["selectedDetail"], { kind: "in-game-slot" }>;
   slots: AccountSummary["characters"][number]["loadout_slots"];
+  copy: LoadoutsCopy;
   isRunningItemAction: boolean;
   actions: LoadoutsPageActions;
   onOpenSlotPicker: () => void;
@@ -569,7 +579,9 @@ function InGameLoadoutSlotDetail(props: {
       label: "其他",
       rows: props.detail.itemRows.filter((row) => row.category === "other")
     }
-  ].filter((group) => group.rows.length);
+    // 子职业那一组空着也留着：槽位里没有子职业记录是玩家要知道的事实，
+    // 整组消失和「本来就没有」在画面上分不清。武器/护甲/神器同理，但它们空着时整条记录也是空的。
+  ].filter((group) => group.rows.length || group.key === "subclass");
   return (
     <>
       <header className="loadout-detail-head">
@@ -594,7 +606,8 @@ function InGameLoadoutSlotDetail(props: {
             <section className="loadout-in-game-item-group" key={group.key} aria-label={group.label}>
               <header><strong>{group.label}</strong><span>{group.rows.length} 件</span></header>
               <div className="loadout-in-game-item-list" data-surface="list">
-                {group.rows.map((row, index) => <InGameLoadoutItemRow key={`${character.character_id}-${slot.index}-${row.item.instance_id ?? row.item.item_hash ?? index}`} row={row} onOpenItemDetail={props.actions.openInGameItemDetail} />)}
+                {group.rows.map((row, index) => <InGameLoadoutItemRow key={`${character.character_id}-${slot.index}-${row.item.instance_id ?? row.item.item_hash ?? index}`} row={row} copy={props.copy} onOpenItemDetail={props.actions.openInGameItemDetail} />)}
+                {group.rows.length ? null : <p className="loadout-in-game-item-empty">{loadoutText(props.copy, "这个槽位没有保存子职业记录。整组消失与「本来就没有」在画面上分不清，所以这里显式留一行。")}</p>}
               </div>
             </section>
           ))}
@@ -642,13 +655,20 @@ function InGameAccountFreshness(props: {
   );
 }
 
-function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItemDetail: (item: AccountItemSummary) => void }) {
+function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; copy: LoadoutsCopy; onOpenItemDetail: (item: AccountItemSummary) => void }) {
   const { item, locatedItem, located, locationLabel } = props.row;
-  const plugEntries = item.plugs?.map((plug) => ({
-    name: plug.name,
-    socketIndex: plug.socket_index
-  })).filter((plug) => Boolean(plug.name)) ?? [];
+  const plugEntries = (item.plugs ?? []).filter((plug) => Boolean(plug.name));
   const plugNames = plugEntries.map((plug) => plug.name);
+  const subclassConfiguration = item.subclass_configuration;
+  // 子职业的插槽内容已经按技能 / 星象 / 碎片分好组，折叠摘要再平铺前三个反而看不出结构：
+  // 一串没有归类的名字读不出这套构筑有几个星相、几个碎片。
+  const plugSummaryLabel = subclassConfiguration
+    ? loadoutTemplate(props.copy, "{abilities} 技能 · {aspects} 星相 · {fragments} 碎片", {
+        abilities: subclassConfiguration.abilities.length,
+        aspects: subclassConfiguration.aspects.length,
+        fragments: subclassConfiguration.fragments.length
+      })
+    : null;
   const stateLabel = located
     ? props.row.equipped_on_target_character ? "当前已装备" : "已定位"
     : "未定位";
@@ -663,7 +683,6 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
   const plugSummary = plugNames.length
     ? plugNames.join("、")
     : props.row.plug_count ? `${props.row.plug_count} 项未解析配置` : "未返回模组配置";
-  const subclassConfiguration = item.subclass_configuration;
   return (
     <details className="loadout-in-game-item-card" data-surface="object-card" data-ui-kind="object-card" data-status={located ? "success" : "warning"}>
       <summary className="loadout-in-game-item-row">
@@ -675,10 +694,16 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
         </span>
         <span className="loadout-in-game-item-facts">
           <span className="loadout-in-game-location">{locationLabel}</span>
+          {/* 折叠行只放名字：带上「配置位置 N ·」前缀后名字被 chip 的宽度截成半截，
+              位置信息在展开后的「已确认配置」里本来就全列着。 */}
           <span className="loadout-in-game-plugs">
-            {plugEntries.slice(0, 3).map((plug, index) => <span key={`${plug.name}-${plug.socketIndex ?? index}`}>{formatSocketPlugLabel(plug.name, plug.socketIndex)}</span>)}
-            {plugNames.length > 3 ? <span>+{plugNames.length - 3}</span> : null}
-            {!plugNames.length ? <span>{props.row.plug_count ? `${props.row.plug_count} 项配置` : "模组配置未返回"}</span> : null}
+            {plugSummaryLabel
+              ? <span>{plugSummaryLabel}</span>
+              : <>
+                  {plugEntries.slice(0, 3).map((plug, index) => <span key={`${plug.name}-${plug.socket_index ?? index}`}>{plug.name}</span>)}
+                  {plugNames.length > 3 ? <span>+{plugNames.length - 3}</span> : null}
+                  {!plugNames.length ? <span>{props.row.plug_count ? `${props.row.plug_count} 项配置` : "模组配置未返回"}</span> : null}
+                </>}
           </span>
         </span>
         <span className="loadout-in-game-item-state">
@@ -690,16 +715,10 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
       <dl className="loadout-in-game-item-extra">
         <div><dt>当前位置</dt><dd>{locationLabel}</dd></div>
         <div><dt>配置类型</dt><dd>{plugNames.length ? "已读取模组配置" : props.row.plug_count ? "配置名称尚未解析" : "未返回配置"}</dd></div>
-        <div><dt>已确认配置</dt><dd>{plugEntries.length ? plugEntries.map((plug) => formatSocketPlugLabel(plug.name, plug.socketIndex)).join("、") : plugSummary}</dd></div>
-        {subclassConfiguration ? <div className="loadout-in-game-subclass-detail"><dt>子职业构筑</dt><dd>
-          {[
-            ["超能与技能", subclassConfiguration.abilities],
-            ["星象", subclassConfiguration.aspects],
-            ["碎片", subclassConfiguration.fragments],
-            ["其他配置", subclassConfiguration.other]
-          ].filter(([, plugs]) => (plugs as AccountItemSummary["socket_plugs"]).length > 0).map(([label, plugs]) => (
-            <section key={label as string}><strong>{label as string}</strong><span>{(plugs as NonNullable<typeof subclassConfiguration.abilities>).map((plug) => formatSocketPlugLabel(plug.name, plug.socket_index)).join("、")}</span></section>
-          ))}
+        {/* 子职业的插槽内容由下面的「子职业构筑」分组展开，这里不再把同一份数据平铺列一遍。 */}
+        {subclassConfiguration ? null : <div><dt>已确认配置</dt><dd>{plugEntries.length ? plugEntries.map((plug) => formatSocketPlugLabel(plug.name, plug.socket_index)).join("、") : plugSummary}</dd></div>}
+        {subclassConfiguration ? <div className="loadout-in-game-subclass-detail"><dt>{loadoutText(props.copy, "子职业构筑")}</dt><dd>
+          <InGameSubclassDetail configuration={subclassConfiguration} copy={props.copy} />
         </dd></div> : null}
         <div><dt>核对结果</dt><dd>{located ? props.row.equipped_on_target_character ? "目标角色已处于槽位保存状态" : "具体装备已找到，应用时由 Bungie 处理" : "保留原始记录，不根据名称猜测具体装备"}</dd></div>
         {locatedItem ? <div className="loadout-in-game-item-actions"><dt>装备操作</dt><dd><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenItemDetail(locatedItem)}>查看装备详情与操作</button><small>转移、穿戴和模组修改会作用于真实装备；如需更新此槽位，完成后再覆盖保存。</small></dd></div> : null}
@@ -710,6 +729,54 @@ function InGameLoadoutItemRow(props: { row: InGameLoadoutItemRowView; onOpenItem
 
 function formatSocketPlugLabel(name: string, socketIndex?: number): string {
   return typeof socketIndex === "number" ? `配置位置 ${socketIndex + 1} · ${name}` : name;
+}
+
+/**
+ * 游戏内配装的子职业构筑。
+ *
+ * 四组都画出来，空组不删：这一组没读到是事实，删掉之后分不清「本来就没有」和「没渲染」。
+ * 空槽位没有 plug 可分组，只能按 `empty_socket_indexes` 单列一行——Manifest 的插槽布局
+ * 不在账号摘要里，硬把空位塞进某一组是编的。
+ */
+function InGameSubclassDetail(props: {
+  configuration: NonNullable<CharacterLoadoutSlotItemSummary["subclass_configuration"]>;
+  copy: LoadoutsCopy;
+}) {
+  const groups = [
+    { key: "abilities", label: loadoutText(props.copy, "超能与技能"), plugs: props.configuration.abilities },
+    { key: "aspects", label: loadoutText(props.copy, "星象"), plugs: props.configuration.aspects },
+    { key: "fragments", label: loadoutText(props.copy, "碎片"), plugs: props.configuration.fragments },
+    { key: "other", label: loadoutText(props.copy, "其他配置"), plugs: props.configuration.other }
+  ];
+  const emptyIndexes = props.configuration.empty_socket_indexes;
+  return (
+    <>
+      {groups.map((group) => (
+        <section key={group.key} data-empty={group.plugs.length ? undefined : true}>
+          <strong>{group.label}{group.plugs.length ? ` ${group.plugs.length}` : ""}</strong>
+          {group.plugs.length ? (
+            <span className="loadout-plug-chip-list">
+              {group.plugs.map((plug) => (
+                <span className="loadout-plug-chip" key={`${group.key}-${plug.hash}-${plug.socket_index ?? 0}`}>
+                  <GameAssetImage className="loadout-plug-icon" src={plug.icon} alt="" />
+                  {formatSocketPlugLabel(plug.name, plug.socket_index)}
+                </span>
+              ))}
+            </span>
+          ) : <span className="loadout-plug-empty">{loadoutText(props.copy, "未读取到")}</span>}
+        </section>
+      ))}
+      {emptyIndexes.length ? (
+        <section data-empty="true">
+          <strong>{loadoutTemplate(props.copy, "空槽位 {count}", { count: emptyIndexes.length })}</strong>
+          <span className="loadout-plug-empty">
+            {emptyIndexes.map((index) => loadoutTemplate(props.copy, "位置 {index}", { index: index + 1 })).join("、")}
+            {loadoutTemplate(props.copy, " · 整个子职业共 {sockets} 格", { sockets: props.configuration.socket_count })}
+          </span>
+        </section>
+      ) : null}
+    </>
+  );
 }
 
 function inGameItemCategoryLabel(category: InGameLoadoutItemRowView["category"]): string {
@@ -1113,7 +1180,7 @@ function ApplicationLoadoutCompare(props: {
       <header className="loadout-subpage-head"><button ref={backRef} className="loadout-subpage-back" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onBack}>返回方案库</button><div><span className="loadout-eyebrow">应用配装</span><h2>方案对比</h2><p>{props.model.selection_message} · 共 {props.model.difference_count} 处差异。</p></div><label className="loadout-diff-toggle"><input type="checkbox" checked={props.model.showDiffOnly} onChange={(event) => props.onShowDiffOnlyChange(event.target.checked)} /><span>仅显示差异</span></label></header>
       <div className="loadout-compare-table" style={{ "--loadout-compare-count": Math.max(props.model.columns.length, 2) } as CSSProperties}>
         <div className="loadout-compare-table-head"><span>比较项</span>{props.model.columns.map((column) => <div key={column.id}><strong>{column.title}</strong><small>{column.subtitle}</small>{column.kind === "application" ? <footer><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onRemove(column.plan.id)}>移出</button><button type="button" data-ui-kind="button" data-control-variant="primary" onClick={() => props.onSelect(column.plan.id)}>查看</button></footer> : <><em>游戏内只读参照 · 部分字段未知</em><footer><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onRemoveInGameReference}>移出参照</button></footer></>}</div>)}</div>
-        {props.model.visible_rows.map((row) => <div className="loadout-compare-table-row" data-changed={row.changed || undefined} key={row.key}><strong>{row.label}</strong>{row.cells.map((cell) => <span key={cell.column_id} data-state={cell.state}>{cell.value}</span>)}</div>)}
+        {props.model.visible_rows.map((row) => <div className="loadout-compare-table-row" data-changed={row.changed || undefined} key={row.key}><strong>{row.label}</strong>{row.cells.map((cell) => <span key={cell.column_id} data-state={cell.state}>{cell.value}{cell.detail ? <small className="loadout-compare-cell-detail">{cell.detail}</small> : null}</span>)}</div>)}
       </div>
       {!props.model.visible_rows.length ? <ProductWorkspaceEmptyState><h3>当前没有可显示的差异</h3><p>关闭“仅显示差异”可查看全部子职业、装备、属性模组和备注字段。</p></ProductWorkspaceEmptyState> : null}
     </section>
@@ -1130,6 +1197,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   onBack: () => void;
 }) {
   const draft = props.localPlanDraft;
+  const editorCopy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
   const accountItems = useMemo(() => getLocalLoadoutPlanAccountItems(props.accountSummary), [props.accountSummary]);
   const planMatch = useMemo(() => draft && props.accountSummary
     ? matchLocalLoadoutPlan(draft, props.accountSummary)
@@ -1166,6 +1234,15 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   useEffect(() => {
     if (props.editorScreen === "armor") setArmorPlannerOpen(true);
   }, [props.editorScreen]);
+  // 「技能与碎片属性变化」的默认值：目标角色当前装备的子职业里，星象和碎片加了哪些属性。
+  // 原来这一栏要玩家自己数、自己敲；读数本来就随账号加载一起到手，不用再问一次。
+  // 只认草稿的目标角色：没定目标角色时宁可不填，也不拿列表里碰巧选中的另一个角色顶上。
+  const detectedFragmentBonuses = useMemo(() => {
+    const character = props.accountSummary?.characters.find(
+      (item) => item.character_id === draft?.target_character_id
+    );
+    return character ? summarizeEquippedSubclassStatBonuses(character.equipped_items) : {};
+  }, [props.accountSummary, draft?.target_character_id]);
   if (!draft) return null;
   const activeDraft = draft;
 
@@ -1191,7 +1268,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     && !activeDraft.armor_constraints.armor_stat_mod_slot_rules
     && (activeDraft.armor_constraints.five_point_mod_budget > 0 || activeDraft.armor_constraints.ten_point_mod_budget > 0)
   );
-  const armorConstraints = normalizeArmorConstraintsForEditor(activeDraft.armor_constraints);
+  const armorConstraints = normalizeArmorConstraintsForEditor(activeDraft.armor_constraints, detectedFragmentBonuses);
 
   function updateArmorConstraints(next: LoadoutPlanArmorConstraints) {
     updateDraft({ ...activeDraft, armor_constraints: next });
@@ -1438,7 +1515,12 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
                 <ArmorPlannerModeControl mode={plannerMode} onChange={(mode) => updateArmorConstraints({ ...armorConstraints, planner_mode: mode })} />
               </section>
               <ArmorPriorityEditor constraints={armorConstraints} onChange={updateArmorConstraints} />
-              <ArmorFragmentAdjustmentsEditor constraints={armorConstraints} onChange={updateArmorConstraints} />
+              <ArmorFragmentAdjustmentsEditor
+                constraints={armorConstraints}
+                explicit={activeDraft.armor_constraints?.fragment_stat_bonuses ?? {}}
+                detected={detectedFragmentBonuses}
+                onChange={updateArmorConstraints}
+              />
               <ArmorSetConstraintEditor constraint={armorConstraints.set_constraint ?? { mode: "none" }} catalog={props.armorSetCatalog ?? []} catalogStatus={props.armorSetCatalogStatus ?? "loading"} onChange={(setConstraint) => updateArmorConstraints({ ...armorConstraints, set_constraint: setConstraint })} />
               {plannerMode !== "theoretical" ? <ArmorInventoryConstraintEditor mode={plannerMode} constraints={armorConstraints} armorItems={armorItems} onChange={updateArmorConstraints} /> : null}
             </details>
@@ -1453,7 +1535,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
             <div className="loadout-decision-pane-head"><div><strong>推荐方案</strong><small>{armorCandidates.length ? `${armorCandidates.length} 个结果 · 已选 ${comparedArmorCandidates.length}/3 比较` : "先完成设置并运行计算"}</small></div>{comparedArmorCandidates.length ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setComparedArmorCandidateIds([])}>清除比较</button> : null}</div>
             {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" && !armorStatusDetailCount && !armorSearchTruncated ? "success" : "warning"}>{armorStatusMessage}</p> : null}
             {armorPlanSettingsChanged ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`设置已变化，需要重新计算：${armorPlanChanges.map((kind) => armorPlanChangeLabels[kind]).join("、")}。屏幕上的推荐方案按改动前的设置算出，重新计算前不能使用。`}</p> : null}
-            {armorSearchTruncated ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`搜索被截断：已检查 ${armorViewModel?.search?.statesExamined ?? 0} 个组合后到达上限，只保留 ${armorViewModel?.search?.statesRetained ?? 0} 个，屏幕上这批结果不是完整搜索的结果。`}</p> : null}
+            {armorSearchTruncated ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`搜索被截断：已检查 ${armorViewModel?.search?.statesExamined ?? 0} 个组合后到达上限，只保留 ${armorViewModel?.search?.statesRetained ?? 0} 个，屏幕上这批结果不是完整搜索的结果。把部位的模式从「自动」改成 +5 或 +10，并把「增加属性」选成具体属性，能把搜索范围缩小十几倍。`}</p> : null}
             {props.armorTargetFeedback ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.armorTargetFeedback.includes("失败") ? "error" : "success"}>{props.armorTargetFeedback}</p> : null}
             {comparedArmorCandidates.length >= 2 ? <ArmorCandidateComparison candidates={comparedArmorCandidates} /> : null}
             {armorCandidates.length ? <ArmorCandidateList candidates={armorCandidates} stale={armorPlanAcceptBlocked} comparedCandidateIds={comparedArmorCandidateIds} onToggleCompare={toggleArmorCandidateComparison} onSelect={selectArmorCandidate} onSaveAcquisitionTargets={props.actions.saveArmorAcquisitionTargets ? (candidate) => props.actions.saveArmorAcquisitionTargets?.(candidate, armorClass) : undefined} isSavingAcquisitionTargets={Boolean(props.isSavingArmorTargets)} /> : <ProductWorkspaceEmptyState><h3>还没有推荐方案</h3><p>完成左侧设置后运行计算。没有精确结果时会说明距离目标和受限原因。</p></ProductWorkspaceEmptyState>}
@@ -1516,8 +1598,8 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
           <div className="loadout-decision-pane-head"><div><strong>当前构筑</strong><small>子职业、三件武器和五件护甲使用同一个未保存草稿</small></div><span>{configuredStandardSlotCount}/8 槽已配置</span></div>
           {showBuildStart ? <section className="loadout-build-start" aria-label="开始创建配装"><div><span className="loadout-eyebrow">选择构筑起点</span><h3>先确定从哪里开始</h3><p>可以带入当前角色装备、先运行护甲规划，或直接选择第一个装备槽位。</p></div><div className="loadout-build-start-actions"><button type="button" data-ui-kind="button" data-control-variant="primary" disabled={!props.activeCharacter} onClick={() => props.actions.startLocalPlanFromCharacter(props.activeCharacter)}>从当前装备开始</button><button id="loadout-open-armor-planner" type="button" data-ui-kind="button" data-control-variant="secondary" onClick={openArmorPlanner}>按属性目标自动配甲</button><button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => props.onOpenItemPicker("动能武器")}>手动选择装备</button></div></section> : null}
           <section className="loadout-slot-editor-section loadout-subclass-section" aria-label="子职业">
-            <header className="loadout-local-section-head"><div><strong>子职业构筑</strong><small>优先展示已确认的技能、星相和碎片语义</small></div><div className="loadout-section-head-actions"><span>当前仅记录</span></div></header>
-            <article className="loadout-subclass-slot loadout-subclass-slot-static" data-surface="object-card" data-ui-kind="object-card" data-status={draft.subclass_target?.subclass_hash ? "success" : "neutral"}><span className="loadout-slot-index">S</span><div><strong>{draft.subclass_target?.subclass_hash ? "已记录子职业构筑" : "尚未配置子职业"}</strong><small>{draft.subclass_target ? `${draft.subclass_target.ability_hashes.length} 技能 · ${draft.subclass_target.aspect_hashes.length} 星相 · ${draft.subclass_target.fragment_hashes.length} 碎片${draft.subclass_target.subclass_hash ? ` · 定义 ${draft.subclass_target.subclass_hash}` : ""}` : "从当前装备或已确认来源创建时会保留可读取配置；当前版本只展示已确认配置"}</small></div></article>
+            <header className="loadout-local-section-head"><div><strong>{loadoutText(editorCopy, "子职业构筑")}</strong><small>优先展示已确认的技能、星相和碎片语义</small></div><div className="loadout-section-head-actions"><span>当前仅记录</span></div></header>
+            <article className="loadout-subclass-slot loadout-subclass-slot-static" data-surface="object-card" data-ui-kind="object-card" data-status={draft.subclass_target?.subclass_hash ? "success" : "neutral"}><span className="loadout-slot-index">S</span><div><strong>{draft.subclass_target?.subclass_hash ? "已记录子职业构筑" : "尚未配置子职业"}</strong><small>{draft.subclass_target ? `${loadoutTemplate(editorCopy, "{abilities} 技能 · {aspects} 星相 · {fragments} 碎片", { abilities: draft.subclass_target.ability_hashes.length, aspects: draft.subclass_target.aspect_hashes.length, fragments: draft.subclass_target.fragment_hashes.length })}${draft.subclass_target.subclass_hash ? ` · 定义 ${draft.subclass_target.subclass_hash}` : ""}` : "从当前装备或已确认来源创建时会保留可读取配置；当前版本只展示已确认配置"}</small></div></article>
           </section>
           <StandardSlotEditorGroup title="武器" description="动能、能量和威能紧凑排列，空槽不占据构筑主视野" group="weapon" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={removeTarget} />
           <StandardSlotEditorGroup title="护甲与模组" description="五件护甲分别保存调整、属性模组、其他模组与能量占用" group="armor" draft={draft} matches={matches} onOpenSlot={props.onOpenItemPicker} onUpdate={updateTarget} onRemove={removeTarget} action={<button id={showBuildStart ? undefined : "loadout-open-armor-planner"} type="button" data-ui-kind="button" data-control-variant="primary" aria-expanded={armorPlannerOpen} onClick={armorPlannerOpen ? closeArmorPlanner : openArmorPlanner}>{armorPlannerOpen ? "收起护甲规划" : "按属性目标自动配甲"}</button>} />
@@ -2014,12 +2096,24 @@ function ArmorPriorityEditor(props: {
 
 function ArmorFragmentAdjustmentsEditor(props: {
   constraints: LoadoutPlanArmorConstraints;
+  /** 草稿里玩家自己填过的键。用来把「自动求和」和「手动覆盖」分开标，0 也算手动填过。 */
+  explicit: Partial<Record<LoadoutPlanArmorStatKey, number>>;
+  detected: Partial<Record<LoadoutPlanArmorStatKey, number>>;
   onChange: (constraints: LoadoutPlanArmorConstraints) => void;
 }) {
+  const hasDetected = loadoutPlanArmorStatKeys.some((stat) => props.detected[stat]);
   return (
     <section className="loadout-armor-fragment-adjustments" aria-label="技能与碎片属性变化">
-      <div className="loadout-armor-constraint-head"><div><strong>技能与碎片属性变化</strong><small>填写构筑中已经确定的额外属性变化，可使用负数。</small></div></div>
-      <div>{loadoutPlanArmorStatKeys.map((stat) => <label key={stat}><span>{armorStatLabel(stat)}</span><input type="number" step="5" value={props.constraints.fragment_stat_bonuses[stat] ?? 0} onChange={(event) => props.onChange({ ...props.constraints, fragment_stat_bonuses: { ...props.constraints.fragment_stat_bonuses, [stat]: Number(event.target.value) || 0 } })} /></label>)}</div>
+      <div className="loadout-armor-constraint-head"><div><strong>技能与碎片属性变化</strong><small>{hasDetected ? "已按目标角色当前装备的子职业自动求和，可以逐项覆盖，支持负数。" : "填写构筑中已经确定的额外属性变化，可使用负数。"}</small></div></div>
+      <div>{loadoutPlanArmorStatKeys.map((stat) => {
+        const overridden = props.explicit[stat] !== undefined;
+        return (
+          <label key={stat} data-source={overridden ? "manual" : props.detected[stat] ? "detected" : "none"}>
+            <span>{armorStatLabel(stat)}{!overridden && props.detected[stat] ? "（自动）" : ""}</span>
+            <input type="number" step="5" value={props.constraints.fragment_stat_bonuses[stat] ?? 0} onChange={(event) => props.onChange({ ...props.constraints, fragment_stat_bonuses: { ...props.constraints.fragment_stat_bonuses, [stat]: Number(event.target.value) || 0 } })} />
+          </label>
+        );
+      })}</div>
     </section>
   );
 }
@@ -3164,10 +3258,20 @@ function emptyArmorConstraints(): LoadoutPlanArmorConstraints {
   };
 }
 
+/**
+ * 编辑器里用的护甲约束。
+ *
+ * `detectedFragmentBonuses` 是从目标角色当前装备的子职业求和出来的星象/碎片加成，只补
+ * `fragment_stat_bonuses` 里还没写的键：玩家自己填过的值（包括显式填 0）优先，
+ * 这样「自动求和」是默认值而不是每次渲染都覆盖玩家输入的强制值。
+ */
 function normalizeArmorConstraintsForEditor(
-  constraints: LoadoutPlanArmorConstraints | undefined
+  constraints: LoadoutPlanArmorConstraints | undefined,
+  detectedFragmentBonuses: Partial<Record<LoadoutPlanArmorStatKey, number>> = {}
 ): LoadoutPlanArmorConstraints {
-  if (!constraints) return emptyArmorConstraints();
+  if (!constraints) {
+    return { ...emptyArmorConstraints(), fragment_stat_bonuses: { ...detectedFragmentBonuses } };
+  }
   const armorStatModSlotRules = constraints.armor_stat_mod_slot_rules
     ? normalizeLoadoutPlanArmorStatModSlotRules(constraints)
     : createDefaultArmorStatModSlotRules();
@@ -3180,7 +3284,8 @@ function normalizeArmorConstraintsForEditor(
     ...constraints,
     armor_stat_mod_slot_rules: armorStatModSlotRules,
     five_point_mod_budget: summary.plus5,
-    ten_point_mod_budget: summary.plus10
+    ten_point_mod_budget: summary.plus10,
+    fragment_stat_bonuses: { ...detectedFragmentBonuses, ...constraints.fragment_stat_bonuses }
   };
 }
 

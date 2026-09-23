@@ -14,6 +14,7 @@ export function LoadoutsMenuProvider() {
       // 配装页用补全过插槽详情的账号：账号快照按设计不含 `sockets` / `armor_energy`，
       // 拿它判「插槽能不能写」会一律判成不能（Bug #103）。其余菜单仍用 `accountSummary`。
       accountSummary={localPlans.planAccount ?? accountSummary}
+      interfaceLocale={session.diagnostics.languagePreferences.interfaceLocale}
       isLoadingAccount={session.account.isLoadingAccount}
       isShowingCachedAccount={session.account.isShowingCachedAccount}
       accountError={session.account.accountError}

@@ -1,6 +1,6 @@
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import {
-  getAccountItemSlotLabel,
+  getAccountItemSlotKey,
   getVaultItemKey,
   type VaultAmmoFilter,
   type VaultArmorSetFilter,
@@ -158,7 +158,7 @@ function indexedItemSignature(item: AccountItemSummary, currentCharacterId: stri
     item.hash,
     item.group_key,
     item.locked ? 1 : 0,
-    getAccountItemSlotLabel(item),
+    getAccountItemSlotKey(item),
     item.ammo_type ?? "",
     item.item_type ?? "",
     item.tier ?? "",
@@ -181,7 +181,7 @@ function buildItemFacets(
   return [
     ["group", item.group_key],
     ["lock", item.locked ? "locked" : "unlocked"],
-    ["slot", getAccountItemSlotLabel(item)],
+    ["slot", getAccountItemSlotKey(item)],
     ["location", locationForItem(item, currentCharacterId)],
     ["ammo", item.ammo_type ?? ""],
     ["itemType", item.item_type ?? ""],

@@ -91,7 +91,7 @@ const recommendationTableLayouts: Array<{
   { format: "template", english: true, headers: previousUnifiedEnglishCsvHeaders }
 ];
 // 来源 key 由来源名派生，不做字典表：玩家自定义的来源名无法穷举。
-// 现有四个来源的派生结果与历史 key 完全一致（Aegis推荐 → aegis、LGpig推荐 → lgpig …），无需迁移。
+// 要去掉的三个后缀来自历史来源名的写法；去掉后派生结果与历史 key 一致，无需迁移。
 function sourceKeyFromLabel(label: string): string {
   return normalizeName(label.replace(/(推荐表|推荐|社区愿望单)$/u, ""));
 }

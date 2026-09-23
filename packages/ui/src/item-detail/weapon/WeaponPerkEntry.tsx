@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { GameAssetImage } from "../../media/GameAssetImage.js";
+import type { ItemDetailCopy } from "../../i18n/types.js";
+import { itemDetailText } from "../itemDetailCopy.js";
 
 /**
  * Perk 条目的唯一实现。
@@ -13,6 +15,7 @@ import { GameAssetImage } from "../../media/GameAssetImage.js";
  * 不动点击语义，触屏也仍然有看说明的路。
  */
 export function WeaponPerkEntry(props: {
+  copy: ItemDetailCopy;
   name: string;
   englishName?: string;
   description?: string;
@@ -124,7 +127,7 @@ export function WeaponPerkEntry(props: {
           </span>
           <span><strong>{name}</strong>{englishName ? <small>{englishName}</small> : null}</span>
         </span>
-        <span className="weapon-detail-perk-entry-description">{description || "游戏资料没有返回这项 Perk 的说明。"}</span>
+        <span className="weapon-detail-perk-entry-description">{description || itemDetailText(props.copy, "游戏资料没有返回这项 Perk 的说明。")}</span>
         <span className="weapon-detail-perk-entry-context"><strong>{props.contextLabel}</strong>{props.statusDetail ? <small>{props.statusDetail}</small> : null}</span>
         {props.action ? (
           <span className="weapon-detail-perk-entry-action">
@@ -173,7 +176,7 @@ function PerkEntryBody(props: { name: string; icon?: string; statusLabel?: strin
  * 与条目共用同一个盒子类（`.weapon-detail-perk-entry-box`），几何只有一处定义——
  * 占位不会比条目高、矮、圆角不同，加载前后卡片不跳位。
  */
-export function WeaponPerkPlaceholder(props: { variant: "loading" | "empty"; text?: string }) {
+export function WeaponPerkPlaceholder(props: { copy: ItemDetailCopy; variant: "loading" | "empty"; text?: string }) {
   if (props.variant === "empty") {
     return (
       <span className="weapon-detail-perk-entry" data-placeholder="empty">

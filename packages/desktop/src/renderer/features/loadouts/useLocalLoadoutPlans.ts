@@ -3,6 +3,7 @@ import {
   createEmptyLocalLoadoutPlanDraft,
   createLocalLoadoutPlanDraftFromInGameLoadout,
   createLocalLoadoutPlanDraftFromCharacter,
+  resolveLocalLoadoutPlanDraftSlots,
   selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "@d2-tools/app/loadouts";
@@ -238,7 +239,8 @@ export function useLocalLoadoutPlans(input: {
     setIsPreviewingDim(true);
     setError("");
     try {
-      setDimPreview(await api.previewDimLoadoutImport(url));
+      const preview = await api.previewDimLoadoutImport(url);
+      setDimPreview(resolveDimPreviewSlots(preview, accountSummary));
     } catch (previewError) {
       const message = previewError instanceof Error ? previewError.message : String(previewError);
       setDimPreview(null);
@@ -246,21 +248,22 @@ export function useLocalLoadoutPlans(input: {
     } finally {
       setIsPreviewingDim(false);
     }
-  }, [isPreviewingDim]);
+  }, [isPreviewingDim, accountSummary]);
 
   const acceptDimImport = useCallback((character: CharacterSummary | null) => {
     if (!dimPreview || !character) return;
     setSelectedPlanId("");
     setEditingPlanId(null);
-    setDraft({
+    // 账号可能在预览之后才读完，这里再补一次同一份纯函数；没有变化时它返回原引用。
+    setDraft(resolveLocalLoadoutPlanDraftSlots({
       ...dimPreview.draft,
       class_name: dimPreview.draft.class_name === "未限定职业" ? character.class_name : dimPreview.draft.class_name,
       target_character_id: character.character_id
-    });
+    }, accountSummary));
     setDimPreview(null);
     setExecutionReport(null);
     setError("");
-  }, [dimPreview]);
+  }, [dimPreview, accountSummary]);
 
   const dismissDimImport = useCallback(() => setDimPreview(null), []);
 
@@ -837,6 +840,28 @@ function isHttpUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * DIM 链接里没有槽位字段，装备目标按 item hash 反查账号实例补真实 Bucket，装饰槽和神器
+ * 在这一步挡掉（见 `resolveLocalLoadoutPlanDraftSlots`）。预览上写几个装备目标，编辑器里
+ * 就得有几个，所以件数跟着一起改，挡掉多少条也在这里说明白——不静默少。
+ */
+function resolveDimPreviewSlots(
+  preview: DimLoadoutImportPreview,
+  accountSummary: AccountSummary | null
+): DimLoadoutImportPreview {
+  const draft = resolveLocalLoadoutPlanDraftSlots(preview.draft, accountSummary);
+  if (draft === preview.draft) return preview;
+  const skipped = preview.draft.item_targets.length - draft.item_targets.length;
+  return {
+    ...preview,
+    draft,
+    item_count: draft.item_targets.length,
+    warnings: skipped
+      ? [...preview.warnings, `已在账号内确认其中 ${skipped} 件不属于配装槽位（机灵、载具、徽标等），未计入装备目标。`]
+      : preview.warnings
+  };
 }
 
 function readLegacyGuideText(): string {

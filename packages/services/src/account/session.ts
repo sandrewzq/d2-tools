@@ -140,12 +140,16 @@ const snapshotComponents = new Set([
   310 // ItemReusablePlugs
 ]);
 
-const armorPlannerComponents = new Set([
-  ...snapshotComponents,
-  301, // ItemObjectives
-  309, // ItemPlugObjectives
-  310 // ItemReusablePlugs
-]);
+/**
+ * 护甲规划器要的组件组。
+ *
+ * 与账号快照**完全一致**，这不是巧合：`findReusableProfileCache` 用的是超集判定
+ * （`isSuperset(cache.components, requestedComponents)`），只要护甲规划器多要一个组件，
+ * 账号同步刚拉回来的那份 profile 就一次都复用不到，冷启动点一次「计算」等于付两次全量
+ * GetProfile。护甲求解只读实例、属性、插槽和可复用 plug（`normalizeArmorPiece` 读的是
+ * `item.sockets` 与 `item.armor_energy`），不需要 ItemPlugObjectives(309)。
+ */
+const armorPlannerComponents = snapshotComponents;
 
 const itemDetailComponents = [300, 301, 304, 305, 307, 309, 310].join(",");
 

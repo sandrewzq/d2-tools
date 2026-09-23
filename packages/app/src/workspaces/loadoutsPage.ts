@@ -21,7 +21,13 @@ import {
   getAllKnownAccountItemsWithSource,
   type LoadoutSourceItem
 } from "./loadoutSources.js";
-import { classifyBucket } from "@d2-tools/core/items/classification";
+import {
+  classifyBucket,
+  hasArtifactPlugs,
+  hasSubclassPlugs,
+  isArtifactEquipmentBucket,
+  isSubclassBucket
+} from "@d2-tools/core/items/classification";
 import {
   buildLoadoutItemStatus,
   summarizeLoadoutItemStatuses,
@@ -360,6 +366,14 @@ function classifyInGameLoadoutItem(
   const bucketClassification = classifyBucket(locatedItem?.bucket_hash);
   if (bucketClassification?.group === "weapons") return "weapon";
   if (bucketClassification?.group === "armor") return "armor";
+  // 反查得到账号实例时一律按 Bucket hash 判，别退到显示名。子职业和赛季神器在
+  // `bucketLabels` 里都不是 weapons / armor，靠上面的 group 判不出来。
+  if (isSubclassBucket(locatedItem?.bucket_hash)) return "subclass";
+  if (isArtifactEquipmentBucket(locatedItem?.bucket_hash)) return "artifact";
+  // 实例反查不回来时按插槽内容判：神器插件全落在 `artifact_perks` 上，子职业插件落在
+  // `*.supers` / `*.aspects` 这批末段上，两者都没有同名的武器或护甲分类。
+  if (hasArtifactPlugs(item.plugs ?? [])) return "artifact";
+  if (hasSubclassPlugs(item.plugs ?? [])) return "subclass";
   const bucketName = (locatedItem?.bucket_name ?? item.bucket_name ?? "").toLocaleLowerCase();
   if (/子职业|职业分支|分支|subclass/.test(bucketName)) return "subclass";
   if (/神器|artifact/.test(bucketName)) return "artifact";

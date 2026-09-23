@@ -2,6 +2,7 @@ import type { InterfaceLocale, LocaleCopy } from "./types.js";
 import { shellCopy } from "./copy/shell.js";
 import { homeCopy } from "./copy/home.js";
 import { vaultCopy } from "./copy/vault.js";
+import { itemDetailCopy } from "./copy/itemDetail.js";
 import { loadoutsCopy } from "./copy/loadouts.js";
 import { libraryCopy } from "./copy/library.js";
 import { vendorsCopy } from "./copy/vendors.js";
@@ -14,6 +15,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
     shell: shellCopy["zh-CN"],
     home: homeCopy["zh-CN"],
     vault: vaultCopy["zh-CN"],
+    itemDetail: itemDetailCopy["zh-CN"],
     loadouts: loadoutsCopy["zh-CN"],
     library: libraryCopy["zh-CN"],
     vendors: vendorsCopy["zh-CN"],
@@ -25,6 +27,7 @@ export const localeCopy: Record<InterfaceLocale, LocaleCopy> = {
     shell: shellCopy["en-US"],
     home: homeCopy["en-US"],
     vault: vaultCopy["en-US"],
+    itemDetail: itemDetailCopy["en-US"],
     loadouts: loadoutsCopy["en-US"],
     library: libraryCopy["en-US"],
     vendors: vendorsCopy["en-US"],

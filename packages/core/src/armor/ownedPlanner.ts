@@ -299,7 +299,17 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
         if (budget.usage === "exact"
           && ((budget.plus5 - plus5) + (budget.plus10 - plus10) > remainingPieces)) continue;
 
-        const totals = addArmorStatValues(state.totals, option.choice.final);
+        // 同上：这里每次迭代都跑，直接建对象字面量，避免 addArmorStatValues 的 rest 参数数组。
+        const baseTotals = state.totals;
+        const addedTotals = option.choice.final;
+        const totals: ArmorStatValues = {
+          health: baseTotals.health + addedTotals.health,
+          melee: baseTotals.melee + addedTotals.melee,
+          grenade: baseTotals.grenade + addedTotals.grenade,
+          super: baseTotals.super + addedTotals.super,
+          class: baseTotals.class + addedTotals.class,
+          weapon: baseTotals.weapon + addedTotals.weapon
+        };
         const setCounts = incrementSetCounts(
           state.set_counts,
           option.set_hash,
@@ -909,7 +919,11 @@ function stateKey(
   setCounts: readonly number[],
   exoticCount: number
 ): string {
-  return [plus5, plus10, exoticCount, ...setCounts, ...armorStatKeys.map((stat) => totals[stat])].join(":");
+  // 热路径：每次搜索迭代都要生成一次，手工拼接省掉 setCounts 展开和属性 map 两个临时数组。
+  let key = plus5 + ":" + plus10 + ":" + exoticCount;
+  for (let index = 0; index < setCounts.length; index += 1) key += ":" + setCounts[index];
+  return key + ":" + totals.health + ":" + totals.melee + ":" + totals.grenade
+    + ":" + totals.super + ":" + totals.class + ":" + totals.weapon;
 }
 
 function equippedValue(choice: ArmorOwnedPieceChoice, targetCharacterId: string | undefined): number {
