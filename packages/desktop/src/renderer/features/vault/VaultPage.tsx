@@ -281,8 +281,13 @@ function toVaultMatchInput(item: AccountItemSummary) {
   };
 }
 
+// 影响范围取规则的**覆盖集**（`item_hashes`，导入期家族全展开的产物），与主进程失效时用的集合一致
+// （`main/ipc/wishlist.ts` 的 dimWishlistItemHashes）：展开之后一条规则会落在同族好几个版本上，
+// 只按 `item_hash` 重扫会让其余版本的缓存行「删了不补」，来源计数长期偏少。
 function collectWishlistWeaponHashes(...wishlists: Array<DimWishlist | null | undefined>): number[] {
   return [...new Set(wishlists.flatMap((wishlist) => (
-    wishlist?.rules.map((rule) => rule.item_hash) ?? []
+    wishlist?.rules.flatMap((rule) => (
+      rule.item_hashes?.length ? rule.item_hashes : [rule.item_hash]
+    )) ?? []
   )))];
 }

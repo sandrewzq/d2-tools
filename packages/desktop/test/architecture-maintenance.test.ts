@@ -581,10 +581,13 @@ describe("architecture maintenance guardrails", () => {
     }
   });
 
-  it("keeps the perk popover above the source card's sticky column head and under the section tabs", () => {
+  it("keeps the perk popover above the source card's sticky column head and the instance rail, and under the section tabs", () => {
     // T85：说明浮层是从卡片**往上**开的，第一行卡片的浮层必然跨过来源卡顶部那条吸附栏头。
     // 条目原来和栏头同层（条目 9 < 栏头 10），不透明的栏头就把浮层从中间切掉——实窗看到的是
-    // 浮层被切成上下两截、中间横穿一条图例。现在三层分家：页签 > 悬停卡片与浮层 > 栏头 > 静态内容。
+    // 浮层被切成上下两截、中间横穿一条图例。现在分家：页签 > 悬停卡片与浮层 > 吸附面板 > 栏头 > 静态内容。
+    // Bug #112：浮层从卡片中心向两侧展开，最右一列卡片的右半截会伸进右侧实例栏那一列。
+    // 条目当时停在栏头之上、右侧栏之下（9 < 10），短的那一截就被不透明的右栏从右边裁掉。
+    // 所以条目要停到右侧栏与写面板（都是 --layer-sticky）之上，页签再抬一级压住条目。
     const css = readFileSync(join(repoRoot, "packages", "ui", "src", "styles", "components", "09-weapon-detail.css"), "utf8");
     const zIndexOf = (selector: string) => {
       const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -592,8 +595,9 @@ describe("architecture maintenance guardrails", () => {
       expect(value, `找不到 ${selector} 的 z-index，后面几句会白过`).not.toBe("");
       return value;
     };
-    expect(zIndexOf(".weapon-detail-nav"), "章节页签不再是最高一层").toBe("calc(var(--layer-sticky) + 1)");
-    expect(zIndexOf('.weapon-detail-perk-entry[data-open="true"]'), "悬停 / 打开的条目不再抬到栏头之上，浮层会被栏头切掉").toBe("calc(var(--layer-sticky) - 1)");
+    expect(zIndexOf(".weapon-detail-nav"), "章节页签不再是最高一层").toBe("calc(var(--layer-sticky) + 2)");
+    expect(zIndexOf('.weapon-detail-perk-entry[data-open="true"]'), "悬停 / 打开的条目不再抬到右侧实例栏之上，浮层会被右栏从右边裁掉").toBe("calc(var(--layer-sticky) + 1)");
+    expect(zIndexOf(".weapon-detail-instance-rail"), "右侧实例栏不再停在内容级吸附面板那一层，上面两条的相对次序就无从谈起").toBe("var(--layer-sticky)");
     expect(zIndexOf(".weapon-detail-source-slot-columns"), "吸附栏头又回到了悬停条目那一层").toBe("calc(var(--layer-sticky) - 2)");
   });
 

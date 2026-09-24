@@ -11,6 +11,7 @@ import {
 } from "@d2-tools/core/community-perks";
 import {
   loadRecommendationSources,
+  recommendationSourceNames,
   type StoredRecommendationInstance
 } from "./recommendationDocumentStore.js";
 import type { RecommendationStoredRule } from "./recommendationRuleStore.js";
@@ -55,7 +56,7 @@ function createCsvRecommendationSource(
     ruleOverrides: RecommendationRuleOverride[];
   }
 ): CommunityPerkSource {
-  const sourceLabel = source.label || source.documentTitle;
+  const { label: sourceLabel, declaredLabel } = recommendationSourceNames(source);
   // 状态与移除都走共享的身份继承（实例键优先、文档键兜底）——这里不自己写一份。
   const removedRuleIds = recommendationRemovedRuleIdsFor(source, overrides.ruleOverrides);
   const rules = source.rules.filter((rule) => !removedRuleIds.has(rule.ruleId));
@@ -77,7 +78,7 @@ function createCsvRecommendationSource(
       if (!matching.length) return null;
       // 定义池覆盖本武器及其全部已列版本：某个栏位的写法可能只在别的版本的定义里出现。
       const perkRefs = buildPerkRefMap(matching, options);
-      const sourceRecords = matching.map((rule) => toSourceRecord(rule, source, sourceLabel, perkRefs));
+      const sourceRecords = matching.map((rule) => toSourceRecord(rule, source, sourceLabel, declaredLabel, perkRefs));
       const weaponLevelRecommendations = matching
         .filter((rule) => isWeaponLevelRule(rule.requirements))
         .flatMap((rule) => rule.purposes.map((mode) => ({
@@ -112,6 +113,7 @@ function toSourceRecord(
   rule: RecommendationStoredRule,
   source: StoredRecommendationInstance,
   sourceLabel: string,
+  declaredLabel: string | undefined,
   perkRefs: ReadonlyMap<number, PerkRef>
 ): RecommendationSourceRecord {
   const requirements = rule.requirements.flatMap((requirement): RecommendationSourceRequirement[] => {
@@ -132,6 +134,7 @@ function toSourceRecord(
     // 人工来源的键本身就是来源级：一个「推荐来源」列值是一个来源，不按文档合并。
     source_group_id: source.sourceId,
     source_label: sourceLabel,
+    ...(declaredLabel ? { declared_label: declaredLabel } : {}),
     ...(rule.sourceUrl ? { source_url: rule.sourceUrl } : {}),
     purposes: rule.purposes,
     ...(rule.rating ? { rating: rule.rating } : {}),

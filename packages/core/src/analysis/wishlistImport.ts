@@ -3,6 +3,14 @@ export type DimWishlistMode = "pve" | "pvp" | "general";
 export type DimWishlistRule = {
   rule_stable_id?: string;
   item_hash: number;
+  /**
+   * 这条规则覆盖的全部武器 hash（T56 2026-09-24 家族全展开）。第一项**永远是** `item_hash`
+   * （这条规则自己的那把枪），其余是同族的其它版本；声明版本优先与逐 hash 池子自检都在导入期算完。
+   *
+   * 只在导入期写入、落库时保留。读取期按它建「武器 → 规则」索引——没有它就只能回到
+   * 「规则只对写出它的那个 hash 生效」，那正是旧口径的漏匹配。缺省时按 `[item_hash]` 理解。
+   */
+  item_hashes?: number[];
   perk_hashes: number[];
   kind?: "roll" | "weapon_only";
   mode: DimWishlistMode;

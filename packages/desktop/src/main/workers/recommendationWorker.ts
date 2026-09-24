@@ -244,11 +244,22 @@ function getDefinitions(
   return current.reader.getMany(component, uniqueHashes([...hashes]));
 }
 
+/**
+ * 这把武器命中了的愿望单规则各自写了哪些插件 hash——给定义池补的一批。
+ *
+ * 命中判定走规则的**覆盖集**（`item_hashes`，导入期家族全展开的产物，缺省时按 `[item_hash]` 理解），
+ * 与 `dimWishlistSource` 建「武器 → 规则」索引时同一套判据。只按 `rule.item_hash` 过滤的话，
+ * 「规则写在同族另一把枪上、展开到这把枪」的插件就进不了定义池，规则里写到、而这把枪自己的插槽池里
+ * 没有的插件会只剩 hash，没有名字和图标。
+ *
+ * 与 `ipc/community.ts` 的同名函数一致；两份各自在自己的模块图里，改动要成对。
+ */
 function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {
   try {
     const wanted = new Set(itemHashes);
     return [...new Set((loadDimWishlist(dataDir)?.rules ?? [])
-      .filter((rule) => wanted.has(rule.item_hash))
+      .filter((rule) => (rule.item_hashes?.length ? rule.item_hashes : [rule.item_hash])
+        .some((hash) => wanted.has(hash)))
       .flatMap((rule) => rule.perk_hashes))];
   } catch {
     return [];

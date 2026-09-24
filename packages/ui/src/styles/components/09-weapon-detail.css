@@ -277,12 +277,15 @@
 .weapon-detail-nav {
   position: sticky;
   top: 0;
-  /* 章节页签是**窗口构件**，压在所有内容级吸附件之上，所以比 --layer-sticky 高一级
-     （同一个惯用法见 loadouts/03-workspace.css 的 loadout-editor-head）。
+  /* 章节页签是**窗口构件**，压在所有内容级吸附件之上，所以比 --layer-sticky 高。这里高两级
+     （其余页面的同类构件只高一级，见 loadouts/03-workspace.css 的 loadout-editor-head）：
+     中间那一级让给悬停卡片与说明浮层——浮层是一次性的临时层，要压过右侧栏、写面板这些静态吸附面板，
+     而页签又要压过它。整页排下来是 页签 12 > 悬停卡片与说明浮层 11 > 右侧栏与写面板 10 >
+     来源卡栏头 8 > 内容 0（--layer-sticky 是 10）。
      光让开位置不够：position: sticky 的「出界」那一相是几何钳制——栏头被自己的列表底边推出界时
      会**逆着滚动方向往上走进这条带子**，位置躲不掉，只能靠层级。两条若平局就按 DOM 顺序裁决，
      栏头在来源卡里、DOM 靠后，于是它画在页签上面（实测出界过程 22 个滚动位页签点不到）。 */
-  z-index: calc(var(--layer-sticky) + 1);
+  z-index: calc(var(--layer-sticky) + 2);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -448,16 +451,17 @@
 .weapon-detail-perk-entries { display: grid; min-height: 50px; align-content: start; align-items: start; grid-template-columns: repeat(auto-fill, minmax(148px, 1fr)); gap: 7px; overflow: visible; }
 .weapon-detail-perk-entries > .weapon-detail-perk-entry { min-width: 0; }
 .weapon-detail-perk-entry { display: block; position: relative; z-index: 0; width: 100%; }
-/* 抬这一下只为「说明浮层不被邻卡压住」：兄弟条目都停在 0，所以只要比 0 高就够了。
-   原来抬到 --layer-popover(20)，鼠标停在卡片上时那张卡片会连浮层一起盖到章节页签上面——同一类
-   「层级没分家」。现在这条停在 --layer-sticky - 1：赢过所有兄弟，也赢过来源卡顶部的吸附栏头
-   （--layer-sticky - 2），但仍然低于章节页签（--layer-sticky + 1）——页签是窗口构件，谁都不许盖。
-   浮层是从卡片**往上**开的，第一行卡片的浮层必然跨过栏头那条带子；条目如果压在栏头之下，
-   不透明的栏头就会把浮层从中间切掉（实窗看到的是浮层被切成上下两截、中间横穿一条图例，T85）。
-   （浮层的 z-index 只在本条目的层叠上下文里生效，所以改条目这一层就等于改浮层那一层。） */
+/* 条目自己就是一个层叠上下文（上面那条 z-index: 0），浮层那条 --layer-popover 只在里面生效——
+   浮层能压过什么，全看条目这一层站在哪。所以这里一次把四类对象排清：
+   赢过兄弟（0）和来源卡顶部的吸附栏头（--layer-sticky - 2）：栏头不透明，浮层从卡片**往上**开，
+   第一行卡片的浮层必然跨过栏头那条带子，条目压在栏头之下就会被切成上下两截（T85 实窗）。
+   也赢过右侧实例栏与写面板这些静态吸附面板（--layer-sticky）：浮层从卡片中心向两侧展开，
+   最右一列卡片的右半截必然伸进右侧栏那一列，压不过它就被不透明的右栏从右边裁掉（Bug #112 实窗）。
+   但仍然低于章节页签（--layer-sticky + 2）——页签是窗口构件，谁都不许盖；
+   从前抬到 --layer-popover(20) 时就出过反例：鼠标停在卡片上，那张卡片连浮层一起盖到页签上面。 */
 .weapon-detail-perk-entry:focus-within,
 .weapon-detail-perk-entry:hover,
-.weapon-detail-perk-entry[data-open="true"] { z-index: calc(var(--layer-sticky) - 1); }
+.weapon-detail-perk-entry[data-open="true"] { z-index: calc(var(--layer-sticky) + 1); }
 /* 盒子几何只有这一处定义：真条目（button）与空态 / 骨架占位（span）都挂 .weapon-detail-perk-entry-box。 */
 .weapon-detail-perk-entry > button,
 .weapon-detail-perk-entry-box { display: grid; position: relative; width: 100%; min-height: 50px; grid-template-columns: 36px minmax(0, 1fr); align-items: center; gap: 8px; padding: 5px 9px 5px 6px; border: 1px solid var(--border-control); border-radius: var(--radius-control); color: var(--text-title); background: var(--surface-interactive); text-align: left; }
@@ -610,7 +614,7 @@
    让开页签高度即互不重叠，那时 z-index 平不平并不重要。
    T85 把这条的层级从 --layer-sticky 降到 --layer-sticky - 2：栏头只有一个职责，压住从它下面滚过去的
    静态内容（那些卡片停在 0）；它不透明，一旦和悬停的卡片同层，就会把往上开的说明浮层从中间切掉。
-   分家之后的顺序是 页签(+1) > 悬停卡片与浮层(-1) > 栏头(-2) > 内容(0)。 */
+   分家之后的顺序是 页签 12 > 悬停卡片与浮层 11 > 右侧栏与写面板 10 > 栏头 8 > 内容 0（--layer-sticky 是 10）。 */
 .weapon-detail-source-slot-columns { display: grid; position: sticky; z-index: calc(var(--layer-sticky) - 2); top: var(--weapon-detail-nav-height); grid-template-columns: minmax(96px, 112px) repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--section-divider); background: var(--surface-panel); }
 .weapon-detail-source-slot-columns > span { padding: 8px 10px; color: var(--text-body); font-size: var(--font-meta); font-weight: 700; }
 .weapon-detail-source-slot-columns > span:first-child { padding-left: 13px; }
@@ -642,7 +646,9 @@
 .weapon-detail-catalyst ul { margin: 0; padding-left: 18px; }
 
 /* 同样吸附在章节页签下面。原来写死 55px，那是 comfortable 一档的页签高；standard 是 51、compact 是 49，
-   另外两档都差 4~6px。改成跟栏头同一个变量，三档一起对上。 */
+   另外两档都差 4~6px。改成跟栏头同一个变量，三档一起对上。
+   层级停在 --layer-sticky：这是静态面板，压住从它下面滚过去的内容就够（写面板同级）；
+   悬停卡片与说明浮层比它高一级（+1），伸进这一列的浮层会盖在栏上，不会被裁掉。 */
 .weapon-detail-instance-rail { position: sticky; z-index: var(--layer-sticky); top: var(--weapon-detail-nav-height); max-height: calc(100dvh - 154px); overflow-y: auto; overflow-wrap: anywhere; border-left: 1px solid var(--section-divider); background: var(--section-bg); }
 .weapon-detail-rail-drawer-head { position: sticky; z-index: var(--layer-sticky); top: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 7px 12px; border-bottom: 1px solid var(--section-divider); background: var(--chrome); }
 .weapon-detail-rail-drawer-head > div { display: grid; gap: 1px; }

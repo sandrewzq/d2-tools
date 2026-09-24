@@ -174,17 +174,30 @@ function dimWishlist(perkHashesPerRule: number[][]): DimWishlist {
  * 「一个具名来源 = 一行」的可观察形状：分组数、具名来源数、以及有没有哪一行混着两个来源名。
  * 三个都得看——只看分组数，把两个来源并成一行、或把一个来源拆成两行都能骗过去。
  */
-function namedSourceRows(records: Array<{ source_group_id: string; source_label: string }>) {
+function namedSourceRows(
+  records: Array<{ source_group_id: string; source_label: string; declared_label?: string }>
+) {
   const labelsByGroup = new Map<string, Set<string>>();
+  const declaredByGroup = new Map<string, Set<string>>();
+  const declaredNames = new Set<string>();
   for (const record of records) {
+    // 2026-09-24（原 Bug #107）：对外名统一成导入时起的文档标题，文件里声明的名字退成
+    // `declared_label`。区分「几个具名来源」要看这一列。
+    const declared = record.declared_label ?? record.source_label;
+    declaredNames.add(declared);
     const labels = labelsByGroup.get(record.source_group_id) ?? new Set<string>();
     labels.add(record.source_label);
     labelsByGroup.set(record.source_group_id, labels);
+    const declaredLabels = declaredByGroup.get(record.source_group_id) ?? new Set<string>();
+    declaredLabels.add(declared);
+    declaredByGroup.set(record.source_group_id, declaredLabels);
   }
   return {
     groups: labelsByGroup.size,
     namedSources: new Set(records.map((record) => record.source_label)).size,
-    mixedLabels: [...labelsByGroup.values()].some((labels) => labels.size !== 1)
+    declaredSources: declaredNames.size,
+    mixedLabels: [...labelsByGroup.values()].some((labels) => labels.size !== 1),
+    mixedDeclaredLabels: [...declaredByGroup.values()].some((labels) => labels.size !== 1)
   };
 }
 
@@ -325,14 +338,20 @@ describe("L3-2c：同一事实的两种编码，投影必须相同", () => {
     const dimRows = namedSourceRows((await recommendationFor(dimDir))?.source_records ?? []);
 
     // 非空锚点：两边都必须是「两个具名来源」，否则下面比的是两个 0。
-    expect(csvRows.namedSources).toBe(2);
-    expect(dimRows.namedSources).toBe(2);
+    // 对外名（`source_label`）两边都只有导入时起的文档标题一个；分得开这两行的是文件里
+    // 声明的名字（`declared_label`）。
+    expect(csvRows.namedSources).toBe(1);
+    expect(dimRows.namedSources).toBe(1);
+    expect(csvRows.declaredSources).toBe(2);
+    expect(dimRows.declaredSources).toBe(2);
 
-    // 一个具名来源一行：分组数 = 具名来源数，且没有哪一行混着两个来源名。
+    // 一个来源实例一行：分组数 = 文件里声明的具名来源数，且每一行只带一个名字。
     expect(csvRows.groups).toBe(2);
     expect(dimRows.groups).toBe(2);
     expect(csvRows.mixedLabels).toBe(false);
     expect(dimRows.mixedLabels).toBe(false);
+    expect(csvRows.mixedDeclaredLabels).toBe(false);
+    expect(dimRows.mixedDeclaredLabels).toBe(false);
   });
 
   it("停用整份导入：两种格式都继承到实例，且实例级停用优先于文档级", async () => {

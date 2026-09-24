@@ -118,10 +118,14 @@ function dimInstances(wishlist: DimWishlist) {
       // DIM 只是把「用途 = 格式自带的单值 mode」「每个 Perk 一条无栏位要求」喂给统一接口。
       // 分组键不显式给：统一默认「同一实例同一武器互为备选」正合 DIM 的语义。
       rules: rules.map((rule) => {
-        const ruleId = rule.rule_stable_id || sha256(JSON.stringify(rule));
+        // 身份推导的产物（家族全展开 + 逐 hash 池子自检）在导入期算完，这里原样转存。
+        // 它**不参与** ruleId 的兜底哈希：展开集随资料库变化，ruleId 一变，用户对这个来源的
+        // 停用 / 移除选择就会跟丢——ruleId 认的是「哪条规则」，不是「它覆盖哪些版本」。
+        const { item_hashes: expandedHashes, ...ruleShape } = rule;
+        const ruleId = rule.rule_stable_id || sha256(JSON.stringify(ruleShape));
         return {
           ruleId,
-          itemHashes: [rule.item_hash],
+          itemHashes: expandedHashes?.length ? expandedHashes : [rule.item_hash],
           purposes: [rule.mode],
           kind: rule.kind ?? (rule.perk_hashes.length ? "roll" as const : "weapon_only" as const),
           requirements: rule.perk_hashes.map((perkHash) => ({ slot: "", candidates: [perkHash] })),
@@ -156,11 +160,15 @@ function sourceBlocks(sources: readonly StoredRecommendationInstance[]): DimWish
 /**
  * 存储规则 → DIM 规则。无栏位要求按写入顺序拼回原来的 Perk 列表；
  * DIM 每条要求只有一个候选，所以这一趟是逐字段无损的（迁移前存的就是这个数组）。
+ *
+ * `item_hashes` 还原成完整覆盖集，`item_hash` 仍取它的第一项——写入时保证过「声明的 hash 排第一」
+ * （见 `normalizeDimWishlist`），所以两个字段说的是同一件事的两个粒度，不是一个新真相。
  */
 function toDimWishlistRule(rule: RecommendationStoredRule): DimWishlistRule {
   return {
     rule_stable_id: rule.ruleId,
     item_hash: rule.itemHashes[0] ?? 0,
+    ...(rule.itemHashes.length > 1 ? { item_hashes: [...rule.itemHashes] } : {}),
     mode: rule.mode,
     kind: rule.kind,
     note: rule.note,
@@ -211,11 +219,17 @@ function normalizeDimWishlist(wishlist: DimWishlist): DimWishlist {
       ? [...new Set(rule.perk_hashes.map(Number).filter(isUnsignedHash))]
       : [];
     if (!isUnsignedHash(itemHash)) return [];
+    // 覆盖集由导入期算好，这里只保证两件事：声明的 hash 排第一（读取期按 `itemHashes[0]`
+    // 还原 `item_hash`），以及长度为一时不落这一列——那与缺省是同一个意思。
+    const itemHashes = Array.isArray(rule.item_hashes)
+      ? [...new Set([itemHash, ...rule.item_hashes.map(Number).filter(isUnsignedHash)])]
+      : [];
     return [{
       ...(typeof rule.rule_stable_id === "string" && rule.rule_stable_id.trim()
         ? { rule_stable_id: rule.rule_stable_id.trim() }
         : {}),
       item_hash: itemHash,
+      ...(itemHashes.length > 1 ? { item_hashes: itemHashes } : {}),
       perk_hashes: perkHashes,
       kind: perkHashes.length > 0 ? "roll" : "weapon_only",
       mode: rule.mode === "pve" || rule.mode === "pvp" ? rule.mode : "general" as const,

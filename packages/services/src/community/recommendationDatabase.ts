@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 const databaseFileName = "weapon-recommendations.sqlite";
-export const recommendationDatabaseSchemaVersion = 11;
+export const recommendationDatabaseSchemaVersion = 12;
 
 /**
  * 文档键只由用户给的名字决定；前缀是命名空间常量，**不表达来源格式**。
@@ -89,6 +89,9 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
   // 全部改走三级模型，这些表已无任何读写方，留着只会让人以为还有第二条通道。
   // 与上面各档不同，这一步不受版本区间约束：只要表还在就删。函数自身门控
   // （`IF EXISTS` + 表存在才 DELETE），所以无条件调用；全新库上它是空操作。
+  // v12 起文档多一列 `import_pipeline_version`，记下这份导入是按哪一版导入口径写下的
+  // （身份怎么展开成 hash 集）。只加列、不动数据：老库补出来就是旧口径，读取侧据此
+  // 把旧口径导入挡在匹配之外，管理面提示「需要重新导入」。
 
   database.exec("BEGIN IMMEDIATE;");
   try {
@@ -110,7 +113,11 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
         imported_at TEXT NOT NULL,
         title TEXT NOT NULL DEFAULT '',
         description TEXT NOT NULL DEFAULT '',
-        author TEXT NOT NULL DEFAULT ''
+        author TEXT NOT NULL DEFAULT '',
+        -- v12 起：这份导入是按哪一版**导入口径**写下的（身份怎么展开成 hash 集）。
+        -- 缺省 1 = v12 之前的旧口径，读取侧按「需要重新导入」处理（见
+        -- recommendationImportPipelineVersion）。
+        import_pipeline_version INTEGER NOT NULL DEFAULT 1
       ) STRICT;
 
       CREATE TABLE IF NOT EXISTS recommendation_source_instances (
@@ -219,6 +226,7 @@ function ensureRecommendationSchema(database: DatabaseSync): void {
       }
     }
     ensureRecommendationRuleColumns(database);
+    ensureRecommendationDocumentColumns(database);
     if (shouldBackfillStructuredRules) backfillStructuredRuleStorage(database);
     database.exec("COMMIT;");
   } catch (error) {
@@ -277,6 +285,20 @@ function ensureRecommendationRuleColumns(database: DatabaseSync): void {
     if (columnExists(database, "recommendation_source_rules", name)) continue;
     database.exec(`ALTER TABLE recommendation_source_rules ADD COLUMN ${name} ${definition};`);
   }
+}
+
+/**
+ * v12 新增的文档列。同 `ensureRecommendationRuleColumns`：建表语句对已存在的表不生效，
+ * 老库要靠 ALTER 补齐。
+ *
+ * 补出来的值一定是 `1`（旧口径）——v12 之前的导入本来就按旧口径写下，这是事实而不是猜测；
+ * 用户在下一次重新导入时才升到当前版本。
+ */
+function ensureRecommendationDocumentColumns(database: DatabaseSync): void {
+  if (columnExists(database, "recommendation_documents", "import_pipeline_version")) return;
+  database.exec(
+    "ALTER TABLE recommendation_documents ADD COLUMN import_pipeline_version INTEGER NOT NULL DEFAULT 1;"
+  );
 }
 
 /**

@@ -9,7 +9,7 @@ import {
   openRecommendationDatabase,
   recommendationDocumentKey
 } from "../src/community/recommendationDatabase.js";
-import { loadRecommendationSources } from "../src/community/recommendationDocumentStore.js";
+import { loadRecommendationSources, listRecommendationDocuments, recommendationImportPipelineVersion } from "../src/community/recommendationDocumentStore.js";
 import {
   listRecommendationManagedRules
 } from "../src/community/recommendationManagement.js";
@@ -64,6 +64,26 @@ function save(
 function dimRules(dataDir: string): DimWishlistRule[] {
   return loadRecommendationSources(dataDir, "dim")
     .flatMap((source) => dimWishlistForSource(source).rules);
+}
+
+/**
+ * 把库里的导入标成**当前口径**，让读取侧重新为它建来源。
+ *
+ * 老库迁移出来的导入一律是旧口径：口径版本只在写入时写进文档行，迁移只补列、补出来的就是旧口径，
+ * 而读取侧不为旧口径建来源（T56 2026-09-24：身份推导改成「家族全展开 + 声明版本优先 + 逐 hash 自检」，
+ * 旧口径的覆盖集漏匹配）。
+ *
+ * 本文件要验的是**迁移有没有把字段搬丢**，所以先翻这一列再走读取路径；真正的重导还会连覆盖集一起重写，
+ * 这里不重写。「翻之前读不到、管理面标着需要重新导入」由下面的用例单独钉住。
+ */
+function markImportsCurrent(dataDir: string): void {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    database.prepare("UPDATE recommendation_documents SET import_pipeline_version = ?")
+      .run(recommendationImportPipelineVersion);
+  } finally {
+    database.close();
+  }
 }
 
 describe("recommendation rule storage (current schema)", () => {
@@ -153,13 +173,19 @@ describe("recommendation rule storage (current schema)", () => {
   });
 });
 
-describe("v8 → v11 upgrade", () => {
+describe("v8 → v12 upgrade", () => {
   it("backfills the child tables and unifies the document keys without changing what readers see", () => {
     const dataDir = tempDataDir();
     const { oldDocumentId, oldSourceId } = createV8Database(dataDir);
     const documentId = recommendationDocumentKey(documentName);
     const sourceId = `${documentId}:instance`;
     expect(documentId).not.toBe(oldDocumentId);
+
+    // 迁移出来的导入是旧口径：读取侧不为它建来源，管理面照旧列出并标「需要重新导入」。
+    expect(loadRecommendationSources(dataDir, "dim")).toEqual([]);
+    expect(listRecommendationDocuments(dataDir, "dim").map((document) => document.needsReimport))
+      .toEqual([true]);
+    markImportsCurrent(dataDir);
 
     const sources = loadRecommendationSources(dataDir, "dim");
     expect(sources).toHaveLength(1);
@@ -178,7 +204,7 @@ describe("v8 → v11 upgrade", () => {
     const migrated = openRecommendationDatabase(dataDir);
     try {
       const version = migrated.prepare("PRAGMA user_version").get() as { user_version: number };
-      expect(Number(version.user_version)).toBe(11);
+      expect(Number(version.user_version)).toBe(12);
       const requirements = migrated.prepare(`
         SELECT rule_id, ordinal, slot, candidates FROM recommendation_source_rule_requirements
         WHERE source_id = ? ORDER BY rule_id, ordinal
@@ -272,7 +298,7 @@ describe("v8 → v11 upgrade", () => {
   });
 });
 
-describe("v10 → v11 upgrade (S8：删 CSV 表族)", () => {
+describe("v10 → v12 upgrade (S8：删 CSV 表族)", () => {
   it("drops the five CSV tables and their metadata keys, keeping DIM data and overrides intact", () => {
     const dataDir = tempDataDir();
     const { database, sourceId } = createV10Database(dataDir);
@@ -281,7 +307,7 @@ describe("v10 → v11 upgrade (S8：删 CSV 表族)", () => {
     const migrated = openRecommendationDatabase(dataDir);
     try {
       const version = migrated.prepare("PRAGMA user_version").get() as { user_version: number };
-      expect(Number(version.user_version)).toBe(11);
+      expect(Number(version.user_version)).toBe(12);
       // 五张旧表必须真的消失：留着会让人以为还有第二条读写通道。
       for (const table of [
         "recommendation_sources",
@@ -302,7 +328,11 @@ describe("v10 → v11 upgrade (S8：删 CSV 表族)", () => {
       migrated.close();
     }
 
-    // DIM 数据与用户的启用 / 停用选择逐条不变。
+    // 迁移出来的导入是旧口径，读取侧不为它建来源（同上面的用例）。
+    expect(loadRecommendationSources(dataDir, "dim")).toEqual([]);
+    markImportsCurrent(dataDir);
+
+    // 标回当前口径后：DIM 数据与用户的启用 / 停用选择逐条不变。
     const sources = loadRecommendationSources(dataDir, "dim");
     expect(sources).toHaveLength(1);
     expect(sources[0]?.sourceId).toBe(sourceId);
@@ -330,7 +360,7 @@ describe("v10 → v11 upgrade (S8：删 CSV 表族)", () => {
 
     const database = openRecommendationDatabase(dataDir);
     try {
-      expect(Number((database.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(11);
+      expect(Number((database.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(12);
       const count = (sql: string): number => Number(
         (database.prepare(sql).get() as { count?: number | bigint } | undefined)?.count ?? 0
       );
@@ -365,6 +395,9 @@ function createV10Database(dataDir: string): { database: DatabaseSync; sourceId:
   const sourceId = loadRecommendationSources(dataDir, "dim")[0]!.sourceId;
   const raw = new DatabaseSync(join(dataDir, "knowledge", "weapon-recommendations.sqlite"));
   raw.exec("PRAGMA foreign_keys = ON;");
+  // 真的 v10 库里，这份导入写在 `import_pipeline_version` 这列存在之前，迁移时补出来的是 1
+  // （旧口径）。上面那次 `save` 走的是**当前**写库路径（写的是当前口径），翻回 1 才像真的 v10 库。
+  raw.exec("UPDATE recommendation_documents SET import_pipeline_version = 1;");
   raw.exec(`
     CREATE TABLE recommendation_sources (
       id INTEGER PRIMARY KEY,

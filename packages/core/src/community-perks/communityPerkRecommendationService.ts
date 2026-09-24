@@ -390,6 +390,7 @@ function matchSourceRecords(
       source_id: record.source_id,
       source_group_id: record.source_group_id,
       source_label: record.source_label,
+      ...(record.declared_label ? { declared_label: record.declared_label } : {}),
       ...(record.source_url ? { source_url: record.source_url } : {}),
       state,
       matched_requirement_count: matched,

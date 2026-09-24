@@ -9,7 +9,7 @@ import {
   type DimWishlistLinkReadResult,
   type DimWishlistMode
 } from "@d2-tools/core/analysis/wishlistImport";
-import type { SourceOptions } from "@d2-tools/core/community-perks";
+import type { SourceOptions, WeaponIdentityRelation } from "@d2-tools/core/community-perks";
 import {
   loadDimWishlist,
   saveDimWishlist,
@@ -31,7 +31,7 @@ import {
 } from "@d2-tools/services/community/dimWishlistValidation";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
-import { advanceRecommendationMatchCacheRevision } from "./community.js";
+import { advanceRecommendationMatchCacheRevision, loadWeaponIdentityRelations } from "./community.js";
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 
 const maximumWishlistBytes = 128 * 1024 * 1024;
@@ -200,9 +200,12 @@ export function registerWishlistIpcHandlers(): void {
 type WishlistImportInput = { name: string; mode: RecommendationImportMode };
 
 // 愿望单增删改后，对应武器的匹配缓存必须失效，否则已删除的来源仍会出现在仓库与详情里。
+// 影响范围取规则的**覆盖集**（`item_hashes`，导入期家族全展开的产物），不是它写在哪把枪上：
+// 展开之后一条规则会出现在同族好几个版本上，只按 `item_hash` 失效会让其余版本的旧缓存留下来。
 function dimWishlistItemHashes(dataDir: string): number[] {
   try {
-    return (loadDimWishlist(dataDir)?.rules ?? []).map((rule) => rule.item_hash);
+    return (loadDimWishlist(dataDir)?.rules ?? [])
+      .flatMap((rule) => (rule.item_hashes?.length ? rule.item_hashes : [rule.item_hash]));
   } catch {
     return [];
   }
@@ -282,16 +285,32 @@ async function filterWishlist(
   wishlist: DimWishlist,
   parseIssues: Parameters<typeof filterDimWishlistForImport>[0]["parse_issues"]
 ): Promise<DimWishlistImportFilterResult> {
+  // 身份关系只取一次：校验的展开与定义装载都要用它，两次往返还会让两侧读到不同的表。
+  const relations = await loadWishlistIdentityRelations(wishlist);
   return filterDimWishlistForImport({
     wishlist,
     parse_issues: parseIssues,
-    options: await loadValidationOptions(wishlist)
+    options: await loadValidationOptions(wishlist, relations),
+    identity: { relations }
   });
 }
 
-async function loadValidationOptions(wishlist: DimWishlist): Promise<SourceOptions> {
+/** 身份关系取不到时返回空数组：展开退化成「规则只覆盖它自己那把枪」，与从前行为一致。 */
+async function loadWishlistIdentityRelations(wishlist: DimWishlist): Promise<WeaponIdentityRelation[]> {
+  const weaponHashes = [...new Set(wishlist.rules.map((rule) => rule.item_hash))];
+  return loadWeaponIdentityRelations(weaponHashes);
+}
+
+async function loadValidationOptions(
+  wishlist: DimWishlist,
+  relations: readonly WeaponIdentityRelation[]
+): Promise<SourceOptions> {
   try {
-    const weaponHashes = [...new Set(wishlist.rules.map((rule) => rule.item_hash))];
+    const declaredHashes = [...new Set(wishlist.rules.map((rule) => rule.item_hash))];
+    // 展开出来的版本也要有定义：逐 hash 池子自检读它，读取期在那些版本的页面上解析候选也读它。
+    const weaponHashes = [
+      ...new Set([...declaredHashes, ...relations.map((relation) => relation.item_hash)])
+    ];
     const perkHashes = [...new Set(wishlist.rules.flatMap((rule) => rule.perk_hashes))];
     // 与人工 CSV 导入同一条装载路径：武器定义 + 它插槽里能到达的全部插件。
     // 少给一层（比如只给规则里写到的 perk），候选目录就展不出来，每行都会被误判成「perk 查不到」。

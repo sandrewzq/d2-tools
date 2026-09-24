@@ -504,7 +504,7 @@ function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendat
     purposes: source.purposes,
     resultText: presentation.summary,
     text: `${shortSourceLabel}：${presentation.summary}`,
-    detail: presentation.detail
+    detail: withDeclaredLabel(presentation.detail, source.declared_label)
   };
 }
 
@@ -535,10 +535,21 @@ function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecomm
     purposes: source.purposes,
     resultText,
     text: `${shortSourceLabel}：${resultText}`,
-    detail: source.state === "weapon_only" || source.requirement_count === 0
-      ? `${sourceLabel}：来源推荐这把武器，但没有指定需要核对的 Roll。`
-      : `${sourceLabel}：${resultText}。同栏候选任选其一，不同栏位分别核对。`
+    detail: withDeclaredLabel(
+      source.state === "weapon_only" || source.requirement_count === 0
+        ? `${sourceLabel}：来源推荐这把武器，但没有指定需要核对的 Roll。`
+        : `${sourceLabel}：${resultText}。同栏候选任选其一，不同栏位分别核对。`,
+      source.declared_label
+    )
   };
+}
+
+/**
+ * 主名是用户给这次导入起的名字；文件里声明的名字只在两者不同时作为副标题跟在说明后面。
+ * 副标题只出现在说明文字里——徽标一行放不下两个字。
+ */
+function withDeclaredLabel(detail: string, declaredLabel?: string): string {
+  return declaredLabel ? `${detail}（文件内名称：${declaredLabel}）` : detail;
 }
 
 function compareSourceSummaries(

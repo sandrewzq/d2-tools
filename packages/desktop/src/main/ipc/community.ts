@@ -13,8 +13,10 @@ import {
 import { loadConfig } from "@d2-tools/services/config/store";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
+  buildWeaponNameEntries,
   collectCsvRecommendationItemHashes,
   collectWeaponRecommendationDefinitionHashes,
+  collectWeaponRecommendationEnglishNames,
   collectWeaponRecommendationPlugHashes,
   collectWeaponRecommendationPlugSetHashes,
   createWeaponRecommendationCsvTemplate,
@@ -90,8 +92,8 @@ export function registerCommunityIpcHandlers(): void {
       canceled: false,
       file_path: result.filePath,
       message: isEnglish
-        ? "英文推荐模板已导出。填写 Weapon、Rule Name、Perk、Rating 和 Note 即可，官方身份与资料库字段由应用自动补齐。"
-        : "中文推荐模板已导出。填写武器、规则名称、Perk、评级和备注即可，官方身份与资料库字段由应用自动补齐。"
+        ? "英文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把 Weapon、Perk、Rating 等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。"
+        : "中文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把武器、Perk、评级等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。"
     };
   });
 
@@ -330,9 +332,16 @@ async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
   // 读表 + 解析整段带上文件名：表头不受支持、格式不对时，用户要能一眼看出是哪个文件（Bug #89）。
   const csvText = withTableFileName(path, () => readRecommendationTableText(path));
   // 定义池 = 文件里写了 ID 的 + 只写名字的那些对应的全部官方版本（见 `collectWeaponRecommendationDefinitionHashes`）。
-  const definitionHashes = await withTableFileNameAsync(path, () => (
+  const declaredHashes = await withTableFileNameAsync(path, () => (
     collectWeaponRecommendationDefinitionHashes(csvText, getGameDataCatalog())
   ));
+  // S3′：身份关系按武器家族取。展开出来的版本也必须在定义池里——校验期的逐 hash 自检、
+  // 落库期的候选解析、读取期的展示都读这一份池子，少一层就会把装得上的版本判成装不上。
+  const relations = await loadWeaponIdentityRelations(declaredHashes);
+  const definitionHashes = uniqueHashes([
+    ...declaredHashes,
+    ...relations.map((relation) => relation.item_hash)
+  ]);
   const itemDefinitions = await getDefinitions(
     "DestinyInventoryItemDefinition",
     definitionHashes,
@@ -353,18 +362,55 @@ async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
   const semanticDefinitions = {
     item_definitions: itemDefinitions,
     plug_set_definitions: plugSetDefinitions,
-    plug_definitions: plugDefinitions
+    plug_definitions: plugDefinitions,
+    english_item_definitions: await loadEnglishItemDefinitions(csvText)
+  };
+  // 预览与落库读同一份身份上下文：名称表由**已装的武器定义**现建，与 `csvRecommendationInstances`
+  // 里的 `recommendationIdentityExpansion` 完全同源。英文名池一并传进去：名称表里有了英文名键，
+  // 「有英文名就按英文名匹配」才成立（③）。
+  const identity = {
+    relations,
+    nameEntries: buildWeaponNameEntries(itemDefinitions, semanticDefinitions.english_item_definitions)
   };
   return {
-    preview: withTableFileName(path, () => previewWeaponRecommendationCsv(csvText, path, semanticDefinitions)),
+    preview: withTableFileName(path, () => (
+      previewWeaponRecommendationCsv(csvText, path, semanticDefinitions, identity)
+    )),
     validation: {
       manifest_version: manifestVersion,
       semantic_definitions: semanticDefinitions,
       // S3′：导入期要把每行的武器身份展开成完整 hash 集，需要资料库里的身份关系。
-      // 取的是整个发布组，所以 CSV 里只写普通版也能覆盖到同组的专家版 / 失时版。
-      weaponIdentityRelations: await loadWeaponIdentityRelations(definitionHashes)
+      // 取的是整个武器家族（含同发布组的专家版 / 失时版）。
+      weaponIdentityRelations: relations
     }
   };
+}
+
+/**
+ * 英文名池：资料库不以英文存整份物品定义，只能拿文件里写过的英文名去**英文搜索索引**反查
+ * （`search-en.sqlite`；`getItemHashesByExactName` 已并集中英两套索引），再拼一份只带名字的定义池。
+ *
+ * 只装文件里出现过的名字：③ 的判据只问「这个英文名指向哪些官方装备」，不需要英文清单。
+ * 文件里一个英文名都没有时返回 `undefined`——英文判据整体不启用，`resolveOfficialWeaponDefinitions`
+ * 退回中文名一条路，与从前一致（见 `WeaponKnowledgeSemanticDefinitions.english_item_definitions`）。
+ */
+async function loadEnglishItemDefinitions(
+  csvText: string
+): Promise<DefinitionComponentData | undefined> {
+  const names = collectWeaponRecommendationEnglishNames(csvText);
+  if (!names.length) return undefined;
+  const catalog = getGameDataCatalog();
+  const definitions: DefinitionComponentData = {};
+  for (const name of names) {
+    const hashes = await catalog.getItemHashesByExactName({ names: [name] });
+    for (const hash of hashes) {
+      const key = String(hash);
+      // 一个 hash 只记一次，先写进来的名字留着：池子只用来核对行里的英文名，多记名字没有意义。
+      if (definitions[key]) continue;
+      definitions[key] = { hash, displayProperties: { name } };
+    }
+  }
+  return definitions;
 }
 
 /**
@@ -499,10 +545,10 @@ async function loadCommunityDefinitions(itemHashes: number[], extraPlugHashes: n
 }
 
 /**
- * 导入期才有身份推导：`previewStrictWeaponKnowledgeCsv` 用它把 CSV 里的武器身份展开成 hash 集。
+ * 导入期才有身份推导：人工 CSV 与愿望单文本两条导入链都用它把武器身份展开成 hash 集。
  * 读取期（`community:recommendations:get` / 仓库匹配）不再调用——身份已经在导入期定死。
  */
-async function loadWeaponIdentityRelations(itemHashes: number[]): Promise<WeaponIdentityRelation[]> {
+export async function loadWeaponIdentityRelations(itemHashes: number[]): Promise<WeaponIdentityRelation[]> {
   if (!itemHashes.length) return [];
   try {
     return await getGameDataCatalog().getWeaponIdentityRelations({
@@ -514,11 +560,22 @@ async function loadWeaponIdentityRelations(itemHashes: number[]): Promise<Weapon
   }
 }
 
+/**
+ * 这把武器命中了的愿望单规则各自写了哪些插件 hash——给定义池补的一批。
+ *
+ * 命中判定走规则的**覆盖集**（`item_hashes`，导入期家族全展开的产物，缺省时按 `[item_hash]` 理解），
+ * 与 `dimWishlistSource` 建「武器 → 规则」索引时同一套判据。只按 `rule.item_hash` 过滤的话，
+ * 「规则写在同族另一把枪上、展开到这把枪」的插件就进不了定义池，规则里写到、而这把枪自己的插槽池里
+ * 没有的插件会只剩 hash，没有名字和图标。
+ *
+ * 与 `recommendationWorker.ts` 的同名函数一致；两份各自在自己的模块图里，改动要成对。
+ */
 function dimRulePerkHashes(dataDir: string, itemHashes: number[]): number[] {
   try {
     const wanted = new Set(itemHashes);
     return [...new Set((loadDimWishlist(dataDir)?.rules ?? [])
-      .filter((rule) => wanted.has(rule.item_hash))
+      .filter((rule) => (rule.item_hashes?.length ? rule.item_hashes : [rule.item_hash])
+        .some((hash) => wanted.has(hash)))
       .flatMap((rule) => rule.perk_hashes))];
   } catch {
     return [];

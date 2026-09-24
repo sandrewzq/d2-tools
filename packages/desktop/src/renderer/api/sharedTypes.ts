@@ -72,7 +72,8 @@ export type WeaponKnowledgeImportPreview = {
     row_number: number;
     weapon_name: string;
     source_label: string;
-    field: "推荐来源" | "规则名称" | "武器ID" | "武器" | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
+    field: "推荐来源" | "规则名称" | "武器ID" | "武器" | "英文名称" | "弹药类型"
+      | "枪管" | "弹匣" | "大师" | "Perk 1" | "Perk 2" | "起源特性";
     value: string;
     message: string;
   }>;

@@ -106,6 +106,12 @@ export type VaultRecommendationManagedSource = {
   vault_instance_count?: number;
   /** 这一行在事实层登记过的全部键（分组键 + 下辖实例键），见服务层同名字段。 */
   fact_keys: string[];
+  /**
+   * 这份导入是旧口径写下的：它**没有参与**匹配，要重新导一次才生效，见服务层同名字段。
+   *
+   * 缺省按「当前口径」理解：老快照与测试夹具不会因为少这个字段就多出一行提示。
+   */
+  needs_reimport?: boolean;
 };
 
 export type VaultRecommendationManagedRule = {
@@ -814,7 +820,7 @@ export function VaultRecommendationDataPanel(props: {
             <div className="vault-import-action-row">
                 <span>
                   <strong>{vaultText(copy, "人工推荐表格")}</strong>
-                  <small>{vaultText(copy, "支持 .csv 与 .xlsx 表格文件；列名照模板写即可，上一版模板与旧版文件仍可导入。没有现成表格时可先下载模板。")}</small>
+                  <small>{vaultText(copy, "支持 .csv 与 .xlsx 表格文件；模板的表头自带填写说明，表头下面跟一行示例数据（导入时自动跳过），列名照模板写即可；上一版模板与旧版文件仍可导入。没有现成表格时可先下载模板。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
                   <ControlButton data-knowledge-import="" size="compact" variant="primary" aria-label={vaultText(copy, "导入人工推荐表格")} disabled={isBusy} onClick={() => setKnowledgeImportOpen(true)}>{vaultText(copy, "导入表格文件")}</ControlButton>
@@ -885,7 +891,7 @@ export function VaultRecommendationDataPanel(props: {
               <div className="vault-import-step">
                 <span>
                   <strong>{vaultText(copy, "1. 下载模板（可选）")}</strong>
-                  <small>{vaultText(copy, "没有现成表格时，先下载空白模板填写；中英文列名一致，Hash 等系统字段在导入时自动补齐。")}</small>
+                  <small>{vaultText(copy, "没有现成表格时，先下载模板填写：表头自带填写说明，下面跟一行示例数据，导入时自动跳过；Hash 等系统字段在导入时自动补齐。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
                   {props.actions.exportKnowledgeTemplate ? (
@@ -900,7 +906,7 @@ export function VaultRecommendationDataPanel(props: {
               <div className="vault-import-step">
                 <span>
                   <strong>{vaultText(copy, "2. 选择填好的表格文件")}</strong>
-                  <small>{vaultText(copy, "支持 .csv 与 .xlsx；当前模板 12 列，上一版 11 列与旧版 13 列、31 列文件仍可导入。")}</small>
+                  <small>{vaultText(copy, "支持 .csv 与 .xlsx；当前模板 15 列（英文 14 列），上一版 14 列（英文 13 列）、更早的 12 列统一模板、旧版玩家模板 13 列与完整数据包 31 列文件仍可导入。")}</small>
                 </span>
                 <div className="vault-import-action-buttons">
                   <ControlButton size="compact" variant="primary" disabled={isBusy} onClick={() => void selectKnowledgeCsv()}>{vaultText(copy, busyAction === "knowledge-select" ? "校验中" : "选择表格文件")}</ControlButton>
@@ -1219,14 +1225,19 @@ export function managedSourceStateLabel(copy: VaultCopy, source: VaultRecommenda
 }
 
 /**
- * 来源行与详情标题那行小字：「来源格式 · 状态」。
+ * 来源行与详情标题那行小字：「来源格式 · 状态」，旧口径的导入再补一句。
  *
  * 格式名由服务层给出（`format_label`），这里只是把它排在状态前面，**不判断格式**：
  * 界面上没有「哪种格式显示成什么」的逻辑，加一种格式这里一行都不用改。
  * 服务层认不出来源类型时格式名是空串，这时只显示状态。
+ *
+ * 旧口径那份来源在管理面照旧列出、状态也照旧（启用 / 停用都是真的），但读取侧把它整体挡在了匹配之外——
+ * 不说这一句，用户看到来源在、规则数在，却一件都筛不出来，只能读成程序算错了。
+ * 重新导入（同名覆盖）之后这一句自然消失。
  */
 export function managedSourceMetaLabel(copy: VaultCopy, source: VaultRecommendationManagedSource): string {
-  return [source.format_label, managedSourceStateLabel(copy, source)].filter(Boolean).join(" · ");
+  const reimport = source.needs_reimport ? vaultText(copy, "按旧口径导入，需要重新导入") : "";
+  return [source.format_label, managedSourceStateLabel(copy, source), reimport].filter(Boolean).join(" · ");
 }
 
 /**

@@ -29,6 +29,11 @@ const weaponHash = 1001;
 const voltShotPlug = 2001;
 const rapidHitPlug = 2002;
 
+/**
+ * 英文名池（③）：英文模板那一行的武器名落在「英文名称」列，**有英文名就只按英文名匹配**，
+ * 所以这条路要先在池子里查到 hash。真实调用方按文件里写过的名字去搜索索引反查
+ * （`search-en.sqlite`；中英两套索引取并集），池子里装的因此是「这个名字对应的官方装备」。
+ */
 const semanticDefinitions: WeaponKnowledgeSemanticDefinitions = {
   item_definitions: {
     [String(weaponHash)]: {
@@ -57,7 +62,10 @@ const semanticDefinitions: WeaponKnowledgeSemanticDefinitions = {
       displayProperties: { name: "快速命中", description: "中文 perk" }
     }
   },
-  plug_set_definitions: {}
+  plug_set_definitions: {},
+  english_item_definitions: {
+    [String(weaponHash)]: { hash: weaponHash, displayProperties: { name: "测试步枪" } }
+  }
 };
 
 const validation: WeaponKnowledgeValidationContext = {

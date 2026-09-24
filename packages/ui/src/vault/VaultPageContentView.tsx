@@ -68,7 +68,8 @@ import {
   type VaultRecommendationFilterFact,
   type VaultRecommendationFilterFactIndex,
   type VaultRecommendationMetricKey,
-  type VaultRecommendationPrimaryFilter
+  type VaultRecommendationPrimaryFilter,
+  type VaultRecommendationSummaryIndex
 } from "../recommendationMatchView.js";
 import { buildVaultCleanupProtectionIndex } from "./vaultCleanupProtection.js";
 import { createVaultItemCollectionStore } from "./vaultItemCollectionStore.js";
@@ -135,6 +136,12 @@ export function VaultPageContentView(props: {
   const [sortKey, setSortKey] = useState<VaultSortKey>("name");
   const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
   const [recommendationSourceSelections, setRecommendationSourceSelections] = useState<VaultRecommendationSourceSelection[]>([]);
+  /**
+   * 「无任何匹配」：只看一条来源都没命中的装备（卡片上写“暂无推荐来源”的那些）。
+   * 它与来源勾选语义相反（勾了来源就要求该来源有记录），所以两者互斥：
+   * 打开它清空来源勾选，勾来源则关掉它。
+   */
+  const [recommendationUnmatchedOnly, setRecommendationUnmatchedOnly] = useState(false);
   const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
   const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
   const [locationFilter, setLocationFilter] = useState<VaultLocationFilter>("vault");
@@ -336,8 +343,19 @@ export function VaultPageContentView(props: {
     managedRecommendationSources,
     Boolean(props.wishlistActions?.getRecommendationManagement)
   ), [managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance, staticCatalogItems]);
+  // 「无任何匹配」里有多少件：判据与卡片上那句「暂无推荐来源」同源，都是这张摘要表里没有条目。
+  // 扫描没跑完、这件还没算到的，不能算无匹配——那只是「还不知道」，报成无匹配会先冒出一批随后又消失的装备。
+  const recommendationUnmatchedItems = useMemo(() => filteredVaultItems.filter((item) => (
+    isVaultItemWithoutRecommendation(item, {
+      summaryIndex: recommendationSummaryByInstance,
+      recommendationCardSummary: props.recommendationCardSummary,
+      recommendationScanComplete: props.recommendationSourceState?.recommendationScan.phase === "complete"
+    })
+  )), [filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationSummaryByInstance]);
   const recommendationSourceOptions = useMemo(() => {
     const contextualCounts = new Map(buildVaultRecommendationSourceOptions(
+      // 来源按钮上的数字照旧只算「其他条件」，不算它自己：点下去就是把这个来源打开，
+      // 而点它又会关掉「无任何匹配」，所以这个数字恰好就是点完会看到的件数。
       filteredVaultItems.map((item) => (
         recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? []
       )),
@@ -358,6 +376,8 @@ export function VaultPageContentView(props: {
     const isSelected = recommendationSourceSelections.some((selection) => selection.sourceId === sourceId);
     if (isSelected && recommendationSourceSelections.length === 1) setSortKey("name");
     if (!isSelected) setSortKey("recommendation");
+    // 勾了来源就要求「这个来源有记录」，与「一条来源都没命中」正好相反，两者不能同时生效。
+    if (!isSelected) setRecommendationUnmatchedOnly(false);
     setRecommendationSourceSelections((current) => {
       if (current.some((selection) => selection.sourceId === sourceId)) {
         return current.filter((selection) => selection.sourceId !== sourceId);
@@ -369,6 +389,13 @@ export function VaultPageContentView(props: {
       };
       return [...current, nextSelection];
     });
+  }
+
+  function toggleRecommendationUnmatchedOnly() {
+    const next = !recommendationUnmatchedOnly;
+    setRecommendationUnmatchedOnly(next);
+    // 打开它时把来源勾选让位：两条件语义相反，留着就是一条自相矛盾的条件。
+    if (next) setRecommendationSourceSelections([]);
   }
 
   function updateRecommendationSourceSelection(
@@ -397,18 +424,22 @@ export function VaultPageContentView(props: {
     copy,
     contextualItems: filteredVaultItems,
     factIndex: recommendationFilterFactByInstance,
+    summaryIndex: recommendationSummaryByInstance,
     selections: recommendationSourceSelections,
+    unmatchedOnly: recommendationUnmatchedOnly,
     sourceIds: availableRecommendationSources.map((source) => source.sourceId),
     recommendationCardSummary: props.recommendationCardSummary,
     recommendationScanComplete: props.recommendationSourceState?.recommendationScan.phase === "complete"
-  }), [availableRecommendationSources, copy, filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections]);
+  }), [availableRecommendationSources, copy, filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections, recommendationSummaryByInstance, recommendationUnmatchedOnly]);
   const recommendationAllowedItemKeys = useMemo(() => buildVaultRecommendationAllowedItemKeys({
     catalogItems: staticCatalogItems,
     factIndex: recommendationFilterFactByInstance,
+    summaryIndex: recommendationSummaryByInstance,
     selections: recommendationSourceSelections,
+    unmatchedOnly: recommendationUnmatchedOnly,
     recommendationCardSummary: props.recommendationCardSummary,
     recommendationScanComplete: props.recommendationSourceState?.recommendationScan.phase === "complete"
-  }), [props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections, staticCatalogItems]);
+  }), [props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationFilterFactByInstance, recommendationSourceSelections, recommendationSummaryByInstance, recommendationUnmatchedOnly, staticCatalogItems]);
   const filteredItems = recommendationFilterState.items;
   const recommendationSourceFilterStates = recommendationFilterState.sources;
   useEffect(() => {
@@ -432,19 +463,23 @@ export function VaultPageContentView(props: {
       return changed ? next : current;
     });
   }, [recommendationSourceFilterStates]);
-  const recommendationSelectionLabels = useMemo(() => recommendationSourceSelections.flatMap((selection) => {
-    const source = recommendationSourceOptions.find((option) => option.sourceId === selection.sourceId);
-    const sourceState = recommendationSourceFilterStates.find((state) => state.sourceId === selection.sourceId);
-    if (!source || !sourceState) return [];
-    const labels = [vaultTemplate(copy, "推荐来源：{label}", { label: source.sourceLabel })];
-    if (selection.primaryFilter !== "all") {
-      labels.push(vaultTemplate(copy, "perk 命中：{filter}", { filter: vaultRecommendationPrimaryFilterLabel(copy, selection.primaryFilter) }));
-    }
-    if (selection.completeFilter !== "all") {
-      labels.push(vaultTemplate(copy, "完整命中：{filter}", { filter: selection.completeFilter }));
-    }
-    return labels;
-  }), [copy, recommendationSourceFilterStates, recommendationSourceOptions, recommendationSourceSelections]);
+  const recommendationSelectionLabels = useMemo(() => [
+    ...recommendationSourceSelections.flatMap((selection) => {
+      const source = recommendationSourceOptions.find((option) => option.sourceId === selection.sourceId);
+      const sourceState = recommendationSourceFilterStates.find((state) => state.sourceId === selection.sourceId);
+      if (!source || !sourceState) return [];
+      const labels = [vaultTemplate(copy, "推荐来源：{label}", { label: source.sourceLabel })];
+      if (selection.primaryFilter !== "all") {
+        labels.push(vaultTemplate(copy, "perk 命中：{filter}", { filter: vaultRecommendationPrimaryFilterLabel(copy, selection.primaryFilter) }));
+      }
+      if (selection.completeFilter !== "all") {
+        labels.push(vaultTemplate(copy, "完整命中：{filter}", { filter: selection.completeFilter }));
+      }
+      return labels;
+    }),
+    // 与来源勾选一样是一条生效中的条件，要进筛选条和上下文事实行，否则用户看不出列表为什么被收窄。
+    ...(recommendationUnmatchedOnly ? [vaultText(copy, "无任何匹配")] : [])
+  ], [copy, recommendationSourceFilterStates, recommendationSourceOptions, recommendationSourceSelections, recommendationUnmatchedOnly]);
   const selectedItems = useMemo(
     () => props.items.filter((item) => selectedKeys.has(getVaultSelectionItemKey(item))),
     [props.items, selectedKeys]
@@ -634,6 +669,7 @@ export function VaultPageContentView(props: {
     setSortKey("name");
     setTagFilter("all");
     setRecommendationSourceSelections([]);
+    setRecommendationUnmatchedOnly(false);
     setLockFilter("all");
     setSlotFilter("all");
     setLocationFilter(nextLocation);
@@ -657,6 +693,7 @@ export function VaultPageContentView(props: {
     setLocationFilter(nextGroup === "weapons" ? "vault" : "all");
     if (nextGroup !== "weapons") {
       setRecommendationSourceSelections([]);
+      setRecommendationUnmatchedOnly(false);
       if (sortKey === "recommendation") setSortKey("name");
       setAmmoFilter("all");
       setItemTypeFilter("all");
@@ -907,6 +944,23 @@ export function VaultPageContentView(props: {
               <div className="vault-results-command-row">
                 {group === "weapons" ? (
                   <div className="vault-recommendation-filter" role="group" aria-label={vaultText(copy, "按推荐来源筛选")}>
+                    {/* 不是来源，是「一条来源都没有」这个状态，所以不并进下面那组「推荐来源多选」，
+                        但要和来源行同一副样子：它同样是收窄列表的一条条件。 */}
+                    <div className="vault-recommendation-unmatched-row">
+                      <button
+                        type="button"
+                        className="vault-recommendation-source-toggle"
+                        aria-pressed={recommendationUnmatchedOnly}
+                        disabled={!recommendationUnmatchedOnly && recommendationUnmatchedItems.length === 0}
+                        aria-label={`${vaultTemplate(copy, "无任何匹配，{count} 件", { count: recommendationUnmatchedItems.length })}${recommendationUnmatchedOnly ? vaultText(copy, "，已选中") : ""}`}
+                        title={vaultTemplate(copy, "只看没有任何推荐来源命中的装备 · {count} 件", { count: recommendationUnmatchedItems.length })}
+                        onClick={toggleRecommendationUnmatchedOnly}
+                      >
+                        <span className="vault-recommendation-source-check" aria-hidden="true">{recommendationUnmatchedOnly ? "✓" : ""}</span>
+                        <span>{vaultText(copy, "无任何匹配")}</span>
+                        <small className="vault-recommendation-option-count">{recommendationUnmatchedItems.length}</small>
+                      </button>
+                    </div>
                     <div className="vault-recommendation-source-list" role="group" aria-label={vaultText(copy, "推荐来源多选")}>
                       {recommendationSourceOptions.map((option) => {
                         const selection = recommendationSourceSelections.find((item) => item.sourceId === option.sourceId);
@@ -1159,7 +1213,9 @@ function buildVaultRecommendationFilterState(input: {
   copy: VaultCopy;
   contextualItems: readonly AccountItemSummary[];
   factIndex: VaultRecommendationFilterFactIndex;
+  summaryIndex: VaultRecommendationSummaryIndex;
   selections: readonly VaultRecommendationSourceSelection[];
+  unmatchedOnly: boolean;
   sourceIds: readonly string[];
   recommendationCardSummary?: ReadonlyMap<string, RecommendationCardSummary>;
   recommendationScanComplete: boolean;
@@ -1167,10 +1223,15 @@ function buildVaultRecommendationFilterState(input: {
   items: AccountItemSummary[];
   sources: VaultRecommendationSourceFilterState[];
 } {
+  const items = input.contextualItems.filter((item) => (
+    input.unmatchedOnly
+      ? isVaultItemWithoutRecommendation(item, input)
+      : input.selections.every((selection) => matchesSourceSelection(item, selection, input))
+  ));
   const sourceIds = input.sourceIds.length
     ? input.sourceIds
     : input.selections.map((selection) => selection.sourceId);
-  if (!sourceIds.length) return { items: [...input.contextualItems], sources: [] };
+  if (!sourceIds.length) return { items, sources: [] };
   const sourceStates: VaultRecommendationSourceFilterState[] = sourceIds.map((sourceId) => {
     const selection = input.selections.find((item) => item.sourceId === sourceId) ?? { sourceId, primaryFilter: "all", completeFilter: "all" };
     const candidates = input.contextualItems.filter((item) => input.selections.every((other) => (
@@ -1212,7 +1273,6 @@ function buildVaultRecommendationFilterState(input: {
       ]
     };
   });
-  const items = input.contextualItems.filter((item) => input.selections.every((selection) => matchesSourceSelection(item, selection, input)));
   return { items, sources: sourceStates };
 }
 
@@ -1227,6 +1287,23 @@ function getSourceFact(item: AccountItemSummary, sourceId: string, input: {
     return { primaryKey: "uncovered" };
   }
   return undefined;
+}
+
+/**
+ * 卡片上那句「暂无推荐来源」的判据：这张来源摘要表里没有任何一条。
+ *
+ * 来源扫描没跑完、这件还没算到的时候不能算无匹配——那只是「还不知道」，报成无匹配会先冒出一批随后又消失的装备。
+ * 这里与 `getSourceFact` 用的是同一道守卫：判「知道」的条件一样，判「不知道」的结论才一样。
+ */
+function isVaultItemWithoutRecommendation(item: AccountItemSummary, input: {
+  summaryIndex: VaultRecommendationSummaryIndex;
+  recommendationCardSummary?: ReadonlyMap<string, RecommendationCardSummary>;
+  recommendationScanComplete: boolean;
+}): boolean {
+  const instanceKey = getVaultCommunityInstanceKey(item);
+  if (input.summaryIndex.get(instanceKey)?.length) return false;
+  if (!input.recommendationScanComplete && !input.recommendationCardSummary?.has(instanceKey)) return false;
+  return true;
 }
 
 function hasSourceRecord(item: AccountItemSummary, sourceId: string, factIndex: VaultRecommendationFilterFactIndex): boolean {
@@ -1249,15 +1326,21 @@ function matchesSourceSelection(item: AccountItemSummary, selection: VaultRecomm
 function buildVaultRecommendationAllowedItemKeys(input: {
   catalogItems: readonly AccountItemSummary[];
   factIndex: VaultRecommendationFilterFactIndex;
+  summaryIndex: VaultRecommendationSummaryIndex;
   selections: readonly VaultRecommendationSourceSelection[];
+  unmatchedOnly: boolean;
   recommendationCardSummary?: ReadonlyMap<string, RecommendationCardSummary>;
   recommendationScanComplete: boolean;
 }): ReadonlySet<string> | undefined {
-  if (!input.selections.length) {
+  if (!input.selections.length && !input.unmatchedOnly) {
     return undefined;
   }
   const allowed = new Set<string>();
   for (const item of input.catalogItems) {
+    if (input.unmatchedOnly) {
+      if (isVaultItemWithoutRecommendation(item, input)) allowed.add(getVaultSelectionItemKey(item));
+      continue;
+    }
     if (input.selections.every((selection) => matchesSourceSelection(item, selection, input))) {
       allowed.add(getVaultSelectionItemKey(item));
     }

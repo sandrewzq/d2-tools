@@ -521,6 +521,7 @@ function mergeRecommendationSourceDetails(
     return {
       ...match,
       source_label: record.source_label || match.source_label,
+      ...(record.declared_label ? { declared_label: record.declared_label } : {}),
       source_url: record.source_url ?? match.source_url,
       purposes: record.purposes.length ? record.purposes : match.purposes,
       rating: record.rating ?? match.rating,

@@ -35,6 +35,15 @@ import {
  *
  * 同一行里**同一栏**写了两个 perk 仍照旧报 `same_slot`：那是真的不可能同时拥有
  * （消歧时两条要求撞在同一栏，或作者本来就把一栏写了两个）。
+ *
+ * ## 按哪一版的插槽池归栏：规则声明的版本（2026-09-24）
+ *
+ * 同一条规则要按 `rule.item_hash`（作者写这条规则时声明的那一版）的目录归栏，不是按读取期
+ * 手上这件装备的版本。导入期校验本来就是按声明版本分组的（`dimWishlistValidation.ts` 的
+ * `rulesByWeapon`），读取期若改按实例版本，两处就不是同一份输入了：家族展开把规则带到别的
+ * 版本上时，实例版本里换过栏位的 perk 会被归成 `special` / `unknown` 而丢掉，同一条作者意图
+ * 在 CSV 侧（栏位由作者写死）与愿望单文本侧就变成不同的要求条数。声明版本不在定义池里才退回
+ * 实例版本——归错栏也好过整把枪一条事实都没有。
  */
 
 type SlotCatalogEntry = {
@@ -64,14 +73,30 @@ export type DiagnosedDimWishlistRule<T> = {
  * 每个 perk 都会落成 `unknown_slot`——导入期据此**必须放行而不是判笔误**，
  * 否则资料库缺一把枪就会把整份文件判没。
  */
-export function diagnoseDimWishlistRules<T extends { perk_hashes: number[] }>(
+export function diagnoseDimWishlistRules<T extends { perk_hashes: number[]; item_hash: number }>(
   itemHash: number,
   rules: readonly T[],
   options: SourceOptions
 ): { evaluated: Array<DiagnosedDimWishlistRule<T>>; perkHashToRef: Map<number, PerkRef> } {
   const perkHashToRef = buildPerkRefMap(itemHash, options, rules);
-  const slotCatalog = buildWeaponSlotCatalog(itemHash, options);
+  const instanceCatalog = buildWeaponSlotCatalog(itemHash, options);
+  const catalogs = new Map<number, SlotCatalogEntry[]>([[itemHash, instanceCatalog]]);
+  const catalogFor = (hash: number): SlotCatalogEntry[] => {
+    const cached = catalogs.get(hash);
+    if (cached) return cached;
+    const built = buildWeaponSlotCatalog(hash, options);
+    catalogs.set(hash, built);
+    return built;
+  };
   const evaluated = rules.map((rule) => {
+    // 归栏读**规则声明的那一版**（`rule.item_hash`），不是手上这件装备的版本。
+    // DIM 文本没有栏位列，作者是照着自己写规则那一版的插槽池逐个写的；家族展开之后同一条规则
+    // 要用在别的版本上，若按实例版本重新归栏，这版装不进特长栏的那条 perk 就归成 `special` /
+    // `unknown` 被丢掉——同一条作者意图在 CSV 里（栏位是作者写死的）是 2 条要求、在愿望单文本里
+    // 变成 1 条，两个来源的「命中几栏」永远对不上。
+    // 声明版本不在定义池里（资料库缺这一版）才退回实例版本：归错栏也好过整把枪没有事实。
+    const declaredCatalog = catalogFor(rule.item_hash);
+    const slotCatalog = declaredCatalog.length ? declaredCatalog : instanceCatalog;
     const diagnostics = diagnoseDimWishlistRule(rule.perk_hashes, perkHashToRef, slotCatalog);
     const requirements = diagnostics.map((perk) => ({
       slot: perk.slot,

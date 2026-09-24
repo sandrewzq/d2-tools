@@ -6,12 +6,12 @@ import { describe, expect, it } from "vitest";
 import type { DimWishlistRule } from "@d2-tools/core/analysis/wishlistImport";
 import { dimWishlistForSource } from "../src/analysis/wishlistStore.js";
 import { openRecommendationDatabase, recommendationDocumentKey } from "../src/community/recommendationDatabase.js";
-import { loadRecommendationSources } from "../src/community/recommendationDocumentStore.js";
+import { loadRecommendationSources, listRecommendationDocuments, recommendationImportPipelineVersion } from "../src/community/recommendationDocumentStore.js";
 
 /**
  * v0.0.26（`abd465c`）发布的推荐库是 **schema v6**。用户从那个版本升级上来，
- * 走的是 `v6 → v11` 这一条**其它迁移用例都没覆盖**的路径：
- * 已有的用例只有 `v8 → v11` 与 `v10 → v11` 两个起点。
+ * 走的是 `v6 → v12` 这一条**其它迁移用例都没覆盖**的路径：
+ * 已有的用例只有 `v8 → v12` 与 `v10 → v12` 两个起点。
  *
  * 这里的库不是「用当前 schema 建好再往回拆」，而是**逐字照抄 v6 的建表语句**建出来的
  * （取自 `git show abd465c:packages/services/src/community/recommendationDatabase.ts`）。
@@ -296,14 +296,33 @@ function dimRules(dataDir: string): DimWishlistRule[] {
     .flatMap((source) => dimWishlistForSource(source).rules);
 }
 
-describe("v6 → v11 upgrade（v0.0.26 用户的唯一升级路径）", () => {
-  it("upgrades a real v6 database without throwing and reaches v11", () => {
+/**
+ * 把库里的导入标成**当前口径**，让读取侧重新为它建来源。
+ *
+ * 口径版本只在写入时写进文档行，v6 库迁移时补出来的列是旧口径；而读取侧不为旧口径建来源
+ * （T56 2026-09-24：身份推导改成「家族全展开 + 声明版本优先 + 逐 hash 自检」，旧口径的覆盖集漏匹配）。
+ *
+ * 本文件要验的是**迁移有没有把字段与键搬对**，所以先翻这一列再走读取路径；真正的重导还会连覆盖集
+ * 一起重写，这里不重写。「翻之前读不到、管理面标着需要重新导入」由一个用例单独钉住。
+ */
+function markImportsCurrent(dataDir: string): void {
+  const database = openRecommendationDatabase(dataDir);
+  try {
+    database.prepare("UPDATE recommendation_documents SET import_pipeline_version = ?")
+      .run(recommendationImportPipelineVersion);
+  } finally {
+    database.close();
+  }
+}
+
+describe("v6 → v12 upgrade（v0.0.26 用户的唯一升级路径）", () => {
+  it("upgrades a real v6 database without throwing and reaches v12", () => {
     const dataDir = tempDataDir();
     createV6Database(dataDir).close();
 
     const migrated = openRecommendationDatabase(dataDir);
     try {
-      expect(Number((migrated.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(11);
+      expect(Number((migrated.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(12);
       expect(migrated.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     } finally {
       migrated.close();
@@ -343,7 +362,15 @@ describe("v6 → v11 upgrade（v0.0.26 用户的唯一升级路径）", () => {
     createV6Database(dataDir).close();
     openRecommendationDatabase(dataDir).close();
 
-    // 口径「DIM 侧不重导」的落点：读侧必须看到和升级前一样的一条来源、一样的规则。
+    // 口径在 T56（2026-09-24）翻过一次：迁移出来的导入是旧口径，读取侧不为它建来源。
+    // 「DIM 侧不重导」到此为止——愿望单文本在旧口径下压根没做过家族展开，照旧读出来只会继续漏匹配；
+    // 迁移本身仍然逐字段搬得动（下面翻转之后再验），但搬完要用户重新导一次才参与匹配。
+    expect(loadRecommendationSources(dataDir, "dim")).toEqual([]);
+    expect(listRecommendationDocuments(dataDir, "dim").map((document) => document.needsReimport))
+      .toEqual([true]);
+    markImportsCurrent(dataDir);
+
+    // 标回当前口径后：读侧必须看到和升级前一样的一条来源、一样的规则。
     const sources = loadRecommendationSources(dataDir, "dim");
     expect(sources).toHaveLength(1);
     expect(sources[0]?.label).toBe(documentName);
@@ -363,6 +390,8 @@ describe("v6 → v11 upgrade（v0.0.26 用户的唯一升级路径）", () => {
   it("reattaches the disabled/removed choices to the rekeyed source instead of orphaning them", () => {
     const dataDir = tempDataDir();
     createV6Database(dataDir).close();
+    // 覆盖表的键要对着读出来的来源键验，先让这份旧口径的导入重新参与匹配（同前面的用例）。
+    markImportsCurrent(dataDir);
     const migrated = openRecommendationDatabase(dataDir);
     try {
       const sourceId = loadRecommendationSources(dataDir, "dim")[0]!.sourceId;
@@ -408,13 +437,15 @@ describe("v6 → v11 upgrade（v0.0.26 用户的唯一升级路径）", () => {
 
     const migrated = openRecommendationDatabase(dataDir);
     try {
-      expect(Number((migrated.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(11);
+      expect(Number((migrated.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(12);
       expect(countRows(migrated, "SELECT COUNT(*) AS count FROM recommendation_documents")).toBe(3);
       expect(migrated.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
     } finally {
       migrated.close();
     }
 
+    // 这三份都是迁移出来的旧口径导入，先标回当前口径才读得到；要验的是「都还在、名字互不相同」。
+    markImportsCurrent(dataDir);
     // 三份都还在，且各有一个互不相同的名字——重名的没有合并、没名的拿到了兜底名。
     const letters = loadRecommendationSources(dataDir, "dim");
     expect(letters).toHaveLength(3);
@@ -455,10 +486,12 @@ describe("v6 → v11 upgrade（v0.0.26 用户的唯一升级路径）", () => {
     const dataDir = tempDataDir();
     createV6Database(dataDir).close();
     openRecommendationDatabase(dataDir).close();
+    // 下面要拿读出来的来源键去比覆盖表的键，先让这份旧口径的导入重新参与匹配（同前）。
+    markImportsCurrent(dataDir);
 
     const database = openRecommendationDatabase(dataDir);
     try {
-      expect(Number((database.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(11);
+      expect(Number((database.prepare("PRAGMA user_version").get() as { user_version: number }).user_version)).toBe(12);
       expect(countRows(database, "SELECT COUNT(*) AS count FROM recommendation_documents")).toBe(1);
       expect(countRows(database, "SELECT COUNT(*) AS count FROM recommendation_source_instances")).toBe(1);
       // 补名只跑一次：第二次打开时键已经按名字算好，名字不该再变。

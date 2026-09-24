@@ -101,6 +101,11 @@ export type RecommendationSourceRecord = {
    */
   source_group_id: string;
   source_label: string;
+  /**
+   * 文件里声明的名字（CSV 的「推荐来源」列值、DIM 的段名）。`source_label` 是用户给这次导入起的
+   * 名字，两者不同时它作为副标题保留；相同时不出现。
+   */
+  declared_label?: string;
   source_url?: string;
   purposes: Array<"pve" | "pvp" | "general">;
   rating?: string;
@@ -128,6 +133,8 @@ export type RecommendationSourceMatch = {
   /** 同来源记录，见 `RecommendationSourceRecord.source_group_id`。 */
   source_group_id: string;
   source_label: string;
+  /** 同 `RecommendationSourceRecord.declared_label`。 */
+  declared_label?: string;
   source_url?: string;
   state:
     | "full"
@@ -229,6 +236,8 @@ export type RecommendationCardSourceSummary = {
   /** 同来源记录，见 `RecommendationSourceRecord.source_group_id`。 */
   source_group_id: string;
   source_label: string;
+  /** 同 `RecommendationSourceRecord.declared_label`。 */
+  declared_label?: string;
   state: RecommendationSourceMatch["state"];
   purposes: Array<"pve" | "pvp" | "general">;
   matched_requirement_count: number;

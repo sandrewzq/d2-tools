@@ -23,6 +23,36 @@ import {
  */
 export type RecommendationSourceKind = "dim" | "csv";
 
+/**
+ * **导入口径版本**：这份导入是按哪一版身份推导写下的——一条规则适用于哪些武器，是靠什么算出来的。
+ *
+ * 1（旧口径）：CSV 在展开之后还做「只保留最新发布组」的归约；愿望单文本压根不展开，只认自己那一行写的 hash。
+ * 2（T56 2026-09-24）：家族全展开 + 声明版本优先 + 逐 hash 池子自检，CSV 与愿望单文本同一套。
+ * 3（T56 2026-09-25）：自检的判据从「每一条候选都要有落点」放宽成「命中任意一条候选即保留」，
+ *   并且「大师杰作」不参与判定（它在插件池里全量枚举，每一版都能到达，在不在判定里都不回答
+ *   「这版跟规则有没有关系」，却会让有这一栏的 CSV 模板比没有这一栏的 DIM 文本多盖几个版本）。
+ *   2 写下的覆盖集漏掉了「只差某一栏」的同族版本——实测 Aegis 暗夜魅影 `34731066` 的
+ *   枪管 / 弹匣 / 大师杰作 / perk1 / perk2 全部命中，只因起源特性不是规则要的 `加速突击`
+ *   就被整版剔除，用户仓库里 12 件这把枪一件来源都不显示（推荐表 748 条规则里 275 条、
+ *   心愿单 6009 条里 1945 条都这样被整版剔除过）。「这版配不出整套」交给匹配期表达。
+ *
+ * 旧口径写下的 hash 集是**错的**——有的版本少显示了本该属于它的推荐（漏匹配），有的版本显示了
+ * 它根本装不上的推荐（死配对，见 #108）。照旧用下去只会给出错的「符合 n 套」，所以
+ * **低于当前版本的文档一律不参与匹配**（可用性门、来源加载都不认），管理面照旧列出来并提示重新导入。
+ *
+ * 口径本身再改一次就要 +1：改了它，用户手上的导入会重新变成「需要重新导入」。
+ */
+export const recommendationImportPipelineVersion = 3;
+
+/**
+ * 「这份文档是当前导入口径写下的」——把来源当成**可用事实**的读取路径都要带上它，参数是
+ * `recommendationImportPipelineVersion`。写成一份片段而不是各处各写一遍：漏掉一处，
+ * 那处就会把旧口径的数据当成有效事实用。
+ *
+ * 需要 `recommendation_documents` 的别名是 `d`。
+ */
+const currentPipelineDocumentSql = "d.import_pipeline_version >= ?";
+
 /** 导入的两个显式动作：新建或覆盖同名文档。不存在默认路径。 */
 export type RecommendationImportMode = "create" | "overwrite";
 
@@ -80,6 +110,22 @@ export type StoredRecommendationInstance = {
   rules: RecommendationStoredRule[];
 };
 
+/**
+ * 来源对外显示的名字：**用户给这次导入起的名字**（文档标题）优先，文件里自己声明的名字
+ * （`label`：CSV 的「推荐来源」列值、DIM 的段名）退为副标题。
+ *
+ * 只在适配层判一次：管理名册、仓库来源筛选、来源事实、详情卡与卡片短名读的是同一个来源身份，
+ * 两处各判一次就会出现「管理面板叫 A、武器详情叫 B」这种同一个来源两个名字的情况。
+ */
+export function recommendationSourceNames(instance: {
+  label: string;
+  documentTitle: string;
+}): { label: string; declaredLabel?: string } {
+  const declared = instance.label.trim();
+  const label = instance.documentTitle.trim() || declared;
+  return { label, ...(declared && declared !== label ? { declaredLabel: declared } : {}) };
+}
+
 export function saveRecommendationDocument(
   dataDir: string,
   input: RecommendationDocumentWrite
@@ -108,11 +154,12 @@ export function saveRecommendationDocument(
     if (existing) {
       database.prepare("DELETE FROM recommendation_documents WHERE document_id = ?").run(documentId);
     }
+    // 导入口径由**写库的这份代码**决定，不由调用方传：适配器传什么都不该能写下「旧口径」。
     database.prepare(`
-      INSERT INTO recommendation_documents(document_id, origin, source_url, revision, fingerprint, imported_at, title, description, author)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO recommendation_documents(document_id, origin, source_url, revision, fingerprint, imported_at, title, description, author, import_pipeline_version)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(documentId, origin, input.sourceUrl ?? "", input.revision ?? "", fingerprint, importedAt,
-      documentName, input.description ?? "", input.author ?? "");
+      documentName, input.description ?? "", input.author ?? "", recommendationImportPipelineVersion);
     const insertInstance = database.prepare(`
       INSERT INTO recommendation_source_instances(
         source_id, document_id, kind, label, title, author, block_id, origin,
@@ -154,6 +201,10 @@ export type RecommendationDocumentSummary = {
   sourceCount: number;
   ruleCount: number;
   kinds: RecommendationSourceKind[];
+  /** 写下这份导入的导入口径版本，见 `recommendationImportPipelineVersion`。 */
+  importPipelineVersion: number;
+  /** 口径低于当前版本：这份导入**没有参与匹配**，要重新导一次才生效。 */
+  needsReimport: boolean;
 };
 
 // 命名身份要求界面能列出已有名字：用来判断冲突、选择覆盖对象、逐条移除。
@@ -182,7 +233,7 @@ export function listRecommendationDocumentsFrom(
   kind?: RecommendationSourceKind
 ): RecommendationDocumentSummary[] {
   const rows = database.prepare(`
-      SELECT d.document_id, d.title, d.origin, d.imported_at,
+      SELECT d.document_id, d.title, d.origin, d.imported_at, d.import_pipeline_version,
              (SELECT COUNT(*) FROM recommendation_source_instances s
                WHERE s.document_id = d.document_id AND (? = '' OR s.kind = ?)) AS source_count,
              (SELECT COUNT(*) FROM recommendation_source_rules r
@@ -204,7 +255,11 @@ export function listRecommendationDocumentsFrom(
     importedAt: String(row.imported_at ?? ""),
     sourceCount: Number(row.source_count ?? 0),
     ruleCount: Number(row.rule_count ?? 0),
-    kinds: String(row.kinds ?? "").split(",").filter(Boolean) as RecommendationSourceKind[]
+    kinds: String(row.kinds ?? "").split(",").filter(Boolean) as RecommendationSourceKind[],
+    // 缺列时的默认值在 SQL 侧给 1（老库 ALTER 出来的就是 1），这里再兜一次，
+    // 免得读到 NULL 时把「口径未知」当成当前口径放行。
+    importPipelineVersion: Number(row.import_pipeline_version ?? 1),
+    needsReimport: Number(row.import_pipeline_version ?? 1) < recommendationImportPipelineVersion
   }));
 }
 
@@ -225,9 +280,9 @@ export function loadRecommendationSources(
              d.author AS document_author, d.imported_at AS document_imported_at
       FROM recommendation_source_instances s
       JOIN recommendation_documents d ON d.document_id = s.document_id
-      WHERE s.state <> 'removed' AND (? = '' OR s.kind = ?)
+      WHERE s.state <> 'removed' AND ${currentPipelineDocumentSql} AND (? = '' OR s.kind = ?)
       ORDER BY d.imported_at, s.source_id
-    `).all(kind ?? "", kind ?? "") as Array<Record<string, string>>;
+    `).all(recommendationImportPipelineVersion, kind ?? "", kind ?? "") as Array<Record<string, string>>;
     return rows.map((row) => ({
       sourceId: row.source_id,
       documentId: row.document_id,
@@ -295,6 +350,9 @@ export function loadRecommendationDocumentInfo(dataDir: string): RecommendationD
  * 判据是**链接本身**（同一份来源就一条链接），不比名字：名字是用户起的，
  * 同一个人可能给同一个链接起不同的名字。排除 `origin='removed'` 之外的都不看，
  * 因为同步的目的就是刷新那份来源。
+ *
+ * **旧口径的文档不认**：它的内容指纹是按旧口径算的，认了就会拿新内容去比旧指纹，
+ * 一致时回一句「没有变化」，用户点多少次同步都换不来重新导入，那份来源就永远停在旧口径。
  */
 export function findRecommendationDocumentBySourceUrl(
   dataDir: string,
@@ -305,11 +363,11 @@ export function findRecommendationDocumentBySourceUrl(
   const database = openRecommendationDatabase(dataDir);
   try {
     const row = database.prepare(`
-      SELECT document_id, title, author, source_url, revision, fingerprint, imported_at
-      FROM recommendation_documents
-      WHERE origin = 'url' AND source_url <> ''
-      ORDER BY imported_at DESC, document_id
-    `).all() as Array<Record<string, string>>;
+      SELECT d.document_id, d.title, d.author, d.source_url, d.revision, d.fingerprint, d.imported_at
+      FROM recommendation_documents d
+      WHERE d.origin = 'url' AND d.source_url <> '' AND ${currentPipelineDocumentSql}
+      ORDER BY d.imported_at DESC, d.document_id
+    `).all(recommendationImportPipelineVersion) as Array<Record<string, string>>;
     // 在 JS 侧比而不是 SQL 侧：链接的归一化规则（大小写、末尾斜杠、百分号转义）只有一份实现，
     // SQL 里再写一遍就会漂移。
     const match = row.find((entry) => normalizeSourceUrl(entry.source_url) === wanted);
@@ -348,9 +406,11 @@ export function hasRecommendationSources(dataDir: string, kind?: RecommendationS
   const database = openRecommendationDatabase(dataDir);
   try {
     const row = database.prepare(`
-      SELECT COUNT(*) AS count FROM recommendation_source_instances
-      WHERE (? = '' OR kind = ?)
-    `).get(kind ?? "", kind ?? "") as { count?: number } | undefined;
+      SELECT COUNT(*) AS count
+      FROM recommendation_source_instances s
+      JOIN recommendation_documents d ON d.document_id = s.document_id
+      WHERE ${currentPipelineDocumentSql} AND (? = '' OR s.kind = ?)
+    `).get(recommendationImportPipelineVersion, kind ?? "", kind ?? "") as { count?: number } | undefined;
     return Number(row?.count ?? 0) > 0;
   } finally {
     database.close();
@@ -359,7 +419,8 @@ export function hasRecommendationSources(dataDir: string, kind?: RecommendationS
 
 /**
  * 「有没有可参与判定的事实」——可用性门只看这一件事，不看是哪份文件导入的、
- * 也不看它当初用的是哪种格式。
+ * 也不看它当初用的是哪种格式。旧口径写下的事实不算数：它们已经在读取路径外被挡掉了，
+ * 这里若还认，界面会显示「有推荐来源」而实际上一条都匹配不出来。
  */
 export function hasActiveRecommendationRules(dataDir: string): boolean {
   const database = openRecommendationDatabase(dataDir);
@@ -368,8 +429,9 @@ export function hasActiveRecommendationRules(dataDir: string): boolean {
       SELECT COUNT(*) AS count
       FROM recommendation_source_rules r
       JOIN recommendation_source_instances s ON s.source_id = r.source_id
-      WHERE s.state = 'active'
-    `).get() as { count?: number } | undefined;
+      JOIN recommendation_documents d ON d.document_id = s.document_id
+      WHERE s.state = 'active' AND ${currentPipelineDocumentSql}
+    `).get(recommendationImportPipelineVersion) as { count?: number } | undefined;
     return Number(row?.count ?? 0) > 0;
   } finally {
     database.close();
@@ -428,7 +490,7 @@ export function recommendationDocumentRevision(dataDir: string): string {
   const database = openRecommendationDatabase(dataDir);
   try {
     const documents = database.prepare(`
-      SELECT document_id, fingerprint, revision, imported_at, title, author
+      SELECT document_id, fingerprint, revision, imported_at, title, author, import_pipeline_version
       FROM recommendation_documents
       ORDER BY document_id
     `).all() as Array<Record<string, string>>;

@@ -32,6 +32,7 @@ function createRecommendationCardSourceSummary(
     source_id: source.source_id,
     source_group_id: source.source_group_id,
     source_label: source.source_label,
+    ...(source.declared_label ? { declared_label: source.declared_label } : {}),
     state: source.state,
     purposes: source.purposes,
     matched_requirement_count: specifiedSlots.length

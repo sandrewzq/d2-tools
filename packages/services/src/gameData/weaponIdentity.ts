@@ -58,14 +58,16 @@ export function relatedWeaponIdentityRelations(
   itemHashes: Iterable<number>
 ): WeaponIdentityRelation[] {
   const requested = new Set([...itemHashes].map((hash) => hash >>> 0));
-  const releaseGroups = new Set(
+  // 与 SQLite 实现（`queryWeaponIdentityRelations`）同一条口径：按**家族**连，不是按发布组。
+  // 家族含赛季版本与发布组孪生，导入期展开只认这一个粒度。
+  const families = new Set(
     relations
       .filter((relation) => requested.has(relation.item_hash >>> 0))
-      .map((relation) => relation.release_group_key)
+      .map((relation) => relation.family_key)
   );
   return relations.filter((relation) => (
     requested.has(relation.item_hash >>> 0)
-    || releaseGroups.has(relation.release_group_key)
+    || families.has(relation.family_key)
   ));
 }
 

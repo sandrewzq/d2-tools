@@ -252,16 +252,18 @@ describe("curated recommendation CSV pipeline", () => {
     expect(recommendation).not.toBeNull();
     const records = recommendation?.source_records ?? [];
     expect(records).toHaveLength(2);
-    // 契约：来源名来自数据，不来自代码兜底。
-    expect(records.map((record) => record.source_label).sort()).toEqual(["示例推荐表A", "示例推荐表B"]);
+    // 契约：来源对外名是用户给这次导入起的名字（文档标题），与来源清单、仓库筛选读的是同一个身份；
+    // 文件里声明的名字（「推荐来源」列值）降为副标题，一个实例保留一个。
+    expect(records.map((record) => record.source_label)).toEqual([importName, importName]);
+    expect(records.map((record) => record.declared_label).sort()).toEqual(["示例推荐表A", "示例推荐表B"]);
     // 契约：CSV 的栏位是导入期固化的真实栏位，不是读取期猜出来的假槽位。
     for (const record of records) {
       expect(record.requirements.map((requirement) => requirement.slot)).toEqual(["perk1", "perk2"]);
       expect(record.requirements[0].candidates.map((candidate) => candidate.hash)).toEqual([voltShotPlug]);
       expect(record.requirements[1].candidates.map((candidate) => candidate.hash)).toEqual([rapidHitPlug]);
     }
-    // 用途跟着来源走，不跟着数组下标走：按来源名取，不把记录顺序当契约。
-    const purposesByLabel = new Map(records.map((record) => [record.source_label, record.purposes]));
+    // 用途跟着来源走，不跟着数组下标走：按实例身份取，不把记录顺序当契约。
+    const purposesByLabel = new Map(records.map((record) => [record.declared_label, record.purposes]));
     expect(purposesByLabel.get("示例推荐表A")).toContain("pve");
     expect(purposesByLabel.get("示例推荐表B")).toContain("pvp");
     // 契约：过了导入期校验的要求必须解析出候选。只在名称上通过、候选为空的「假要求」

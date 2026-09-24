@@ -2,7 +2,8 @@ import {
   reduceCombosToColumnPool,
   isRecommendationRequirementSlot,
   type DimWishlistPerkDiagnostic,
-  type SourceOptions
+  type SourceOptions,
+  type WeaponIdentityRelation
 } from "@d2-tools/core/community-perks";
 import type {
   DimWishlist,
@@ -18,6 +19,11 @@ import {
   weaponDisplayName,
   type DiagnosedDimWishlistRule
 } from "./dimWishlistDiagnostics.js";
+import {
+  expandWeaponFamilyHashes,
+  filterItemHashesByOwnPerkPool,
+  type VersionPerkPoolCache
+} from "./weaponRecommendationKnowledge.js";
 
 /**
  * 导入期校验（T56 · 原 T60）：把**按来源本意无法成立**的行挑出来跳过，其余照常导入。
@@ -90,12 +96,50 @@ export function filterDimWishlistForImport(input: {
   wishlist: DimWishlist;
   parse_issues?: readonly DimWishlistParseIssue[];
   options: SourceOptions;
+  /**
+   * 身份推导（T56 2026-09-24）：家族全展开 + 声明版本优先 + 逐 hash 自检。
+   *
+   * 定义池由调用方负责覆盖到同族版本——展开出来的版本要过自检、读取期还要在页面上解析出
+   * 候选，两处都读 `options` 里的定义。关系取不到时展开退化成「规则只覆盖它自己那把枪」，
+   * 与从前行为一致。
+   */
+  identity?: { relations: readonly WeaponIdentityRelation[] };
 }): DimWishlistImportFilterResult {
   const issues: DimWishlistImportIssue[] = [];
   let issueCount = 0;
   const record = (issue: DimWishlistImportIssue): void => {
     issueCount += 1;
     if (issues.length < maxDimWishlistImportIssues) issues.push(issue);
+  };
+
+  // 声明版本优先：文件里被任何一行写下的武器，不由别的行再展开过去（同一版本上叠两条规则
+  // 会把「符合 n 套」从 1 抬到 2）。取**全部行**而不只是留下的行：预览与落库用的是同一次
+  // 调用，集合一致才不会有两条口径。
+  const identityRelations = input.identity?.relations ?? [];
+  const declaredItemHashes = [...new Set(input.wishlist.rules.map((rule) => rule.item_hash))];
+  const versionPools: VersionPerkPoolCache = new Map();
+  const allDefinitions = {
+    ...input.options.itemDefinitions,
+    ...input.options.plugSetDefinitions
+  };
+  /** 规则的覆盖集：家族全展开之后逐 hash 用这一版自己的插件池自检（#108）。 */
+  const expansionFor = (entry: DiagnosedDimWishlistRule<DimWishlistRule>): DimWishlistRule => {
+    const expanded = expandWeaponFamilyHashes([entry.rule.item_hash], identityRelations, {
+      declaredItemHashes,
+      definitions: input.options.itemDefinitions
+    });
+    if (expanded.length <= 1) return entry.rule;
+    // 自检按「这把枪上任意一栏能到达」判，不按栏位一一对上，命中任意一条候选即保留
+    // （2026-09-25）；推荐表那条链同判据，且同样不把「大师杰作」算进判定（愿望单文本没有这一栏，
+    // 推荐表侧跳过的理由见 `resolveRuleRequirements` 调用点），两条链的覆盖集因此逐条相同。
+    const covered = filterItemHashesByOwnPerkPool({
+      itemHashes: expanded,
+      requirements: entry.requirements.map((requirement) => ({ candidates: requirement.hashes })),
+      allDefinitions,
+      plugSetDefinitions: input.options.plugSetDefinitions,
+      poolCache: versionPools
+    });
+    return covered.length > 1 ? { ...entry.rule, item_hashes: covered } : entry.rule;
   };
 
   const rulesByWeapon = new Map<number, DimWishlistRule[]>();
@@ -127,6 +171,13 @@ export function filterDimWishlistForImport(input: {
   }
 
   const keptRules = new Set<DimWishlistRule>();
+  // 规则对象 → 带覆盖集的副本。`keptRules` 按对象身份筛选，所以展开只在这张表里换对象。
+  const expandedRules = new Map<DimWishlistRule, DimWishlistRule>();
+  const keep = (entry: DiagnosedDimWishlistRule<DimWishlistRule>): void => {
+    keptRules.add(entry.rule);
+    const expanded = expansionFor(entry);
+    if (expanded !== entry.rule) expandedRules.set(entry.rule, expanded);
+  };
   let affectedWeaponCount = 0;
   let skippedWeaponCount = 0;
   let mergedRowCount = 0;
@@ -147,7 +198,7 @@ export function filterDimWishlistForImport(input: {
     }
 
     if (droppedEntries.length === 0) {
-      for (const entry of keptEntries) keptRules.add(entry.rule);
+      for (const entry of keptEntries) keep(entry);
       continue;
     }
 
@@ -191,7 +242,7 @@ export function filterDimWishlistForImport(input: {
       continue;
     }
     if (keptEntries.length === 0) skippedWeaponCount += 1;
-    for (const entry of keptEntries) keptRules.add(entry.rule);
+    for (const entry of keptEntries) keep(entry);
   }
 
   const survivingBlockIds = new Set(
@@ -199,7 +250,9 @@ export function filterDimWishlistForImport(input: {
   );
   const sourceBlocks = (input.wishlist.source_blocks ?? [])
     .filter((block) => survivingBlockIds.has(block.id));
-  const rules = input.wishlist.rules.filter((rule) => keptRules.has(rule));
+  const rules = input.wishlist.rules
+    .filter((rule) => keptRules.has(rule))
+    .map((rule) => expandedRules.get(rule) ?? rule);
 
   return {
     wishlist: {

@@ -237,6 +237,7 @@ export const itemDetailCopy: Record<InterfaceLocale, LocaleCopy["itemDetail"]> =
         "固定异域不使用随机 Perk 目标；此处保留来源说明和使用建议。": "Fixed exotics do not use random perk targets; the source notes and usage advice are kept here.",
         "该来源没有指定随机 Perk 目标。": "This source specifies no random perk targets.",
         "用途：{value}": "Purpose: {value}",
+        "文件内名称：{value}": "Name in the source file: {value}",
         "评级：{value}": "Rating: {value}",
         "排名：{value}": "Rank: {value}",
         "更新时间：{value}": "Updated: {value}",

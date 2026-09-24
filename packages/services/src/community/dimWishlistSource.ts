@@ -19,6 +19,7 @@ import {
 } from "./dimWishlistDiagnostics.js";
 import {
   loadRecommendationSources,
+  recommendationSourceNames,
   type StoredRecommendationInstance
 } from "./recommendationDocumentStore.js";
 import {
@@ -35,19 +36,24 @@ const maxDimSourceInstances = 512;
 export function createDimWishlistSources(dataDir: string): CommunityPerkSource[] {
   const sourceOverrides = listRecommendationSourceOverrides(dataDir);
   const ruleOverrides = listRecommendationRuleOverrides(dataDir);
-  // 来源实例是 DIM 的唯一来源真相；标签在导入期固化，读取时不再推导。
+  // 来源实例是 DIM 的唯一来源真相；对外名只在 `recommendationSourceNames` 里判一次，
+  // 不从规则内容重新推导来源名。
   const storedSources = loadRecommendationSources(dataDir, "dim");
   if (!storedSources.length) return [];
   return summarizeDimSources(storedSources)
     .filter((source) => source.state === "active")
-    .map((source) => createDimWishlistSourceForRules(
-      dataDir,
-      source.sourceId,
-      source.documentId,
-      source.label,
-      dimWishlistForSource(source),
-      { sourceOverrides, ruleOverrides }
-    ));
+    .map((source) => {
+      const { label, declaredLabel } = recommendationSourceNames(source);
+      return createDimWishlistSourceForRules(
+        dataDir,
+        source.sourceId,
+        source.documentId,
+        label,
+        declaredLabel,
+        dimWishlistForSource(source),
+        { sourceOverrides, ruleOverrides }
+      );
+    });
 }
 
 // 旧版本曾按 block 生成数千个实例。异常膨胀时收敛到文档级来源，
@@ -63,7 +69,8 @@ function summarizeDimSources(
     else byDocument.set(source.documentId, {
       ...source,
       sourceId: source.documentId,
-      label: source.title || source.documentTitle,
+      // 收敛只改身份的粒度，不改名字的来路：声明名仍取实例自己的 title / label，主名由适配层按文档标题给。
+      label: source.title || source.label,
       rules: [...source.rules]
     });
   }
@@ -75,6 +82,7 @@ function createDimWishlistSourceForRules(
   sourceId: string,
   documentId: string,
   sourceLabel: string,
+  declaredLabel: string | undefined,
   loadedWishlist: DimWishlist,
   overrides?: { sourceOverrides: RecommendationSourceOverride[]; ruleOverrides: RecommendationRuleOverride[] }
 ): CommunityPerkSource {
@@ -94,9 +102,12 @@ function createDimWishlistSourceForRules(
     : null;
   const rulesByItemHash = new Map<number, NonNullable<typeof wishlist>["rules"]>();
   wishlist?.rules.forEach((rule) => {
-    const existing = rulesByItemHash.get(rule.item_hash);
-    if (existing) existing.push(rule);
-    else rulesByItemHash.set(rule.item_hash, [rule]);
+    // 家族全展开在导入期算完（`item_hashes`）；缺省表示这条规则只覆盖它自己那一把。
+    for (const itemHash of rule.item_hashes?.length ? rule.item_hashes : [rule.item_hash]) {
+      const existing = rulesByItemHash.get(itemHash);
+      if (existing) existing.push(rule);
+      else rulesByItemHash.set(itemHash, [rule]);
+    }
   });
   return {
     name: sourceLabel,
@@ -138,6 +149,7 @@ function createDimWishlistSourceForRules(
       });
       const sourceRecords: RecommendationSourceRecord[] = pool
         ? [{ rule_stable_id: sourceId + ":pool", source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel,
+             ...(declaredLabel ? { declared_label: declaredLabel } : {}),
              purposes: [...new Set(diagnosed.map(({ rule }) => rule.mode))],
              requirements: pool.columns.map((column) => {
                const refs = candidateRefs([...new Set(column.candidates.flat().map(Number))]);
@@ -150,7 +162,9 @@ function createDimWishlistSourceForRules(
             // 而武器自己还标着「符合推荐」。人工推荐表格那边一直是每条都出，这里补齐同一件事。
             .map(({ rule, metadata, requirements }) => ({
               rule_stable_id: rule.rule_stable_id ?? (sourceId + ":" + rule.item_hash + ":" + rule.perk_hashes.join(",")),
-              source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel, purposes: [rule.mode],
+              source_id: sourceId, source_group_id: sourceGroupId, source_label: sourceLabel,
+              ...(declaredLabel ? { declared_label: declaredLabel } : {}),
+              purposes: [rule.mode],
               ...(metadata.note || metadata.source_title ? { note: metadata.note || metadata.source_title } : {}),
               requirements: locatable(requirements)
                 .map((requirement) => toRequirement(requirement.slot, [requirement.name], candidateRefs(requirement.hashes))) }));

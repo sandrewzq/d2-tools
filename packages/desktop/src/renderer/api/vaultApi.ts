@@ -13,6 +13,8 @@ export type DimWishlistMode = "pve" | "pvp" | "general";
 
 export type DimWishlistRule = {
   item_hash: number;
+  /** 这条规则覆盖的全部武器 hash（导入期家族全展开，第一项永远是 `item_hash`）；缺省按 `[item_hash]` 理解。 */
+  item_hashes?: number[];
   perk_hashes: number[];
   mode: DimWishlistMode;
   note: string;

@@ -134,6 +134,20 @@
   background: var(--surface-recessed);
 }
 
+/* 「无任何匹配」不是来源，没有条件栏，所以自己一个整宽的行；
+   外框与底色跟来源表一样，用户一眼能看出它和下面那几行是同一类筛选。 */
+:where(.app-shell) .vault-recommendation-unmatched-row {
+  display: grid;
+  min-width: 0;
+  margin-bottom: 6px;
+  border: 1px solid var(--border-control);
+  background: var(--surface-recessed);
+}
+
+:where(.app-shell) .vault-recommendation-unmatched-row .vault-recommendation-source-toggle {
+  border-right: 0;
+}
+
 :where(.app-shell) .vault-recommendation-source-row {
   display: grid;
   grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);

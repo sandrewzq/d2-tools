@@ -1427,6 +1427,9 @@ function RecommendationSourceEvidenceCard(props: {
     .filter((slot) => slot.state === "source_not_specified")
     .map((slot) => slot.label);
   const metadata = [
+    // 主名是用户给这次导入起的名字，文件里声明的名字跟在后面作副标题——同一份来源在管理面
+    // 和这里必须是同一个名字，否则用户没法把两处的来源对上。
+    source.declared_label ? itemDetailTemplate(props.copy, "文件内名称：{value}", { value: source.declared_label }) : undefined,
     source.purposes.length ? itemDetailTemplate(props.copy, "用途：{value}", { value: source.purposes.map((purpose) => recommendationPurposeLabel(props.copy, purpose)).join(" / ") }) : undefined,
     source.rating ? itemDetailTemplate(props.copy, "评级：{value}", { value: source.rating }) : undefined,
     source.ranking ? itemDetailTemplate(props.copy, "排名：{value}", { value: source.ranking }) : undefined,

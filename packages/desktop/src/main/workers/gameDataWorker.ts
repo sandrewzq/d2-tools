@@ -263,7 +263,9 @@ function projectCommunityMatchDefinition(
     inventory: compactObject({ bucketTypeHash: definition.inventory?.bucketTypeHash }),
     equippingBlock: compactObject({
       equipmentSlotTypeHash: definition.equippingBlock?.equipmentSlotTypeHash,
-      damageType: definition.equippingBlock?.damageType
+      damageType: definition.equippingBlock?.damageType,
+      // 家族展开不跨弹药类型（⑥）：`极高反射` 同名同类型同槽、中英文名都一样，只有弹药类型不同。
+      ammoType: definition.equippingBlock?.ammoType
     }),
     defaultDamageTypeHash: definition.defaultDamageTypeHash,
     traitIds: definition.traitIds,
@@ -363,6 +365,9 @@ function projectInventoryItemSummary(definition: DefinitionRecord): DefinitionRe
     hash: definition.hash,
     displayProperties: compactObject({
       name: definition.displayProperties?.name,
+      // 「本件 Roll」浮层的 Perk 说明是快照里的 `weapon_roll` 带的，而 `summarizeWeaponRoll`
+      // 就是从这份定义的 `displayProperties.description` 读它；投影不保留说明，浮层只剩兜底文案。
+      description: definition.displayProperties?.description,
       icon: definition.displayProperties?.icon
     }),
     itemTypeDisplayName: definition.itemTypeDisplayName,

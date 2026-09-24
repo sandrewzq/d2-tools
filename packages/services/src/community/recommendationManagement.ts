@@ -9,7 +9,9 @@ import {
   clearRecommendationDocuments,
   listRecommendationDocuments,
   listRecommendationDocumentsFrom,
-  recommendationDocumentRevision
+  recommendationDocumentRevision,
+  recommendationImportPipelineVersion,
+  recommendationSourceNames
 } from "./recommendationDocumentStore.js";
 import {
   recommendationSourceState,
@@ -61,6 +63,11 @@ export type RecommendationManagedSource = {
    * 少了它，白名单就会因为两个键不相等而把事实全部滤掉（仓库勾选来源后整页 0 件）。
    */
   fact_keys: string[];
+  /**
+   * 这份导入是**旧口径**写下的：它不参与匹配（读取侧整体挡掉了），
+   * 要重新导一次才生效。管理面是唯一还看得见它的地方，所以这一行负责把话说明白。
+   */
+  needs_reimport: boolean;
 };
 
 export type RecommendationManagedRule = {
@@ -165,6 +172,7 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       SELECT s.document_id, d.title AS document_title, d.author AS document_author,
              MAX(s.revision) AS revision, MAX(s.fingerprint) AS fingerprint,
              MAX(d.imported_at) AS imported_at, MAX(d.source_url) AS source_url,
+             MAX(d.import_pipeline_version) AS import_pipeline_version,
              GROUP_CONCAT(DISTINCT s.kind) AS source_kinds,
              COUNT(DISTINCT r.rule_id) AS rule_count,
              COUNT(DISTINCT item.item_hash) AS weapon_count
@@ -183,6 +191,7 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       fingerprint: string;
       imported_at: string;
       source_url: string;
+      import_pipeline_version: number;
       source_kinds: string;
       rule_count: number;
       weapon_count: number;
@@ -204,7 +213,10 @@ export function readRecommendationManagementSnapshot(dataDir: string): Recommend
       fact_keys: storedSourceKeysFor(sourceIndex, {
         sourceId: row.document_id,
         groupKey: row.document_id
-      })
+      }),
+      // 这份来源照旧列出、照旧可以启用 / 停用 / 删除，只有「参与匹配」这件事被读取侧拿掉了。
+      // 缺列按旧口径算（与存储层同一条兜底），宁可多提示一次重新导入，也不要让旧数据装成有效。
+      needs_reimport: Number(row.import_pipeline_version ?? 1) < recommendationImportPipelineVersion
     }));
     return {
       revision: recommendationDocumentRevision(dataDir),
@@ -449,9 +461,10 @@ function storedRuleForOverride(
   const documentId = identity?.groupKey;
   const stored = database.prepare(`
     SELECT r.item_hash, r.mode, r.kind, r.note, r.source_id,
-           s.label, s.revision
+           s.label, s.revision, d.title AS document_title
     FROM recommendation_source_rules r
     JOIN recommendation_source_instances s ON s.source_id = r.source_id
+    JOIN recommendation_documents d ON d.document_id = s.document_id
     WHERE r.rule_id = ?
       ${scopedToInstance ? "AND r.source_id = ?" : documentId ? "AND s.document_id = ?" : ""}
     ORDER BY r.rowid
@@ -465,6 +478,7 @@ function storedRuleForOverride(
     source_id: string;
     label: string;
     revision: string;
+    document_title: string;
   } | undefined;
   if (!stored) return null;
   const requirements = readRecommendationRuleRequirements(
@@ -479,7 +493,10 @@ function storedRuleForOverride(
   ).get(override.rule_stable_id) ?? [Number(stored.item_hash)];
   return {
     source_key: stored.source_id,
-    source_label: stored.label,
+    source_label: recommendationSourceNames({
+      label: stored.label,
+      documentTitle: stored.document_title ?? ""
+    }).label,
     rule_stable_id: override.rule_stable_id,
     weapon_hashes: itemHashes,
     weapon_name: `武器 ${itemHashes[0]}`,
@@ -523,9 +540,10 @@ function storedRules(
   const rows = database.prepare(`
     SELECT r.rule_id, r.item_hash, r.mode, r.kind, r.note,
            s.source_id,
-           s.label, s.revision
+           s.label, s.revision, d.title AS document_title
     FROM recommendation_source_rules r
     JOIN recommendation_source_instances s ON s.source_id = r.source_id
+    JOIN recommendation_documents d ON d.document_id = s.document_id
     ${scopedToInstance ? "WHERE r.source_id = ?" : identity ? "WHERE s.document_id = ?" : ""}
     ORDER BY r.rowid
   `).all(...(scopedToInstance ? [identity!.sourceId] : identity ? [identity.groupKey] : [])) as Array<{
@@ -537,6 +555,7 @@ function storedRules(
     note: string;
     label: string;
     revision: string;
+    document_title: string;
   }>;
   const ruleIdsBySource = new Map<string, string[]>();
   for (const row of rows) {
@@ -557,7 +576,10 @@ function storedRules(
     const itemHashes = itemHashesBySource.get(row.source_id)?.get(row.rule_id) ?? [Number(row.item_hash)];
     return {
       source_key: row.source_id,
-      source_label: row.label,
+      source_label: recommendationSourceNames({
+        label: row.label,
+        documentTitle: row.document_title ?? ""
+      }).label,
       rule_stable_id: row.rule_id,
       weapon_hashes: itemHashes,
       weapon_name: `武器 ${itemHashes[0]}`,

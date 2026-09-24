@@ -617,6 +617,10 @@ function queryWeaponIdentityRelations(
   for (let offset = 0; offset < requestedHashes.length; offset += 250) {
     const batch = requestedHashes.slice(offset, offset + 250);
     const placeholders = batch.map(() => "?").join(", ");
+    // 按 `family_key` 连：家族的粒度是「同名同类型同槽的武器」，包含赛季版本与发布组孪生。
+    // 从前连 `release_group_key`（= 家族 + 发布组），导入期就只能在同一发布组内展开，
+    // 赛季版本不同的同名武器永远覆盖不到——那正是 T56 要修的漏匹配。
+    // 连表键的索引是 `weapon_identity_relation_family_idx`。
     const rows = database.prepare(`
       SELECT DISTINCT
         related.item_hash,
@@ -629,7 +633,7 @@ function queryWeaponIdentityRelations(
         related.relation_evidence
       FROM weapon_identity_relation AS source
       JOIN weapon_identity_relation AS related
-        ON related.release_group_key = source.release_group_key
+        ON related.family_key = source.family_key
       WHERE source.item_hash IN (${placeholders})
       ORDER BY related.item_hash
     `).all(...batch.map(toSignedHash)) as Array<{

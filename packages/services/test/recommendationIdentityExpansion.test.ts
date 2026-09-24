@@ -12,6 +12,7 @@ import {
 } from "../src/community/weaponRecommendationKnowledge.js";
 import { createDefaultCommunityPerkService } from "../src/community/perkRecommendation.js";
 import type {
+  WeaponKnowledgeIdentityContext,
   WeaponKnowledgeSemanticDefinitions,
   WeaponKnowledgeValidationContext
 } from "../src/community/weaponRecommendationKnowledge.js";
@@ -23,31 +24,26 @@ import type {
  * `selectKnowledgeRecommendations` 的三级匹配：精确 hash + 发布组 → 发布组 + 变体 → 仅名称）。
  * S3′ 把这件事挪到导入期，读取期只做 `itemHashes.includes(hash)`。
  *
- * **口径（2026-09-16 用户拍板）：按行逐条展开，不保留读取期的「同来源精确优先」。**
- * 旧读取期还有一个跨行的动作：同一来源里只要有行精确写了这把武器的 hash，其它靠「同款不同版本」
- * 沾上来的行就整条不显示。那条压制会**少显示**用户的推荐（应用端出错），所以不搬：
- * 一行写了普通版的 ID，它对专家版 / 失时版同样适用，就该照常出现——用户自己会再确认。
+ * **口径（2026-09-24 拍板：推荐跟着武器走，不跟着版本走）：家族全展开 + 声明版本优先 +
+ * 逐 hash 池子自检。** 旧口径在展开之后多做一步「只保留最新发布组」的归约，本文件原来是按那套写的；
+ * 归约被删掉之后，**同名的历史复刻版本也要看到推荐**——这正是下面 `oldPrintWeapon`(4004) 的存在意义：
+ * 它在旧口径下是空集，在新口径下与基础版看到同一批规则。
  *
- * **可见性必须是对称的（用户 2026-09-16 原话：「普通版 + 专家版 + 失时版 三个 id
- * 都要看到普通版 + 专家版 + 失时版三种，不仅仅是普通版能看到」）。**
- * 换句话说：一条规则的展开集里有几个版本，这几个版本的开页就都要看得到它，没有主次之分——
- * 不能只有普通版页面能看到、专家版 / 失时版页面看不到。下面 R1（只写普通版的 ID，靠发布组放大）
- * 与 R3（只写名字）各钉一遍「三个版本页面都看得到」，`multiIdIdentityFixtures` 再从多 ID 一侧钉。
+ * 三条口径各由本文件的哪些夹具钉住：
+ *
+ *   1. **家族全展开**：`oldPrintWeapon`(4004) 属于更旧的发布组，却和 4001 / 4002 / 4003 同族 ——
+ *      断言它看得到 R1 / R3。归约若被重新引入，这一条立刻红。
+ *   2. **声明版本优先**：`adeptWeapon`(4002) 自己被 R2 写了规则，R1 / R3 就不再展开到它上面
+ *      （同一版本叠两条规则会把「符合 n 套」从 1 抬到 2）。夹具因此必须把「文件里声明过的 hash」
+ *      传进展开，与落库期 `declaredItemHashesOf(rows)` 取同一个集合。
+ *   3. **变体约束**：名字带「（专家）」「（失时）」的行只展开到那个变体（R2 / R4）。
  *
  * 因此本网的断言是两条，而不再是「逐条等价」：
  *
- *   1. 每条规则的展开集 === 夹具按身份直接推出的期望集（下面三条分支都要被命中）；
- *   2. **旧读取期选中的规则集 ⊆ 展开集**——新口径只可能多显示，绝不可能少显示。
+ *   1. 每条规则的展开集 === 夹具按身份直接推出的期望集；
+ *   2. 展开集里的每个版本，开页都看得到这条规则（读取期只剩成员判断，两边必然逐条相同）。
  *
- * 两处**已知且预期**的差异在最后一个用例里逐条钉死：专家版与失时版会多出同来源的通用行。
- * 真实数据（2379 行 / 1630 把武器）上这个差异是：11 把带变体后缀的武器各 +1 条，无一变少。
- *
- * 三条分支都要有夹具命中：发布组归约（同名历史复刻只认最新发布组）、变体约束（专家 / 失时）、
- * 以及只写武器名（没有武器 ID）的那一条——它先按官方名补出基础集，再走与显式 hash **完全相同**
- * 的归约与放大。最后这一条是本网抓到过的真实缺陷：补完名字后若不归约，只写名字的规则会漏掉
- * 同发布组的其它版本。
- *
- * 这些夹具刻意只用**契约**（规则写了什么身份、目标能匹配到哪些规则），不碰任何表名或 SQL：
+ * 夹具刻意只用**契约**（规则写了什么身份、目标能匹配到哪些规则），不碰任何表名或 SQL：
  * S3′-2 把存储换成三级模型后，本文件必须原样继续有效——它正是那次换血的安全绳。
  */
 
@@ -83,8 +79,9 @@ const definitions: WeaponKnowledgeSemanticDefinitions = {
     [String(baseWeapon)]: weaponDefinition(baseWeapon, "测试步枪"),
     [String(adeptWeapon)]: weaponDefinition(adeptWeapon, "测试步枪（专家）"),
     [String(timelostWeapon)]: weaponDefinition(timelostWeapon, "测试步枪（失时）"),
-    // 与 baseWeapon **同名**但属于更旧的发布组：用来逼出「只保留最新发布组」的归约。
+    // 与 baseWeapon **同名**、属于更旧的发布组：家族全展开要把它带进来，归约则正好相反。
     [String(oldPrintWeapon)]: weaponDefinition(oldPrintWeapon, "测试步枪"),
+    // 名字与上面四把都不同：只在无关武器上留一条「一条都不该命中」的反例。
     [String(unrelatedWeapon)]: weaponDefinition(unrelatedWeapon, "无关步枪")
   },
   plug_definitions: {
@@ -109,6 +106,23 @@ const runtimeDefinitions = {
   ...definitions.plug_definitions
 } as DefinitionComponentData;
 
+/**
+ * 家族键 = 抹掉官方变体后缀的武器名。生产侧 `weaponFamilyKey` 还要拼上
+ * `item.weapon.*` trait、itemType、bucketTypeHash，那三段在本夹具里对每把枪都相同，省掉不影响口径。
+ *
+ * **每把枪各自算**：`unrelatedWeapon` 从前被误挂进「测试步枪」这个家族键，家族全展开会把
+ * 无关武器并进来——那是夹具的错，不是实现的错。
+ */
+function familyKeyOf(itemHash: number): string {
+  const name = definitions.item_definitions[String(itemHash)]?.displayProperties?.name ?? "";
+  return name.replace(/\s*[（(][^（）()]+[）)]\s*$/u, "").trim();
+}
+
+/**
+ * 发布组字段照写：**新口径已经不看它**（家族键 + 变体标签就够），留着是为了让夹具仍然是生产输出的
+ * 形状，也让「展开不依赖发布组」这件事有一个可证伪的点——4004 在 group-b、其余三把在 group-a，
+ * 若哪天又按发布组收窄，下面的期望集会立刻对不上。
+ */
 function relation(
   itemHash: number,
   releaseGroupKey: string,
@@ -117,7 +131,7 @@ function relation(
 ): WeaponIdentityRelation {
   return {
     item_hash: itemHash,
-    family_key: "测试步枪",
+    family_key: familyKeyOf(itemHash),
     release_group_key: releaseGroupKey,
     variant_kind: variantTags[0] ?? "standard",
     variant_tags: variantTags,
@@ -131,21 +145,26 @@ const identityRelations: WeaponIdentityRelation[] = [
   relation(baseWeapon, groupA, "releases.v3.1.0", ["standard"]),
   relation(adeptWeapon, groupA, "releases.v3.1.0", ["adept"]),
   relation(timelostWeapon, groupA, "releases.v3.1.0", ["timelost"]),
-  // releases.v1 < releases.v3：归约会把这条所在的发布组丢掉。
   relation(oldPrintWeapon, groupB, "releases.v1.0.0", ["standard"]),
   relation(unrelatedWeapon, groupC, "releases.v3.0.0", ["standard"])
 ];
 
+/** 导入期展开用的身份上下文：与落库路径 `weaponIdentityRelations + buildWeaponNameEntries` 同源。 */
+const identityContext: WeaponKnowledgeIdentityContext = {
+  relations: identityRelations,
+  nameEntries: buildWeaponNameEntries(definitions.item_definitions)
+};
+
 const validation: WeaponKnowledgeValidationContext = {
   manifest_version: "test-manifest-identity",
   semantic_definitions: definitions,
-  // 导入期展开身份要用它——生产环境由 `getWeaponIdentityRelations` 提供（返回整个发布组）。
+  // 导入期展开身份要用它——生产环境由 `getWeaponIdentityRelations` 提供（返回整个武器家族）。
   weaponIdentityRelations: identityRelations
 };
 
 /**
  * 用**旧版普通玩家模板**而不是统一推荐模板：统一模板没有「武器ID」列，武器只能靠名字认，
- * 于是所有行都落在三级（仅名称）分支上，一级 / 二级根本走不到。要覆盖发布组归约与变体约束，
+ * 于是所有行都落在「只写名字」那一支上，变体约束走不到。要覆盖家族展开与变体约束，
  * 夹具必须能写下武器 ID。
  */
 const header = "武器,武器ID,英文名称,推荐来源,用途,第一列,第二列,Perk 1,Perk 2,大师,起源特性,评级,备注";
@@ -165,29 +184,29 @@ type RuleFixture = {
 
 const ruleFixtures: RuleFixture[] = [
   {
-    // 一级：点名了 baseWeapon，变体无约束（名字里没有后缀）→ 二级把同组其它版本也带上。
+    // 点名了 baseWeapon，变体无约束 → 家族全展开到 4003 与 4004；4002 被 R2 声明过，不在这里展开。
     label: "R1基础通用",
     weaponName: "测试步枪",
     weaponIds: String(baseWeapon),
-    expectedHashes: [baseWeapon, adeptWeapon, timelostWeapon]
+    expectedHashes: [baseWeapon, timelostWeapon, oldPrintWeapon]
   },
   {
-    // 一级 + 变体约束：名字带「（专家）」→ 只适用专家版，二级不放大。
+    // 变体约束：名字带「（专家）」→ 只适用专家版，家族展开不放大。
     label: "R2专家专用",
     weaponName: "测试步枪（专家）",
     weaponIds: String(adeptWeapon),
     expectedHashes: [adeptWeapon]
   },
   {
-    // 零级 + 发布组归约：只写名字、没有武器 ID，官方名命中**两个**同名武器
-    // （4001 与更旧的 4004）→ 归约只留最新发布组，4004 不算。
+    // 只写名字、没有武器 ID，官方名命中**两个**同名武器（4001 与更旧的 4004）→ 两条都是基础集，
+    // 再按家族展开补上 4003；4002 被 R2 声明过。
     label: "R3只写名字",
     weaponName: "测试步枪",
     weaponIds: "",
-    expectedHashes: [baseWeapon, adeptWeapon, timelostWeapon]
+    expectedHashes: [baseWeapon, timelostWeapon, oldPrintWeapon]
   },
   {
-    // 零级 + 变体约束：只写名字且名字带「（失时）」→ 只留失时版。
+    // 只写名字且名字带「（失时）」→ 变体约束只留失时版。
     label: "R4名字带变体",
     weaponName: "测试步枪（失时）",
     weaponIds: "",
@@ -198,14 +217,14 @@ const ruleFixtures: RuleFixture[] = [
 /**
  * 只做单元级展开断言、**不进 CSV** 的身份：格式校验要求一行里每个「武器ID」的官方名都与「武器」列
  * 一致，所以「普通版 / 专家版 / 失时版」三个 ID 写在同一行是导不进来的——现实数据里它们是三行。
- * 但展开算法本身对多 ID 必须是对称的：写了几个版本，这几个版本就都得看得到（用户 2026-09-16 口径）。
+ * 但展开算法本身对多 ID 必须是对称的：写下的每个版本都在展开集里，家族其余版本照常补上。
  */
 const multiIdIdentityFixtures: RuleFixture[] = [
   {
     label: "三版本三 ID 一行",
     weaponName: "测试步枪",
     weaponIds: [baseWeapon, adeptWeapon, timelostWeapon].join(" / "),
-    expectedHashes: [baseWeapon, adeptWeapon, timelostWeapon]
+    expectedHashes: [baseWeapon, adeptWeapon, timelostWeapon, oldPrintWeapon]
   }
 ];
 
@@ -225,6 +244,14 @@ function declaredIds(rule: RuleFixture): number[] {
     .filter(Boolean)
     .map(Number);
 }
+
+/**
+ * 「声明版本优先」的声明集 = **本份文件里所有行写下的**武器 ID，与落库期 `declaredItemHashesOf(rows)`
+ * 同一个集合（含被拦下的行）。只写名字的行没有写下版本——它们的身份在展开时按官方名补出，
+ * 补出来的 hash 不算「声明」（那是一次同名推导，拿去压别的规则的展开就变成漏匹配）。
+ * 展开不带上这个集合，本网就会去验一套落库时根本不成立的期望。
+ */
+const declaredByFile = [...new Set(ruleFixtures.flatMap((rule) => declaredIds(rule)))];
 
 function writeCsv(text: string, name = "推荐.csv"): { dir: string; path: string } {
   const dir = mkdtempSync(join(tmpdir(), "d2-tools-identity-"));
@@ -257,90 +284,80 @@ async function readTimeMatchedLabels(dataDir: string, itemHash: number): Promise
     .sort();
 }
 
-/** 新口径：规则的预展开 hash 集包含该目标的那些规则。 */
-function expansionMatchedLabels(itemHash: number, nameEntries: ReturnType<typeof buildWeaponNameEntries>): string[] {
+/** 新口径：规则按同一套身份上下文展开后，hash 集包含该目标的那些规则。 */
+function expansionMatchedLabels(itemHash: number): string[] {
   return ruleFixtures
-    .filter((rule) => expandRecommendationItemHashes({
-      itemHashes: declaredIds(rule),
-      weaponName: rule.weaponName
-    }, identityRelations, nameEntries).includes(itemHash))
+    .filter((rule) => expandForFixture(rule).includes(itemHash))
     .map((rule) => rule.label)
     .sort();
+}
+
+/** 一条夹具行在导入期会展开成哪些 hash（与落库期同一套输入）。 */
+function expandForFixture(rule: RuleFixture): number[] {
+  return expandRecommendationItemHashes({
+    itemHashes: declaredIds(rule),
+    weaponName: rule.weaponName
+  }, identityRelations, identityContext.nameEntries, { declaredItemHashes: declaredByFile });
 }
 
 /** 每个版本的开页按新口径应当看到的规则（展开集包含该目标的那些规则）。 */
 const expectedExpansionByWeapon: Record<number, string[]> = {
   [baseWeapon]: ["R1基础通用", "R3只写名字"],
-  [adeptWeapon]: ["R1基础通用", "R2专家专用", "R3只写名字"],
+  [adeptWeapon]: ["R2专家专用"],
   [timelostWeapon]: ["R1基础通用", "R3只写名字", "R4名字带变体"],
-  [oldPrintWeapon]: [],
+  // 家族全展开补回的漏匹配：旧印刷版另一个发布组，从前是空集。
+  [oldPrintWeapon]: ["R1基础通用", "R3只写名字"],
   [unrelatedWeapon]: []
 };
 
-/** 「写了几个版本，这几个版本就都看得到」——用户口径在三个变体上的直接投影。 */
-const symmetricAcrossVariants = ["R1基础通用", "R3只写名字"];
-
 describe("recommendation identity expansion (S3′-0)", () => {
   it("expands each rule to exactly the weapon hashes the read-time matcher would select", () => {
-    const nameEntries = buildWeaponNameEntries(definitions.item_definitions);
     for (const rule of [...ruleFixtures, ...multiIdIdentityFixtures]) {
-      const expanded = expandRecommendationItemHashes({
-        itemHashes: declaredIds(rule),
-        weaponName: rule.weaponName
-      }, identityRelations, nameEntries);
-      expect({ label: rule.label, hashes: [...expanded].sort() }).toEqual({
+      expect({ label: rule.label, hashes: [...expandForFixture(rule)].sort() }).toEqual({
         label: rule.label,
         hashes: [...rule.expectedHashes].sort()
       });
     }
   });
 
-  it("gives every variant page the widened rule set its expanded hashes promise", async () => {
+  it("shows each rule on every version page its expanded set promises", async () => {
     const { dir, path } = writeCsv(csv);
-    const preview = previewWeaponRecommendationCsv(csv, path, definitions);
+    const preview = previewWeaponRecommendationCsv(csv, path, definitions, identityContext);
     expect(preview.blocking_issue_count).toBe(0);
     await importWeaponRecommendationCsv(dir, path, preview.fingerprint, validation, { name: "身份夹具", mode: "create" });
 
-    const nameEntries = buildWeaponNameEntries(definitions.item_definitions);
     for (const [key, expected] of Object.entries(expectedExpansionByWeapon)) {
       const itemHash = Number(key);
-      expect({ itemHash, labels: expansionMatchedLabels(itemHash, nameEntries) }).toEqual({
+      expect({ itemHash, labels: expansionMatchedLabels(itemHash) }).toEqual({
         itemHash,
         labels: [...expected].sort()
       });
     }
 
-    // 用户口径的正面表述：同一条规则，三个版本的开页都要看得到，不分主次；
-    // 「只写普通版 ID」的那条（R1）不能只在普通版页面上出现。
-    for (const itemHash of [baseWeapon, adeptWeapon, timelostWeapon]) {
-      const labels = expansionMatchedLabels(itemHash, nameEntries);
-      for (const label of symmetricAcrossVariants) {
-        expect({ itemHash, label, seen: labels.includes(label) }).toEqual({ itemHash, label, seen: true });
-      }
-    }
+    // 家族全展开的正面表述：同族的旧印刷版与基础版看到同一批通用规则。
+    expect(expansionMatchedLabels(oldPrintWeapon)).toEqual(["R1基础通用", "R3只写名字"]);
+    // 声明版本优先的正面表述：专家版由文件自己写的那条负责，通用规则不叠上去。
+    expect(expansionMatchedLabels(adeptWeapon)).toEqual(["R2专家专用"]);
   });
 
-  it("pins the fixture itself: the old read-time path agrees once the import stores the expanded set", async () => {
+  it("pins the fixture itself: the read-time path agrees once the import stores the expanded set", async () => {
     const { dir, path } = writeCsv(csv);
-    const preview = previewWeaponRecommendationCsv(csv, path, definitions);
+    const preview = previewWeaponRecommendationCsv(csv, path, definitions, identityContext);
     await importWeaponRecommendationCsv(dir, path, preview.fingerprint, validation, { name: "身份夹具", mode: "create" });
 
-    const nameEntries = buildWeaponNameEntries(definitions.item_definitions);
     // 非空锚点：没有它们，下面「两边都空」也会通过，网就成了摆设。
     expect(await readTimeMatchedLabels(dir, baseWeapon)).toEqual(["R1基础通用", "R3只写名字"]);
-    // 发布组归约把「只写名字」那一行补出的 4004（旧发布组）丢掉了：同名的历史复刻不算命中。
-    expect(await readTimeMatchedLabels(dir, oldPrintWeapon)).toEqual([]);
+    // 旧口径在这里是空集（归约把另一个发布组丢掉了），新口径把这两条补了回来。
+    expect(await readTimeMatchedLabels(dir, oldPrintWeapon)).toEqual(["R1基础通用", "R3只写名字"]);
     // 无关武器一条都不该命中。
     expect(await readTimeMatchedLabels(dir, unrelatedWeapon)).toEqual([]);
 
     for (const [key, expected] of Object.entries(expectedExpansionByWeapon)) {
       const itemHash = Number(key);
       const readTime = await readTimeMatchedLabels(dir, itemHash);
-      const expanded = expansionMatchedLabels(itemHash, nameEntries);
+      const expanded = expansionMatchedLabels(itemHash);
       expect({ itemHash, labels: readTime }).toEqual({ itemHash, labels: [...expected].sort() });
       // **S3′-1 的判据**：导入期把身份定死成 hash 之后，读取期只剩成员判断，两边必然逐条相同。
-      // S3′-1 之前这里读出来的是**真子集**——4002 只有 `R2专家专用`、4003 只有 `R4名字带变体`，
-      // 少掉的 `R1基础通用` / `R3只写名字` 正是被「同来源精确优先」压掉的那几条。
       expect({ itemHash, readTime }).toEqual({ itemHash, readTime: expanded });
     }
   });
