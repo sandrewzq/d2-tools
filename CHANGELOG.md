@@ -2,6 +2,82 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.29 - 2026-09-27
+
+### 中文
+
+#### 新增
+
+- 新增「工具导航」菜单：43 个 Destiny 2 社区工具站按用途分六类（仓库与配装、武器与 Perk、账号与统计、活动与轮换、资料与百科、开发参考），可按分类筛选，也可按站名、用途、说明搜索；点「打开」用系统浏览器打开。面向开发者和已归档的项目收在页面底部的「开发者与历史」。
+- 仓库的推荐筛选新增「无任何匹配」：一键筛出卡片上一条推荐来源都没有的装备，按钮带件数；和来源勾选互斥，打开它会清空来源勾选。
+- 配装的保存拆成两条路：主按钮存回原来那套并覆盖，旁边新增「另存为新配装」，新建一套、原来那套不动。
+- 游戏内配装和本应用配装互相指认：方案列表和槽位标题会标出「对得上 XXX」，只按内容比对，不按名字或相似度猜。
+- 游戏内配装的子职业展开后按「超能与技能 / 星象 / 碎片 / 其他配置」分组列出条目和图标，空槽位单独写明数量。
+- 护甲规划器的「技能与碎片属性变化」按当前角色装备的子职业自动填好，可以逐项修改。
+- 下载的推荐导入模板表头自带填写说明，表头下多一行示例数据（导入时自动跳过）；统一模板新增「武器ID / 英文名称 / 弹药类型」三列。
+
+#### 改进
+
+- 仓库页和装备详情支持英文界面：界面语言切到 English 时，搜索、筛选、卡片事实、批量操作、空态，以及装备详情的标题、章节、按钮和说明都显示英文。
+- 首页的日落卡改名「日落挑战」，只有确实带本周挑战目标的活动才进这一行；本周轮换新增「活动挑战」，试炼、铁旗等本周确实出现的活动不再被丢掉。
+- 武器详情的 Perk 说明浮层不再被右侧的实例面板盖住。
+- 账号刷新会连带重读本周轮换，日挑战状态不会停在上一份结果上。
+- 护甲规划器搜索被截断时写明「已检查 N 个组合后到达上限，这批结果不是完整搜索结果」；改了护甲设置后会点名是哪一类变了，并禁用「接受」。
+- 启动页新增非官方声明和 Bungie 商标声明，侧边栏副标题改为「非官方本地助手」。
+
+#### 移除
+
+- 移除「本周行动」整块：账号页的「任务与赏金 / 光等提升 / 本周刷取」三个分区、资料库的「本周刷取」查询模式、首页掉落池卡片的「查看本周刷取」入口都不再提供。这些内容在真实账号数据下不可用（2026-09-21 判定），相关的任务与赏金读取链路也一并移除。
+
+#### 修复
+
+- 应用配装的「穿戴」以前一个插槽都改不了：账号快照刻意剥掉了插槽与能量数据，护甲核对必然产生缺口、执行步骤被清空；现在只对本次涉及的那几件按需拉取完整详情。
+- 点「计算」护甲不再卡住不回：账号刷新整段加了 20 秒上限，超时退回上次同步的账号并说明原因；护甲棋子新增 10 分钟有效的本地缓存，缓存命中时不再联网。
+- DIM 愿望单导入后，仓库来源行的计数不再比管理卡片少几十件。
+- 「本件 Roll」里的 Perk 不再只剩兜底文案。
+- 有推荐来源的武器不再被整版剔除：以前「这一版要能整套装出来」的判据会漏掉推荐表 748 条中的 275 条、心愿单 6009 条中的 1945 条。导入过的推荐来源要重新导入一次才生效。
+- 愿望单和推荐表导入时「找不到可核对的武器」这类误报减少；中英文撞名时改为要求补「英文名称」。
+- 英文账号下游戏内配装的子职业识别不再失效。
+- 跨来源比对的槽位标签对不上，导致「内容一致」这一档一次都没出现过。
+- 批量操作的回执不再因为武器名或角色名里出现「失败」两个字就把提示标红。
+
+### English
+
+#### Added
+
+- A new "Tool sites" menu: 43 Destiny 2 community sites grouped into six categories (Vault & loadouts, Weapons & perks, Account & stats, Activities & rotations, Reference & wiki, Developer reference), filterable by category or searchable by name, purpose and note; "Open" launches your system browser. Developer-facing and archived projects sit in a "Developer and history" section at the bottom of the page.
+- The vault's recommendation filter has a new "No matches at all" option: one click shows only gear whose card has no recommendation source, with the count on the button; it is mutually exclusive with source selection — turning it on clears the selected sources.
+- Saving a loadout now has two paths: the main button writes back over the existing plan, and a new "Save as new loadout" button creates a separate one and leaves the original untouched.
+- In-game loadouts and app loadouts now recognise each other: plan lists and slot titles show "matches <plan>", comparing content only, never names or similarity.
+- Expanding an in-game loadout's subclass groups its entries under "Supers and abilities / Aspects / Fragments / Other configuration" with icons, and empty slots are listed with their count.
+- The armor planner's "Ability and fragment stat changes" is filled in automatically from the subclass your target character has equipped, and every entry can be edited.
+- Downloaded recommendation import templates now carry filling instructions in the header row and an example data row below it (skipped on import); the unified template gained Weapon ID / English name / Ammo type columns.
+
+#### Improved
+
+- The vault page and item detail support an English interface: with the interface language set to English, search, filters, card facts, batch actions, empty states, and the item detail's titles, sections, buttons and descriptions are all in English.
+- The home page's nightfall card is now titled "Nightfall challenge", and only activities that actually carry this week's challenge objective appear in it; weekly rotations gained an "Activity challenge" group, so Trials and Iron Banner show up instead of being dropped.
+- Perk description popovers on weapon detail are no longer covered by the instance panel on the right.
+- Refreshing your account also re-reads the weekly rotation, so daily challenge states no longer sit on an earlier read.
+- When the armor planner's search is cut short it says how many combinations were checked before hitting the limit and that the results are not the complete search; changing armor settings names which kind of setting changed and disables "Accept".
+- The startup screen now carries an unofficial-tool notice and the Bungie trademark notice, and the sidebar subtitle reads "Unofficial local companion".
+
+#### Removed
+
+- The whole "Weekly actions" area is gone: the account page's "Quests and bounties / Power climb / Weekly farming" sections, the library's "Weekly farming" query mode, and the home page loot pool card's "View weekly farming" entry are no longer offered. These were found unusable with real account data (decided 2026-09-21), and the quest and bounty reading pipeline was removed with them.
+
+#### Fixed
+
+- "Wear" on an app loadout used to change no socket at all: the account snapshot deliberately strips socket and energy data, so armor checks always produced gaps and the execution steps were emptied; it now pulls full detail for just the instances involved.
+- "Calculate" on armor no longer hangs without an answer: the account refresh is capped at 20 seconds and falls back to the last synced account with the reason stated; armor pieces are cached locally for 10 minutes, so a cache hit no longer goes online.
+- After importing a DIM wishlist, the vault's source row count is no longer dozens of items below the management card.
+- Perks under "This roll" no longer show only fallback text.
+- Weapons with a recommendation source are no longer dropped wholesale: the old "this version must be able to build the whole set" rule missed 275 of 748 recommendation table rows and 1945 of 6009 wishlist rows. Imported recommendation sources must be imported again to take effect.
+- Fewer "no weapon to verify against" false reports when importing wishlists and recommendation tables; rows that collide across Chinese and English names now ask for the English name.
+- Subclass detection for in-game loadouts no longer fails on English accounts.
+- Cross-source slot labels did not match, so the "contents match" level never appeared.
+- Batch action receipts no longer turn red just because a weapon or character name contains "failed".
+
 ## 0.0.28 - 2026-09-19
 
 ### 中文
