@@ -81,6 +81,19 @@ const ITEM_VARIANT_OVERRIDES = new Map([
   [944708986, "reprised"]
 ]);
 
+/**
+ * 人工覆盖的当前掉落：2026-06-09 的 Monument of Triumph 更新给旧突袭 / 地牢换了专属掉落池，
+ * 但 Bungie 没有把这些武器的 Collectible sourceString 改到活动来源下（异端四武器仍标在
+ * “篇章：异端”活动来源），Collectible 推导只能推出更新前的老池子，推不出现在的。
+ * 命中本表的活动不再看 sourceString 的武器槽，items 与说明以本表为准；护甲仍按 sourceHash 推导。
+ */
+const ACTIVITY_ITEM_OVERRIDES = new Map([
+  ["异端深渊", {
+    items: [727781522, 3229982889, 3269398063, 4028298892],
+    evidenceNote: "2026-06-09 Monument of Triumph 更新后，该地牢专属掉落是“篇章：异端”四把武器（揭纱露眼 / 金刚磐石 / 拒绝召唤 / 送魂者）；Manifest 没把它们挂回活动来源，这一行按人工核对登记（护甲仍来自 sourceHash 1745960977）。"
+  }]
+]);
+
 /** 自校验：数据集已有的 4 条必须逐条复现，否则说明推导链或 Manifest 变了。 */
 const EXPECTED = [
   { key: "raid-1441982566", activity_hash: 1441982566, source_hash: 1007078046, items: 7, first_item: 999767358 },
@@ -135,10 +148,12 @@ function deriveActivities(previousHashes) {
       continue;
     }
 
-    const weapons = [...source.itemHashes].map(readWeapon).filter(Boolean);
+    const override = ACTIVITY_ITEM_OVERRIDES.get(key);
+    // 覆盖表里的 Hash 是人工核对的当前掉落，写的就是基础版本，不需要再按后缀过滤。
+    const weapons = [...(override ? override.items : source.itemHashes)].map(readWeapon).filter(Boolean);
     const base = [];
     for (const weapon of weapons) {
-      if (baseVariantOf(weapon.name)) continue; // 带（专家）这类后缀的版本不入库
+      if (!override && baseVariantOf(weapon.name)) continue; // 带（专家）这类后缀的版本不入库
       base.push(weapon);
     }
     if (!base.length) {
@@ -146,7 +161,7 @@ function deriveActivities(previousHashes) {
       continue;
     }
 
-    const group = groups.get(key) ?? { activity, sourceHash, source, items: new Map() };
+    const group = groups.get(key) ?? { activity, sourceHash, source, items: new Map(), override };
     for (const weapon of base) group.items.set(weapon.hash, weapon);
     groups.set(key, group);
   }
@@ -161,7 +176,8 @@ function deriveActivities(previousHashes) {
       source_label: `Bungie Collectible：${group.source.text.replace(/\n/g, " ")}`,
       source_url: "generatorScriptUrl",
       source_license: "sourceLicense",
-      evidence_note: `当前 Manifest sourceHash ${group.sourceHash}；仅确认活动级来源。`,
+      evidence_note: group.override?.evidenceNote
+        ?? `当前 Manifest sourceHash ${group.sourceHash}；仅确认活动级来源。`,
       items: [...group.items.values()]
         .sort((a, b) => a.hash - b.hash)
         .map((weapon) => ({

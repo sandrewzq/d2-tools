@@ -7,7 +7,10 @@ import { dirname, join, resolve } from "node:path";
 const scriptsDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(scriptsDir, "..");
 const desktopDir = join(repoRoot, "packages", "desktop");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const isWindows = process.platform === "win32";
+// Node 从 18.20/20.12 起禁止不带 shell 直接 spawn .cmd/.bat，Windows 上的 pnpm.cmd 必须经 shell 启动。
+const pnpmCommand = isWindows ? "pnpm.cmd" : "pnpm";
+const pnpmNeedsShell = isWindows;
 const viteCli = join(desktopDir, "node_modules", "vite", "bin", "vite.js");
 const electronLauncher = join(repoRoot, "scripts", "run-electron-dev.mjs");
 
@@ -85,7 +88,7 @@ async function buildIfNeeded(name, args) {
     return;
   }
   console.log(`构建 ${name}...`);
-  await run(pnpmCommand, args, repoRoot);
+  await run(pnpmCommand, args, repoRoot, {}, pnpmNeedsShell);
 }
 
 function needsBuild(output, inputs) {
@@ -115,13 +118,14 @@ async function waitForRenderer() {
   throw new Error(`Renderer dev server 启动超时：${rendererUrl}`);
 }
 
-function run(command, args, cwd, extraEnv = {}) {
+function run(command, args, cwd, extraEnv = {}, shell = false) {
   return new Promise((resolveRun, rejectRun) => {
     const child = spawn(command, args, {
       cwd,
       env: { ...process.env, ...extraEnv },
       stdio: "inherit",
-      windowsHide: true
+      windowsHide: true,
+      shell
     });
     child.once("error", rejectRun);
     child.once("exit", (code, signal) => {

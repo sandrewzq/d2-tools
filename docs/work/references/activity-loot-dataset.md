@@ -131,6 +131,29 @@ node scripts/generate-activity-loot.mjs --sqlite "$HOME/Library/Application Supp
 - 条目数与社区掉落表一致：二象性 7、晚星之主 4 + 破冰者、最后一愿 8、国王的陨落 7 —— 已核对；
 - 轮换变更后不需要人工介入，只需在 Manifest 更新后重跑一次生成脚本。
 
+## 十一、2026-06-09 Monument of Triumph 之后：人工覆盖的掉落池
+
+2026-06-09 的 Monument of Triumph 更新给 Edge of Fate 之前的所有突袭与地牢换过掉落池，Bungie 没有把新武器挂回活动来源。异端深渊（Pit of Heresy）现在的专属掉落是「篇章：异端」四把武器——揭纱露眼（线性融合步枪）、金刚磐石（自动步枪）、拒绝召唤（偃月）、送魂者（榴弹发射器），而它们的 Collectible `sourceString` 仍是「来源：“篇章：异端”活动」，从活动来源推不出来；Manifest 里仍挂在异端深渊来源下的武器只剩更新前的「征兆」。护甲倒跟着更新了（sourceHash 1745960977 下已是变节者利刃套装），所以同一张卡上会出现「护甲是新的、武器是旧的」。
+
+处理办法是生成脚本的人工覆盖表 `ACTIVITY_ITEM_OVERRIDES`（活动名 → 当前掉落 Hash + 说明）：命中覆盖表的活动不再看 `sourceString` 的武器槽，物品清单与 `evidence_note` 以表为准，护甲仍按来源推导。数据集里 `dungeon-2582501063` 一行据此改成四把异端武器，`revision` 记为 2026-10-09.1。
+
+2026-10-09 的核对范围只到当周（2026-10-06 重置）轮换的突袭与地牢：
+
+| 活动 | 数据集 | 2026 年的社区掉落表 | 结论 |
+|---|---|---|---|
+| 玻璃拱顶 | 13 条（含复刻 / 专家版本对） | Fatebringer、Vision of Confluence、Found Verdict、Corrective Measure、Hezen Vengeance、Praedyth's Revenge、Vex Mythoclast | 一致，未改 |
+| 救赎的边缘 | 7 条 | 7 把传说武器，异域 Euphony 只从尾王掉 | 一致，未改 |
+| 战争领主的废墟 | 5 条 | Vengeful Whisper、Dragoncult Sickle、Indebted Kindness、Naeem's Lance、Buried Bloodline | 一致，未改 |
+| 异端深渊 | 1 条（征兆） | 四把「篇章：异端」武器 | 已按覆盖表改 |
+
+其余活动没有逐个核对：MoT 动的是「专属池」，还有没有别处要覆盖，等它们进入轮换时再看。社区表只作人工核对材料，不进运行时依赖。
+
+覆盖表里登记的是基础版本，带（专家）后缀的版本按武器计一次，与数据集既有口径一致。
+
+数据集 `revision` 进了首页缓存的 context key（`packages/desktop/src/main/runtime/homeBriefing.ts`）：换版本后重启就会重建周报。只有数据变、key 不变的那些改动，周报会一直复用 `home-briefing-cache.json` 里的旧掉落池，界面上看不到。
+
+已知问题：`scripts/generate-activity-loot.mjs` 的自校验 `verifyExpected` 当前会失败，报「图样 record N 同时挂在武器 X 和 Y 上」——Manifest 更新后同名武器有了多个版本（如裁决定论的基础版与其时移版），图样 record 按名字匹配就会撞。重跑脚本前要先处理这条；本次的覆盖表不受影响。
+
 ## 附录：数据源调研（2026-09-10，原 T91 附录 A）
 
 T91 于 2026-09-21 删除后，这份调研归到本数据集名下。

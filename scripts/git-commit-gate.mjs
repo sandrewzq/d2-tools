@@ -11,7 +11,9 @@ import process from "node:process";
  */
 
 const repoRoot = process.cwd();
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const isWindows = process.platform === "win32";
+// Node 从 18.20/20.12 起禁止不带 shell 直接 spawn .cmd/.bat，Windows 上的 pnpm.cmd 必须经 shell 启动。
+const pnpm = isWindows ? "pnpm.cmd" : "pnpm";
 
 if (process.argv.includes("--help")) {
   console.log("提交前门禁：跑 pnpm test（约 30 秒），失败则中止提交。");
@@ -44,7 +46,8 @@ function run(command, args) {
       cwd: repoRoot,
       env: process.env,
       stdio: "inherit",
-      windowsHide: true
+      windowsHide: true,
+      shell: isWindows
     });
     child.once("error", reject);
     child.once("exit", (exitCode, signal) => {

@@ -52,7 +52,7 @@ const itemVariantValues = new Set(["normal", "adept", "timelost", "harrowed", "r
 const dropScopeValues = new Set(["activity"]);
 // #region activity-loot-dataset
 // 本区由 scripts/generate-activity-loot.mjs 生成，手工改动会在下次生成时被覆盖。
-const datasetRevision = "2026-09-18.1";
+const datasetRevision = "2026-10-09.1";
 const datasetGeneratedAt = "2026-09-18";
 
 export const activityLootDatasetV1: ActivityLootDatasetV1 = {
@@ -179,10 +179,13 @@ export const activityLootDatasetV1: ActivityLootDatasetV1 = {
       source_label: "Bungie Collectible：来源:“异端深渊”地牢",
       source_url: generatorScriptUrl,
       source_license: sourceLicense,
-      evidence_note: "当前 Manifest sourceHash 1745960977；仅确认活动级来源。",
+      evidence_note: "2026-06-09 Monument of Triumph 更新后，该地牢专属掉落是“篇章：异端”四把武器；Manifest 没把它们挂回活动来源，这一行按人工核对登记（护甲仍来自 sourceHash 1745960977）。",
       generated_at: datasetGeneratedAt,
       items: [
-        { item_hash: 208088207, item_variant: "normal", drop_scope: "activity" }
+        { item_hash: 727781522, item_variant: "normal", drop_scope: "activity" },
+        { item_hash: 3229982889, item_variant: "normal", drop_scope: "activity" },
+        { item_hash: 3269398063, item_variant: "normal", drop_scope: "activity" },
+        { item_hash: 4028298892, item_variant: "normal", drop_scope: "activity" }
       ]
     },
     {

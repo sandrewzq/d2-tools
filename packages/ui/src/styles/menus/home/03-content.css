@@ -124,8 +124,9 @@
   margin: 0;
 }
 
+/* 日落卡只有 1 条活动，轮换地牢/突袭各有 2 条且活动名更长，比例向轮换那两张倾斜。 */
 :where(.app-shell) .weekly-activity-grid {
-  grid-template-columns: minmax(0, 1.1fr) repeat(2, minmax(0, 1.05fr));
+  grid-template-columns: minmax(0, 0.7fr) repeat(2, minmax(0, 1.15fr));
   gap: 12px;
   align-items: stretch;
 }
@@ -167,9 +168,10 @@
   min-width: 0;
 }
 
+/* 左列只有活动名和难度，收窄它把宽度让给右边的掉落池，装备名才不会被截断。 */
 :where(.app-shell) .weekly-activity-entry {
   display: grid;
-  grid-template-columns: minmax(0, 0.6fr) minmax(210px, 1.4fr);
+  grid-template-columns: minmax(0, 0.5fr) minmax(210px, 1.5fr);
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -187,11 +189,6 @@
 :where(.app-shell) .weekly-activity-card.is-raid .weekly-activity-entry,
 :where(.app-shell) .weekly-activity-card.is-dungeon .weekly-activity-entry {
   padding-block: 7px;
-}
-
-/* 日落打击卡在网格里占 1.1fr、比轮换那两张宽，同样的列比例会分到更多左列宽度；它的掉落池条目也最多，收窄左列让给掉落池。 */
-:where(.app-shell) .weekly-activity-card.is-nightfall .weekly-activity-entry {
-  grid-template-columns: minmax(0, 0.5fr) minmax(210px, 1.5fr);
 }
 
 :where(.app-shell) .weekly-activity-copy {
@@ -952,6 +949,18 @@
   to { opacity: 0.9; }
 }
 
+/* 日落列收窄后，容器再窄一点名字列就被压到几十像素，所以提前切回「日落占满一行、两张轮换并排」；
+   更窄的断点继承这份排法，不再重复声明。 */
+@container product-workspace (max-width: 1320px) {
+  :where(.app-shell) .weekly-activity-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :where(.app-shell) .weekly-activity-card.is-nightfall {
+    grid-column: 1 / -1;
+  }
+}
+
 @container product-workspace (max-width: 1120px) {
   :where(.app-shell) .weekly-activity-list {
     grid-auto-rows: minmax(98px, auto);
@@ -960,14 +969,6 @@
   :where(.app-shell) .weekly-activity-entry {
     height: auto;
     min-height: 98px;
-  }
-
-  :where(.app-shell) .weekly-activity-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  :where(.app-shell) .weekly-activity-card.is-nightfall {
-    grid-column: 1 / -1;
   }
 
   :where(.app-shell) .home-vendor-stock-grid {

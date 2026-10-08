@@ -81,14 +81,16 @@ import {
   type VaultQuickAction
 } from "./vaultQuickActionStore.js";
 import { VaultQueryIndex, type VaultIndexedQuery } from "./vaultQueryIndex.js";
+// 工作区页签与「推荐来源」勾选住在状态模型里（`./vaultFilterState.js`）：它们和筛选是同一份要一起记住的东西，
+// 所以类型定义和持久化放在同一个模块。
+import {
+  readVaultFilterState,
+  writeVaultFilterState,
+  type VaultRecommendationSourceSelection,
+  type VaultWorkspaceTab
+} from "./vaultFilterState.js";
 
-type VaultWorkspaceTab = "filters" | "recommendations";
 type VaultAccountResourceStatus = "unavailable" | "cached" | "stale" | "loading" | "refreshing" | "ready" | "error";
-type VaultRecommendationSourceSelection = {
-  sourceId: string;
-  primaryFilter: VaultRecommendationPrimaryFilter;
-  completeFilter: VaultRecommendationCompleteFilter;
-};
 
 /** 标签随界面语言变，所以按 copy 现算，不再做模块级常量。 */
 function buildVaultWorkspaceTabs(copy: VaultCopy): Array<{ key: VaultWorkspaceTab; label: string }> {
@@ -130,33 +132,65 @@ export function VaultPageContentView(props: {
   cleanupActions?: VaultCleanupActions;
 }) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").vault;
-  const [query, setQuery] = useState("");
+  // 这一屏的筛选会被记住：切菜单、启动门盖过一次、账号快照短暂变空都会卸载这棵内容树，
+  // 回到这里时不该是一片默认值。见 `./vaultFilterState.js`。
+  const restoredFilters = useMemo(readVaultFilterState, []);
+  const [query, setQuery] = useState(restoredFilters.query ?? "");
   const deferredQuery = useDeferredValue(query);
-  const [group, setGroup] = useState<VaultGroupFilter>(defaultVaultGroupTab);
-  const [sortKey, setSortKey] = useState<VaultSortKey>("name");
-  const [tagFilter, setTagFilter] = useState<VaultTagFilter>("all");
-  const [recommendationSourceSelections, setRecommendationSourceSelections] = useState<VaultRecommendationSourceSelection[]>([]);
+  const [group, setGroup] = useState<VaultGroupFilter>(restoredFilters.group ?? defaultVaultGroupTab);
+  const [sortKey, setSortKey] = useState<VaultSortKey>(restoredFilters.sortKey ?? "name");
+  const [tagFilter, setTagFilter] = useState<VaultTagFilter>(restoredFilters.tagFilter ?? "all");
+  const [recommendationSourceSelections, setRecommendationSourceSelections] = useState<VaultRecommendationSourceSelection[]>(restoredFilters.recommendationSourceSelections ?? []);
   /**
    * 「无任何匹配」：只看一条来源都没命中的装备（卡片上写“暂无推荐来源”的那些）。
    * 它与来源勾选语义相反（勾了来源就要求该来源有记录），所以两者互斥：
    * 打开它清空来源勾选，勾来源则关掉它。
    */
-  const [recommendationUnmatchedOnly, setRecommendationUnmatchedOnly] = useState(false);
-  const [lockFilter, setLockFilter] = useState<VaultLockFilter>("all");
-  const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>("all");
-  const [locationFilter, setLocationFilter] = useState<VaultLocationFilter>("vault");
-  const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>("all");
-  const [itemTypeFilter, setItemTypeFilter] = useState("all");
-  const [rarityFilter, setRarityFilter] = useState<VaultRarityFilter>("all");
-  const [gearTierFilter, setGearTierFilter] = useState<VaultGearTierFilter>("all");
-  const [classFilter, setClassFilter] = useState<VaultClassFilter>("all");
-  const [damageFilter, setDamageFilter] = useState<VaultDamageFilter>("all");
-  const [championFilter, setChampionFilter] = useState<VaultChampionFilter>("all");
-  const [craftingFilter, setCraftingFilter] = useState<VaultCraftingFilter>("all");
-  const [armorSetFilter, setArmorSetFilter] = useState<VaultArmorSetFilter>("all");
-  const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>([]);
-  const [frameFilter, setFrameFilter] = useState<VaultFrameFilter>("all");
-  const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>("filters");
+  const [recommendationUnmatchedOnly, setRecommendationUnmatchedOnly] = useState(restoredFilters.recommendationUnmatchedOnly ?? false);
+  const [lockFilter, setLockFilter] = useState<VaultLockFilter>(restoredFilters.lockFilter ?? "all");
+  const [slotFilter, setSlotFilter] = useState<VaultSlotFilter>(restoredFilters.slotFilter ?? "all");
+  const [locationFilter, setLocationFilter] = useState<VaultLocationFilter>(restoredFilters.locationFilter ?? "vault");
+  const [ammoFilter, setAmmoFilter] = useState<VaultAmmoFilter>(restoredFilters.ammoFilter ?? "all");
+  const [itemTypeFilter, setItemTypeFilter] = useState(restoredFilters.itemTypeFilter ?? "all");
+  const [rarityFilter, setRarityFilter] = useState<VaultRarityFilter>(restoredFilters.rarityFilter ?? "all");
+  const [gearTierFilter, setGearTierFilter] = useState<VaultGearTierFilter>(restoredFilters.gearTierFilter ?? "all");
+  const [classFilter, setClassFilter] = useState<VaultClassFilter>(restoredFilters.classFilter ?? "all");
+  const [damageFilter, setDamageFilter] = useState<VaultDamageFilter>(restoredFilters.damageFilter ?? "all");
+  const [championFilter, setChampionFilter] = useState<VaultChampionFilter>(restoredFilters.championFilter ?? "all");
+  const [craftingFilter, setCraftingFilter] = useState<VaultCraftingFilter>(restoredFilters.craftingFilter ?? "all");
+  const [armorSetFilter, setArmorSetFilter] = useState<VaultArmorSetFilter>(restoredFilters.armorSetFilter ?? "all");
+  const [armorStatRules, setArmorStatRules] = useState<VaultArmorStatRule[]>(restoredFilters.armorStatRules ?? []);
+  const [frameFilter, setFrameFilter] = useState<VaultFrameFilter>(restoredFilters.frameFilter ?? "all");
+  const [activeVaultTab, setActiveVaultTab] = useState<VaultWorkspaceTab>(restoredFilters.activeVaultTab ?? "filters");
+  /**
+   * 每变一次就整份写回。不等到卸载再写：整页重载和进程结束都轮不到清理函数，那次写入一定写不上。
+   * 读回来的每个值都会重新过一遍校验（见 `./vaultFilterState.js`），所以整份覆盖就够了。
+   */
+  useEffect(() => {
+    writeVaultFilterState({
+      query,
+      group,
+      sortKey,
+      tagFilter,
+      recommendationSourceSelections,
+      recommendationUnmatchedOnly,
+      lockFilter,
+      slotFilter,
+      locationFilter,
+      ammoFilter,
+      itemTypeFilter,
+      rarityFilter,
+      gearTierFilter,
+      classFilter,
+      damageFilter,
+      championFilter,
+      craftingFilter,
+      armorSetFilter,
+      armorStatRules,
+      frameFilter,
+      activeVaultTab
+    });
+  }, [activeVaultTab, ammoFilter, armorSetFilter, armorStatRules, championFilter, classFilter, craftingFilter, damageFilter, frameFilter, gearTierFilter, group, itemTypeFilter, locationFilter, lockFilter, query, rarityFilter, recommendationSourceSelections, recommendationUnmatchedOnly, slotFilter, sortKey, tagFilter]);
   const [batchMessage, setBatchMessage] = useState<VaultBatchMessage | null>(null);
   /** 本页快捷操作的回执。空文本沿用原来的「清空后回落到批量面板回执」。 */
   function reportBatchMessage(text: string, tone: VaultBatchMessage["tone"] = "ready") {
@@ -412,13 +446,22 @@ export function VaultPageContentView(props: {
     }));
   }
 
+  const recommendationScanPhase = props.recommendationSourceState?.recommendationScan.phase;
+  /**
+   * 「这个来源没了」和「名册还没到手」是两回事：名册（没有管理接口时是那一次来源扫描）还没出结果时，
+   * 可用来源本来就是空的，这时候裁勾选只会把刚恢复回来的条件一起清掉。等有结论了再裁，空清单才是真的没了。
+   */
+  const recommendationSourceListPending = Boolean(props.wishlistActions?.getRecommendationManagement)
+    ? managedRecommendationSourcesLoadState === "idle" || managedRecommendationSourcesLoadState === "loading"
+    : recommendationScanPhase === "idle" || recommendationScanPhase === "scanning" || recommendationScanPhase === "partial";
   useEffect(() => {
+    if (recommendationSourceListPending) return;
     if (!recommendationSourceSelections.length) return;
     const available = new Set(availableRecommendationSources.map((option) => option.sourceId));
     const next = recommendationSourceSelections.filter((selection) => available.has(selection.sourceId));
     if (next.length === recommendationSourceSelections.length) return;
     setRecommendationSourceSelections(next);
-  }, [availableRecommendationSources, recommendationSourceSelections]);
+  }, [availableRecommendationSources, recommendationSourceListPending, recommendationSourceSelections]);
 
   const recommendationFilterState = useMemo(() => buildVaultRecommendationFilterState({
     copy,
@@ -578,6 +621,8 @@ export function VaultPageContentView(props: {
   );
   useEffect(() => {
     if (armorSetFilter === "all") return;
+    // 目录还在读的时候清单本来就是空的，那不是「这个套装没了」——恢复回来的条件不能被这次空清单吃掉。
+    if (props.armorSetCatalogStatus === "loading") return;
     if (props.armorSetCatalogStatus !== "ready"
       || !armorSetFilters.some((option) => option.key === armorSetFilter)) {
       setArmorSetFilter("all");

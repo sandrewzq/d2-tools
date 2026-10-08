@@ -11,6 +11,18 @@ export type ItemSearchQuery = {
   query: string;
   limit?: number;
   aliases?: ItemAliases;
+  /**
+   * `"hash"` 时只回 `{ hash }`：命中集合与完整搜索逐条相同（同一套筛选与截断），只是跳过装备水合。
+   *
+   * 只要「这个词命中哪些装备」的调用方走这条——人工表格的定义池一次要查几百个武器名，
+   * 每个都水合一遍 Perk / 插槽 / 赛季，几秒全花在读调用方根本不看的字段上。
+   */
+  projection?: "hash";
+};
+
+/** `searchItems({ projection: "hash" })` 的结果：只带 hash。 */
+export type ItemSearchHashResult = {
+  hash: number;
 };
 
 export type PerkSearchQuery = {
@@ -46,6 +58,7 @@ export type GameDataRuntimeCapabilities = {
 
 export type GameDataCatalog = {
   getRuntimeCapabilities(): Promise<GameDataRuntimeCapabilities>;
+  searchItems(input: ItemSearchQuery & { projection: "hash" }): Promise<ItemSearchHashResult[]>;
   searchItems(input: ItemSearchQuery): Promise<ItemSearchResult[]>;
   searchPerks(input: PerkSearchQuery): Promise<PerkSearchResult[]>;
   getPerkRelatedEquipment(input: PerkRelatedEquipmentQuery): Promise<PerkRelatedEquipmentPage<ItemSearchResult>>;

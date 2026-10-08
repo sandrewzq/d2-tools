@@ -68,7 +68,21 @@ import { countAccountItemHashes, type AccountItemHashCounts } from "@d2-tools/co
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 import { matchVaultRecommendationsInWorker } from "../runtime/recommendationRuntime.js";
 
-const pendingKnowledgeImports = new Map<string, { path: string; fingerprint: string }>();
+/**
+ * 预览到确认之间要留住的东西：预览那一刻算好的**全部**结果。
+ *
+ * 确认导入最贵的一段是「解析 + 逐行严格校验」，而确认时唯一要重新确认的只有「文件有没有变」
+ * ——指纹只看文本，重读一次文件、比一遍指纹就够（见 `importWeaponRecommendationCsv`）。
+ * 校验上下文与预览结果一并存下来，确认时不再为同一份文件重跑一遍预览。
+ */
+type PendingKnowledgeImport = {
+  path: string;
+  fingerprint: string;
+  preview: WeaponKnowledgeImportPreview;
+  validation: WeaponKnowledgeValidationContext;
+};
+
+const pendingKnowledgeImports = new Map<string, PendingKnowledgeImport>();
 let recommendationManagementInFlight: Promise<RecommendationManagementSnapshot> | null = null;
 
 export function registerCommunityIpcHandlers(): void {
@@ -142,7 +156,12 @@ export function registerCommunityIpcHandlers(): void {
     pendingKnowledgeImports.clear();
     if (preview.importable_recommendation_count === 0) return preview;
     const token = randomUUID();
-    pendingKnowledgeImports.set(token, { path, fingerprint: preview.fingerprint });
+    pendingKnowledgeImports.set(token, {
+      path,
+      fingerprint: preview.fingerprint,
+      preview,
+      validation: strictPreview.validation
+    });
     return { ...preview, token };
   });
 
@@ -150,13 +169,13 @@ export function registerCommunityIpcHandlers(): void {
     const pending = pendingKnowledgeImports.get(token);
     if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
     pendingKnowledgeImports.delete(token);
-    const verified = await previewStrictWeaponKnowledgeCsv(pending.path);
-    const verifiedPreview = verified.preview;
-    if (verifiedPreview.fingerprint !== pending.fingerprint) {
-      throw new Error("武器推荐 CSV 在预览后发生了变化，请重新选择文件。");
+    // 资料库在预览后换了一版，这份池子就不再是用户看到的那份预览，宁可让他重选一次。
+    const manifestVersion = getDesktopManifestStatus().version?.trim() ?? "";
+    if (manifestVersion !== pending.validation.manifest_version) {
+      throw new Error("资料库在预览后已更新，请重新选择文件。");
     }
-    if (verifiedPreview.importable_recommendation_count === 0) {
-      throw new Error(formatKnowledgeImportIssue(verifiedPreview));
+    if (pending.preview.importable_recommendation_count === 0) {
+      throw new Error(formatKnowledgeImportIssue(pending.preview));
     }
     const config = loadConfig();
     // 导入身份 = 用户给的名字 + 新建 / 覆盖；没有默认名字，也不存在默认路径。
@@ -164,8 +183,14 @@ export function registerCommunityIpcHandlers(): void {
       config.data.data_dir,
       pending.path,
       pending.fingerprint,
-      verified.validation,
-      { name: target?.name ?? "", mode: target?.mode ?? "create" }
+      pending.validation,
+      { name: target?.name ?? "", mode: target?.mode ?? "create" },
+      undefined,
+      // 预览已经跑过严格校验，这里只重读一次文本给导入层比指纹：文件没变就不必再算第二遍。
+      {
+        preview: pending.preview,
+        text: withTableFileName(pending.path, () => readRecommendationTableText(pending.path))
+      }
     );
     return result;
   });

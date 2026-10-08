@@ -15,7 +15,7 @@ import type {
   DefinitionComponentData,
   DefinitionRecord
 } from "@d2-tools/core/manifest/definitions";
-import { getGameDataRuntimeCapabilities, type GameDataCatalog } from "./catalog.js";
+import { getGameDataRuntimeCapabilities, type GameDataCatalog, type ItemSearchQuery } from "./catalog.js";
 import type { DefinitionReader } from "./definitionReader.js";
 import { toUnsignedHash } from "./definitionReader.js";
 import type { GameDataSearchIndex } from "./searchIndex.js";
@@ -37,7 +37,9 @@ export function createReaderGameDataCatalog(
       return getGameDataRuntimeCapabilities();
     },
 
-    async searchItems(input) {
+    // 实现体只有一个签名：`GameDataCatalog.searchItems` 的两种结果由**调用方**按 `projection` 挑
+    // （重载在目录契约上），拿到什么就按什么解释。
+    async searchItems(input: ItemSearchQuery): Promise<ItemSearchResult[]> {
       const terms = input.aliases
         ? expandAliasQuery(input.query, input.aliases)
         : [input.query.trim()];
@@ -55,14 +57,21 @@ export function createReaderGameDataCatalog(
         "DestinyInventoryItemDefinition",
         candidateHashes
       );
+      const canonicalHashes = selectCanonicalEquipmentDefinitions(Object.values(candidates))
+        .map((definition) => Number(definition.hash))
+        .filter((hash) => Number.isFinite(hash));
+      // 只要 hash 的调用方不读装备详情：代表版本的筛选只用上面这批候选定义，
+      // 水合（Perk / 插槽 / 赛季…）是给 `getItemSearchResultByHash` 用的，跳过它命中集合逐条不变。
+      // 断言说的是这条分支与调用方谈好的约定——`projection: "hash"` 的结果**只有** `hash`，
+      // 按用途收窄由目录契约的重载表达；实现体只有这一个签名，只能在这里落地。
+      if (input.projection === "hash") {
+        return canonicalHashes.slice(0, limit).map((hash) => ({ hash })) as ItemSearchResult[];
+      }
       const context = hydrateItemContext(
         options.reader,
         options.searchIndex,
         Object.values(candidates)
       );
-      const canonicalHashes = selectCanonicalEquipmentDefinitions(Object.values(candidates))
-        .map((definition) => Number(definition.hash))
-        .filter((hash) => Number.isFinite(hash));
       const results = canonicalHashes
         .map((hash) => getItemSearchResultByHash(context.items, hash, {
           plugSetDefinitions: context.plugSets,

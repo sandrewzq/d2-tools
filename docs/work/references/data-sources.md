@@ -34,7 +34,7 @@
 - GitHub：<https://github.com/DestinyItemManager/DIM>
 - 在线访问：<https://app.destinyitemmanager.com/>
 - 参考内容：仓库筛选、配装流程、愿望单表达、清理建议、装备转移和写操作确认。
-- 数据使用：突袭 / 地牢掉落表（`packages/services/src/community/activityLoot.ts`）从 Bungie Collectible 的 `sourceString` / `sourceHash` 推导，DIM 的 MIT 来源索引只用来交叉核对，不是这份数据的来源。
+- 数据使用：突袭 / 地牢掉落表（`packages/services/src/community/activityLoot.ts`）从 Bungie Collectible 的 `sourceString` / `sourceHash` 推导，DIM 的 MIT 来源索引只用来交叉核对，不是这份数据的来源；2026-06-09 的 Monument of Triumph 之后，Manifest 推不出的专属掉落池另有一份脚本内的人工覆盖表（见 `docs/work/references/activity-loot-dataset.md` 第十一节）。
 - 当前关系：功能与交互参考，不读取 d2-tools 账号，也不代替 Bungie API。
 - 许可：MIT（2026-09-20 核对仓库 LICENSE.md）；d2-tools 未复制其页面代码。
 

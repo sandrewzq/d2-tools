@@ -235,11 +235,11 @@ function HomePageContent(props: {
     && priorities?.weekly_surge?.status === "ready";
   const activities = [
     { kind: "nightfall", label: homeText(props.copy, "日落打击"), priority: priorities?.nightfall },
-    ...(showAccountGatedRotations && priorities?.rotating_raid?.status === "ready" ? [
-      { kind: "raid" as const, label: homeText(props.copy, "本周轮换突袭"), priority: priorities?.rotating_raid },
-    ] : []),
     ...(showAccountGatedRotations && priorities?.rotating_dungeon?.status === "ready" ? [
       { kind: "dungeon" as const, label: homeText(props.copy, "本周轮换地牢"), priority: priorities?.rotating_dungeon }
+    ] : []),
+    ...(showAccountGatedRotations && priorities?.rotating_raid?.status === "ready" ? [
+      { kind: "raid" as const, label: homeText(props.copy, "本周轮换突袭"), priority: priorities?.rotating_raid }
     ] : [])
   ] as const;
   const xur = props.xur;

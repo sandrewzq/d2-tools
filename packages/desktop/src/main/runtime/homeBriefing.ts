@@ -10,7 +10,7 @@ import {
   type WeeklySummary,
   type WeeklySummaryItem
 } from "@d2-tools/core/weekly/summary";
-import { lootPoolItemHashesForActivity } from "@d2-tools/services/community/activityLoot";
+import { activityLootDatasetV1, lootPoolItemHashesForActivity } from "@d2-tools/services/community/activityLoot";
 import {
   type BungieHomeSnapshot,
   type BungiePublicSale,
@@ -53,7 +53,10 @@ export async function getHomeBriefing(options: HomeBriefingRefreshOptions = {}):
     config.data.data_dir,
     token?.membership_id ?? "public",
     manifest.version ?? "manifest-unavailable",
-    manifest.language ?? config.data.manifest_language
+    manifest.language ?? config.data.manifest_language,
+    // 受控掉落数据集的版本也在 key 里：数据集一换版本，缓存的掉落池就过时了。
+    // 不然要等每日 / 每周重置才会重建周报，改完数据在界面上看不到。
+    activityLootDatasetV1.revision
   ].join("\u0000");
   const now = new Date();
   const cached = await loadBriefingCache(config.data.data_dir, contextKey);

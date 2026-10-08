@@ -554,23 +554,35 @@ function queryItemHashesByExactName(
 ): number[] {
   const requested = [...new Set([...names].map((name) => name.trim()).filter(Boolean))];
   if (!requested.length) return [];
+  const results = new Set<number>();
+  const table = lookupNameTable();
+  /**
+   * 先走内存兜底表：命中说明这一份索引里就有同名条目，下面那条 `name = ? OR search_text = ?`
+   * 至多再返回同一个桶里的 hash（`search_text` 只做 trim + 小写，命中它的行，规范化名也必然相同），
+   * 再扫一遍表只是白扫。人工表格一次能带进来几百个名字，逐名全表扫描是导入卡住的主因。
+   */
+  const unresolved: string[] = [];
+  for (const name of requested) {
+    const hits = table.get(normalizeLookupText(name));
+    if (!hits?.length) {
+      unresolved.push(name);
+      continue;
+    }
+    for (const hash of hits) results.add(hash);
+  }
+  if (!unresolved.length) {
+    return [...results].sort((left, right) => left - right);
+  }
   const statement = database.prepare(`
     SELECT DISTINCT hash
     FROM search_documents
     WHERE kind = 'item' AND (name = ? OR search_text = ?)
   `);
-  const results = new Set<number>();
-  for (let offset = 0; offset < requested.length; offset += 250) {
-    for (const name of requested.slice(offset, offset + 250)) {
+  for (let offset = 0; offset < unresolved.length; offset += 250) {
+    for (const name of unresolved.slice(offset, offset + 250)) {
       const rows = statement.all(name, name.toLocaleLowerCase()) as Array<{ hash: number }>;
       for (const row of rows) results.add(toUnsignedHash(row.hash));
     }
-  }
-  const table = lookupNameTable();
-  for (const name of requested) {
-    const hits = table.get(normalizeLookupText(name));
-    if (!hits) continue;
-    for (const hash of hits) results.add(hash);
   }
   return [...results].sort((left, right) => left - right);
 }

@@ -336,8 +336,8 @@ function OverviewSection(props: any) {
       </div>
     </SettingsPanel>
     <SettingsPanel title={settingsText(copy, "应用更新")} subtitle={settingsText(copy, "检查、下载并安装 d2-tools 新版本。")} badge={updateUi.statusLabel} tone={updateUi.tone}>
-      <MetricGrid variant="update"><Metric label={settingsText(copy, "应用版本")} value={props.appVersion} detail={settingsText(copy, "当前安装版本")} /><Metric label={settingsText(copy, "更新来源")} value={props.updateSource} detail={settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")} /><Metric label={settingsText(copy, "上次检查")} value={props.updateCheckedAt} detail={settingsText(copy, "应用更新检查时间")} /></MetricGrid>
       <AppUpdateProgress snapshot={props.appUpdateSnapshot} task={props.appUpdateTask} updateUi={updateUi} copy={copy} interfaceLocale={props.interfaceLocale} />
+      <MetricGrid variant="update"><Metric label={settingsText(copy, "应用版本")} value={props.appVersion} detail={settingsText(copy, "当前安装版本")} /><Metric label={settingsText(copy, "更新来源")} value={props.updateSource} detail={settingsText(copy, "GitHub 连接失败时可打开下载页手动处理")} /><Metric label={settingsText(copy, "上次检查")} value={props.updateCheckedAt} detail={settingsText(copy, "应用更新检查时间")} /></MetricGrid>
       <aside className="settings-download-warning" data-ui-kind="callout" data-status="warning" aria-label={settingsText(copy, "防骗提示")}>
         <strong data-ui-part="value" data-info-priority="decision" data-text-tone="status">{settingsText(copy, "防骗提示")}</strong>
         <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{settingsText(copy, "官方版本永久免费。如果你是付费购买或通过收费渠道获得，请直接点击下方“打开下载页”获取官方版本。")}</p>
@@ -445,8 +445,7 @@ function AppUpdateProgress(props: {
         variant="detail"
         interfaceLocale={props.interfaceLocale}
         tone={tone}
-        title={settingsText(props.copy, "应用更新")}
-        statusLabel={task?.status === "retrying" ? settingsText(props.copy, "等待重试") : props.updateUi.statusLabel}
+        title={settingsText(props.copy, "更新状态")}
         message={task?.status === "retrying" ? task.error ?? task.message ?? props.updateUi.summary : props.updateUi.summary}
         detail={retryDetail}
         progressPercent={task?.progress_percent ?? props.snapshot?.progress_percent}
@@ -630,7 +629,7 @@ function getAppUpdateUi(snapshot: AppUpdateSnapshot | null, copy: SettingsCopy, 
   if (!snapshot) return { statusLabel: settingsText(copy, "读取中"), summary: settingsText(copy, "正在读取更新状态。"), tone: "neutral" };
   if (task?.status === "retrying") return { statusLabel: settingsText(copy, "等待重试"), summary: task.error ?? task.message ?? settingsText(copy, "应用会在后台继续重试。"), tone: "warning" };
   if (snapshot.status === "checking") return { statusLabel: settingsText(copy, "检查中"), summary: settingsText(copy, "正在连接更新服务。"), tone: "pending" };
-  if (snapshot.status === "available") return { statusLabel: settingsText(copy, "发现新版本"), summary: `${settingsText(copy, "发现新版本")} ${snapshot.available_version ?? ""}${settingsText(copy, "可先下载，下载完成后再重启安装。")}`, tone: "pending" };
+  if (snapshot.status === "available") return { statusLabel: settingsText(copy, "发现新版本"), summary: [snapshot.available_version, settingsText(copy, "可先下载，下载完成后再重启安装。")].filter(Boolean).join(" "), tone: "pending" };
   if (snapshot.status === "not_available") {
     if (snapshot.error) return { statusLabel: settingsText(copy, "未检查"), summary: snapshot.user_message ?? snapshot.error, tone: "neutral" };
     return { statusLabel: settingsText(copy, "当前已是最新版本"), summary: snapshot.user_message ?? settingsText(copy, "当前已是最新版本。"), tone: "ready" };

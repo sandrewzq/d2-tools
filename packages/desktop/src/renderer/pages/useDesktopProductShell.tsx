@@ -322,10 +322,22 @@ export function useDesktopProductShell(props: {
     };
   }, [canRefreshAccount, isVisualCapture]);
 
+  /**
+   * 启动步不是 home 时把人拉回首页这件事只做一次，不是每次 `startupStep` 变化都做。
+   *
+   * 原来是「step 一变不是 home 就 `setActivePage("home")`」：登录态抖一下（令牌失效、刷新失败）就等于把当前页面整棵卸载——
+   * 仓库页的筛选、批量勾选全在页面里，用户看到的是「页面突然刷新了、筛选没了」。启动门本来就盖住了页面区，
+   * 不需要再靠改 `activePage` 表达「现在还没就绪」。落点仍然校正：进入 home 那一下把停在设置页的人送回首页。
+   */
+  const startupStepRef = useRef<StartupState["nextStep"] | null>(null);
   useEffect(() => {
-    if (startupStep !== "home") {
-      setActivePage("home");
-    } else {
+    const previousStep = startupStepRef.current;
+    startupStepRef.current = startupStep;
+    if (previousStep === null) {
+      if (startupStep !== "home") setActivePage("home");
+      return;
+    }
+    if (startupStep === "home" && previousStep !== "home") {
       setActivePage((current) => current === "settings" ? "home" : current);
     }
   }, [startupStep]);

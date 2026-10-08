@@ -8,8 +8,14 @@
   padding: 9px 10px;
 }
 
-.settings-section > .settings-feedback {
+.settings-section > .settings-feedback,
+.settings-panel > .settings-feedback {
   margin: 12px 0 0;
+}
+
+/* 状态块排在指标网格前面时，自己带一段与网格的间距。 */
+.settings-panel > .settings-feedback + .settings-update-metrics {
+  margin-top: 12px;
 }
 
 .settings-manifest-task {

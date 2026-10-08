@@ -1,7 +1,9 @@
 import { spawn } from "node:child_process";
 
 const repoRoot = process.cwd();
-const pnpm = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const isWindows = process.platform === "win32";
+// Node 从 18.20/20.12 起禁止不带 shell 直接 spawn .cmd/.bat，Windows 上的 pnpm.cmd 必须经 shell 启动。
+const pnpm = isWindows ? "pnpm.cmd" : "pnpm";
 
 const steps = [
   { label: "安装冻结依赖", args: ["install", "--frozen-lockfile"] },
@@ -28,7 +30,8 @@ function run(command, args, extraEnv = {}) {
       cwd: repoRoot,
       env: { ...process.env, ...extraEnv },
       stdio: "inherit",
-      windowsHide: true
+      windowsHide: true,
+      shell: isWindows
     });
     child.once("error", reject);
     child.once("exit", (code, signal) => {

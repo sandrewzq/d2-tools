@@ -530,12 +530,24 @@ export function collectWeaponRecommendationEnglishNames(text: string): string[] 
 /**
  * 装载定义池时要问资料库的两件事：模糊搜一遍，再按精确官方名取全集。
  *
- * 只要 hash，不要完整搜索结果——这条链只关心「这个名字能证明哪些官方定义存在」。
+ * 只要 hash，不要完整搜索结果——这条链只关心「这个名字能证明哪些官方定义存在」，
+ * 所以搜索一律带 `projection: "hash"`，别为用不到的装备详情买单。
  */
 export type WeaponDefinitionLookup = {
-  searchItems(input: { query: string; limit?: number }): Promise<Array<{ hash: number }>>;
+  searchItems(input: {
+    query: string;
+    limit?: number;
+    projection?: "hash";
+  }): Promise<Array<{ hash: number }>>;
   getItemHashesByExactName(input: { names: string[] }): Promise<number[]>;
 };
+
+/**
+ * 每次同时丢给资料库的名字个数。资料库 worker 是单线程、逐个处理请求的，
+ * 而每个请求的超时从**入队**那一刻算起：一次把几千个名字全丢进去，排在后面的请求
+ * 还没轮到执行就超时了。分批之后队首等待有上界，表再大也不会把「排队」算成「查询慢」。
+ */
+const weaponDefinitionSearchBatchSize = 100;
 
 /**
  * 一份人工表格要用到的**完整武器定义池**：文件里写了 ID 的照收，只写名字的那部分再补齐。
@@ -554,9 +566,16 @@ export async function collectWeaponRecommendationDefinitionHashes(
   if (!namesWithoutItemIds.length) {
     return itemHashes;
   }
-  const searchedHashes = (await Promise.all(namesWithoutItemIds.map((weaponName) => (
-    lookup.searchItems({ query: weaponName, limit: 20 })
-  )))).flat().map((item) => item.hash);
+  const searchedHashes: number[] = [];
+  for (let offset = 0; offset < namesWithoutItemIds.length; offset += weaponDefinitionSearchBatchSize) {
+    const batch = namesWithoutItemIds.slice(offset, offset + weaponDefinitionSearchBatchSize);
+    const batchResults = await Promise.all(batch.map((weaponName) => (
+      lookup.searchItems({ query: weaponName, limit: 20, projection: "hash" })
+    )));
+    for (const items of batchResults) {
+      for (const item of items) searchedHashes.push(item.hash);
+    }
+  }
   const exactNameHashes = await lookup.getItemHashesByExactName({ names: namesWithoutItemIds });
   return uniqueHashes([...itemHashes, ...searchedHashes, ...exactNameHashes]);
 }
@@ -590,12 +609,26 @@ export function collectWeaponRecommendationPlugHashes(
 }
 
 /**
+ * 预览期已经算好的文本与预览结果，确认导入时交给 `importWeaponRecommendationCsv`。
+ *
+ * `text` 必须是**确认那一刻重新读到的**文件文本：导入前要拿它现算一次指纹，判断文件在预览之后
+ * 有没有被改过。指纹只看文本，所以这次重读 + 比对就是「文件没变」的全部证据，不必再解析、再逐行校验。
+ * `preview` 用预览期那一份：返回给用户的文件名、可导入条数、跳过行数都取自它，与他看过的预览一致。
+ */
+export type PrecomputedWeaponRecommendationPreview = {
+  text: string;
+  preview: WeaponKnowledgeImportPreview;
+};
+
+/**
  * 导入一份已预览的 CSV：按用户给定的**名字**与**动作**（新建 / 覆盖）整份写进三级模型。
  *
  * 「没有默认路径」——名字必填，新建与覆盖是两个显式动作，与 DIM 来源共用同一套导入接口
  * （`saveRecommendationDocument`）。格式知识只到本文件为止：每个「推荐来源」列值切一个来源实例、
  * 每行切一条规则；武器身份（展开成完整 hash 集）与要求名（解析成 hash）都在**导入期**定死。
  * 失败由存储层的事务整体回滚，不再有「托管副本要跟着还原」的第二份状态。
+ *
+ * 给了 `precomputed` 就只重读文本比指纹，直接用预览期的结果；不给就自己读文件、自己算一遍。
  */
 export async function importWeaponRecommendationCsv(
   dataDir: string,
@@ -603,21 +636,29 @@ export async function importWeaponRecommendationCsv(
   expectedFingerprint: string,
   validation: WeaponKnowledgeValidationContext,
   target: RecommendationImportTarget,
-  now = new Date()
+  now = new Date(),
+  precomputed?: PrecomputedWeaponRecommendationPreview
 ): Promise<WeaponKnowledgeImportResult> {
   if (!Number.isFinite(now.getTime())) {
     throw new Error("武器推荐知识库导入时间无效。");
   }
-  const csvText = readRecommendationTableText(csvPath);
-  // 指纹只看文件文本，但「有没有可导入的行」要看身份：与预览期（`previewStrictWeaponKnowledgeCsv`）
-  // 和落库期（`csvRecommendationInstances`）读同一份上下文。少一份家族关系，本来靠家族展开装得上的行
-  // 会在这里被判成 0 条，用户看到的可导入预览反而导不进来。
-  const identity = recommendationIdentityExpansion(
-    validation.weaponIdentityRelations ?? [],
-    validation.semantic_definitions
+  const csvText = precomputed?.text ?? readRecommendationTableText(csvPath);
+  // 没有预览结果时自己算一遍。「有没有可导入的行」要看身份：与预览期
+  // （`previewStrictWeaponKnowledgeCsv`）和落库期（`csvRecommendationInstances`）读同一份上下文。
+  // 少一份家族关系，本来靠家族展开装得上的行会在这里被判成 0 条，用户看到的可导入预览反而导不进来。
+  const preview = precomputed?.preview ?? previewWeaponRecommendationCsv(
+    csvText,
+    csvPath,
+    validation.semantic_definitions,
+    recommendationIdentityExpansion(
+      validation.weaponIdentityRelations ?? [],
+      validation.semantic_definitions
+    )
   );
-  const preview = previewWeaponRecommendationCsv(csvText, csvPath, validation.semantic_definitions, identity);
-  if (preview.fingerprint !== expectedFingerprint) {
+  // 一律按手上这份文本现算，不比 `preview.fingerprint`：带 `precomputed` 时那个指纹算的是**预览那一刻**
+  // 的文本，拿它和自己比等于什么都没比；要比的是用户确认的那份与这次重读到的这份。
+  const fingerprint = csvFingerprint(csvText);
+  if (fingerprint !== expectedFingerprint) {
     throw new Error("武器推荐 CSV 在预览后发生了变化，请重新选择文件。");
   }
   if (preview.importable_recommendation_count === 0) {
@@ -628,7 +669,7 @@ export async function importWeaponRecommendationCsv(
     name: target.name,
     mode: target.mode,
     origin: "file",
-    fingerprint: preview.fingerprint,
+    fingerprint,
     importedAt: now.toISOString(),
     instances: csvRecommendationInstances(csvText, validation)
   });
