@@ -444,3 +444,58 @@ function source(
     getRecommendations
   };
 }
+
+describe("推荐组合在武器版本上的可行性", () => {
+  const record = {
+    rule_stable_id: "version-rule", source_id: "source", source_group_id: "source", source_label: "测试来源",
+    purposes: ["pve" as const], requirements: [
+      { slot: "perk1" as const, label: "Perk 1", candidate_names: ["电流激荡"], candidates: [{ hash: 11, name: "电流激荡" }] },
+      { slot: "perk2" as const, label: "Perk 2", candidate_names: ["快速连发"], candidates: [{ hash: 22, name: "快速连发" }] }
+    ]
+  };
+  const service = new CommunityPerkRecommendationService([source("测试来源", async () => recommendation({ source_records: [record] }))]);
+
+  it("区分版本可组成但实例未拥有，与版本池本身不支持", async () => {
+    const [possible] = await service.matchVaultItemInstances([{ hash: 123, socket_plugs: [{ hash: 33 }] }], { itemDefinitions });
+    expect(possible.source_matches?.[0].roll_feasibility?.state).toBe("possible");
+    const differentVersion = { ...itemDefinitions, "123": { ...itemDefinitions["123"], sockets: { socketEntries: [
+      { reusablePlugItems: [{ plugItemHash: 11 }, { plugItemHash: 22 }] },
+      { reusablePlugItems: [{ plugItemHash: 44 }] }
+    ] } } };
+    const [impossible] = await service.matchVaultItemInstances([{ hash: 123, socket_plugs: [{ hash: 11 }, { hash: 22 }] }], { itemDefinitions: differentVersion });
+    expect(impossible.coverage).toBe("covered");
+    expect(impossible.source_matches?.[0].roll_feasibility).toMatchObject({ state: "impossible", slots: ["Perk 2"] });
+    expect(impossible.source_matches?.[0].state).toBe("not_matched");
+    expect(impossible.matched).toBe(0);
+    expect(impossible.recommendation_state).toBe("compare");
+  });
+
+  it("无名称的官方占位定义不阻止已知栏位的版本判断", async () => {
+    const definitions = { ...itemDefinitions, "999": { hash: 999 }, "123": {
+      ...itemDefinitions["123"], sockets: { socketEntries: [
+        { singleInitialItemHash: 999 },
+        { reusablePlugItems: [{ plugItemHash: 11 }] },
+        { reusablePlugItems: [{ plugItemHash: 44 }] }
+      ] }
+    } };
+    const [match] = await service.matchVaultItemInstances([{ hash: 123 }], { itemDefinitions: definitions });
+    expect(match.source_matches?.[0].roll_feasibility?.state).toBe("impossible");
+  });
+
+  it("缺少插件集时保持无法判断，不把缺资料当成不可能", async () => {
+    const incomplete = { ...itemDefinitions, "123": { ...itemDefinitions["123"], sockets: { socketEntries: [
+      { randomizedPlugSetHash: 98765 }
+    ] } } };
+    const [match] = await service.matchVaultItemInstances([{ hash: 123 }], { itemDefinitions: incomplete });
+    expect(match.source_matches?.[0].roll_feasibility?.state).toBe("unknown");
+  });
+
+  it("不同完整规则分别判断，不跨规则拼出一套候选", async () => {
+    const independent = new CommunityPerkRecommendationService([source("独立规则", async () => recommendation({ source_records: [
+      { ...record, rule_stable_id: "a", requirements: [record.requirements[0], { ...record.requirements[1], candidates: [{ hash: 33, name: "连锁反应" }], candidate_names: ["连锁反应"] }] },
+      { ...record, rule_stable_id: "b", requirements: [{ ...record.requirements[0], candidates: [{ hash: 44, name: "金中藏弹" }], candidate_names: ["金中藏弹"] }, record.requirements[1]] }
+    ] }))]);
+    const [match] = await independent.matchVaultItemInstances([{ hash: 123 }], { itemDefinitions });
+    expect(match.source_matches?.map((entry) => entry.roll_feasibility?.state)).toEqual(["impossible", "impossible"]);
+  });
+});

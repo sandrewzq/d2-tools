@@ -257,6 +257,8 @@ export const itemDetailCopy: Record<InterfaceLocale, LocaleCopy["itemDetail"]> =
         "来源要求": "Source requires",
         "多候选满足其一即可": "Any one candidate is enough",
         "环＝当前启用，叉＝来源没要": "Ring = currently active, cross = not required by source",
+        "此版本无法组成推荐组合。推荐要求已保留；这是版本候选池的限制，不代表这件装备还没刷出。": "This weapon version cannot form the recommended roll. Requirements are retained; this is a limit of its perk pool, not a missing drop on this instance.",
+        "此版本无法组成推荐组合": "This version cannot form the recommended roll",
         "其他栏位未要求": "Other columns not required",
         "本件已拥有，当前已启用": "Owned on this item, currently active",
         "本件已拥有，当前未启用": "Owned on this item, currently inactive",

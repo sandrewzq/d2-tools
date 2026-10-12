@@ -85,6 +85,7 @@ export function VaultPage(props: {
   const listRecommendationRules = useCallback((sourceKey: string, query?: string) => (
     api.listRecommendationRules(sourceKey, query)
   ), []);
+  const cancelKnowledgeImport = useCallback(() => api.cancelWeaponKnowledgeImport(), []);
   const wishlistActions = useMemo<VaultWishlistActions>(() => ({
     listRecommendationDocuments: () => api.listRecommendationDocuments(),
     selectDimFile: () => api.selectDimWishlistFile(),
@@ -100,6 +101,8 @@ export function VaultPage(props: {
     exportKnowledgeTemplate: (language) => api.exportWeaponKnowledgeCsvTemplate(language),
     exportKnowledgeCsv: () => api.exportWeaponKnowledgePlayerCsv(),
     selectKnowledgeCsv: () => api.selectWeaponKnowledgeCsv(),
+    cancelKnowledgeImport,
+    onKnowledgeImportProgress: (callback) => api.onWeaponKnowledgeImportProgress(callback),
     confirmKnowledgeImport: async (token, target) => {
       const imported = await api.confirmWeaponKnowledgeCsvImport(token, target);
       await props.onCommunityRecommendationsChanged();

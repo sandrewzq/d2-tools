@@ -43,6 +43,8 @@ export type ArmorPiecesIdentity = {
 export const armorPiecesMaxAgeMs = 10 * 60_000;
 
 const fileName = "armor-planner-pieces-cache.json";
+const staleFileName = "armor-planner-pieces-stale.json";
+const staleFallbackMaxAgeMs = 24 * 60 * 60_000;
 const saveQueues = new Map<string, Promise<void>>();
 let temporarySequence = 0;
 
@@ -51,8 +53,27 @@ export async function loadCachedArmorPieces(
   identity: ArmorPiecesIdentity,
   now = Date.now()
 ): Promise<CachedArmorPieces | null> {
+  return loadArmorPiecesFile(piecesPath(dataDir), identity, now, armorPiecesMaxAgeMs);
+}
+
+/** 仅在首次账号读取失败时使用，调用方必须向玩家说明数据可能过期。 */
+export async function loadStaleArmorPieces(
+  dataDir: string,
+  identity: ArmorPiecesIdentity,
+  now = Date.now()
+): Promise<CachedArmorPieces | null> {
+  return await loadArmorPiecesFile(stalePiecesPath(dataDir), identity, now, staleFallbackMaxAgeMs)
+    ?? loadArmorPiecesFile(piecesPath(dataDir), identity, now, staleFallbackMaxAgeMs);
+}
+
+async function loadArmorPiecesFile(
+  path: string,
+  identity: ArmorPiecesIdentity,
+  now: number,
+  maxAgeMs: number
+): Promise<CachedArmorPieces | null> {
   try {
-    const parsed = JSON.parse(await readFile(piecesPath(dataDir), "utf8")) as Partial<CachedArmorPieces>;
+    const parsed = JSON.parse(await readFile(path, "utf8")) as Partial<CachedArmorPieces>;
     if (parsed.version !== 1
       || !Array.isArray(parsed.pieces)
       || !parsed.saved_at
@@ -61,7 +82,7 @@ export async function loadCachedArmorPieces(
       || parsed.ruleset_id !== identity.rulesetId
       || parsed.ruleset_version !== identity.rulesetVersion
       || normalizeRevision(parsed.manifest_version) !== normalizeRevision(identity.manifestVersion)
-      || !isFresh(parsed.saved_at, now)) {
+      || !isFresh(parsed.saved_at, now, maxAgeMs)) {
       return null;
     }
     const manifestVersion = normalizeRevision(parsed.manifest_version);
@@ -105,6 +126,7 @@ export async function saveCachedArmorPieces(
     try {
       await writeFile(temporary, `${JSON.stringify(cached)}\n`, "utf8");
       await rename(temporary, target);
+      await rm(stalePiecesPath(dataDir), { force: true }).catch(() => undefined);
       return cached;
     } finally {
       await rm(temporary, { force: true }).catch(() => undefined);
@@ -120,19 +142,21 @@ export async function saveCachedArmorPieces(
 }
 
 /**
- * 账号快照重新落盘时清掉棋子缓存。
+ * 账号快照重新落盘时让棋子缓存失效，并留一份同账号的降级副本。
  *
  * 棋子是从一次完整 profile 归一化来的，账号一旦重新同步，它们就可能和仓库、首页显示的那份
- * 账号数据对不上 —— 求解结果里会出现玩家已经不持有的装备。清掉之后下一次「计算」重新取一份，
- * 超时才由 `armorPiecesMaxAgeMs` 兜底。
+ * 账号数据对不上 —— 求解结果里会出现玩家已经不持有的装备。下一次「计算」优先重新取一份；
+ * 只有首次读取失败时才会用这份副本，并明确警告玩家。
  */
 export async function clearCachedArmorPieces(dataDir: string): Promise<void> {
-  await rm(piecesPath(dataDir), { force: true }).catch(() => undefined);
+  const target = piecesPath(dataDir);
+  await (saveQueues.get(target) ?? Promise.resolve());
+  await rename(target, stalePiecesPath(dataDir)).catch(() => undefined);
 }
 
-function isFresh(savedAt: string, now: number): boolean {
+function isFresh(savedAt: string, now: number, maxAgeMs: number): boolean {
   const savedAtMs = Date.parse(savedAt);
-  return Number.isFinite(savedAtMs) && now - savedAtMs <= armorPiecesMaxAgeMs;
+  return Number.isFinite(savedAtMs) && now >= savedAtMs && now - savedAtMs <= maxAgeMs;
 }
 
 function normalizeRevision(value: unknown): string | undefined {
@@ -143,4 +167,8 @@ function normalizeRevision(value: unknown): string | undefined {
 
 function piecesPath(dataDir: string): string {
   return join(dataDir, fileName);
+}
+
+function stalePiecesPath(dataDir: string): string {
+  return join(dataDir, staleFileName);
 }

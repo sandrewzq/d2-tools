@@ -228,8 +228,7 @@ const templateExampleRowLabels = ["示例行（导入时自动跳过）", "Examp
  *
  * 按列名而不是按下标：列顺序换了，示例行跟着自己的列走，不会整行错位到别的列下面。
  * 值都用**官方名**，中文那份整行能过导入校验：玩家把第一格改成自己的来源名、其余照抄，得到的是
- * 一个能导入的格式样板，不是一串报错。英文那份的栏位名暂时过不了校验，见 Bug #109——栏位名是拿
- * 资料库**当前语言**的定义核对的，中文资料库配上英文栏位名就一个也对不上。
+ * 一个能导入的格式样板。英文列名模板的插件示例按当前资料库语言选择。
  */
 const chineseTemplateExampleValues: Record<string, string> = {
   推荐来源: templateExampleRowLabels[0],
@@ -260,9 +259,9 @@ const englishTemplateExampleValues: Record<string, string> = {
   "Barrel / Sight": "Rifled Barrel/Extended Barrel",
   Magazine: "Accurized Rounds/Tactical Mag",
   Masterwork: "Range/Reload Speed",
-  "Perk 1": "Feeding Frenzy/Frenzy",
-  "Perk 2": "No Distractions/Pugilist",
-  "Origin Trait": "One Quiet Moment",
+  "Perk 1": "Feeding Frenzy",
+  "Perk 2": "Master of Arms/Target Lock",
+  "Origin Trait": "Indomitability",
   Rating: "S",
   Note: "This whole row is an example, skipped on import. Replace the rows below with your own recommendations."
 };
@@ -375,8 +374,22 @@ export function createWeaponRecommendationCsvTemplate(): string {
 }
 
 /** 英文模板，与中文模板同形：表头带填写说明 + 一行示例数据行。 */
-export function createWeaponRecommendationEnglishCsvTemplate(): string {
-  return templateCsvText(unifiedEnglishCsvHeaders, englishTemplateExampleValues);
+export function createWeaponRecommendationEnglishCsvTemplate(manifestLanguage = "en"): string {
+  if (manifestLanguage !== "zh-chs" && manifestLanguage !== "en") {
+    throw new Error("英文列名模板目前支持简体中文或英文资料库，请先切换资料库语言。");
+  }
+  const chinese = manifestLanguage === "zh-chs";
+  const values = { ...englishTemplateExampleValues };
+  if (chinese) {
+    for (const [english, local] of Object.entries({
+      "Barrel / Sight": "枪管/瞄具", Magazine: "弹匣", Masterwork: "大师",
+      "Perk 1": "Perk 1", "Perk 2": "Perk 2", "Origin Trait": "起源特性"
+    })) values[english] = chineseTemplateExampleValues[local];
+  }
+  values.Note = chinese
+    ? "示例行（导入时自动跳过）。英文列名不改变资料库语言；Perk、枪管、弹匣、大师和起源特性请填写当前资料库中的官方名称。"
+    : "Example row (skipped on import). Use official names in your current manifest language for perks, barrels, magazines, masterworks and origin traits.";
+  return templateCsvText(unifiedEnglishCsvHeaders, values);
 }
 
 function templateCsvText(headers: readonly string[], values: Record<string, string>): string {
@@ -637,7 +650,8 @@ export async function importWeaponRecommendationCsv(
   validation: WeaponKnowledgeValidationContext,
   target: RecommendationImportTarget,
   now = new Date(),
-  precomputed?: PrecomputedWeaponRecommendationPreview
+  precomputed?: PrecomputedWeaponRecommendationPreview,
+  beforeSave?: () => void
 ): Promise<WeaponKnowledgeImportResult> {
   if (!Number.isFinite(now.getTime())) {
     throw new Error("武器推荐知识库导入时间无效。");
@@ -664,6 +678,8 @@ export async function importWeaponRecommendationCsv(
   if (preview.importable_recommendation_count === 0) {
     throw new Error("武器推荐 CSV 中没有可导入的有效记录，当前数据未更改。");
   }
+  const instances = csvRecommendationInstances(csvText, validation);
+  beforeSave?.();
   saveRecommendationDocument(dataDir, {
     kind: "csv",
     name: target.name,
@@ -671,7 +687,7 @@ export async function importWeaponRecommendationCsv(
     origin: "file",
     fingerprint,
     importedAt: now.toISOString(),
-    instances: csvRecommendationInstances(csvText, validation)
+    instances
   });
   const status = readWeaponRecommendationKnowledgeStatus(dataDir);
   if (!status) throw new Error("武器推荐 CSV 导入失败。");

@@ -1,3 +1,4 @@
+import type { RecommendationImportProgress } from "@d2-tools/core/community-perks";
 import type {
   RecommendationDocumentSummary,
   DimWishlistImportPreview,
@@ -31,6 +32,8 @@ export type CommunityApi = {
   exportWeaponKnowledgePlayerCsv(): Promise<FileExportResult>;
   selectWeaponKnowledgeCsv(): Promise<WeaponKnowledgeImportSelection | null>;
   confirmWeaponKnowledgeCsvImport(token: string, target: RecommendationImportTarget): Promise<WeaponKnowledgeImportResult>;
+  cancelWeaponKnowledgeImport(): Promise<boolean>;
+  onWeaponKnowledgeImportProgress(listener: (progress: RecommendationImportProgress) => void): () => void;
   getWeaponKnowledgeStatus(): Promise<WeaponRecommendationKnowledgeStatus | null>;
   getRecommendationManagement(): Promise<RecommendationManagementSnapshot>;
   listRecommendationRules(sourceKey: string, query?: string): Promise<RecommendationManagedRule[]>;

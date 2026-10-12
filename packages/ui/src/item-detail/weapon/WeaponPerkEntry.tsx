@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { GameAssetImage } from "../../media/GameAssetImage.js";
 import type { ItemDetailCopy } from "../../i18n/types.js";
 import { itemDetailText } from "../itemDetailCopy.js";
@@ -71,10 +71,60 @@ export function WeaponPerkEntry(props: {
 }) {
   const { name, englishName, description, icon } = props;
   const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const [focused, setFocused] = useState(false);
   const rootRef = useRef<HTMLSpanElement>(null);
+  const popoverRef = useRef<HTMLSpanElement>(null);
   const tooltipId = useId();
   // 点击含义被调用方占用（换 Perk）时，浮层只靠悬停与键盘聚焦打开，不抢点击。
   const opensOnClick = !props.onActivate;
+  const visible = open || hovered || focused;
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    const popover = popoverRef.current;
+    if (!visible || !root || !popover) return;
+
+    let shift = 0;
+    let frame = 0;
+    const placePopover = () => {
+      let boundaryLeft = 0;
+      let boundaryRight = document.documentElement.clientWidth;
+      for (let ancestor = root.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        if (getComputedStyle(ancestor).overflowX === "visible") continue;
+        const bounds = ancestor.getBoundingClientRect();
+        const left = bounds.left + ancestor.clientLeft;
+        boundaryLeft = Math.max(boundaryLeft, left);
+        boundaryRight = Math.min(boundaryRight, left + ancestor.clientWidth);
+      }
+      const minLeft = boundaryLeft + 16;
+      const maxRight = boundaryRight - 16;
+      root.style.setProperty("--perk-popover-max-width", `${Math.max(0, maxRight - minLeft)}px`);
+      const rect = popover.getBoundingClientRect();
+      const naturalLeft = rect.left - shift;
+      const left = Math.max(minLeft, Math.min(naturalLeft, maxRight - rect.width));
+      shift = left - naturalLeft;
+      root.style.setProperty("--perk-popover-shift", `${shift}px`);
+    };
+    const schedulePlacement = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(placePopover);
+    };
+    placePopover();
+    const observer = new ResizeObserver(schedulePlacement);
+    observer.observe(root);
+    observer.observe(popover);
+    window.addEventListener("resize", schedulePlacement);
+    document.addEventListener("scroll", schedulePlacement, { capture: true, passive: true });
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", schedulePlacement);
+      document.removeEventListener("scroll", schedulePlacement, true);
+      root.style.removeProperty("--perk-popover-shift");
+      root.style.removeProperty("--perk-popover-max-width");
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,6 +146,12 @@ export function WeaponPerkEntry(props: {
     <span
       ref={rootRef}
       className="weapon-detail-perk-entry"
+      onPointerEnter={() => setHovered(true)}
+      onPointerLeave={() => setHovered(false)}
+      onFocus={() => setFocused(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false);
+      }}
       data-hit={props.hit ? "true" : undefined}
       data-active={props.selected ? "true" : undefined}
       data-muted={props.muted ? "true" : undefined}
@@ -115,7 +171,7 @@ export function WeaponPerkEntry(props: {
           <PerkEntryBody {...props} />
         </button>
       )}
-      <span id={tooltipId} className="weapon-detail-perk-entry-popover" role="tooltip">
+      <span ref={popoverRef} id={tooltipId} className="weapon-detail-perk-entry-popover" role="tooltip">
         <span className="weapon-detail-perk-entry-popover-heading">
           <span className="weapon-detail-perk-entry-art">
             <GameAssetImage

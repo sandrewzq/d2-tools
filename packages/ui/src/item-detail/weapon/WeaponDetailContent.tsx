@@ -1445,6 +1445,7 @@ function RecommendationSourceEvidenceCard(props: {
       <summary>
         <span>
           <strong>{sourceLabel}</strong>
+          {source.roll_feasibility?.state === "impossible" ? <small>{itemDetailText(props.copy, "此版本无法组成推荐组合")}</small> : null}
           <small>{metadata.join(" · ") || itemDetailText(props.copy, "来源没有提供额外元数据")}</small>
         </span>
         <span className="weapon-detail-source-score" role="group" aria-label={presentation.summary}>
@@ -1478,6 +1479,12 @@ function RecommendationSourceEvidenceCard(props: {
       </summary>
       {open ? (
         <div className="weapon-detail-source-evidence-body">
+          {source.roll_feasibility?.state === "impossible" ? (
+            <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">
+              {itemDetailText(props.copy, "此版本无法组成推荐组合。推荐要求已保留；这是版本候选池的限制，不代表这件装备还没刷出。")}
+              {source.roll_feasibility.slots?.length ? `（${source.roll_feasibility.slots.join("、")}）` : null}
+            </p>
+          ) : null}
           {source.note ? <p className="weapon-detail-source-quote" data-ui-kind="callout" data-callout-tone="info">{source.note}</p> : null}
           <div className="weapon-detail-source-trace">
             {source.source_location ? <span>{itemDetailTemplate(props.copy, "原表位置：{value}", { value: source.source_location })}</span> : null}
@@ -1706,6 +1713,7 @@ function recommendationSourceLabel(copy: ItemDetailCopy, sourceId: string, fallb
 
 // 所有来源同级：先看符合程度，平级再按来源名，不按来源类型排权重。
 function recommendationMatchRank(source: RecommendationSourceMatch): number {
+  if (source.roll_feasibility?.state === "impossible") return -1;
   if (source.state === "full") return 5;
   if (source.state === "core") return 4;
   if (source.state === "close") return 3;

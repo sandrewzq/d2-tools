@@ -8,12 +8,15 @@ import type {
   ArmorPlannerWorkspaceJobResult
 } from "@d2-tools/app/armor";
 import {
+  armorSlots,
   normalizeAccountArmorPieces,
+  type ArmorClass,
   type ArmorPieceSnapshot
 } from "@d2-tools/core/armor";
 import { createServiceError } from "@d2-tools/services";
 import {
   loadCachedArmorPieces,
+  loadStaleArmorPieces,
   saveCachedArmorPieces,
   type ArmorPiecesIdentity
 } from "@d2-tools/services/account/armorPiecesStore";
@@ -57,7 +60,7 @@ export async function planArmorWorkspaceInRuntime<Job extends ArmorPlannerWorksp
 
   const needsAccount = request.job.mode !== "theoretical";
   const resolved = needsAccount
-    ? await resolveArmorPieces(manifest)
+    ? await resolveArmorPieces(manifest, request.job.request.class)
     : { pieces: [] as ArmorPieceSnapshot[], membershipId: undefined, degraded: false };
   const pieces = resolved.pieces;
   const accountRefreshDegraded = resolved.degraded;
@@ -102,6 +105,7 @@ export async function planArmorWorkspaceInRuntime<Job extends ArmorPlannerWorksp
  * `warnings` 让界面说明原因 —— 宁可给一份基于旧数据的结果，也不要无限等。
  */
 const accountRefreshDeadlineMs = 20_000;
+const initialAccountReadDeadlineMs = 30_000;
 
 async function refreshArmorSnapshotWithinDeadline(
   fallback: Awaited<ReturnType<typeof getArmorPlannerAccountSummary>>
@@ -135,7 +139,8 @@ async function refreshArmorSnapshotWithinDeadline(
  * 就作废重取。
  */
 async function resolveArmorPieces(
-  manifest: Awaited<ReturnType<typeof getArmorPlannerManifestData>>
+  manifest: Awaited<ReturnType<typeof getArmorPlannerManifestData>>,
+  armorClass: ArmorClass
 ): Promise<{ pieces: ArmorPieceSnapshot[]; membershipId?: string; degraded: boolean }> {
   const identity = armorPiecesIdentity(manifest);
   if (identity) {
@@ -149,10 +154,25 @@ async function resolveArmorPieces(
     }
   }
 
-  let account = await getArmorPlannerAccountSummary("cached");
+  // 首次读取也可能走完整 GetProfile，不能只给后面的强制刷新设置时限。
+  let account: Awaited<ReturnType<typeof getArmorPlannerAccountSummary>>;
+  try {
+    account = await getArmorPlannerAccountSummaryWithinDeadline();
+  } catch (error) {
+    const stale = identity
+      ? await loadStaleArmorPieces(identity.dataDir, identity.cacheKey)
+      : null;
+    if (!stale) throw error;
+    console.warn("[armor-planner] 首次读取护甲数据失败，本次使用本机留存的护甲数据。", error);
+    return {
+      pieces: stale.pieces,
+      membershipId: stale.destiny_membership_id,
+      degraded: true
+    };
+  }
   let pieces = normalizeAccountArmorPieces(account, manifest.ruleset);
   let degraded = false;
-  if (armorSnapshotNeedsRefresh(pieces)) {
+  if (armorSnapshotNeedsRefresh(pieces, armorClass)) {
     const refreshed = await refreshArmorSnapshotWithinDeadline(account);
     account = refreshed.account;
     degraded = refreshed.degraded;
@@ -167,6 +187,20 @@ async function resolveArmorPieces(
     ).catch(() => undefined);
   }
   return { pieces, membershipId: account.destiny_membership_id, degraded };
+}
+
+async function getArmorPlannerAccountSummaryWithinDeadline(): Promise<Awaited<ReturnType<typeof getArmorPlannerAccountSummary>>> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      getArmorPlannerAccountSummary("cached"),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => reject(new Error("首次读取护甲数据超过 30 秒。请先刷新账号，再重新计算。")), initialAccountReadDeadlineMs);
+      })
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -203,7 +237,7 @@ function withAccountRefreshWarning<Job extends ArmorPlannerWorkspaceJob>(
   if (!Array.isArray(warnings)) return result;
   return {
     ...result,
-    warnings: [...warnings, "账号护甲数据未能刷新，本次结果基于上次同步的账号数据。"]
+    warnings: [...warnings, "账号护甲数据未能刷新，本次结果使用本机留存数据；装备可能已变化，穿戴前会重新核对。"]
   };
 }
 
@@ -308,13 +342,16 @@ function accountSourceRevision(
   return `${membershipId}:${fingerprint}`;
 }
 
-function armorSnapshotNeedsRefresh(pieces: readonly ArmorPieceSnapshot[]): boolean {
-  return pieces.some((piece) => (
-    piece.quality.owned_ready
-    && (!piece.quality.checks.has_base_stats
-      || !piece.quality.checks.has_energy_capacity
-      || !piece.quality.checks.has_stat_mod_socket
-      || !piece.installation.armor_stat_mod_clear_options.length
-      || (piece.installation.gear_tier === 5 && !piece.installation.tuning_options.length))
-  ));
+function armorSnapshotNeedsRefresh(pieces: readonly ArmorPieceSnapshot[], armorClass: ArmorClass): boolean {
+  // 个别装备缺插槽详情不应迫使每次计算重新拉全账号；求解器本来会排除这些不完整的实例。
+  // 只有某个槽位有护甲却一件都不能严格回放时，才值得强制刷新一次。
+  return armorSlots.some((slot) => {
+    const slotPieces = pieces.filter((piece) => (
+      piece.slot === slot
+      && (piece.class === armorClass || piece.class === "any")
+    ));
+    return slotPieces.length > 0 && !slotPieces.some((piece) => (
+      piece.quality.owned_ready && piece.quality.strict_replay_ready
+    ));
+  });
 }

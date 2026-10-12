@@ -226,6 +226,7 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
   }
 
   const optionsBySlot = new Map<ArmorSlot, OwnedPieceOption[]>();
+  const preferredInstanceIds = new Set(normalizeIds(request.preferred_instance_ids));
   for (const slot of armorSlots) {
     const locked = lockedBySlot.get(slot);
     const slotPieces = eligiblePieces.filter((piece) => (
@@ -238,7 +239,13 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
       budget,
       slotRules[slot]
     ));
-    optionsBySlot.set(slot, options.sort(comparePieceOptions));
+    optionsBySlot.set(slot, pruneDominatedPieceOptions(
+      options.sort(comparePieceOptions),
+      request.target_character_id,
+      preferredInstanceIds,
+      targetResult.target,
+      request.ruleset
+    ));
     if (!options.length) {
       issues.push({
         code: "missing_owned_armor_slot",
@@ -262,11 +269,14 @@ export function planOwnedArmor(request: ArmorOwnedPlanRequest): ArmorOwnedPlanRe
   }
 
   const limit = normalizeLimit(request.limit, 5, 20);
-  const stateLimit = normalizeLimit(request.state_limit, 2000, 100_000);
+  // 默认搜索预算按当前五个槽位的实际分支数收紧，避免大库存的「自动」模组把 Worker 推到 90 秒超时。
+  // 显式传入 state_limit 的调用方仍按自己的预算执行；被裁剪的结果会标记 truncated。
+  const totalOptionCount = armorSlots.reduce((total, slot) => total + (optionsBySlot.get(slot)?.length ?? 0), 0);
+  const defaultStateLimit = Math.min(2000, Math.max(128, Math.floor(30_000_000 / totalOptionCount)));
+  const stateLimit = normalizeLimit(request.state_limit, defaultStateLimit, 100_000);
   const remainingBounds = buildRemainingBounds(optionsBySlot);
   const remainingSetCapacities = buildRemainingSetCapacities(optionsBySlot, setResult.constraint);
   const emptySetCounts = setResult.constraint.requirements.map(() => 0);
-  const preferredInstanceIds = new Set(normalizeIds(request.preferred_instance_ids));
   let states = new Map<string, OwnedSearchState>([[
     stateKey(createEmptyArmorStatValues(), 0, 0, emptySetCounts, 0),
     {
@@ -1040,6 +1050,73 @@ function uniqueStats(values: readonly ArmorStatKey[]): ArmorStatKey[] {
 
 function comparePieceOptions(left: OwnedPieceOption, right: OwnedPieceOption): number {
   return pieceChoiceId(left.choice).localeCompare(pieceChoiceId(right.choice));
+}
+
+/**
+ * 只在目标没有属性上限时做 Pareto 剪枝。有上限时，更高的属性可能造成溢出，不能支配低属性选项。
+ * 同一组的模组数量、异域占用、套装贡献和六维个位数相同；因此用任意相同的后续装备补齐后，
+ * 高属性选项不会产生更大的目标缺口或属性浪费。能量与搬运成本也必须不高于被删选项。
+ */
+function pruneDominatedPieceOptions(
+  options: OwnedPieceOption[],
+  targetCharacterId: string | undefined,
+  preferredInstanceIds: ReadonlySet<string>,
+  target: NormalizedArmorTarget,
+  ruleset: ArmorRuleset
+): OwnedPieceOption[] {
+  if (armorStatKeys.some((stat) => target[stat] && target[stat]!.maximum < ruleset.stat_limits.maximum)
+    || ruleset.stat_limits.minimum % 10 !== 0
+    || ruleset.stat_limits.maximum % 10 !== 0) return options;
+
+  const groups = new Map<string, OwnedPieceOption[]>();
+  const optionIds = new Map(options.map((option) => [option, pieceChoiceId(option.choice)] as const));
+  for (const option of options) {
+    const stats = option.choice.final;
+    const key = [
+      option.plus5,
+      option.plus10,
+      Number(option.choice.exotic),
+      option.set_hash ?? 0,
+      ...armorStatKeys.map((stat) => ((stats[stat] % 10) + 10) % 10)
+    ].join(":");
+    const group = groups.get(key) ?? [];
+    // 库存极大时限制预处理成本；超过这个数量就保留原选项，正确性不受影响。
+    if (group.length >= 256) {
+      group.push(option);
+      groups.set(key, group);
+      continue;
+    }
+    if (group.some((candidate) => optionDominates(candidate, option, targetCharacterId, preferredInstanceIds, optionIds))) {
+      continue;
+    }
+    const retained = group.filter((candidate) => !optionDominates(option, candidate, targetCharacterId, preferredInstanceIds, optionIds));
+    retained.push(option);
+    groups.set(key, retained);
+  }
+  const retained = new Set([...groups.values()].flat());
+  return options.filter((option) => retained.has(option));
+}
+
+function optionDominates(
+  left: OwnedPieceOption,
+  right: OwnedPieceOption,
+  targetCharacterId: string | undefined,
+  preferredInstanceIds: ReadonlySet<string>,
+  optionIds: ReadonlyMap<OwnedPieceOption, string>
+): boolean {
+  // 排序完全打平时由 candidate_id 决定；保留字典序更小的选择，避免剪枝改掉既有结果。
+  if (optionIds.get(left)!.localeCompare(optionIds.get(right)!) > 0
+    || left.choice.energy.final > right.choice.energy.final
+    || replacementValue(left.choice, preferredInstanceIds) > replacementValue(right.choice, preferredInstanceIds)
+    || transferValue(left.choice, targetCharacterId) > transferValue(right.choice, targetCharacterId)
+    || equippedValue(left.choice, targetCharacterId) < equippedValue(right.choice, targetCharacterId)
+    || armorStatKeys.some((stat) => left.choice.final[stat] < right.choice.final[stat])) return false;
+  return armorStatKeys.some((stat) => left.choice.final[stat] > right.choice.final[stat])
+    || left.choice.energy.final < right.choice.energy.final
+    || replacementValue(left.choice, preferredInstanceIds) < replacementValue(right.choice, preferredInstanceIds)
+    || transferValue(left.choice, targetCharacterId) < transferValue(right.choice, targetCharacterId)
+    || equippedValue(left.choice, targetCharacterId) > equippedValue(right.choice, targetCharacterId)
+    || optionIds.get(left)!.localeCompare(optionIds.get(right)!) < 0;
 }
 
 function pieceChoiceId(choice: ArmorOwnedPieceChoice): string {

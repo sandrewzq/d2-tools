@@ -534,11 +534,11 @@
    特异性仍要压过上面那条 `[data-active="true"] …small`（0,3,0）。
    列头图例两处（`WeaponDetailContent.tsx` 栏头与窄屏半区表头）随之写成「环＝当前启用，叉＝来源没要」。 */
 .weapon-detail-perk-entry[data-mismatch="true"][data-active="true"] .weapon-detail-perk-entry-copy small { color: var(--status-error); }
-.weapon-detail-perk-entry-popover { display: grid; position: absolute; z-index: var(--layer-popover); bottom: calc(100% + 10px); left: 50%; width: min(304px, calc(100vw - 32px)); gap: 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--border-control) 78%, var(--accent-primary)); border-radius: var(--radius-object); color: var(--text-body); background: var(--chrome); box-shadow: 0 16px 36px rgb(0 0 0 / 34%); opacity: 0; pointer-events: none; transform: translate(-50%, 5px); transition: opacity 100ms ease, transform 100ms ease; visibility: hidden; }
+.weapon-detail-perk-entry-popover { display: none; position: absolute; z-index: var(--layer-popover); bottom: calc(100% + 10px); left: calc(50% + var(--perk-popover-shift, 0px)); width: min(304px, calc(100vw - 32px)); max-width: var(--perk-popover-max-width, calc(100vw - 32px)); gap: 9px; padding: 11px; border: 1px solid color-mix(in srgb, var(--border-control) 78%, var(--accent-primary)); border-radius: var(--radius-object); color: var(--text-body); background: var(--chrome); box-shadow: 0 16px 36px rgb(0 0 0 / 34%); opacity: 0; pointer-events: none; translate: -50% 0; transform: translateY(5px); transition: opacity 100ms ease, transform 100ms ease; visibility: hidden; }
 .weapon-detail-perk-entry:hover > .weapon-detail-perk-entry-popover,
 .weapon-detail-perk-entry:focus-within > .weapon-detail-perk-entry-popover,
-.weapon-detail-perk-entry[data-open="true"] > .weapon-detail-perk-entry-popover { opacity: 1; transform: translate(-50%, 0); visibility: visible; }
-.weapon-detail-perk-entry-popover::after { position: absolute; bottom: -6px; left: calc(50% - 6px); width: 10px; height: 10px; border-right: 1px solid var(--border-control); border-bottom: 1px solid var(--border-control); background: var(--chrome); content: ""; transform: rotate(45deg); }
+.weapon-detail-perk-entry[data-open="true"] > .weapon-detail-perk-entry-popover { display: grid; opacity: 1; transform: translateY(0); visibility: visible; }
+.weapon-detail-perk-entry-popover::after { position: absolute; bottom: -6px; left: clamp(12px, calc(50% - 6px - var(--perk-popover-shift, 0px)), calc(100% - 22px)); width: 10px; height: 10px; border-right: 1px solid var(--border-control); border-bottom: 1px solid var(--border-control); background: var(--chrome); content: ""; transform: rotate(45deg); }
 .weapon-detail-perk-entry-popover-heading { display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 9px; }
 .weapon-detail-perk-entry-popover-heading .weapon-detail-perk-entry-art { width: 40px; height: 40px; }
 .weapon-detail-perk-entry-popover-heading > span:last-child { display: grid; min-width: 0; gap: 2px; }
@@ -749,11 +749,8 @@
   .weapon-detail-source-slot-columns { display: none; }
   .weapon-detail-source-slot-comparison > section > header { display: flex; min-height: 20px; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 3px 10px; }
   .weapon-detail-perk-entry { max-width: none; }
-  .weapon-detail-perk-entry-popover { left: 0; transform: translate(0, 5px); }
-  .weapon-detail-perk-entry:hover > .weapon-detail-perk-entry-popover,
-  .weapon-detail-perk-entry:focus-within > .weapon-detail-perk-entry-popover,
-  .weapon-detail-perk-entry[data-open="true"] > .weapon-detail-perk-entry-popover { transform: translate(0, 0); }
-  .weapon-detail-perk-entry-popover::after { left: 18px; }
+  .weapon-detail-perk-entry-popover { left: var(--perk-popover-shift, 0px); translate: 0; }
+  .weapon-detail-perk-entry-popover::after { left: clamp(12px, calc(18px - var(--perk-popover-shift, 0px)), calc(100% - 22px)); }
   .weapon-detail-upgrade-table > div { grid-template-columns: minmax(92px, 0.75fr) minmax(0, 1.25fr); }
   .weapon-detail-upgrade-table > div > * { overflow-wrap: anywhere; }
 }

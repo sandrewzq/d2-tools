@@ -1,3 +1,4 @@
+import type { RecommendationImportProgress } from "@d2-tools/core/community-perks";
 import { type DimWishlist } from "@d2-tools/core/analysis/wishlistImport";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { ControlButton } from "../control/ControlButton.js";
@@ -156,6 +157,8 @@ export type VaultWishlistActions = {
     skipped_row_count: number;
     imported_row_count: number;
   }>;
+  cancelKnowledgeImport?(): Promise<boolean>;
+  onKnowledgeImportProgress?(listener: (progress: RecommendationImportProgress) => void): () => void;
   getRecommendationManagement?(): Promise<VaultRecommendationManagementSnapshot>;
   listRecommendationRules?(sourceKey: string, query?: string): Promise<VaultRecommendationManagedRule[]>;
   setRecommendationSourceState?(sourceKey: string, state: "active" | "disabled" | "removed"): Promise<VaultRecommendationManagementSnapshot>;
@@ -254,6 +257,8 @@ export function VaultRecommendationDataPanel(props: {
   const [importedDocuments, setImportedDocuments] = useState<VaultRecommendationDocumentSummary[]>([]);
   // 待导入来源的名字由用户输入；同一时刻只有一个待确认导入，所以共用一个输入。
   const [importName, setImportName] = useState("");
+  const [importProgress, setImportProgress] = useState<RecommendationImportProgress | null>(null);
+  const importCancelled = useRef(false);
   const [knowledgePreview, setKnowledgePreview] = useState<VaultWeaponKnowledgeImportPreview | null>(null);
   const [managementSnapshot, setManagementSnapshot] = useState<VaultRecommendationManagementSnapshot | null>(null);
   const [managementLoadState, setManagementLoadState] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -279,8 +284,31 @@ export function VaultRecommendationDataPanel(props: {
     && props.actions.clearImportedRecommendationRules
   );
 
+  useEffect(() => props.actions.onKnowledgeImportProgress?.((progress) => {
+    if (progress.phase === "cancelled") importCancelled.current = true;
+    setImportProgress(progress);
+  }), [props.actions.onKnowledgeImportProgress]);
+
+  useEffect(() => () => { void props.actions.cancelKnowledgeImport?.(); }, [props.actions.cancelKnowledgeImport]);
+
+  function closeKnowledgeImport() {
+    setKnowledgeImportOpen(false);
+    setKnowledgePreview(null);
+    setImportProgress(null);
+    void props.actions.cancelKnowledgeImport?.();
+  }
+
+  async function cancelKnowledgeImport() {
+    const cancelled = await props.actions.cancelKnowledgeImport?.();
+    if (cancelled) {
+      importCancelled.current = true;
+      setKnowledgePreview(null);
+      setFeedback({ tone: "neutral", message: vaultText(copy, "已取消导入，当前数据未更改。") });
+    }
+  }
+
   // 两个愿望单弹框（本地文件 / 从链接同步）与表格弹框共用同一套焦点约束：打开时聚焦首个动作，Escape 关闭，Tab 在框内循环。
-  useModalFocusTrap(importDialogRef, knowledgeImportOpen, Boolean(busyAction), "[data-knowledge-template-zh]", () => setKnowledgeImportOpen(false));
+  useModalFocusTrap(importDialogRef, knowledgeImportOpen, Boolean(busyAction), "[data-knowledge-template-zh]", closeKnowledgeImport);
   useModalFocusTrap(linkDialogRef, dimDialog === "link", Boolean(busyAction), "[data-wishlist-link-input]", closeDimDialog);
   useModalFocusTrap(fileDialogRef, dimDialog === "file", Boolean(busyAction), "[data-dim-file-select]", closeDimDialog);
 
@@ -546,6 +574,10 @@ export function VaultRecommendationDataPanel(props: {
 
   async function selectKnowledgeCsv() {
     if (!props.actions.selectKnowledgeCsv) return;
+    importCancelled.current = false;
+    setImportProgress(null);
+    setKnowledgePreview(null);
+    setFeedback(null);
     setBusyAction("knowledge-select");
     try {
       const preview = await props.actions.selectKnowledgeCsv();
@@ -557,7 +589,7 @@ export function VaultRecommendationDataPanel(props: {
         ? { tone: "neutral", message: vaultTemplate(copy, "发现 {rows} 行异常，将单独忽略；其余 {records} 条记录可以导入。", { rows: preview.skipped_row_count, records: preview.importable_recommendation_count }) }
         : { tone: "success", message: vaultText(copy, "文件已通过校验。来源名已按文件名填好，可改；再选择新建或覆盖同名来源。") });
     } catch (error) {
-      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "知识库 CSV 校验失败。")) });
+      setFeedback({ tone: importCancelled.current ? "neutral" : "error", message: importCancelled.current ? vaultText(copy, "已取消导入，当前数据未更改。") : errorMessage(error, vaultText(copy, "知识库 CSV 校验失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -566,6 +598,8 @@ export function VaultRecommendationDataPanel(props: {
   async function confirmKnowledgeImport(mode: VaultImportTarget["mode"]) {
     const target = importTarget(mode);
     if (!target || !knowledgePreview?.token || knowledgePreview.importable_recommendation_count === 0 || !props.actions.confirmKnowledgeImport) return;
+    importCancelled.current = false;
+    setFeedback(null);
     setBusyAction("knowledge-confirm");
     try {
       const result = await props.actions.confirmKnowledgeImport(knowledgePreview.token, target);
@@ -579,7 +613,7 @@ export function VaultRecommendationDataPanel(props: {
       }));
     } catch (error) {
       setKnowledgePreview(null);
-      setFeedback({ tone: "error", message: errorMessage(error, vaultText(copy, "推荐 CSV 导入失败。")) });
+      setFeedback({ tone: importCancelled.current ? "neutral" : "error", message: importCancelled.current ? vaultText(copy, "已取消导入，当前数据未更改。") : errorMessage(error, vaultText(copy, "推荐 CSV 导入失败。")) });
     } finally {
       setBusyAction("");
     }
@@ -701,9 +735,7 @@ export function VaultRecommendationDataPanel(props: {
   const canClose = !isBusy;
   const selectedManagedSource = managementSnapshot?.sources.find((source) => source.source_key === selectedSourceKey);
 
-  // 愿望单弹框（本地文件 / 链接）开着时这行小字渲染在框内：遮罩是 62% 黑又占满屏幕，
-  // 页面底部那句话落在遮罩后面，用户看不见。
-  // 表格导入弹框仍把它留在页面上（那是另一件事，没在这次范围内）。
+  // 导入反馈跟随当前弹框，不能把错误或取消结果留在遮罩后面。
   const feedbackLine = feedback ? (
     <p className="vault-wishlist-feedback" data-status={feedback.tone} role={feedback.tone === "error" ? "alert" : "status"}>{feedback.message}</p>
   ) : null;
@@ -867,7 +899,7 @@ export function VaultRecommendationDataPanel(props: {
         <div
           className="modal-backdrop vault-recommendation-data-backdrop"
           role="presentation"
-          onClick={() => { if (!isBusy) setKnowledgeImportOpen(false); }}
+          onClick={() => { if (!isBusy) closeKnowledgeImport(); }}
         >
           <section
             ref={importDialogRef}
@@ -884,7 +916,7 @@ export function VaultRecommendationDataPanel(props: {
                 <strong id={importTitleId}>{vaultText(copy, "导入人工推荐表格")}</strong>
                 <span>{vaultText(copy, "新建推荐先下载模板填写；已有表格可以直接选择文件。确认前只校验和预览，不会更新当前数据。")}</span>
               </div>
-              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={() => setKnowledgeImportOpen(false)}>{vaultText(copy, "关闭")}</ControlButton>
+              <ControlButton size="compact" variant="quiet" disabled={isBusy} onClick={closeKnowledgeImport}>{vaultText(copy, "关闭")}</ControlButton>
             </header>
 
             <div className="vault-import-steps">
@@ -897,7 +929,7 @@ export function VaultRecommendationDataPanel(props: {
                   {props.actions.exportKnowledgeTemplate ? (
                     <>
                       <ControlButton data-knowledge-template-zh="" size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("zh")}>{vaultText(copy, busyAction === "knowledge-template" ? "导出中" : "下载中文模板")}</ControlButton>
-                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{vaultText(copy, busyAction === "knowledge-template" ? "导出中" : "下载英文模板")}</ControlButton>
+                      <ControlButton size="compact" variant="secondary" disabled={isBusy} onClick={() => void exportKnowledgeTemplate("en")}>{vaultText(copy, busyAction === "knowledge-template" ? "导出中" : "下载英文列名模板")}</ControlButton>
                     </>
                   ) : null}
                 </div>
@@ -913,6 +945,17 @@ export function VaultRecommendationDataPanel(props: {
                 </div>
               </div>
 
+              {(busyAction === "knowledge-select" || busyAction === "knowledge-confirm") && importProgress ? (
+                <div className="vault-import-step" role="status" aria-live="polite">
+                  <span><strong>{vaultText(copy, knowledgeImportPhaseLabels[importProgress.phase])}</strong>
+                    <progress aria-label={vaultText(copy, "导入进度")} />
+                  </span>
+                  {props.actions.cancelKnowledgeImport ? (
+                    <ControlButton size="compact" variant="secondary" disabled={!importProgress.cancellable}
+                      onClick={() => void cancelKnowledgeImport()}>{vaultText(copy, "取消导入")}</ControlButton>
+                  ) : null}
+                </div>
+              ) : null}
               {knowledgePreview ? (
             <div className="vault-wishlist-preview vault-knowledge-import-preview" data-surface="frame" data-ui-kind="state-frame">
               <span><strong>{knowledgePreview.file_name}</strong><small>{knowledgePreview.source_labels.join(" / ")}</small></span>
@@ -942,6 +985,7 @@ export function VaultRecommendationDataPanel(props: {
             </div>
               ) : null}
             </div>
+            {feedbackLine}
           </section>
         </div>
       ) : null}
@@ -1059,7 +1103,7 @@ export function VaultRecommendationDataPanel(props: {
         </div>
       ) : null}
 
-      {dimDialog === null ? feedbackLine : null}
+      {dimDialog === null && !knowledgeImportOpen ? feedbackLine : null}
     </section>
   );
   return panel;
@@ -1413,3 +1457,9 @@ export function shortRevision(copy: VaultCopy, revision: string): string {
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
+
+const knowledgeImportPhaseLabels: Record<RecommendationImportProgress["phase"], string> = {
+  reading: "正在读取表格", definitions: "正在读取武器与 Perk 资料", validating: "正在校验推荐规则",
+  preview: "校验完成，等待确认", preparing: "正在准备导入", saving: "正在保存，请稍候（此时不可取消）",
+  complete: "导入完成", cancelled: "已取消导入，当前数据未更改。", failed: "导入失败"
+};

@@ -4,10 +4,12 @@ import type {
   CharacterLoadoutSlotSummary
 } from "../account/summary.js";
 import type { ArmorSlot } from "../armor/model.js";
+import { isSubclassBucket } from "../items/classification.js";
 import {
   matchLocalLoadoutPlan,
   normalizeLoadoutPlanArmorStatModSlotRules,
   type LoadoutPlanArmorStatKey,
+  type LoadoutPlanSubclassTarget,
   type LocalLoadoutPlan,
   type LocalLoadoutPlanMatchedItem
 } from "./plans.js";
@@ -67,7 +69,8 @@ export type LocalLoadoutPlanPublishVerification = {
 };
 
 export function createLocalLoadoutPlanExecutionPlan(input: {
-  plan: Pick<LocalLoadoutPlan, "class_name" | "item_targets" | "armor_constraints" | "armor_plan">;
+  plan: Pick<LocalLoadoutPlan, "class_name" | "item_targets" | "armor_constraints" | "armor_plan">
+    & Partial<Pick<LocalLoadoutPlan, "subclass_target">>;
   account: AccountSummary;
   target_character_id: string;
 }): LocalLoadoutPlanExecutionPlan {
@@ -77,6 +80,8 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
   const steps: LocalLoadoutPlanExecutionStep[] = [];
   const armorPlanGaps = validatePlannedArmorAssignments(input.plan, match.item_matches);
   const gaps: string[] = [...armorPlanGaps];
+  const subclassGap = validateEquippedSubclass(input.plan.subclass_target, target.equipped_items);
+  if (subclassGap) gaps.push(subclassGap);
   const plannedArmorPlugHashes = new Map((input.plan.armor_plan?.planned_armor_plugs ?? []).map((assignment) => [
     assignment.instance_id,
     new Set([
@@ -185,7 +190,7 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
   });
 
   const strictArmorPlan = Boolean(input.plan.armor_plan?.planned_armor_plugs.length);
-  const executableSteps = strictArmorPlan && gaps.length ? [] : dedupeSteps(steps);
+  const executableSteps = (strictArmorPlan && gaps.length) || subclassGap ? [] : dedupeSteps(steps);
   const uniqueGaps = [...new Set(gaps)];
   const selectedItemInstanceIds = match.item_matches
     .filter((itemMatch) => itemMatch.status === "selected")
@@ -208,6 +213,35 @@ export function createLocalLoadoutPlanExecutionPlan(input: {
     selected_item_count: match.selected_count,
     selected_item_instance_ids: Object.freeze(selectedItemInstanceIds)
   });
+}
+
+function validateEquippedSubclass(
+  expected: LoadoutPlanSubclassTarget | undefined,
+  equippedItems: AccountSummary["characters"][number]["equipped_items"]
+): string | undefined {
+  if (!expected) return undefined;
+  const current = equippedItems.find((item) => (
+    isSubclassBucket(item.bucket_hash) || isSubclassBucket(item.equipment_bucket_hash)
+  ));
+  if (!current) return "目标角色当前子职业未返回，请刷新账号后再穿戴。";
+  if (expected.subclass_hash && current.hash !== expected.subclass_hash) {
+    return "目标角色当前子职业与方案不同，请先在游戏中切换子职业。";
+  }
+  const expectedPlugs = new Set([
+    ...Object.values(expected.socket_overrides ?? {}),
+    ...expected.ability_hashes,
+    ...expected.aspect_hashes,
+    ...expected.fragment_hashes,
+    ...expected.mod_hashes
+  ]);
+  if (!expectedPlugs.size) return undefined;
+  const currentPlugs = new Set(current.socket_plugs.map((plug) => plug.hash));
+  if (!currentPlugs.size) return "目标角色当前子职业配置未返回，请刷新账号后再穿戴。";
+  if (expectedPlugs.size !== currentPlugs.size
+    || [...expectedPlugs].some((hash) => !currentPlugs.has(hash))) {
+    return "目标角色当前子职业配置与方案不同，请先在游戏中切换星相、碎片或技能。";
+  }
+  return undefined;
 }
 
 function validatePlannedArmorAssignments(

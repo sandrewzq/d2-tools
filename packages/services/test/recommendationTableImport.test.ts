@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { readRecommendationTableText } from "../src/community/recommendationTableFile.js";
 import {
+  createWeaponRecommendationEnglishCsvTemplate,
   importWeaponRecommendationCsv,
+  readWeaponRecommendationKnowledgeStatus,
   previewWeaponRecommendationCsv,
   type WeaponKnowledgeSemanticDefinitions,
   type WeaponKnowledgeValidationContext
@@ -254,3 +256,48 @@ function crc32(data: Buffer): number {
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
+
+
+describe("英文列名模板按资料库语言填写", () => {
+  it.each(["zh-chs", "en"])("%s 资料库的示例改成正式来源后能直接通过校验", (language) => {
+    const chinese = language === "zh-chs";
+    const groups = chinese ? [
+      ["膛线枪管", "加长枪管"], ["精确弹药", "战术弹匣"], ["射程", "填装速度"],
+      ["喂食狂热", "冲击支撑"], ["武器大师", "目标锁定"], ["不屈不挠"]
+    ] : [
+      ["Rifled Barrel", "Extended Barrel"], ["Accurized Rounds", "Tactical Mag"], ["Range", "Reload Speed"],
+      ["Feeding Frenzy"], ["Master of Arms", "Target Lock"], ["Indomitability"]
+    ];
+    const categories = ["barrels", "magazines", "masterworks", "traits", "traits", "origins"];
+    const plugs: NonNullable<WeaponKnowledgeSemanticDefinitions["plug_definitions"]> = {};
+    const sockets = groups.map((names, column) => ({ reusablePlugItems: names.map((name, index) => {
+      const hash = 2000 + column * 10 + index;
+      plugs[String(hash)] = { hash, displayProperties: { name }, plug: { plugCategoryIdentifier: categories[column] } };
+      return { plugItemHash: hash };
+    }) }));
+    const definitions: WeaponKnowledgeSemanticDefinitions = {
+      item_definitions: { "1001": { hash: 1001, itemType: 3, displayProperties: { name: chinese ? "隐士" : "The Recluse" }, sockets: { socketEntries: sockets } } },
+      plug_definitions: plugs, plug_set_definitions: {},
+      english_item_definitions: { "1001": { hash: 1001, displayProperties: { name: "The Recluse" } } }
+    };
+    const template = createWeaponRecommendationEnglishCsvTemplate(language);
+    const filled = template.replace("Example row (skipped on import)", "我的推荐");
+    const preview = previewWeaponRecommendationCsv(filled, "模板.csv", definitions);
+    expect(preview.blocking_issues).toEqual([]);
+    expect(preview.importable_recommendation_count).toBe(1);
+  });
+
+  it("取消保存前的导入不会覆盖原有数据", async () => {
+    const dir = scratchDir();
+    const path = join(dir, "推荐.csv");
+    writeFileSync(path, expectedCsvText, "utf8");
+    const preview = previewWeaponRecommendationCsv(expectedCsvText, path, semanticDefinitions);
+    await importWeaponRecommendationCsv(dir, path, preview.fingerprint, validation, { name: "现有来源", mode: "create" });
+    const before = readWeaponRecommendationKnowledgeStatus(dir);
+    await expect(importWeaponRecommendationCsv(dir, path, preview.fingerprint, validation,
+      { name: "现有来源", mode: "overwrite" }, undefined, { preview, text: expectedCsvText },
+      () => { throw new Error("取消"); }
+    )).rejects.toThrow("取消");
+    expect(readWeaponRecommendationKnowledgeStatus(dir)).toEqual(before);
+  });
+});

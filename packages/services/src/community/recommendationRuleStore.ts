@@ -119,7 +119,7 @@ export function readRecommendationRules(
   sourceId: string
 ): RecommendationStoredRule[] {
   const ruleRows = database.prepare(`
-    SELECT rule_id, rule_group_id, mode, kind, purposes, note, tags, author,
+    SELECT rule_id, rule_group_id, item_hash, mode, kind, purposes, note, tags, author,
            source_note, source_title, source_description, block_id,
            rating, ranking, page_updated_at, version, source_location, source_url
     FROM recommendation_source_rules
@@ -139,10 +139,15 @@ export function readRecommendationRules(
   return ruleRows.map((row) => {
     const mode = row.mode as RecommendationRulePurpose;
     const purposes = parsePurposes(row.purposes, mode);
+    const coveredHashes = items.get(String(row.rule_id)) ?? [];
+    const declaredHash = Number(row.item_hash);
     return {
       ruleId: String(row.rule_id),
       ruleGroupId: String(row.rule_group_id ?? "") || String(row.rule_id),
-      itemHashes: items.get(String(row.rule_id)) ?? [],
+      // 首项是规则声明版本；按数值排序的覆盖集不能替代它，否则读取期会按另一版插槽归栏。
+      itemHashes: coveredHashes.includes(declaredHash)
+        ? [declaredHash, ...coveredHashes.filter((hash) => hash !== declaredHash)]
+        : coveredHashes,
       mode,
       kind: row.kind === "weapon_only" ? "weapon_only" : "roll",
       requirements: requirements.get(String(row.rule_id)) ?? [],

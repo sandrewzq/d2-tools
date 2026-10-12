@@ -1,6 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { registerRecommendationImportIpcHandlers } from "./recommendationImport.js";
 import { writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { dialog, ipcMain } from "electron";
 import type { DefinitionComponentData, DefinitionRecord } from "@d2-tools/core/manifest/definitions";
 import {
@@ -13,22 +13,12 @@ import {
 import { loadConfig } from "@d2-tools/services/config/store";
 import { createDefaultCommunityPerkService } from "@d2-tools/services/community/perkRecommendation";
 import {
-  buildWeaponNameEntries,
   collectCsvRecommendationItemHashes,
-  collectWeaponRecommendationDefinitionHashes,
-  collectWeaponRecommendationEnglishNames,
-  collectWeaponRecommendationPlugHashes,
-  collectWeaponRecommendationPlugSetHashes,
   createWeaponRecommendationCsvTemplate,
   createWeaponRecommendationEnglishCsvTemplate,
   exportWeaponRecommendationPlayerCsv,
-  importWeaponRecommendationCsv,
-  previewWeaponRecommendationCsv,
   readWeaponRecommendationKnowledgeStatus,
-  type WeaponKnowledgeImportPreview,
-  type WeaponKnowledgeValidationContext
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
-import { readRecommendationTableText } from "@d2-tools/services/community/recommendationTableFile";
 import {
   clearImportedRecommendationRules,
   listRecommendationManagedRules,
@@ -43,8 +33,7 @@ import {
 import {
   hasActiveRecommendationRules,
   recommendationDocumentRevision,
-  relatedRecommendationItemHashes,
-  type RecommendationImportTarget
+  relatedRecommendationItemHashes
 } from "@d2-tools/services/community/recommendationDocumentStore";
 import {
   advanceVaultRecommendationMatchCacheRevision,
@@ -68,21 +57,6 @@ import { countAccountItemHashes, type AccountItemHashCounts } from "@d2-tools/co
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 import { matchVaultRecommendationsInWorker } from "../runtime/recommendationRuntime.js";
 
-/**
- * 预览到确认之间要留住的东西：预览那一刻算好的**全部**结果。
- *
- * 确认导入最贵的一段是「解析 + 逐行严格校验」，而确认时唯一要重新确认的只有「文件有没有变」
- * ——指纹只看文本，重读一次文件、比一遍指纹就够（见 `importWeaponRecommendationCsv`）。
- * 校验上下文与预览结果一并存下来，确认时不再为同一份文件重跑一遍预览。
- */
-type PendingKnowledgeImport = {
-  path: string;
-  fingerprint: string;
-  preview: WeaponKnowledgeImportPreview;
-  validation: WeaponKnowledgeValidationContext;
-};
-
-const pendingKnowledgeImports = new Map<string, PendingKnowledgeImport>();
 let recommendationManagementInFlight: Promise<RecommendationManagementSnapshot> | null = null;
 
 export function registerCommunityIpcHandlers(): void {
@@ -99,14 +73,14 @@ export function registerCommunityIpcHandlers(): void {
     }
     await writeFile(
       result.filePath,
-      isEnglish ? createWeaponRecommendationEnglishCsvTemplate() : createWeaponRecommendationCsvTemplate(),
+      isEnglish ? createWeaponRecommendationEnglishCsvTemplate(config.data.manifest_language) : createWeaponRecommendationCsvTemplate(),
       "utf8"
     );
     return {
       canceled: false,
       file_path: result.filePath,
       message: isEnglish
-        ? "英文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把 Weapon、Perk、Rating 等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。"
+        ? "英文列名模板已导出。Perk、枪管、弹匣、大师和起源特性请按当前资料库语言填写官方名称；中文资料库请填中文。示例行导入时自动跳过。"
         : "中文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把武器、Perk、评级等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。"
     };
   });
@@ -138,62 +112,7 @@ export function registerCommunityIpcHandlers(): void {
     };
   });
 
-  ipcMain.handle("community:knowledge:import:select", async () => {
-    const config = loadConfig();
-    const result = await dialog.showOpenDialog({
-      title: "选择人工推荐表格",
-      defaultPath: join(config.data.data_dir, "imports"),
-      properties: ["openFile"],
-      // 旧版二进制 .xls 也列出来：让它可选中、然后给出「请另存为 .xlsx 或 CSV」的明确提示，
-      // 比在选择器里选不到、用户自己猜要友好。
-      filters: [{ name: "推荐表格", extensions: ["csv", "xlsx", "xlsm", "xls"] }]
-    });
-    const path = result.filePaths[0];
-    if (result.canceled || !path) return null;
-
-    const strictPreview = await previewStrictWeaponKnowledgeCsv(path);
-    const preview = strictPreview.preview;
-    pendingKnowledgeImports.clear();
-    if (preview.importable_recommendation_count === 0) return preview;
-    const token = randomUUID();
-    pendingKnowledgeImports.set(token, {
-      path,
-      fingerprint: preview.fingerprint,
-      preview,
-      validation: strictPreview.validation
-    });
-    return { ...preview, token };
-  });
-
-  ipcMain.handle("community:knowledge:import:confirm", async (_event, token: string, target: RecommendationImportTarget) => {
-    const pending = pendingKnowledgeImports.get(token);
-    if (!pending) throw new Error("武器推荐 CSV 预览已失效，请重新选择文件。");
-    pendingKnowledgeImports.delete(token);
-    // 资料库在预览后换了一版，这份池子就不再是用户看到的那份预览，宁可让他重选一次。
-    const manifestVersion = getDesktopManifestStatus().version?.trim() ?? "";
-    if (manifestVersion !== pending.validation.manifest_version) {
-      throw new Error("资料库在预览后已更新，请重新选择文件。");
-    }
-    if (pending.preview.importable_recommendation_count === 0) {
-      throw new Error(formatKnowledgeImportIssue(pending.preview));
-    }
-    const config = loadConfig();
-    // 导入身份 = 用户给的名字 + 新建 / 覆盖；没有默认名字，也不存在默认路径。
-    const result = await importWeaponRecommendationCsv(
-      config.data.data_dir,
-      pending.path,
-      pending.fingerprint,
-      pending.validation,
-      { name: target?.name ?? "", mode: target?.mode ?? "create" },
-      undefined,
-      // 预览已经跑过严格校验，这里只重读一次文本给导入层比指纹：文件没变就不必再算第二遍。
-      {
-        preview: pending.preview,
-        text: withTableFileName(pending.path, () => readRecommendationTableText(pending.path))
-      }
-    );
-    return result;
-  });
+  registerRecommendationImportIpcHandlers();
 
   ipcMain.handle("community:knowledge:status:get", () => {
     const config = loadConfig();
@@ -346,128 +265,6 @@ export function registerCommunityIpcHandlers(): void {
     }, classifyCommunityIpcError);
   });
 
-}
-
-async function previewStrictWeaponKnowledgeCsv(path: string): Promise<{
-  preview: WeaponKnowledgeImportPreview;
-  validation: WeaponKnowledgeValidationContext;
-}> {
-  const manifestVersion = getDesktopManifestStatus().version?.trim() ?? "";
-  if (!manifestVersion) throw new Error("资料库尚未准备完成，不能严格校验武器推荐 CSV。");
-  // 读表 + 解析整段带上文件名：表头不受支持、格式不对时，用户要能一眼看出是哪个文件（Bug #89）。
-  const csvText = withTableFileName(path, () => readRecommendationTableText(path));
-  // 定义池 = 文件里写了 ID 的 + 只写名字的那些对应的全部官方版本（见 `collectWeaponRecommendationDefinitionHashes`）。
-  const declaredHashes = await withTableFileNameAsync(path, () => (
-    collectWeaponRecommendationDefinitionHashes(csvText, getGameDataCatalog())
-  ));
-  // S3′：身份关系按武器家族取。展开出来的版本也必须在定义池里——校验期的逐 hash 自检、
-  // 落库期的候选解析、读取期的展示都读这一份池子，少一层就会把装得上的版本判成装不上。
-  const relations = await loadWeaponIdentityRelations(declaredHashes);
-  const definitionHashes = uniqueHashes([
-    ...declaredHashes,
-    ...relations.map((relation) => relation.item_hash)
-  ]);
-  const itemDefinitions = await getDefinitions(
-    "DestinyInventoryItemDefinition",
-    definitionHashes,
-    { projection: "community-match" }
-  );
-  const plugSetHashes = collectWeaponRecommendationPlugSetHashes(itemDefinitions);
-  const plugSetDefinitions = await getDefinitions(
-    "DestinyPlugSetDefinition",
-    plugSetHashes,
-    { projection: "community-match" }
-  );
-  const plugHashes = collectWeaponRecommendationPlugHashes(itemDefinitions, plugSetDefinitions);
-  const plugDefinitions = await getDefinitions(
-    "DestinyInventoryItemDefinition",
-    plugHashes,
-    { projection: "community-match" }
-  );
-  const semanticDefinitions = {
-    item_definitions: itemDefinitions,
-    plug_set_definitions: plugSetDefinitions,
-    plug_definitions: plugDefinitions,
-    english_item_definitions: await loadEnglishItemDefinitions(csvText)
-  };
-  // 预览与落库读同一份身份上下文：名称表由**已装的武器定义**现建，与 `csvRecommendationInstances`
-  // 里的 `recommendationIdentityExpansion` 完全同源。英文名池一并传进去：名称表里有了英文名键，
-  // 「有英文名就按英文名匹配」才成立（③）。
-  const identity = {
-    relations,
-    nameEntries: buildWeaponNameEntries(itemDefinitions, semanticDefinitions.english_item_definitions)
-  };
-  return {
-    preview: withTableFileName(path, () => (
-      previewWeaponRecommendationCsv(csvText, path, semanticDefinitions, identity)
-    )),
-    validation: {
-      manifest_version: manifestVersion,
-      semantic_definitions: semanticDefinitions,
-      // S3′：导入期要把每行的武器身份展开成完整 hash 集，需要资料库里的身份关系。
-      // 取的是整个武器家族（含同发布组的专家版 / 失时版）。
-      weaponIdentityRelations: relations
-    }
-  };
-}
-
-/**
- * 英文名池：资料库不以英文存整份物品定义，只能拿文件里写过的英文名去**英文搜索索引**反查
- * （`search-en.sqlite`；`getItemHashesByExactName` 已并集中英两套索引），再拼一份只带名字的定义池。
- *
- * 只装文件里出现过的名字：③ 的判据只问「这个英文名指向哪些官方装备」，不需要英文清单。
- * 文件里一个英文名都没有时返回 `undefined`——英文判据整体不启用，`resolveOfficialWeaponDefinitions`
- * 退回中文名一条路，与从前一致（见 `WeaponKnowledgeSemanticDefinitions.english_item_definitions`）。
- */
-async function loadEnglishItemDefinitions(
-  csvText: string
-): Promise<DefinitionComponentData | undefined> {
-  const names = collectWeaponRecommendationEnglishNames(csvText);
-  if (!names.length) return undefined;
-  const catalog = getGameDataCatalog();
-  const definitions: DefinitionComponentData = {};
-  for (const name of names) {
-    const hashes = await catalog.getItemHashesByExactName({ names: [name] });
-    for (const hash of hashes) {
-      const key = String(hash);
-      // 一个 hash 只记一次，先写进来的名字留着：池子只用来核对行里的英文名，多记名字没有意义。
-      if (definitions[key]) continue;
-      definitions[key] = { hash, displayProperties: { name } };
-    }
-  }
-  return definitions;
-}
-
-/**
- * 读表失败的文案带上文件名：从「表头不受支持」这类错误里看不出是哪个文件出的问题，
- * 用户手上可能同时有几份导出的表格（Bug #89）。
- */
-function withTableFileName<T>(path: string, run: () => T): T {
-  try {
-    return run();
-  } catch (error) {
-    throw tableFileError(path, error);
-  }
-}
-
-/** 同上，给定义池装载这类**异步**步骤用：解析表头同样发生在里面，解析失败也要带文件名。 */
-async function withTableFileNameAsync<T>(path: string, run: () => Promise<T>): Promise<T> {
-  try {
-    return await run();
-  } catch (error) {
-    throw tableFileError(path, error);
-  }
-}
-
-function tableFileError(path: string, error: unknown): Error {
-  const message = error instanceof Error ? error.message : String(error);
-  return new Error(`文件「${basename(path)}」：${message}`);
-}
-
-function formatKnowledgeImportIssue(preview: WeaponKnowledgeImportPreview): string {
-  const issue = preview.blocking_issues[0];
-  if (!issue) return "武器推荐 CSV 存在无法通过官方资料校验的内容。";
-  return `武器推荐 CSV 没有可导入的有效记录。第 ${issue.row_number} 行“${issue.weapon_name}”的${issue.field}“${issue.value}”：${issue.message}`;
 }
 
 async function matchVaultCommunityItems(

@@ -87,6 +87,14 @@ function markImportsCurrent(dataDir: string): void {
 }
 
 describe("recommendation rule storage (current schema)", () => {
+  it("preserves the declared weapon when a covered version has a smaller hash", () => {
+    const dataDir = tempDataDir();
+    save(dataDir, [dimRule({ item_hash: 1054567917, item_hashes: [1054567917, 839344841] })]);
+    const [loaded] = dimRules(dataDir);
+    expect(loaded?.item_hash).toBe(1054567917);
+    expect(loaded?.item_hashes).toEqual([1054567917, 839344841]);
+  });
+
   it("round-trips a rule through the child tables field-for-field", () => {
     const dataDir = tempDataDir();
     // 两条规则同属一个注释段，才会落在同一个来源实例里（分组是既有行为，这里只要一份可比的输入）。

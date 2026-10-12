@@ -4,6 +4,7 @@ import { matchLocalLoadoutPlan } from "../src/loadouts/plans.js";
 import {
   createLocalLoadoutPlanExecutionPlan,
   createLocalLoadoutPlanPublishPlan,
+  validateLocalLoadoutPlanExecutionPlan,
   validateLocalLoadoutPlanPublishPlan,
   verifyLocalLoadoutPlanPublishPlan
 } from "../src/loadouts/localPlanExecution.js";
@@ -67,6 +68,47 @@ describe("local loadout plans", () => {
       status: "verified",
       reasons: []
     });
+  });
+
+  it("blocks every wear step when the target character's subclass configuration differs", () => {
+    const account = accountSummary();
+    account.characters[0]!.equipped_items.push({
+      hash: 400,
+      name: "subclass",
+      bucket_hash: 3284755031,
+      group_key: "equipment",
+      socket_plugs: [
+        { hash: 52, name: "fragment", socket_index: 2 },
+        { hash: 51, name: "aspect", socket_index: 1 }
+      ]
+    });
+    const plan = {
+      class_name: "Titan",
+      item_targets: [{ slot: "Kinetic Weapons", item_hash: 100, selected_instance_id: "two", plug_hashes: [] }],
+      subclass_target: {
+        subclass_hash: 400,
+        socket_overrides: { "1": 51, "2": 52 },
+        ability_hashes: [],
+        aspect_hashes: [51],
+        fragment_hashes: [52],
+        mod_hashes: []
+      }
+    };
+    const matching = createLocalLoadoutPlanExecutionPlan({ plan, account, target_character_id: "character" });
+    expect(matching.gaps).toEqual([]);
+    expect(matching.executable_steps.some((step) => step.kind === "equip")).toBe(true);
+
+    const changed = structuredClone(account);
+    changed.characters[0]!.equipped_items[1]!.socket_plugs[1]!.hash = 53;
+    const blocked = createLocalLoadoutPlanExecutionPlan({ plan, account: changed, target_character_id: "character" });
+    expect(blocked.executable_steps).toEqual([]);
+    expect(blocked.gaps).toContain("目标角色当前子职业配置与方案不同，请先在游戏中切换星相、碎片或技能。");
+    expect(validateLocalLoadoutPlanExecutionPlan(matching, blocked).status).toBe("stale");
+
+    changed.characters[0]!.equipped_items[1]!.socket_plugs = [];
+    const unread = createLocalLoadoutPlanExecutionPlan({ plan, account: changed, target_character_id: "character" });
+    expect(unread.executable_steps).toEqual([]);
+    expect(unread.gaps).toContain("目标角色当前子职业配置未返回，请刷新账号后再穿戴。");
   });
 });
 

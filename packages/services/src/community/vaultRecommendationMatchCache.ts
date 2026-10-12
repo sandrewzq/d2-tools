@@ -35,7 +35,7 @@ const databaseFileName = "account-cache.sqlite";
 // 27：愿望单文本的归栏改按**规则声明的版本**判（`dimWishlistDiagnostics` 2026-09-24）。此前按
 //     手上这件的版本归栏，家族展开到换过插槽池的版本时，装不进标准栏位的 perk 会被丢掉，
 //     同一条规则在愿望单里比在推荐表里少一栏，「命中几栏」的两个来源分档因此永远对不上。
-const matchAlgorithmVersion = 27;
+const matchAlgorithmVersion = 28;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;

@@ -1,3 +1,4 @@
+import type { RecommendationImportProgress } from "@d2-tools/core/community-perks";
 import { contextBridge, ipcRenderer } from "electron";
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import type {
@@ -364,6 +365,12 @@ contextBridge.exposeInMainWorld("d2", {
     ipcRenderer.invoke("community:knowledge:import:select") as Promise<(WeaponKnowledgeImportPreview & { token?: string }) | null>,
   confirmWeaponKnowledgeCsvImport: (token: string, target: RecommendationImportTarget) =>
     ipcRenderer.invoke("community:knowledge:import:confirm", token, target) as Promise<WeaponKnowledgeImportResult>,
+  cancelWeaponKnowledgeImport: () => ipcRenderer.invoke("community:knowledge:import:cancel") as Promise<boolean>,
+  onWeaponKnowledgeImportProgress: (callback: (progress: RecommendationImportProgress) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, progress: RecommendationImportProgress) => callback(progress);
+    ipcRenderer.on("community:knowledge:import:progress", listener);
+    return () => ipcRenderer.removeListener("community:knowledge:import:progress", listener);
+  },
   getWeaponKnowledgeStatus: () =>
     ipcRenderer.invoke("community:knowledge:status:get") as Promise<WeaponRecommendationKnowledgeStatus | null>,
   getRecommendationManagement: () =>

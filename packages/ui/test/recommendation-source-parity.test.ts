@@ -115,6 +115,18 @@ function summarize(prefix: SourcePrefix, state: RecommendationSourceMatch["state
 }
 
 describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来源类型分叉", () => {
+  it("版本不可组成的提示在详情事实和卡片摘要一致，并保留来源", () => {
+    const evidence = instanceMatch([{ ...sourceMatch("dim", "not_matched"),
+      roll_feasibility: { state: "impossible", reason: "candidate_unavailable", slots: ["Perk 2"] }
+    }]);
+    const card = createRecommendationCardSummary(evidence);
+    const detailed = buildVaultRecommendationSourceSummaries(weaponItem(), evidence);
+    const compact = buildVaultRecommendationSourceSummaries(weaponItem(), undefined, card);
+    expect(compact).toEqual(detailed);
+    expect(compact[0].rollFeasibility?.state).toBe("impossible");
+    expect(compact[0].resultText).toContain("此版本无法组成推荐组合");
+  });
+
   it("来源类型互换后，摘要与排序的顺序一致", () => {
     // 两条来源：一条命中、一条未命中。唯一变量是 sourceId 前缀。
     const dimFirst = buildVaultRecommendationSourceSummaries(

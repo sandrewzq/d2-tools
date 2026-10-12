@@ -1417,7 +1417,7 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
   const plannerMode = armorConstraints.planner_mode ?? "owned";
   const armorSlotEnergyPlan = buildArmorSlotEnergyPlan(activeDraft, accountItems);
   const armorPlannerState = props.armorPlannerState;
-  const armorViewModel = armorPlannerState?.status === "ready" || armorPlannerState?.status === "stale"
+  const armorViewModel = armorPlannerState?.viewModel?.mode === plannerMode
     ? armorPlannerState.viewModel
     : null;
   const armorCandidates = armorViewModel?.candidates ?? [];
@@ -1445,8 +1445,8 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
     ? armorPlanChangeKinds(armorPlanBaseline, armorConstraints, armorPlanEquipmentChanged)
     : [];
   const armorPlanSettingsChanged = armorPlanChanges.length > 0;
-  const armorPlanAcceptBlocked = armorPlanSettingsChanged || armorPlannerState?.status === "stale";
-  const armorSearchTruncated = Boolean(armorViewModel?.search?.truncated);
+  const armorPlanAcceptBlocked = armorPlanSettingsChanged || armorPlannerState?.status !== "ready";
+  const armorSearchTruncated = Boolean((armorPlannerState?.status === "ready" || armorPlannerState?.status === "stale") && armorViewModel?.search?.truncated);
   const armorStatusDetailCount = armorViewModel ? armorViewModel.issues.length + armorViewModel.warnings.length : 0;
 
   function toggleArmorCandidateComparison(candidateId: string) {
@@ -1530,10 +1530,11 @@ function LocalPlanEditor(props: LoadoutsPageContentViewProps & {
               <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={calculateArmorCandidates} disabled={(plannerMode !== "theoretical" && !props.accountSummary) || !props.actions.planArmor || armorClass === "unknown" || armorPlannerState?.status === "loading"}>{armorPlannerState?.status === "loading" ? "计算中" : armorPlannerActionLabel(plannerMode)}</button>
             </div>
           </aside>
-          <ArmorPlannerDecisionSummary candidate={selectedArmorCandidate} constraints={armorConstraints} stale={armorPlannerState?.status === "stale"} settingsChanged={armorPlanSettingsChanged} mobileActive={mobileArmorPane === "summary"} />
+          <ArmorPlannerDecisionSummary candidate={selectedArmorCandidate} constraints={armorConstraints} stale={armorPlannerState?.status !== "ready"} settingsChanged={armorPlanSettingsChanged} mobileActive={mobileArmorPane === "summary"} />
           <main className="loadout-armor-results-pane" data-mobile-active={mobileArmorPane === "content" || undefined}>
             <div className="loadout-decision-pane-head"><div><strong>推荐方案</strong><small>{armorCandidates.length ? `${armorCandidates.length} 个结果 · 已选 ${comparedArmorCandidates.length}/3 比较` : "先完成设置并运行计算"}</small></div>{comparedArmorCandidates.length ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={() => setComparedArmorCandidateIds([])}>清除比较</button> : null}</div>
             {armorStatusMessage ? <p className="loadout-callout" data-ui-kind="callout" data-status={armorPlannerState?.status === "error" ? "error" : armorPlannerState?.status === "ready" && armorViewModel?.outcome === "reachable" && !armorStatusDetailCount && !armorSearchTruncated ? "success" : "warning"}>{armorStatusMessage}</p> : null}
+            {armorCandidates.length && (armorPlannerState?.status === "loading" || armorPlannerState?.status === "error") ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">以下是上次计算的结果，仅供查看；本次计算成功前不能使用。</p> : null}
             {armorPlanSettingsChanged ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`设置已变化，需要重新计算：${armorPlanChanges.map((kind) => armorPlanChangeLabels[kind]).join("、")}。屏幕上的推荐方案按改动前的设置算出，重新计算前不能使用。`}</p> : null}
             {armorSearchTruncated ? <p className="loadout-callout" data-ui-kind="callout" data-status="warning">{`搜索被截断：已检查 ${armorViewModel?.search?.statesExamined ?? 0} 个组合后到达上限，只保留 ${armorViewModel?.search?.statesRetained ?? 0} 个，屏幕上这批结果不是完整搜索的结果。把部位的模式从「自动」改成 +5 或 +10，并把「增加属性」选成具体属性，能把搜索范围缩小十几倍。`}</p> : null}
             {props.armorTargetFeedback ? <p className="loadout-callout" data-ui-kind="callout" data-status={props.armorTargetFeedback.includes("失败") ? "error" : "success"}>{props.armorTargetFeedback}</p> : null}
