@@ -2,21 +2,37 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
-## Unreleased
+## 0.0.30 - 2026-10-13
 
 ### 中文
+
+#### 改进
+
+- 侧栏「本地优先」的说明从「账号数据与个人知识保存在本机」改为「账号数据保存在本机」。
 
 #### 移除
 
 - 隐藏「AI 助手」：顶栏和侧栏的入口、设置页的 AI 配置、状态条上的 AI 项和装备详情里的「AI 解读」都不再显示。这个功能目前还不达标，先把入口收起来；代码、设置项和已经填过的配置都留着，改好之后再放出来。装备详情的「复制结论」和「生成群聊说明」不受影响。
 - 隐藏「配装」：侧栏的配装入口不再显示。页面、ViewModel、IPC 和 core 里的配装逻辑都留着，仓库卡片上的「配装引用」角标照旧，等这个菜单做完再放出来。
 
+#### 修复
+
+- 推荐命中不再被「这一版装不出来」翻掉：以前会按武器的定义池反推整套 Roll 能不能装出来，判成装不出来时，连已经逐栏对上的实例也被算成未命中，出现「2 中 2」还写着「此版本无法组成推荐组合」。现在结论只由实例命中决定，命中几栏报几栏；本地缓存的旧结论会在下次核对时自动重算。
+
 ### English
+
+#### Improved
+
+- The sidebar's "Local first" note now says account data is stored on this machine, instead of mentioning a personal knowledge base.
 
 #### Removed
 
 - The "AI assistant" is hidden: its entries in the top bar and sidebar, the AI configuration in Settings, the AI item in the status bar, and "AI analysis" in item detail are no longer shown. The feature is not up to standard yet, so the entries are withdrawn for now; the code, the settings and any configuration you already filled in stay in place, and it will return once improved. "Copy conclusion" and "Generate chat summary" in item detail are unaffected.
 - The "Loadouts" menu is hidden: its sidebar entry no longer appears. The page, its ViewModels, the IPC layer and the loadout logic in core all stay in place, the "loadout reference" flag on vault cards is unchanged, and the menu returns once it is finished.
+
+#### Fixed
+
+- Recommendation hits are no longer flipped by a "this roll cannot be built in this version" check: the app used to infer from a weapon's definition pool whether the whole roll could be assembled, and when it decided it could not, even instances whose perks already matched slot by slot were counted as misses — a card could read "2 of 2" while also saying "this version cannot form a recommended combination". The result now depends only on instance hits and reports as many as actually matched; conclusions cached from before are recomputed on the next check.
 
 ## 0.0.29 - 2026-09-27
 
