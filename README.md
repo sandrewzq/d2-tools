@@ -2,11 +2,11 @@
 
 d2-tools 是一个给普通玩家使用的、面向 Windows 的 Destiny 2 中文桌面工具。
 
-它把账号查看、仓库整理、资料库搜索、今日 / 本周信息和 AI 辅助整合到一个本地运行的桌面客户端里，尽量减少你在多个网站、网页工具和零散信息源之间来回切换的成本。
+它把账号查看、仓库整理、资料库搜索和今日 / 本周信息整合到一个本地运行的桌面客户端里，尽量减少你在多个网站、网页工具和零散信息源之间来回切换的成本。
 
 - 中文界面，优先面向普通玩家而不是开发者
 - Windows 本地运行，不需要自己部署服务
-- 账号、仓库、资料库、今日 / 本周、AI 一体化
+- 账号、仓库、资料库、今日 / 本周一体化
 - 配置、OAuth token、标签和本地数据保存在本机
 - 基于 Bungie 官方 OAuth 授权流程，不走第三方账号中转
 
@@ -52,7 +52,7 @@ d2-tools-setup-<version>.exe
 
 - 想用中文界面查看 Destiny 2 账号、仓库、装备和材料的玩家
 - 想整理仓库、标记清理装备、做同名 roll 对比的玩家
-- 想在一个工具里同时处理账号、资料库、今日 / 本周和 AI 分析的玩家
+- 想在一个工具里同时处理账号、资料库和今日 / 本周的玩家
 - 愿意自己创建 Bungie Application 并填写到本机配置里的玩家
 
 ## 三分钟快速开始
@@ -62,7 +62,7 @@ d2-tools-setup-<version>.exe
 3. 打开 d2-tools，在首次引导或设置页填写 `API Key`、`Client ID`、`Client Secret`。
 4. 点击“保存配置”，d2-tools 会自动准备资料库；如果准备失败，按页面提示重试。
 5. 资料库准备完成后，点击“登录 Bungie”，在浏览器里完成授权。
-6. 回到软件开始查看账号、仓库、资料库、今日 / 本周和 AI 助手。
+6. 回到软件开始查看账号、仓库、资料库和今日 / 本周。
 
 ## 核心功能
 
@@ -73,7 +73,6 @@ d2-tools-setup-<version>.exe
 - 资料库：按中文、英文、perk、别名搜索装备、perk 和来源信息
 - 今日 / 本周：只展示 Bungie API 或本地资料库能确认的内容
 - 工具导航：42 个 Destiny 2 社区工具站按用途分成六类，可按分类筛选，也可按站名、用途、说明搜索，点“打开”用系统浏览器打开
-- AI 助手：支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Messages 三种协议配置
 - 本地优先：配置、token、标签、备注和日志保存在本机
 
 ## 数据来源、参考项目与鸣谢
@@ -95,7 +94,6 @@ d2-tools-setup-<version>.exe
 - DIM：仓库、配装、愿望单和写操作流程参考
   - GitHub：<https://github.com/DestinyItemManager/DIM>
   - 在线访问：<https://app.destinyitemmanager.com/>
-  - 运行时边界：配装导入只在本地解析用户提供的自包含完整链接，不调用 DIM 分享接口
 - D2ArmorPicker：护甲目标和方案比较参考
   - GitHub：<https://github.com/Mijago/D2ArmorPicker>
   - 在线访问：<https://d2armorpicker.com/>
@@ -148,8 +146,6 @@ d2-tools-setup-<version>.exe
 - 公开分发包不内置任何人的 Bungie `API Key`、`Client ID` 或 `Client Secret`
 - 每个玩家都使用自己的 Bungie Application
 - OAuth token 只保存在本机数据目录
-- AI 只有在玩家阅读范围并明确确认后才会发送必要的游戏数据；请求直达玩家配置的 AI 服务，不经过 d2-tools 自建服务器
-- AI 不会把 token、`Client Secret`、Bungie `API Key`、AI API Key 或 Bungie 账号与装备标识写入模型提示；AI API Key 只作为认证请求头发送到玩家配置的服务
 - 写操作需要 Bungie Scope、操作确认和结果刷新；应用不再提供额外的本地总开关
 - d2-tools 不会直接分解装备，最终分解仍需进入游戏手动完成
 

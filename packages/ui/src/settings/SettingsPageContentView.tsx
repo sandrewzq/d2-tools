@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, SettingsCopy } from "../i18n/types.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
+import { isAiAssistantVisible } from "../shell/featureVisibility.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
@@ -109,7 +110,7 @@ function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; l
     { key: "account", ...copy.menu.account },
     { key: "library", ...copy.menu.library },
     { key: "bungie", ...copy.menu.bungie },
-    { key: "ai", ...copy.menu.ai },
+    ...(isAiAssistantVisible ? [{ key: "ai" as const, ...copy.menu.ai }] : []),
     { key: "backup", ...copy.menu.backup },
     { key: "sources", ...copy.menu.sources },
     { key: "diagnostics", ...copy.menu.diagnostics }
@@ -322,7 +323,7 @@ function OverviewSection(props: any) {
       <Metric label={copy.labels.account} value={accountUi.statusLabel} detail={accountUi.summary} tone={accountUi.tone} valueKind="status" />
       <Metric label={copy.labels.library} value={libraryVersion ?? libraryUi.statusLabel} detail={libraryUi.summary} />
       <Metric label={copy.labels.bungie} value={bungieUi.statusLabel} detail={bungieUi.summary} tone={bungieUi.tone} valueKind="status" />
-      <Metric label={copy.labels.ai} value={aiUi.statusLabel} detail={aiUi.summary} tone={aiUi.tone} valueKind="status" />
+      {isAiAssistantVisible ? <Metric label={copy.labels.ai} value={aiUi.statusLabel} detail={aiUi.summary} tone={aiUi.tone} valueKind="status" /> : null}
       <Metric label={copy.labels.appVersion} value={props.appVersion} detail={updateUi.statusLabel} />
       <Metric label={copy.labels.backgroundTasks} value={backgroundTaskUi.statusLabel} detail={backgroundTaskUi.summary} tone={backgroundTaskUi.tone} valueKind="status" />
     </MetricGrid>

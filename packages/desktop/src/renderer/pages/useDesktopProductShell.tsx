@@ -2,6 +2,8 @@ import {
   ControlButton,
   buildVaultCleanupProtectionIndex,
   getLocaleCopy,
+  isAiAssistantVisible,
+  isLoadoutsVisible,
   RefreshControlButton,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
@@ -620,13 +622,13 @@ function buildShellStatus(input: {
       actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : "修复资料库",
       onAction: waitingForBungieConfig || !needsLibraryRepair ? undefined : input.onRepairManifest
     },
-    {
-      key: "ai",
+    ...(isAiAssistantVisible ? [{
+      key: "ai" as const,
       label: "AI",
       value: input.isAiConfigured ? "已配置" : "未配置",
-      tone: input.isAiConfigured ? "ready" : "warning",
-      priority: input.isAiConfigured ? "quiet" : "standard"
-    },
+      tone: input.isAiConfigured ? "ready" as const : "warning" as const,
+      priority: input.isAiConfigured ? "quiet" as const : "standard" as const
+    }] : [] as ShellStatusItem[]),
     {
       key: "app-version",
       kind: "update",
@@ -797,7 +799,8 @@ function formatAppVersion(version: string): string {
 }
 
 function isShellPageKey(value: string | undefined): value is ShellPageKey {
-  return value === "home" || value === "account" || value === "vault" || value === "loadouts" || value === "library" || value === "vendors" || value === "directory" || value === "settings";
+  if (value === "loadouts") return isLoadoutsVisible;
+  return value === "home" || value === "account" || value === "vault" || value === "library" || value === "vendors" || value === "directory" || value === "settings";
 }
 
 function isColorMode(value: string | undefined): value is "light" | "dark" {

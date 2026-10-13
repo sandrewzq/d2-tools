@@ -1,5 +1,5 @@
 import type { ItemDetailCopy } from "@d2-tools/ui";
-import { itemDetailText } from "@d2-tools/ui";
+import { isAiAssistantVisible, itemDetailText } from "@d2-tools/ui";
 import type { ItemAiAdviceResult } from "../../../api/types";
 import { protocolLabel } from "../../../utils/aiSettings";
 
@@ -28,25 +28,27 @@ export function ItemDetailAi(props: ItemDetailAiProps) {
           <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onCopySelectedItemChatGuide}>
             {itemDetailText(copy, "生成群聊说明")}
           </button>
-          <button
-            type="button"
-            data-ui-kind="button" data-control-variant="secondary"
-            disabled={props.isGeneratingItemAi}
-            onClick={props.onGenerateItemAiAdvice}
-          >
-            {props.isGeneratingItemAi ? itemDetailText(copy, "AI 解读中...") : itemDetailText(copy, "AI 解读")}
-          </button>
+          {isAiAssistantVisible ? (
+            <button
+              type="button"
+              data-ui-kind="button" data-control-variant="secondary"
+              disabled={props.isGeneratingItemAi}
+              onClick={props.onGenerateItemAiAdvice}
+            >
+              {props.isGeneratingItemAi ? itemDetailText(copy, "AI 解读中...") : itemDetailText(copy, "AI 解读")}
+            </button>
+          ) : null}
         </div>
       </div>
       {props.itemShareMessage ? <p className="status-message status-ready">{props.itemShareMessage}</p> : null}
-      {props.itemAiError ? <p className="status-message status-error">{props.itemAiError}</p> : null}
-      {props.itemAiResult?.skipped_reason ? (
+      {isAiAssistantVisible && props.itemAiError ? <p className="status-message status-error">{props.itemAiError}</p> : null}
+      {isAiAssistantVisible && props.itemAiResult?.skipped_reason ? (
         <section className="source-status-card source-status-warning item-ai-skipped-reason" aria-live="polite">
           <span className="source-status-badge source-status-warning">{itemDetailText(copy, "AI 跳过")}</span>
           <p>{props.itemAiResult.skipped_reason}</p>
         </section>
       ) : null}
-      {props.itemAiResult?.ai ? (
+      {isAiAssistantVisible && props.itemAiResult?.ai ? (
         <section className="item-ai-panel">
           <div>
             <h3>{itemDetailText(copy, "AI 装备解读")}</h3>

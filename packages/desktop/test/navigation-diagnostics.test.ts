@@ -21,7 +21,6 @@ describe("desktop shell navigation and diagnostics", () => {
       "home",
       "account",
       "vault",
-      "loadouts",
       "library",
       "vendors",
       "directory",

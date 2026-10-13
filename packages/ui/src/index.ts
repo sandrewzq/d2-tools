@@ -46,6 +46,7 @@ export {
 } from "./time/formatTime.js";
 export type { TimeValue } from "./time/formatTime.js";
 export { ShellSidebarAccountSummary, ShellSidebarActions } from "./shell/ShellSidebar.js";
+export { isAiAssistantVisible, isLoadoutsVisible } from "./shell/featureVisibility.js";
 export { HomePageContentView } from "./home/HomePageContentView.js";
 export type { HomeDailyItem, HomeDailySummary, HomeStartupState, HomePageContentViewProps, HomeWeeklyActivityReward, HomeWeeklySummary } from "./home/HomePageContentView.js";
 export { getLocaleCopy, localeCopy } from "./i18n/copy.js";

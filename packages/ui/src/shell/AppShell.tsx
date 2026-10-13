@@ -3,6 +3,7 @@ import { getLocaleCopy } from "../i18n/copy.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { SystemUpdateProgress, systemUpdateToneForStatus } from "../update/SystemUpdateProgress.js";
 import { getLocalizedNavItems } from "./navigation.js";
+import { isAiAssistantVisible } from "./featureVisibility.js";
 import type { AppShellLayoutProps, PlatformActions, ShellAssistantMode, ShellPageKey } from "./types.js";
 
 export type AppShellProps = AppShellLayoutProps & {
@@ -223,19 +224,21 @@ export function AppShell(props: AppShellProps) {
           <button className="shell-tool-button" type="button" data-ui-kind="button" data-control-variant="quiet" title={copy.tools.settings} aria-label={copy.tools.settings} onClick={() => props.onNavigate("settings")}>
             <SettingsToolIcon />
           </button>
-          <button
-            type="button"
-            className={isAssistantOpen ? "shell-tool-button shell-tool-ai active" : "shell-tool-button shell-tool-ai"}
-            ref={assistantTriggerRef}
-            data-ui-kind="button"
-            data-control-variant="quiet"
-            aria-pressed={isAssistantOpen}
-            aria-label={copy.tools.openAiAssistant}
-            title={copy.tools.aiAssistant}
-            onClick={toggleAssistant}
-          >
-            AI
-          </button>
+          {isAiAssistantVisible ? (
+            <button
+              type="button"
+              className={isAssistantOpen ? "shell-tool-button shell-tool-ai active" : "shell-tool-button shell-tool-ai"}
+              ref={assistantTriggerRef}
+              data-ui-kind="button"
+              data-control-variant="quiet"
+              aria-pressed={isAssistantOpen}
+              aria-label={copy.tools.openAiAssistant}
+              title={copy.tools.aiAssistant}
+              onClick={toggleAssistant}
+            >
+              AI
+            </button>
+          ) : null}
         </div>
         <div className="shell-window-controls" aria-label={copy.windowControlsAriaLabel}>
           {props.platformActions.windowControls ? (

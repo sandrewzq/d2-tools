@@ -13,10 +13,10 @@ const shellContractOnly = process.argv.includes("--shell-contract-only");
 const skipBuild = process.env.D2_VISUAL_SKIP_BUILD === "1";
 const pages = shellContractOnly
   ? ["home"]
-  : ["home", "account", "vault", "loadouts", "library", "vendors", "directory", "settings"];
+  : ["home", "account", "vault", "library", "vendors", "directory", "settings"];
 const settingsSections = shellContractOnly
   ? []
-  : ["overview", "language", "account", "library", "bungie", "ai", "backup", "diagnostics"];
+  : ["overview", "language", "account", "library", "bungie", "backup", "diagnostics"];
 const themes = ["light", "dark"];
 const viewport = process.env.D2_VISUAL_CAPTURE_VIEWPORT ?? "1365x900";
 const [width, height] = viewport.split("x").map((part) => Number.parseInt(part, 10));

@@ -2,6 +2,22 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## Unreleased
+
+### 中文
+
+#### 移除
+
+- 隐藏「AI 助手」：顶栏和侧栏的入口、设置页的 AI 配置、状态条上的 AI 项和装备详情里的「AI 解读」都不再显示。这个功能目前还不达标，先把入口收起来；代码、设置项和已经填过的配置都留着，改好之后再放出来。装备详情的「复制结论」和「生成群聊说明」不受影响。
+- 隐藏「配装」：侧栏的配装入口不再显示。页面、ViewModel、IPC 和 core 里的配装逻辑都留着，仓库卡片上的「配装引用」角标照旧，等这个菜单做完再放出来。
+
+### English
+
+#### Removed
+
+- The "AI assistant" is hidden: its entries in the top bar and sidebar, the AI configuration in Settings, the AI item in the status bar, and "AI analysis" in item detail are no longer shown. The feature is not up to standard yet, so the entries are withdrawn for now; the code, the settings and any configuration you already filled in stay in place, and it will return once improved. "Copy conclusion" and "Generate chat summary" in item detail are unaffected.
+- The "Loadouts" menu is hidden: its sidebar entry no longer appears. The page, its ViewModels, the IPC layer and the loadout logic in core all stay in place, the "loadout reference" flag on vault cards is unchanged, and the menu returns once it is finished.
+
 ## 0.0.29 - 2026-09-27
 
 ### 中文
