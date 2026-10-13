@@ -24,7 +24,11 @@ export function AppShell(props: AppShellProps) {
   const navItems = getLocalizedNavItems(interfaceLocale);
   const themeToggleLabel = props.colorMode === "light" ? copy.tools.switchToDark : copy.tools.switchToLight;
   const languageToggleLabel = interfaceLocale === "zh-CN" ? copy.tools.switchToEnglish : copy.tools.switchToChinese;
-  const visibleShellStatus = props.shellStatus.filter((item) => item.key !== "background");
+  // 状态条上不渲染的项：`background` 一直如此；AI 那一项跟着 `isAiAssistantVisible` 走，
+  // 因为 Web 壳和 Desktop 壳各自拼自己的状态表，只在其中一边摘掉会让两边对不齐。
+  const visibleShellStatus = props.shellStatus.filter((item) =>
+    item.key !== "background" && (isAiAssistantVisible || item.key !== "ai")
+  );
   const attentionStatusCount = visibleShellStatus.filter((item) => item.priority === "attention" || item.priority === "critical").length;
   const statusMenuLabel = attentionStatusCount > 0 ? `${copy.statusMenuLabel} · ${attentionStatusCount}` : copy.statusMenuLabel;
   const activePageLabel = navItems.find((item) => item.key === props.activePage)?.label ?? "";
