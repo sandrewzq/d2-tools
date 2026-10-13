@@ -8,7 +8,7 @@ import {
   createDefaultCommunityPerkService,
   createDimWishlistSources
 } from "../../services/src/community/perkRecommendation.js";
-import type { WeaponRecommendation } from "../src/community-perks/index.js";
+import type { CommunityPerkSource, WeaponRecommendation } from "../src/community-perks/index.js";
 import type { DefinitionComponentData } from "../src/manifest/definitions.js";
 
 const itemDefinitions: DefinitionComponentData = {
@@ -431,5 +431,16 @@ function recommendation(overrides: Partial<WeaponRecommendation> = {}): WeaponRe
     combos: [],
     matched_modes: [],
     ...overrides
+  };
+}
+
+function source(
+  name: string,
+  getRecommendations: CommunityPerkSource["getRecommendations"]
+): CommunityPerkSource {
+  return {
+    name,
+    isAvailable: () => true,
+    getRecommendations
   };
 }
