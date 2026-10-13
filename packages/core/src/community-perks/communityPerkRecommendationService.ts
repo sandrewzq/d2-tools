@@ -1,4 +1,3 @@
-import { createRollFeasibilityChecker } from "./recommendationRollFeasibility.js";
 import type {
   CommunityPerkSource,
   PerkCombo,
@@ -301,7 +300,6 @@ function matchSourceRecords(
   options: SourceOptions
 ): RecommendationSourceMatch[] {
   const { itemDefinitions } = options;
-  const feasibilityFor = createRollFeasibilityChecker(item.hash, options);
   return records.map((record) => {
     const requirements = new Map(record.requirements.map((requirement) => [requirement.slot, requirement]));
     const slots = recommendationRequirementSlots.map((slot) => {
@@ -375,10 +373,7 @@ function matchSourceRecords(
     const uncheckable = specified.filter((slot) => slot.state === "uncheckable").length;
     const checkable = specified.length - uncheckable;
     const coreRequirements = specified.filter((slot) => slot.slot === "perk1" || slot.slot === "perk2");
-    const rollFeasibility = feasibilityFor(record);
-    const state = rollFeasibility?.state === "impossible"
-      ? "not_matched" as const
-      : specified.length === 0
+    const state = specified.length === 0
       ? "weapon_only" as const
       : checkable === 0
         ? "uncheckable" as const
@@ -399,7 +394,6 @@ function matchSourceRecords(
       ...(record.declared_label ? { declared_label: record.declared_label } : {}),
       ...(record.source_url ? { source_url: record.source_url } : {}),
       state,
-      ...(rollFeasibility ? { roll_feasibility: rollFeasibility } : {}),
       matched_requirement_count: matched,
       requirement_count: specified.length,
       checkable_requirement_count: checkable,

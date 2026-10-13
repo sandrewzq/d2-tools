@@ -149,11 +149,6 @@ export type RecommendationSourceMatch = {
     | "not_matched"
     | "weapon_only"
     | "uncheckable";
-  roll_feasibility?: {
-    state: "possible" | "impossible" | "unknown";
-    reason?: "candidate_unavailable" | "socket_conflict";
-    slots?: string[];
-  };
   matched_requirement_count: number;
   requirement_count: number;
   checkable_requirement_count: number;
@@ -249,7 +244,6 @@ export type RecommendationCardSourceSummary = {
   /** 同 `RecommendationSourceRecord.declared_label`。 */
   declared_label?: string;
   state: RecommendationSourceMatch["state"];
-  roll_feasibility?: RecommendationSourceMatch["roll_feasibility"];
   purposes: Array<"pve" | "pvp" | "general">;
   matched_requirement_count: number;
   requirement_count: number;

@@ -94,7 +94,7 @@ export function presentCuratedRecommendationMatch(
   const pendingText = uncheckableRequirementCount > 0
     ? ` · ${uncheckableRequirementCount} 项无法判断`
     : "";
-  const summary = `${source.roll_feasibility?.state === "impossible" ? "此版本无法组成推荐组合 · " : ""}${perkText} · 完整 ${matchedRequirementCount}/${requirementCount}${pendingText}`;
+  const summary = `${perkText} · 完整 ${matchedRequirementCount}/${requirementCount}${pendingText}`;
   return {
     summary,
     detail: `${sourceLabel}：${summary}。同栏候选任选其一，不同栏位分别核对。`,
@@ -125,7 +125,6 @@ export type VaultRecommendationSourceSummary = {
   sourceLabel: string;
   shortLabel: string;
   state: "full" | "core" | "close" | "key_missing" | "not_matched" | "weapon_only" | "uncheckable";
-  rollFeasibility?: RecommendationSourceMatch["roll_feasibility"];
   matched: number;
   available: number;
   matchedPerkCount: number;
@@ -491,7 +490,6 @@ function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendat
     sourceLabel,
     shortLabel: shortSourceLabel,
     state: source.state,
-    rollFeasibility: source.roll_feasibility,
     matched: presentation.matchedRequirementCount,
     available: presentation.requirementCount,
     matchedPerkCount: presentation.matchedPerkCount,
@@ -513,20 +511,18 @@ function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendat
 function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecommendationSourceSummary {
   const sourceLabel = displayVaultRecommendationSourceLabel(source.source_label);
   const shortSourceLabel = compactVaultRecommendationSourceLabel(sourceLabel);
-  const metricText = source.state === "weapon_only" || source.requirement_count === 0
+  const resultText = source.state === "weapon_only" || source.requirement_count === 0
     ? "仅推荐武器 · 未指定 Roll"
     : `${source.perk_requirement_count > 0
         ? `Perk ${source.matched_perk_count}/${source.perk_requirement_count}`
         : "Perk 未要求"} · 完整 ${source.matched_requirement_count}/${source.requirement_count}${source.uncheckable_requirement_count > 0
           ? ` · ${source.uncheckable_requirement_count} 项无法判断`
           : ""}`;
-  const resultText = `${source.roll_feasibility?.state === "impossible" ? "此版本无法组成推荐组合 · " : ""}${metricText}`;
   return {
     sourceId: source.source_group_id,
     sourceLabel,
     shortLabel: shortSourceLabel,
     state: source.state,
-    rollFeasibility: source.roll_feasibility,
     matched: source.matched_requirement_count,
     available: source.requirement_count,
     matchedPerkCount: source.matched_perk_count,
@@ -567,7 +563,6 @@ function compareSourceSummaries(
 }
 
 function summaryRank(summary: VaultRecommendationSourceSummary): number {
-  if (summary.rollFeasibility?.state === "impossible") return 5;
   if (summary.state === "full") return 0;
   if (summary.state === "core") return 1;
   if (summary.state === "close" || summary.state === "weapon_only") return 2;
