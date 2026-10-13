@@ -34,7 +34,6 @@ function createRecommendationCardSourceSummary(
     source_label: source.source_label,
     ...(source.declared_label ? { declared_label: source.declared_label } : {}),
     state: source.state,
-    ...(source.roll_feasibility ? { roll_feasibility: source.roll_feasibility } : {}),
     purposes: source.purposes,
     matched_requirement_count: specifiedSlots.length
       ? specifiedSlots.filter((slot) => slot.state === "match").length

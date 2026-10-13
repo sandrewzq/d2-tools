@@ -25,7 +25,7 @@ export function ShellSidebarActions(props: {
   return (
     <div className="shell-sidebar-actions">
       <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">本地优先</strong>
-      <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">账号数据与个人知识保存在本机。</span>
+      <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">账号数据保存在本机。</span>
       {isAiAssistantVisible ? (
         <button
           type="button"

@@ -35,7 +35,10 @@ const databaseFileName = "account-cache.sqlite";
 // 27：愿望单文本的归栏改按**规则声明的版本**判（`dimWishlistDiagnostics` 2026-09-24）。此前按
 //     手上这件的版本归栏，家族展开到换过插槽池的版本时，装不进标准栏位的 perk 会被丢掉，
 //     同一条规则在愿望单里比在推荐表里少一栏，「命中几栏」的两个来源分档因此永远对不上。
-const matchAlgorithmVersion = 28;
+// 28：来源匹配改由「版本组合可行性」给结论（`roll_feasibility`），候选池不支持该套 Roll 时把
+//     命中结论翻成未命中。此后按「推荐只跟命中有关系」（Bug #116）撤除该判定，28 的缓存行里
+//     存着被翻过的结论，必须整体重算才能回到只看命中的口径。
+const matchAlgorithmVersion = 29;
 
 export type VaultRecommendationMatchCacheContext = {
   account_key: string;
