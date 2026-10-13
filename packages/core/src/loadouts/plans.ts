@@ -1,4 +1,4 @@
-import type { AccountItemPlugSummary, AccountItemSummary, AccountSummary } from "../account/summary.js";
+import type { AccountItemPlugSummary, AccountItemSocketSummary, AccountItemSummary, AccountSummary } from "../account/summary.js";
 import {
   armorSlots,
   type ArmorSlot,
@@ -231,7 +231,7 @@ export function summarizeLoadoutPlanArmorStatModRules(
 /**
  * 把一组子职业插槽 plug 收成配装的子职业目标。
  *
- * `socket_overrides` 收全部带索引的 plug，包括分类没认出来的那些：它是未分类配置唯一的往返依据，
+ * `socket_overrides` 优先从完整 Socket 读取索引，并保留带索引的 plug；包括分类没认出来的配置，
  * 丢掉就只能靠猜重建。
  *
  * `mod_hashes` 一律留空。子职业没有模组插槽，原来把分类兜底 `other` 塞进这里的写法，会把
@@ -240,15 +240,22 @@ export function summarizeLoadoutPlanArmorStatModRules(
 export function createSubclassTargetFromPlugs(input: {
   subclass_hash?: number;
   plugs: readonly AccountItemPlugSummary[];
+  sockets?: readonly AccountItemSocketSummary[];
 }): LoadoutPlanSubclassTarget | undefined {
   const indexed = input.plugs.filter((plug) => typeof plug.socket_index === "number");
+  const socketOverrides = [
+    ...indexed.map((plug) => [String(plug.socket_index), plug.hash] as const),
+    ...(input.sockets?.flatMap((socket) => socket.selected_plug?.hash
+      ? [[String(socket.socket_index), socket.selected_plug.hash] as const]
+      : []) ?? [])
+  ];
   const hashesByRole = (role: "ability" | "aspect" | "fragment"): number[] => input.plugs
     .filter((plug) => classifySubclassPlug(plug) === role)
     .map((plug) => plug.hash);
   const target: LoadoutPlanSubclassTarget = {
     ...(input.subclass_hash ? { subclass_hash: input.subclass_hash } : {}),
-    ...(indexed.length
-      ? { socket_overrides: Object.fromEntries(indexed.map((plug) => [String(plug.socket_index), plug.hash] as const)) }
+    ...(socketOverrides.length
+      ? { socket_overrides: Object.fromEntries(socketOverrides) }
       : {}),
     ability_hashes: hashesByRole("ability"),
     aspect_hashes: hashesByRole("aspect"),
@@ -259,7 +266,7 @@ export function createSubclassTargetFromPlugs(input: {
     || target.ability_hashes.length
     || target.aspect_hashes.length
     || target.fragment_hashes.length
-    || indexed.length;
+    || socketOverrides.length;
   return configured ? target : undefined;
 }
 
@@ -307,7 +314,7 @@ export function createLocalLoadoutPlanFromEquippedItems(input: {
     (item) => isSubclassBucket(item.bucket_hash) || isSubclassBucket(item.equipment_bucket_hash)
   );
   const subclassTarget = subclassItem
-    ? createSubclassTargetFromPlugs({ subclass_hash: subclassItem.hash, plugs: subclassItem.socket_plugs })
+    ? createSubclassTargetFromPlugs({ subclass_hash: subclassItem.hash, plugs: subclassItem.socket_plugs, sockets: subclassItem.sockets })
     : undefined;
   return {
     name: input.name,

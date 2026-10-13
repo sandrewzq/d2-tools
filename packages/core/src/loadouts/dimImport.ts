@@ -1,5 +1,5 @@
 import type { AccountItemSummary, AccountSummary } from "../account/summary.js";
-import { armorStatKeyByDefinitionHash } from "../armor/statDefinitions.js";
+import { armorStatDefinitionHashByKey, armorStatKeyByDefinitionHash } from "../armor/statDefinitions.js";
 import {
   createDefaultArmorStatModSlotRules,
   type CreateLocalLoadoutPlanInput,
@@ -64,6 +64,7 @@ type DimApiLoadout = {
   unequipped: DimApiLoadoutItem[];
   parameters?: {
     mods?: number[];
+    statConstraints?: Array<{ statHash: number; minStat: number }>;
   };
   notes?: string;
 };
@@ -154,7 +155,7 @@ export function createDimLoadoutImportPreview(input: {
 
 /** Build a self-contained DIM loadout URL only from account-verified item instances. */
 export function createDimLoadoutExport(input: {
-  plan: Pick<LocalLoadoutPlan, "name" | "class_name" | "item_targets" | "subclass_target" | "armor_constraints" | "notes">;
+  plan: Pick<LocalLoadoutPlan, "name" | "class_name" | "item_targets" | "subclass_target" | "armor_constraints" | "armor_plan" | "notes">;
   account: AccountSummary | null;
 }): DimLoadoutExportResult {
   const blockers: DimLoadoutExportBlocker[] = [];
@@ -183,6 +184,11 @@ export function createDimLoadoutExport(input: {
 
   const accountItems = collectAccountItemsByInstanceId(input.account);
   const equipped: DimApiLoadoutItem[] = [];
+  const armorMods: number[] = [];
+  const plannedArmorPlugs = new Map(input.plan.armor_plan?.planned_armor_plugs.map((assignment) => [
+    assignment.instance_id,
+    assignment
+  ]) ?? []);
   const seenInstanceIds = new Set<string>();
   input.plan.item_targets.forEach((target, targetIndex) => {
     const index = targetIndex + 1;
@@ -243,6 +249,21 @@ export function createDimLoadoutExport(input: {
       bucketName: target.slot,
       ...(Object.keys(socketOverrides).length ? { socketOverrides } : {})
     });
+    if (item.group_key === "armor") {
+      const assignment = plannedArmorPlugs.get(instanceId);
+      for (const [socketIndex, hash] of Object.entries(socketOverrides)) {
+        const socket = item.sockets?.find((candidate) => candidate.socket_index === Number(socketIndex));
+        const plug = [socket?.selected_plug, ...(socket?.reusable_plugs ?? [])]
+          .find((candidate) => candidate?.hash === hash);
+        const category = plug?.category_identifier ?? "";
+        if (target.plug_hashes.includes(hash) && (
+          category.startsWith("enhancements.v2_")
+          || category === "core.gear_systems.armor_tiering.plugs.tuning.mods"
+          || hash === assignment?.tuning_plug_hash
+          || hash === assignment?.armor_stat_mod_plug_hash
+        )) armorMods.push(hash >>> 0);
+      }
+    }
   });
   if (blockers.length) return { status: "blocked", blockers };
 
@@ -263,8 +284,16 @@ export function createDimLoadoutExport(input: {
     classType,
     equipped,
     unequipped: [],
-    ...(subclass?.mod_hashes.length
-      ? { parameters: { mods: uniqueNumbers(subclass.mod_hashes) } }
+    ...((armorMods.length || subclass?.mod_hashes.length || Object.values(input.plan.armor_constraints?.stat_minimums ?? {}).some((value) => value > 0))
+      ? { parameters: {
+          ...(armorMods.length || subclass?.mod_hashes.length ? { mods: [...armorMods, ...(subclass?.mod_hashes ?? [])] } : {}),
+          ...(input.plan.armor_constraints?.stat_minimums ? {
+            statConstraints: Object.entries(input.plan.armor_constraints.stat_minimums)
+              .flatMap(([stat, minimum]) => minimum > 0 && stat in armorStatDefinitionHashByKey
+                ? [{ statHash: armorStatDefinitionHashByKey[stat as keyof typeof armorStatDefinitionHashByKey], minStat: minimum }]
+                : [])
+          } : {})
+        } }
       : {}),
     ...(input.plan.notes?.trim() ? { notes: input.plan.notes.trim() } : {})
   };
@@ -377,7 +406,7 @@ function extractSubclass(parameters: Record<string, unknown>, warnings: string[]
   const abilityHashes = numberArray(subclass.abilities ?? subclass.abilityHashes);
   const aspectHashes = numberArray(subclass.aspects ?? subclass.aspectHashes);
   const fragmentHashes = numberArray(subclass.fragments ?? subclass.fragmentHashes);
-  const modHashes = numberArray(parameters.mods ?? subclass.mods);
+  const modHashes = numberArray(subclass.mods);
   if (!subclassHash && !abilityHashes.length && !aspectHashes.length && !fragmentHashes.length && !modHashes.length && !Object.keys(socketOverrides).length) return undefined;
   if (!subclassHash) warnings.push("DIM 子职业配置未提供稳定子职业 Hash，仅保留可确认的技能和模组 Hash。");
   return {

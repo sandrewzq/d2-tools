@@ -8,7 +8,7 @@
 
 #### 新增
 
-- 新增「工具导航」菜单：43 个 Destiny 2 社区工具站按用途分六类（仓库与配装、武器与 Perk、账号与统计、活动与轮换、资料与百科、开发参考），可按分类筛选，也可按站名、用途、说明搜索；点「打开」用系统浏览器打开。面向开发者和已归档的项目收在页面底部的「开发者与历史」。
+- 新增「工具导航」菜单：42 个 Destiny 2 社区工具站按用途分六类（仓库与配装、武器与 Perk、账号与统计、活动与轮换、资料与百科、开发参考），可按分类筛选，也可按站名、用途、说明搜索；点「打开」用系统浏览器打开。面向开发者和已归档的项目收在页面底部的「开发者与历史」。
 - 仓库的推荐筛选新增「无任何匹配」：一键筛出卡片上一条推荐来源都没有的装备，按钮带件数；和来源勾选互斥，打开它会清空来源勾选。
 - 配装的保存拆成两条路：主按钮存回原来那套并覆盖，旁边新增「另存为新配装」，新建一套、原来那套不动。
 - 游戏内配装和本应用配装互相指认：方案列表和槽位标题会标出「对得上 XXX」，只按内容比对，不按名字或相似度猜。
@@ -45,7 +45,7 @@
 
 #### Added
 
-- A new "Tool sites" menu: 43 Destiny 2 community sites grouped into six categories (Vault & loadouts, Weapons & perks, Account & stats, Activities & rotations, Reference & wiki, Developer reference), filterable by category or searchable by name, purpose and note; "Open" launches your system browser. Developer-facing and archived projects sit in a "Developer and history" section at the bottom of the page.
+- A new "Tool sites" menu: 42 Destiny 2 community sites grouped into six categories (Vault & loadouts, Weapons & perks, Account & stats, Activities & rotations, Reference & wiki, Developer reference), filterable by category or searchable by name, purpose and note; "Open" launches your system browser. Developer-facing and archived projects sit in a "Developer and history" section at the bottom of the page.
 - The vault's recommendation filter has a new "No matches at all" option: one click shows only gear whose card has no recommendation source, with the count on the button; it is mutually exclusive with source selection — turning it on clears the selected sources.
 - Saving a loadout now has two paths: the main button writes back over the existing plan, and a new "Save as new loadout" button creates a separate one and leaves the original untouched.
 - In-game loadouts and app loadouts now recognise each other: plan lists and slot titles show "matches <plan>", comparing content only, never names or similarity.

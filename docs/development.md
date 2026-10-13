@@ -503,7 +503,7 @@ packages/desktop/release/
 - `latest.yml`
 - `d2-tools-setup-<version>.exe.blockmap`
 
-安装包必须携带项目许可证和桌面运行时第三方许可证清单。`pnpm licenses:generate` 根据当前依赖生成 `packages/desktop/build/LICENSE.txt` 与 `THIRD_PARTY_NOTICES.txt`；质量门禁通过 `pnpm licenses:check` 拦截依赖变化后未更新的清单。NSIS 安装向导展示项目许可证，两份文件同时进入安装资源并可从设置页打开。设置页来源列表中的 GitHub / 在线资料链接交给平台默认浏览器打开，不在应用窗口内导航；本地许可证按钮使用系统默认程序打开安装包内文件。根 `LICENSE` 末尾除 MIT 条款外还带一段 Bungie 游戏内容与商标声明，这段声明按 Bungie Game Content Usage Rules 的要求附在分发包里，`packages/ui/src/startup/StartupGate.tsx` 的首次启动页也显示同一段声明，不要删。
+安装包必须携带项目许可证和桌面运行时第三方许可证清单。`pnpm licenses:generate` 根据当前依赖生成 `packages/desktop/build/LICENSE.txt` 与 `THIRD_PARTY_NOTICES.txt`；质量门禁通过 `pnpm licenses:check` 拦截依赖变化后未更新的清单。NSIS 安装向导展示项目许可证，两份文件同时进入安装资源并可从设置页打开。设置页来源列表中的 GitHub / 在线资料链接交给平台默认浏览器打开，不在应用窗口内导航；本地许可证按钮使用系统默认程序打开安装包内文件。根 `LICENSE` 只放纯 MIT 条款，GitHub 才认得出「MIT license」；Bungie 游戏内容与商标声明单独放在根 `NOTICE`，`pnpm licenses:generate` 把两份拼进分发包的 `LICENSE.txt`，这段声明按 Bungie Game Content Usage Rules 的要求仍随安装包发布，`packages/ui/src/startup/StartupGate.tsx` 的首次启动页也显示同一段声明，不要删。
 
 ## 6. 发布
 

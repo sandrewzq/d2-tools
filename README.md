@@ -10,6 +10,22 @@ d2-tools 是一个给普通玩家使用的、面向 Windows 的 Destiny 2 中文
 - 配置、OAuth token、标签和本地数据保存在本机
 - 基于 Bungie 官方 OAuth 授权流程，不走第三方账号中转
 
+## 界面预览
+
+截图取自预览版本，数据为示例数据。
+
+**资料库**：按名称、Perk、版本查装备，给出获取来源和持有实例。
+
+![资料库](docs/assets/screenshots/library.png)
+
+**账号**：角色光等、容量与风险、当前装备与背包候选。
+
+![账号](docs/assets/screenshots/account.png)
+
+**工具导航**：42 个社区工具站按用途分成六类，点“打开”用系统浏览器访问。
+
+![工具导航](docs/assets/screenshots/directory.png)
+
 ## 下载与运行
 
 当前公开测试版本和下载入口请查看 [GitHub Releases](https://github.com/sandrewzq/d2-tools/releases)。
@@ -56,6 +72,7 @@ d2-tools-setup-<version>.exe
 - 写操作：锁定、解锁、装备、仓库转移、一键装备最高光等
 - 资料库：按中文、英文、perk、别名搜索装备、perk 和来源信息
 - 今日 / 本周：只展示 Bungie API 或本地资料库能确认的内容
+- 工具导航：42 个 Destiny 2 社区工具站按用途分成六类，可按分类筛选，也可按站名、用途、说明搜索，点“打开”用系统浏览器打开
 - AI 助手：支持 OpenAI Responses、OpenAI Chat Completions 和 Anthropic Messages 三种协议配置
 - 本地优先：配置、token、标签、备注和日志保存在本机
 
@@ -99,7 +116,7 @@ d2-tools-setup-<version>.exe
 鸣谢 Bungie、DIM、DIM Wish List Sources、D2ArmorPicker、d2-armor-solver、Roll Report、d2-additional-info、Starside 以及 Destiny 2 社区资料维护者。
 
 完整的来源、使用范围、许可和维护边界见 [数据来源、参考项目与鸣谢](docs/work/references/data-sources.md)。
-更多社区工具、资料站和开源项目导航见 [Destiny 2 工具收集](docs/work/references/destiny-tool-reference.md)。
+这些社区工具站已经收进应用内的“工具导航”菜单，完整清单见 [Destiny 2 工具收集](docs/work/references/destiny-tool-reference.md)。
 
 ## 文档导航
 
@@ -185,16 +202,6 @@ d2-tools 是非官方社区工具，与 Bungie, Inc. 无从属关系，未获得
 
 ## License
 
-本项目基于 [MIT License](LICENSE) 开源。
+本项目基于 [MIT License](LICENSE) 开源。Bungie 游戏内容与商标声明单独放在 [NOTICE](NOTICE)，并随安装包发布。
 
 Windows 安装向导会展示项目许可证；安装目录同时包含 `LICENSE.txt` 和 `THIRD_PARTY_NOTICES.txt`。应用内也可以在“设置 → 数据来源与鸣谢”直接打开项目许可证和第三方许可证清单。
-
-## Star History
-
-<a href="https://www.star-history.com/?repos=sandrewzq%2Fd2-tools&type=date&legend=top-left">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&theme=dark&legend=top-left" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&legend=top-left" />
-    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=sandrewzq/d2-tools&type=date&legend=top-left" />
-  </picture>
-</a>

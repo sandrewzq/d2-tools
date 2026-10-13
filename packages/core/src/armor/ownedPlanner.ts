@@ -773,12 +773,18 @@ function retainBestStates(
   ruleset: ArmorRuleset,
   setConstraint: NormalizedArmorSetConstraint
 ): Map<string, OwnedSearchState> {
-  return new Map([...states.entries()]
-    .sort((left, right) => compareNumberArrays(
-      partialScore(left[1], remaining, remainingSetCapacity, target, fragments, priorityStats, ruleset, setConstraint),
-      partialScore(right[1], remaining, remainingSetCapacity, target, fragments, priorityStats, ruleset, setConstraint)
-    ) || compareLogistics(left[1], right[1]))
-    .slice(0, limit));
+  const scored = [...states.entries()].map(([key, state]) => ({
+    key,
+    state,
+    score: partialScore(state, remaining, remainingSetCapacity, target, fragments, priorityStats, ruleset, setConstraint),
+    choiceId: choiceIds(state.choices)
+  }));
+  scored.sort((left, right) => compareNumberArrays(left.score, right.score)
+    || left.state.replacement_count - right.state.replacement_count
+    || left.state.transfer_count - right.state.transfer_count
+    || right.state.equipped_count - left.state.equipped_count
+    || left.choiceId.localeCompare(right.choiceId));
+  return new Map(scored.slice(0, limit).map(({ key, state }) => [key, state]));
 }
 
 function partialScore(

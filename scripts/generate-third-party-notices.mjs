@@ -8,6 +8,7 @@ const repoRoot = resolve(import.meta.dirname, "..");
 const outputPath = join(repoRoot, "packages", "desktop", "build", "THIRD_PARTY_NOTICES.txt");
 const packagedLicensePath = join(repoRoot, "packages", "desktop", "build", "LICENSE.txt");
 const projectLicensePath = join(repoRoot, "LICENSE");
+const projectNoticePath = join(repoRoot, "NOTICE");
 const checkOnly = process.argv.includes("--check");
 
 // 起点覆盖全部 workspace 包：任何一个包以后新增运行时依赖，都会自动进清单，
@@ -54,7 +55,13 @@ SOFTWARE.
 
 const packages = collectApplicationPackages();
 const notices = renderNotices(packages);
-const projectLicense = normalizeText(readFileSync(projectLicensePath, "utf8"));
+// 根 LICENSE 只放纯 MIT 条款，GitHub 才认得出「MIT license」；Bungie 游戏内容与商标
+// 声明单独放 NOTICE，分发包把两份拼成 LICENSE.txt，所以安装包里仍有这段声明。
+const projectLicense = normalizeText([
+  readFileSync(projectLicensePath, "utf8").trimEnd(),
+  "-".repeat(80),
+  readFileSync(projectNoticePath, "utf8").trimEnd()
+].join("\n\n"));
 
 if (checkOnly) {
   assertCurrent(outputPath, notices, "第三方许可证清单");

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AccountSummary } from "../src/account/summary.js";
-import { matchLocalLoadoutPlan } from "../src/loadouts/plans.js";
+import { createLocalLoadoutPlanFromEquippedItems, matchLocalLoadoutPlan } from "../src/loadouts/plans.js";
+import { createDimLoadoutExport, createDimLoadoutImportPreview, parseDimLoadoutLink } from "../src/loadouts/dimImport.js";
 import {
   createLocalLoadoutPlanExecutionPlan,
   createLocalLoadoutPlanPublishPlan,
@@ -10,6 +11,144 @@ import {
 } from "../src/loadouts/localPlanExecution.js";
 
 describe("local loadout plans", () => {
+  it("keeps subclass socket positions and stat goals in a DIM roundtrip", () => {
+    const account = accountSummary();
+    account.characters[0]!.equipped_items[0] = {
+      ...account.characters[0]!.equipped_items[0]!,
+      bucket_hash: 1498876634,
+      sockets: [{
+        socket_index: 0,
+        is_visible: true,
+        is_enabled: true,
+        enable_fail_indexes: [],
+        selected_plug: { hash: 10, name: "weapon perk" },
+        reusable_plugs: []
+      }]
+    };
+    account.characters[0]!.equipped_items.push({
+      hash: 400,
+      name: "subclass",
+      bucket_hash: 3284755031,
+      group_key: "equipment",
+      socket_plugs: [{ hash: 51, name: "aspect" }],
+      sockets: [{
+        socket_index: 7,
+        is_visible: true,
+        is_enabled: true,
+        enable_fail_indexes: [],
+        selected_plug: { hash: 51, name: "aspect" },
+        reusable_plugs: []
+      }]
+    });
+    const draft = createLocalLoadoutPlanFromEquippedItems({
+      name: "DIM roundtrip",
+      class_name: "Titan",
+      equipped_items: account.characters[0]!.equipped_items
+    });
+    expect(draft.subclass_target?.socket_overrides).toEqual({ "7": 51 });
+    const exported = createDimLoadoutExport({
+      plan: {
+        ...draft,
+        armor_constraints: {
+          stat_minimums: { grenade: 200, weapon: 100 },
+          priority_stats: ["grenade", "weapon"],
+          fragment_stat_bonuses: {},
+          five_point_mod_budget: 0,
+          ten_point_mod_budget: 0,
+          locked_instance_ids: [],
+          excluded_instance_ids: [],
+          allowed_locations: ["equipped", "inventory", "vault", "postmaster"]
+        }
+      },
+      account
+    });
+    expect(exported.status).toBe("ready");
+    if (exported.status !== "ready") return;
+    const parsed = parseDimLoadoutLink(exported.url);
+    const preview = createDimLoadoutImportPreview({ source_url: parsed.source_url, payload: parsed.inline_loadout });
+    expect(preview.draft.subclass_target?.socket_overrides).toEqual({ "7": 51 });
+    expect(preview.draft.armor_constraints?.stat_minimums).toEqual({ grenade: 200, weapon: 100 });
+  });
+
+  it("exports each planned armor stat mod and tuning plug to DIM", () => {
+    const account = accountSummary();
+    const statModHash = 1435557120;
+    const tuningHash = 1672416975;
+    const otherArmorModHash = 1130820873;
+    const armorItems = Array.from({ length: 5 }, (_, index) => ({
+      hash: 1000 + index,
+      instance_id: `armor-${index}`,
+      name: `armor-${index}`,
+      group_key: "armor" as const,
+      socket_plugs: [],
+      sockets: [
+        { socket_index: 0, is_visible: true, is_enabled: true, enable_fail_indexes: [],
+          selected_plug: { hash: statModHash, name: "grenade +10" }, reusable_plugs: [] },
+        { socket_index: 11, is_visible: true, is_enabled: true, enable_fail_indexes: [],
+          selected_plug: { hash: tuningHash, name: "tuning" }, reusable_plugs: [] },
+        { socket_index: 1, is_visible: true, is_enabled: true, enable_fail_indexes: [],
+          selected_plug: { hash: otherArmorModHash, name: "armor mod", category_identifier: "enhancements.v2_head" }, reusable_plugs: [] }
+      ]
+    }));
+    account.vault.items.push(...armorItems);
+    const exported = createDimLoadoutExport({
+      plan: {
+        name: "五件护甲",
+        class_name: "术士",
+        item_targets: armorItems.map((item) => ({
+          slot: "护甲",
+          item_hash: item.hash,
+          selected_instance_id: item.instance_id,
+          plug_hashes: [statModHash, tuningHash, otherArmorModHash]
+        })),
+        armor_plan: {
+          result_id: "result",
+          candidate_id: "candidate",
+          mode: "owned",
+          ruleset_id: "armor-3.0",
+          ruleset_version: 1,
+          source_revisions: { ruleset: "armor-3.0:1" },
+          selected_instance_ids: armorItems.map((item) => item.instance_id),
+          planned_armor_plugs: armorItems.map((item) => ({
+            instance_id: item.instance_id,
+            tuning_plug_hash: tuningHash,
+            armor_stat_mod_plug_hash: statModHash,
+            armor_stat_mod_stat: "grenade" as const,
+            armor_stat_mod_value: 10 as const,
+            energy_capacity: 11,
+            reserved_energy: 0,
+            final_energy: 3
+          }))
+        },
+        armor_constraints: {
+          stat_minimums: { grenade: 200, weapon: 100 },
+          priority_stats: ["grenade", "weapon"],
+          fragment_stat_bonuses: {},
+          five_point_mod_budget: 0,
+          ten_point_mod_budget: 5,
+          locked_instance_ids: [],
+          excluded_instance_ids: [],
+          allowed_locations: ["equipped", "inventory", "vault", "postmaster"]
+        }
+      },
+      account
+    });
+    expect(exported.status).toBe("ready");
+    if (exported.status !== "ready") return;
+    const payload = parseDimLoadoutLink(exported.url).inline_loadout as {
+      equipped: Array<{ socketOverrides: Record<string, number> }>;
+      parameters: { mods: number[]; statConstraints: Array<{ statHash: number; minStat: number }> };
+    };
+    expect(payload.parameters.mods.filter((hash) => hash === statModHash)).toHaveLength(5);
+    expect(payload.parameters.mods.filter((hash) => hash === tuningHash)).toHaveLength(5);
+    expect(payload.parameters.mods.filter((hash) => hash === otherArmorModHash)).toHaveLength(5);
+    expect(payload.equipped.every((item) => item.socketOverrides["0"] === statModHash
+      && item.socketOverrides["11"] === tuningHash)).toBe(true);
+    expect(payload.parameters.statConstraints.map((constraint) => constraint.minStat)).toEqual([200, 100]);
+    const preview = createDimLoadoutImportPreview({ source_url: exported.url, payload });
+    expect(preview.draft.subclass_target).toBeUndefined();
+  });
+
   it("derives item availability from the current account without persisting a match", () => {
     const match = matchLocalLoadoutPlan({
       item_targets: [
