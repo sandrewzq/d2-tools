@@ -2,6 +2,42 @@
 
 这个项目使用面向玩家的更新日志。这里优先记录”玩家能感知到什么变化”，而不是逐条展开内部实现细节。
 
+## 0.0.31 - 2026-10-16
+
+### 中文
+
+#### 新增
+
+- 界面语言切到 English 后，账号、资料库、商人、设置、配装编辑和主页外壳的文案都换成英文；仓库和装备详情补上了剩下的部分，首页周报里由 core 直接产出的文案和 Desktop 主进程发出的提示也一并跟上。
+
+#### 改进
+
+- 导入大型愿望单时窗口不再卡住：以前校验整段占着主线程跑几十秒，窗口不响应、连取消都点不动；现在分片让出主线程，过程中可以取消。
+
+#### 修复
+
+- 失败和报错提示按当前界面语言显示，覆盖账号、商人、每日情报、资料库、装备详情和配装写入这六处；其余上游返回的报错仍按原文显示。
+- 中文界面上不再冒出英文装备名和 Perk 名。首页本周轮换的掉落池、配装页的背包候选、装备详情里的 Perk 名，先前的缓存只看资料库版本号，看不见语言切换，切回中文时仍命中用另一种语言建出来的结果；现在资料库语言进了缓存身份，中英文各存一份。
+- 换语言后页面会按新语言重取数据。以前界面文案换了，页面上的装备名、Perk 名和掉落池名字还是旧语言；现在换资料库语言会重载一次窗口，代价是重载后回到首页，当前菜单不保留。
+- 设置页切换界面语言后，保存成功的回执不再停在切换前的语言上。
+
+### English
+
+#### Added
+
+- With the interface language set to English, the copy in Account, Library, Vendors, Settings, loadout editing and the host shell is now English; Vault and item detail fill in what was left, and both the home briefing text produced directly by core and the messages the Desktop main process sends follow along.
+
+#### Improved
+
+- Importing a large wishlist no longer locks up the window: validation used to hold the main thread for tens of seconds, leaving the window unresponsive and the cancel button unclickable. It now yields the main thread in slices, so you can cancel while it runs.
+
+#### Fixed
+
+- Failure and error messages are shown in the current interface language across six areas — Account, Vendors, daily intel, Library, item detail and loadout writes; errors returned by upstream still show their original text.
+- English item and perk names no longer show up on a Chinese interface. The drop pools in this week's rotation on the home page, the vault candidates on the loadout page and the perk names in item detail all came from caches keyed only on the manifest version, which could not see a language switch — so after switching back to Chinese they still hit results built in the other language. The manifest language is now part of the cache identity, and Chinese and English are cached separately.
+- Pages now refetch their data in the new language after you switch. Previously the interface copy changed but the item names, perk names and drop-pool names on the page were still in the old language; switching the manifest language now reloads the window once. The cost is that the reload returns you to the home page and the current menu is not kept.
+- After switching the interface language in Settings, the saved confirmation no longer stays in the language you switched away from.
+
 ## 0.0.30 - 2026-10-13
 
 ### 中文
