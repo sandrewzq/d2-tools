@@ -5,7 +5,8 @@ import type {
   VendorInventoryGroupWorkspace,
   VendorInventoryItemWorkspace,
   VendorInventorySectionWorkspace,
-  VendorServiceWorkspace
+  VendorServiceWorkspace,
+  VendorTextTokenWorkspace
 } from "./vendorsPage.js";
 
 export type VendorContentKind = "reputation" | "inventory" | "subinventory" | "tasks";
@@ -357,10 +358,7 @@ function addFallbackVendorParents(
       category: reference.category,
       statusLabel: reference.statusLabel,
       detailState: mergeVendorDetailStates(children.map((vendor) => vendor.detailState)),
-      detailFailureMessage: children
-        .map((vendor) => vendor.detailFailureMessage)
-        .filter((message): message is string => Boolean(message))
-        .join("；") || undefined,
+      detailFailureMessage: mergeVendorDetailFailureMessages(children),
       items: [],
       services: []
     });
@@ -432,10 +430,7 @@ function composeVendorStructure(
   const mergedParent: VendorInventoryGroupWorkspace = {
     ...parent,
     detailState: mergeVendorDetailStates(family.map((vendor) => vendor.detailState)),
-    detailFailureMessage: family
-      .map((vendor) => vendor.detailFailureMessage)
-      .filter((message): message is string => Boolean(message))
-      .join("；") || undefined,
+    detailFailureMessage: mergeVendorDetailFailureMessages(family),
     services,
     contentSections: buildConfiguredContentSections(parent, services, structure)
   };
@@ -525,7 +520,9 @@ function createCombinedServiceContentSection(
     action: definition.action,
     condition: definition.condition,
     name: definition.name,
-    description: services.length === 1 ? services[0].description || undefined : `${services.length} 个入口`,
+    description: services.length === 1
+      ? (services[0].description ? { key: services[0].description } : undefined)
+      : { key: "{count} 个入口", count: services.length },
     layout: groups.length > 1 ? "columns" : "list",
     groups
   };
@@ -543,8 +540,8 @@ function createReputationContentSection(
     condition: definition?.condition,
     name: definition?.name ?? "声望与等级",
     description: vendor.progression
-      ? `等级上限 ${vendor.progression.levelCap} · ${vendor.rankRewards?.length ?? 0} 个奖励`
-      : `${vendor.rankRewards?.length ?? 0} 个等级奖励`,
+      ? { key: `等级上限 ${vendor.progression.levelCap} · ${vendor.rankRewards?.length ?? 0} 个奖励` }
+      : { key: `${vendor.rankRewards?.length ?? 0} 个等级奖励` },
     layout: "rank",
     progression: vendor.progression,
     groups: [{ id: `${definition?.id ?? vendor.id}-rank-rewards`, name: "等级奖励", items: vendor.rankRewards ?? [] }]
@@ -565,7 +562,7 @@ function createInventoryContentSection(
     action: definition?.action ?? "purchase",
     condition: definition?.condition,
     name,
-    description: `${items.length} 件`,
+    description: { key: "{count} 件", count: items.length },
     layout: "featured",
     groups: createInventorySections(items)
   };
@@ -585,7 +582,7 @@ function createTaskContentSection(
     action: definition?.action ?? "acquire",
     condition: definition?.condition,
     name,
-    description: `${items.length} 项`,
+    description: { key: "{count} 项", count: items.length },
     layout: "featured",
     groups: createInventorySections(items)
   };
@@ -598,7 +595,7 @@ function createServiceContentSection(service: VendorServiceWorkspace): VendorCon
     kind: "subinventory",
     action: inferServiceAction(service.name),
     name: service.name,
-    description: service.description || `${service.items.length} 件`,
+    description: service.description ? { key: service.description } : { key: "{count} 件", count: service.items.length },
     layout: groups.length > 1 ? "columns" : "list",
     groups
   };
@@ -765,6 +762,17 @@ function mergeVendorDetailStates(states: Array<VendorDetailState | undefined>): 
   if (states.some((state) => state === "pending")) return "pending";
   if (states.every((state) => state === "ready")) return "ready";
   return states.find((state): state is VendorDetailState => Boolean(state));
+}
+
+/**
+ * 合并子商人的详情失败文案。多段之间用「；」拼接，连接符要跟着界面语言走，
+ * 所以这里只把 token 摊平，成句交给渲染层。
+ */
+function mergeVendorDetailFailureMessages(
+  vendors: VendorInventoryGroupWorkspace[]
+): VendorTextTokenWorkspace[] | undefined {
+  const messages = vendors.flatMap((vendor) => vendor.detailFailureMessage ?? []);
+  return messages.length ? messages : undefined;
 }
 
 function slugify(value: string): string {

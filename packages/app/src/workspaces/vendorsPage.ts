@@ -29,6 +29,15 @@ export type VendorInventoryStatus = "owned" | "not_owned" | "partial" | "unknown
 export type VendorInventoryState = "loaded" | "empty" | "unavailable";
 export type VendorDetailState = "pending" | "ready" | "partial" | "failed";
 
+/**
+ * 文案 token：`key` 是中文原文模板（数字处写 `{count}`），`count` 是取值。
+ * app 只产出 key 与值，查表成句交给渲染层，切语言不用改这里的分支。
+ */
+export type VendorTextTokenWorkspace = {
+  key: string;
+  count?: number;
+};
+
 export type VendorOfferOwnershipWorkspace = {
   state: VendorInventoryStatus;
   count: number | null;
@@ -91,7 +100,7 @@ export type VendorContentSectionWorkspace = {
   action?: "purchase" | "exchange" | "focus" | "decode" | "claim" | "acquire" | "inspect";
   condition?: string;
   name: string;
-  description?: string;
+  description?: VendorTextTokenWorkspace;
   layout: "featured" | "columns" | "list" | "rank";
   groups: VendorInventorySectionWorkspace[];
   progression?: VendorProgressionWorkspace;
@@ -147,7 +156,7 @@ export type VendorInventoryGroupWorkspace = {
   railStatusLabel?: string;
   detailToolbar?: VendorDetailToolbarWorkspace;
   detailState?: VendorDetailState;
-  detailFailureMessage?: string;
+  detailFailureMessage?: VendorTextTokenWorkspace[];
   featured?: boolean;
   items: VendorInventoryItemWorkspace[];
   services?: VendorServiceWorkspace[];
@@ -215,7 +224,7 @@ export type VendorFiltersWorkspace = {
 
 export type VendorStatusBannerWorkspace = {
   tone: "neutral" | "error";
-  message: string;
+  message: VendorTextTokenWorkspace[];
   live: "polite";
   busy: boolean;
 } | null;
@@ -622,10 +631,13 @@ function getVendorDetailState(
 function getVendorDetailFailureMessage(
   detailState: VendorDetailState,
   failures: VendorInventorySnapshot["failedVendorDetails"]
-): string | undefined {
+): VendorTextTokenWorkspace[] | undefined {
   if (detailState === "ready" || detailState === "pending") return undefined;
-  if (detailState === "failed" && failures.length === 1) return failures[0].message;
-  return `${new Set(failures.map((failure) => failure.characterId)).size} 个角色的属性与插槽详情读取失败`;
+  if (detailState === "failed" && failures.length === 1) return [{ key: failures[0].message }];
+  return [{
+    key: "{count} 个角色的属性与插槽详情读取失败",
+    count: new Set(failures.map((failure) => failure.characterId)).size
+  }];
 }
 
 function createStatusBanner(input: VendorsPageInput): VendorStatusBannerWorkspace {
@@ -638,26 +650,26 @@ function createStatusBanner(input: VendorsPageInput): VendorStatusBannerWorkspac
       && !input.snapshot.detailVendorHashes.includes(selectedVendorHash);
     return {
       tone: "neutral",
-      message: isLoadingSelectedDetail ? "正在读取当前商人属性" : "正在读取实时商人库存",
+      message: [{ key: isLoadingSelectedDetail ? "正在读取当前商人属性" : "正在读取实时商人库存" }],
       live: "polite",
       busy: true
     };
   }
   if (input.refreshState === "failed") {
-    return { tone: "error", message: input.refreshError ?? "商人数据刷新失败", live: "polite", busy: false };
+    return { tone: "error", message: [{ key: input.refreshError ?? "商人数据刷新失败" }], live: "polite", busy: false };
   }
   if (input.snapshot?.failedCharacterIds.length || input.snapshot?.failedVendorDetails.length) {
-    const messages = [];
+    const message: VendorTextTokenWorkspace[] = [];
     if (input.snapshot.failedCharacterIds.length) {
-      messages.push(`${input.snapshot.failedCharacterIds.length} 个角色商人列表读取失败`);
+      message.push({ key: "{count} 个角色商人列表读取失败", count: input.snapshot.failedCharacterIds.length });
     }
     if (input.snapshot.failedVendorDetails.length) {
-      messages.push(`${input.snapshot.failedVendorDetails.length} 个商人详情读取失败`);
+      message.push({ key: "{count} 个商人详情读取失败", count: input.snapshot.failedVendorDetails.length });
     }
-    return { tone: "error", message: messages.join("；"), live: "polite", busy: false };
+    return { tone: "error", message, live: "polite", busy: false };
   }
   if (input.statusMessage) {
-    return { tone: "neutral", message: input.statusMessage, live: "polite", busy: false };
+    return { tone: "neutral", message: [{ key: input.statusMessage }], live: "polite", busy: false };
   }
   return null;
 }
@@ -707,8 +719,8 @@ function createVendorOfferOwnership(
       count: owned.count,
       label: owned.count > 0
         ? equipmentKind
-          ? `账号至少有 ${owned.count} 件同身份装备`
-          : `账号至少已有 ${owned.count} 件`
+          ? "账号至少有 {count} 件同身份装备"
+          : "账号至少已有 {count} 件"
         : "账号实例未完整读取",
       locationLabels,
       asOf: index.sourceProfileMintedAt
@@ -719,8 +731,8 @@ function createVendorOfferOwnership(
     state: "owned",
     count: owned.count,
     label: equipmentKind
-      ? `账号有 ${owned.count} 件同身份装备`
-      : `账号已有 ${owned.count} 件`,
+      ? "账号有 {count} 件同身份装备"
+      : "账号已有 {count} 件",
     locationLabels,
     asOf: index.sourceProfileMintedAt
   };

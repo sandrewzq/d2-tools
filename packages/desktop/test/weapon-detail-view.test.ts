@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getLocaleCopy } from "@d2-tools/ui";
 import type { AccountItemPlugSummary, AccountItemReusablePlugSummary, AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { ItemPlugSummary } from "@d2-tools/core/items/perks";
 import type { SelectedItemDetail } from "../src/renderer/shared/hooks/useItemDetail";
@@ -8,6 +9,8 @@ import {
   mergeSelectedItemDetail,
   type ItemDefinitionDetailLike
 } from "../../app/src/workspaces/itemDetail";
+
+const copy = getLocaleCopy("zh-CN").itemDetail;
 
 describe("weapon detail view", () => {
   it("keeps the base perk pool and classifies frames-category traits correctly", () => {
@@ -33,6 +36,7 @@ describe("weapon detail view", () => {
     const selectedSecondTrait = secondTraits[3]!;
 
     const model = buildWeaponDetailView({
+      copy,
       selectedItem: weapon({
         barrels: [...barrels, ...enhancedBarrels],
         firstTraits: [...firstTraits, ...enhancedFirstTraits],
@@ -97,7 +101,7 @@ describe("weapon detail view", () => {
       socket_plugs: [intrinsic, blade, guard, firstTrait, core, secondTrait]
     };
 
-    const model = buildWeaponDetailView({ selectedItem });
+    const model = buildWeaponDetailView({ copy, selectedItem });
 
     expect(model?.configuration.pool_columns.map((column) => ({
       socket_index: column.socket_index,
@@ -122,7 +126,7 @@ describe("weapon detail view", () => {
     const selectedItem = previewedWeapon();
     expect(selectedItem.detail_loaded).toMatchObject({ definition: true, instance: false });
 
-    const model = buildWeaponDetailView({ selectedItem });
+    const model = buildWeaponDetailView({ copy, selectedItem });
     const magazine = model?.configuration.selection_columns.find((column) => column.socket_index === 2);
     // 推荐区按来源栏位找列，靠的就是这个字段（来源事实与配置列的唯一交集）。
     expect(magazine?.requirement_slot).toBe("magazine");
@@ -135,7 +139,7 @@ describe("weapon detail view", () => {
 
   it("falls back to the game's socket state once the full roll is loaded", () => {
     const enabledItem = verifiedWeapon(true);
-    const enabled = buildWeaponDetailView({ selectedItem: enabledItem })
+    const enabled = buildWeaponDetailView({ copy, selectedItem: enabledItem })
       ?.configuration.selection_columns.find((column) => column.socket_index === 2);
     expect(enabled?.candidates.map((candidate) => [candidate.name, candidate.can_apply])).toEqual([
       ["精确弹药", false],
@@ -144,7 +148,7 @@ describe("weapon detail view", () => {
 
     // 游戏说这一栏不可用／插不进去时，硬条件说了算：快照认为能换也不给换。
     const disabledItem = verifiedWeapon(false);
-    const disabled = buildWeaponDetailView({ selectedItem: disabledItem })
+    const disabled = buildWeaponDetailView({ copy, selectedItem: disabledItem })
       ?.configuration.selection_columns.find((column) => column.socket_index === 2);
     expect(disabled?.candidates.find((candidate) => candidate.name === "轻质弹匣")?.can_apply).toBe(false);
   });

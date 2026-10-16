@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { VendorInventorySnapshot } from "@d2-tools/core/vendors/inventory";
+import { getLocaleCopy } from "@d2-tools/ui";
 import { resolveVendorRefreshState } from "../src/renderer/features/vendors/useVendorsWorkspace.js";
+
+const vendorsCopy = getLocaleCopy("zh-CN").vendors;
 
 describe("vendor desktop refresh state", () => {
   it("replaces cached rolls when the Armorer context changes", () => {
-    const state = resolveVendorRefreshState(snapshot(111, "roll-a"), snapshot(222, "roll-b"));
+    const state = resolveVendorRefreshState(snapshot(111, "roll-a"), snapshot(222, "roll-b"), undefined, vendorsCopy);
 
     expect(state.snapshot.characterContexts.hunter.armorerModHash).toBe(222);
     expect(state.snapshot.vendors[0].offers[0].rollFingerprint).toBe("roll-b");
@@ -13,7 +16,7 @@ describe("vendor desktop refresh state", () => {
 
   it("keeps cached inventory when refresh fails", () => {
     const cached = snapshot(111, "roll-a");
-    const state = resolveVendorRefreshState(cached, null, new Error("网络失败"));
+    const state = resolveVendorRefreshState(cached, null, new Error("网络失败"), vendorsCopy);
 
     expect(state.snapshot).toBe(cached);
     expect(state.refreshState).toBe("failed");

@@ -1,42 +1,7 @@
 import type { AccountSummary } from "@d2-tools/core/account/summary";
-import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { MissingLoadoutTransferPlan } from "./loadoutTransfer.js";
 import { findBestTemplateSourceItem } from "./loadoutSources.js";
-
-export type LoadoutCompareRow = {
-  slot: string;
-  left: LoadoutCompareCell;
-  right: LoadoutCompareCell;
-  changed: boolean;
-};
-
-export type LoadoutCompareCell = {
-  name: string;
-  frame: string;
-  perks: string[];
-};
-
-export function buildLoadoutCompareRows(primary: LoadoutTemplate, secondary: LoadoutTemplate): LoadoutCompareRow[] {
-  const primaryItems = new Map(primary.items.map((item) => [loadoutCompareSlotKey(item), item]));
-  const secondaryItems = new Map(secondary.items.map((item) => [loadoutCompareSlotKey(item), item]));
-  const slots = Array.from(new Set([...primaryItems.keys(), ...secondaryItems.keys()]));
-
-  return slots.map((slot) => {
-    const leftItem = primaryItems.get(slot);
-    const rightItem = secondaryItems.get(slot);
-    const left = formatLoadoutCompareItem(leftItem);
-    const right = formatLoadoutCompareItem(rightItem);
-    return {
-      slot,
-      left,
-      right,
-      changed: left.name !== right.name
-        || left.frame !== right.frame
-        || formatLoadoutComparePerks(left.perks) !== formatLoadoutComparePerks(right.perks)
-    };
-  });
-}
 
 export function formatLoadoutComparePerks(perks: string[]): string {
   return perks.length ? perks.join(" / ") : "无";
@@ -64,24 +29,6 @@ export function buildMissingLoadoutItemsText(
   ].join("\n");
 }
 
-export function isTemplateItemReady(
-  item: LoadoutTemplate["items"][number],
-  analysis: ReturnType<typeof analyzeLoadoutTemplate> | null
-): boolean {
-  if (!analysis) {
-    return false;
-  }
-
-  return analysis.equipped.some((equippedItem) => {
-    if (item.instance_id && equippedItem.instance_id) {
-      return item.instance_id === equippedItem.instance_id;
-    }
-
-    return equippedItem.hash === item.hash
-      && equippedItem.bucket_name === item.bucket_name;
-  });
-}
-
 export function isTemplateItemReadyFromPlan(
   item: LoadoutTemplate["items"][number],
   plan: MissingLoadoutTransferPlan
@@ -106,26 +53,6 @@ export function isMatchingTemplateItem(
 
   return left.hash === right.hash
     && left.bucket_name === right.bucket_name;
-}
-
-function loadoutCompareSlotKey(item: LoadoutTemplate["items"][number]): string {
-  return item.bucket_name || item.name;
-}
-
-function formatLoadoutCompareItem(item: LoadoutTemplate["items"][number] | undefined): LoadoutCompareCell {
-  if (!item) {
-    return {
-      name: "未配置",
-      frame: "未配置",
-      perks: []
-    };
-  }
-
-  return {
-    name: item.name,
-    frame: item.weapon_frame_name || "未标注",
-    perks: item.perk_names?.slice(0, 2) ?? []
-  };
 }
 
 function findTemplateItemSourceLabel(

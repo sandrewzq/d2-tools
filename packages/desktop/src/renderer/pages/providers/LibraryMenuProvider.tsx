@@ -10,6 +10,7 @@ export function LibraryMenuProvider() {
 
   return (
     <LibraryPage
+      interfaceLocale={session.diagnostics.languagePreferences.interfaceLocale}
       cache={{
         items: library.items,
         perks: library.perks,

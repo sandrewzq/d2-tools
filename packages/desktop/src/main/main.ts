@@ -10,6 +10,7 @@ import {
   startUpdateInstall
 } from "./ipc/updates.js";
 import { getWindowBackgroundColor } from "./ipc/window.js";
+import { currentMainLocale, mainTemplate, mainText } from "./i18n/mainCopy.js";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { configureBungieCookieJar, createBungieAffinityCookieJar } from "@d2-tools/services/bungie/cookies";
 import {
@@ -147,9 +148,14 @@ function handleStartupFailure(error: unknown): void {
     app.exit(1);
     return;
   }
+  const locale = currentMainLocale();
   dialog.showErrorBox(
-    "d2-tools 启动失败",
-    `${message}\n\n请重新启动应用；如果问题持续，请把设置页中的诊断信息提供给开发者。`
+    mainText(locale, "d2-tools 启动失败"),
+    mainTemplate(
+      locale,
+      "{message}\n\n请重新启动应用；如果问题持续，请把设置页中的诊断信息提供给开发者。",
+      { message }
+    )
   );
   app.exit(1);
 }

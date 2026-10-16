@@ -1,15 +1,13 @@
 import { createHomePageDerivedState, type HomePageKey } from "@d2-tools/app/home";
 import type { ShellPageKey } from "@d2-tools/ui";
-import type { AccountSummary, D2Config, LoadoutTemplate, StartupState } from "../../api/types";
+import type { AccountSummary, D2Config, LoadoutTemplate } from "../../api/types";
 import type { LibraryViewMode } from "../../utils/libraryFilters";
-import { buildDiagnosticRows } from "../../components/DiagnosticsPanel";
 import { buildLoadoutTemplateLookup } from "../../shared/domain/loadouts/loadoutLookup";
 import { isAiSettingsConfigured } from "../../utils/aiSettings";
 import { useMemo } from "react";
 
 export function useHomePageDerivedState(input: {
   activePage: ShellPageKey;
-  state: StartupState;
   accountSummary: AccountSummary | null;
   selectedCharacterId: string;
   activeLoadoutTemplate: LoadoutTemplate | null;
@@ -25,8 +23,6 @@ export function useHomePageDerivedState(input: {
   };
   diagnostics: {
     aiSettings: D2Config["ai"];
-    diagnosticDataDir: string;
-    diagnosticManifestVersion?: string;
   };
 }) {
   return useMemo(() => {
@@ -34,11 +30,6 @@ export function useHomePageDerivedState(input: {
     const activeLoadoutLookup = input.activeLoadoutTemplate
       ? buildLoadoutTemplateLookup(input.activeLoadoutTemplate)
       : null;
-    const diagnosticRows = buildDiagnosticRows({
-      state: input.state,
-      dataDir: input.diagnostics.diagnosticDataDir,
-      manifestVersion: input.diagnostics.diagnosticManifestVersion
-    });
     const homeDerivedState = createHomePageDerivedState({
       activePage: input.activePage as HomePageKey,
       account: input.accountSummary,
@@ -53,20 +44,17 @@ export function useHomePageDerivedState(input: {
       perkResultCount: input.library.perks.length,
       equipmentSearchTouched: input.library.equipmentSearchTouched,
       perkSearchTouched: input.library.perkSearchTouched,
-      isAiConfigured,
-      diagnosticRows
+      isAiConfigured
     });
 
     return {
       activeLoadoutLookup,
       currentPageMeta: homeDerivedState.pageMeta,
       assistantPageContext: homeDerivedState.assistantPageContext,
-      diagnosticRows,
       isAiConfigured
     };
   }, [
     input.activePage,
-    input.state,
     input.accountSummary,
     input.selectedCharacterId,
     input.activeLoadoutTemplate,
@@ -78,8 +66,6 @@ export function useHomePageDerivedState(input: {
     input.library.perks.length,
     input.library.equipmentSearchTouched,
     input.library.perkSearchTouched,
-    input.diagnostics.aiSettings,
-    input.diagnostics.diagnosticDataDir,
-    input.diagnostics.diagnosticManifestVersion
+    input.diagnostics.aiSettings
   ]);
 }

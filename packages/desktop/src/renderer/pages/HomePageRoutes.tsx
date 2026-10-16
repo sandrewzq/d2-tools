@@ -1,4 +1,5 @@
-import type { ShellPageKey } from "@d2-tools/ui";
+import type { ShellCopy, ShellPageKey } from "@d2-tools/ui";
+import { shellText } from "@d2-tools/ui";
 import { lazy, Suspense } from "react";
 
 const HomeMenuProvider = lazy(async () => {
@@ -36,9 +37,10 @@ const SettingsMenuProvider = lazy(async () => {
 
 export function HomePageRoutes(props: {
   activePage: ShellPageKey;
+  copy: ShellCopy;
 }) {
   return (
-    <Suspense fallback={<div className="page-loading">加载中...</div>}>
+    <Suspense fallback={<div className="page-loading">{shellText(props.copy, "加载中...")}</div>}>
       {props.activePage === "home" ? <HomeMenuProvider /> : null}
       {props.activePage === "account" ? <AccountMenuProvider /> : null}
       {props.activePage === "loadouts" ? <LoadoutsMenuProvider /> : null}

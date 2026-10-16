@@ -157,7 +157,7 @@ async function buildHomeBriefing(
     ? attachRotatingLootPools(buildWeeklySummary(now, weeklyLiveData), definitions.items, lootPoolReadFailed)
     : cached.weekly;
   return {
-    version: 11,
+    version: 12,
     context_key: contextKey,
     saved_at: now.toISOString(),
     fetched_at: snapshot.fetchedAt,

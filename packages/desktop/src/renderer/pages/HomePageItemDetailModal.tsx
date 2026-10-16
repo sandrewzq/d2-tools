@@ -68,6 +68,7 @@ export function HomePageItemDetailModal(props: {
       }
     };
     const vendorWeaponModel = buildWeaponDetailView({
+      copy,
       selectedItem: vendorSelectedItem,
       accountSummary: props.accountSummary,
       vaultTags: props.vaultTags,
@@ -84,7 +85,8 @@ export function HomePageItemDetailModal(props: {
       currentStats: buildVendorWeaponStats(vendorDefinitionState.context.stats),
       recommendations: buildWeaponRecommendationViews(
         vendorDefinitionState.recommendations ?? null,
-        vendorSelectedItem
+        vendorSelectedItem,
+        copy
       ),
       recommendation_disclaimer: vendorDefinitionState.recommendations?.disclaimer
     });
@@ -116,6 +118,7 @@ export function HomePageItemDetailModal(props: {
 
     const vendorSameNameItems = collectSelectedSameNameItems(props.accountSummary, vendorSelectedItem);
     const vendorArmorModel = buildArmorDetailView({
+      copy,
       selectedItem: vendorSelectedItem,
       sameNameItems: vendorSameNameItems,
       context: {

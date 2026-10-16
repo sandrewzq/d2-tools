@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { LoadoutsPageContentView, type InterfaceLocale, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getLocaleCopy, loadoutTemplate, loadoutText, LoadoutsPageContentView, type InterfaceLocale, type LoadoutActionFeedbackState, type LoadoutsPageActions } from "@d2-tools/ui";
 import { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type {
   AccountSummary,
@@ -32,7 +32,6 @@ import {
   type ApplicationLoadoutLibraryViewModel,
   type ApplicationLoadoutNavigationState,
   type ApplicationLoadoutScreen,
-  type LocalLoadoutPlanWorkbenchModel
 } from "@d2-tools/app/loadouts";
 import type {
   AssistantLoadoutArtifact,
@@ -61,9 +60,9 @@ export type LoadoutsPageProps = {
   renameDraft: string;
   showDiffOnly: boolean;
   message: string;
+  messageTone: "info" | "error";
   isRunningItemAction: boolean;
   actionFeedback: Record<string, LoadoutActionFeedbackState>;
-  localPlanWorkspace: LocalLoadoutPlanWorkbenchModel;
   localPlans: LocalLoadoutPlan[];
   selectedLocalPlanId: string;
   localPlanDraft: CreateLocalLoadoutPlanInput | null;
@@ -160,11 +159,14 @@ export type LoadoutsPageProps = {
 };
 
 export function LoadoutsPage(props: LoadoutsPageProps) {
+  const loadoutCopy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").loadouts;
   const [selectedEntryId, setSelectedEntryId] = useState("");
   const [armorSetCatalog, setArmorSetCatalog] = useState<ArmorSetCatalogEntry[]>([]);
   const [armorSetCatalogStatus, setArmorSetCatalogStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [dimExportFeedback, setDimExportFeedback] = useState("");
-  const [armorTargetFeedback, setArmorTargetFeedback] = useState("");
+  const [dimExportFeedback, setDimExportFeedbackState] = useState("");
+  const [dimExportTone, setDimExportTone] = useState<"info" | "error">("info");
+  const [armorTargetFeedback, setArmorTargetFeedbackState] = useState("");
+  const [armorTargetTone, setArmorTargetTone] = useState<"info" | "error">("info");
   const [isSavingArmorTargets, setIsSavingArmorTargets] = useState(false);
   const [applicationLoadoutNavigation, setApplicationLoadoutNavigation] = useState<ApplicationLoadoutNavigationState>(() => (
     createApplicationLoadoutNavigationState(props.selectedLocalPlanId
@@ -242,20 +244,35 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       ? createDimLoadoutExport({ plan: props.localPlanDraft, account: props.accountSummary })
       : null
   ), [props.accountSummary, props.localPlanDraft]);
+  /**
+   * 反馈色调由产出方直接给：界面原先靠 `feedback.includes("失败")` 反推，
+   * 英文文案里没有「失败」两个字，那种判法一换语言就失灵。
+   */
+  const setDimExportFeedback = useCallback((message: string, tone: "info" | "error" = "info") => {
+    setDimExportFeedbackState(message);
+    setDimExportTone(message ? tone : "info");
+  }, []);
+  const setArmorTargetFeedback = useCallback((message: string, tone: "info" | "error" = "info") => {
+    setArmorTargetFeedbackState(message);
+    setArmorTargetTone(message ? tone : "info");
+  }, []);
   useEffect(() => {
     setDimExportFeedback("");
-  }, [dimExport]);
+  }, [dimExport, setDimExportFeedback]);
   useEffect(() => {
     setArmorTargetFeedback("");
-  }, [armorPlanner.state.status === "ready" ? armorPlanner.state.result.resultId : armorPlanner.state.status]);
+  }, [armorPlanner.state.status === "ready" ? armorPlanner.state.result.resultId : armorPlanner.state.status, setArmorTargetFeedback]);
 
   async function copyDimLoadoutLink() {
     if (!dimExport || dimExport.status !== "ready") return;
     try {
       await navigator.clipboard.writeText(dimExport.url);
-      setDimExportFeedback(`已复制包含 ${dimExport.item_count} 个真实实例的 DIM 链接。`);
+      setDimExportFeedback(loadoutTemplate(loadoutCopy, "已复制包含 {count} 个真实实例的 DIM 链接。", { count: dimExport.item_count }));
     } catch (error) {
-      setDimExportFeedback(`DIM 链接复制失败：${error instanceof Error ? error.message : String(error)}`);
+      setDimExportFeedback(
+        loadoutTemplate(loadoutCopy, "DIM 链接复制失败：{error}", { error: error instanceof Error ? error.message : String(error) }),
+        "error"
+      );
     }
   }
 
@@ -267,7 +284,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
     if (isSavingArmorTargets || plannerState.status !== "ready") return;
     const gaps = candidate.pieces.filter((piece) => piece.acquisitionRequired);
     if (!gaps.length) {
-      setArmorTargetFeedback("这个候选没有待获取护甲缺口。");
+      setArmorTargetFeedback(loadoutText(loadoutCopy, "这个候选没有待获取护甲缺口。"));
       return;
     }
     setIsSavingArmorTargets(true);
@@ -310,9 +327,9 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       }
       const saved = created ? await api.saveEquipmentTargetStore(next) : next;
       props.onEquipmentTargetStoreChanged(saved);
-      setArmorTargetFeedback(`已新增 ${created} 个护甲待刷目标，已有 ${unchanged} 个目标保持不变。`);
+      setArmorTargetFeedback(loadoutTemplate(loadoutCopy, "已新增 {created} 个护甲待刷目标，已有 {unchanged} 个目标保持不变。", { created, unchanged }));
     } catch (error) {
-      setArmorTargetFeedback(`护甲待刷目标保存失败：${error instanceof Error ? error.message : String(error)}`);
+      setArmorTargetFeedback(loadoutTemplate(loadoutCopy, "护甲待刷目标保存失败：{error}", { error: error instanceof Error ? error.message : String(error) }), "error");
     } finally {
       setIsSavingArmorTargets(false);
     }
@@ -444,9 +461,9 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       renameDraft={props.renameDraft}
       showDiffOnly={props.showDiffOnly}
       message={props.message}
+      messageTone={props.messageTone}
       isRunningItemAction={props.isRunningItemAction}
       actionFeedback={props.actionFeedback}
-      localPlanWorkspace={props.localPlanWorkspace}
       applicationLoadoutNavigation={applicationLoadoutNavigation}
       applicationLoadoutLibrary={applicationLoadoutLibrary}
       applicationLoadoutCompare={applicationLoadoutCompare}
@@ -460,6 +477,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       localPlanIsPreviewingDim={props.localPlanIsPreviewingDim}
       localPlanDimExport={dimExport}
       localPlanDimExportFeedback={dimExportFeedback}
+      localPlanDimExportTone={dimExportTone}
       localPlanExecutionPlan={props.localPlanExecutionPlan}
       localPlanExecutionReport={props.localPlanExecutionReport}
       localPlanIsExecuting={props.localPlanIsExecuting}
@@ -473,6 +491,7 @@ export function LoadoutsPage(props: LoadoutsPageProps) {
       armorSetCatalog={armorSetCatalog}
       armorSetCatalogStatus={armorSetCatalogStatus}
       armorTargetFeedback={armorTargetFeedback}
+      armorTargetTone={armorTargetTone}
       isSavingArmorTargets={isSavingArmorTargets}
       accountDataStatus={!props.accountSummary
         ? undefined

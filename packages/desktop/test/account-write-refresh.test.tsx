@@ -143,6 +143,7 @@ function loadoutInput(input: {
 }) {
   return {
     accountSummary: input.accountSummary ?? accountSummary(),
+    copy: localeCopy["zh-CN"].loadouts,
     loadoutLibrary: {
       reloadTemplates: vi.fn().mockResolvedValue(undefined),
       renameTemplate: vi.fn(),

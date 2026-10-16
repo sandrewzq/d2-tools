@@ -25,9 +25,9 @@ export function LoadoutsMenuProvider() {
       renameDraft={loadouts.renameDraft}
       showDiffOnly={loadouts.showDiffOnly}
       message={writeActions.loadoutMessage}
+      messageTone={writeActions.loadoutMessageTone}
       isRunningItemAction={writeActions.isRunningItemAction}
       actionFeedback={writeActions.loadoutActionFeedback.actionFeedback}
-      localPlanWorkspace={localPlans.workspace}
       localPlans={localPlans.plans}
       selectedLocalPlanId={localPlans.selectedPlanId}
       localPlanDraft={localPlans.draft}

@@ -1,4 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { settingsText, type SettingsCopy } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import type { AppUpdateSnapshot, AppUpdateStatus } from "../../api/types";
 import {
@@ -9,7 +10,13 @@ import {
 
 type VisualAppUpdateStatus = AppUpdateStatus;
 
-export function useAppUpdateFlow() {
+/**
+ * 设置页的更新反馈跟着界面语言走。`createVisualAppUpdateSnapshot` 里的中文是视觉测试模式的
+ * fixture（只在 `VITE_D2_VISUAL_UPDATE_STATUS` 下生效），按阶段 D 的约定保留中文；
+ * 诊断文本是复制到剪贴板的内容，同样不动。
+ */
+export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
+  const copy = input.copy;
   const liveAppUpdateSnapshot = useSyncExternalStore(
     subscribeAppUpdate,
     getAppUpdateSnapshot,
@@ -47,13 +54,13 @@ export function useAppUpdateFlow() {
     setSettingsError("");
     if (visualUpdateStatus) {
       setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("available", snapshot ?? undefined));
-      setSettingsMessage("已切换到“发现新版本”模拟状态。");
+      setSettingsMessage(settingsText(copy, "已切换到“发现新版本”模拟状态。"));
       return;
     }
     try {
       publishAppUpdateSnapshot(await api.checkForUpdates());
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "更新检查失败");
+      setSettingsError(error instanceof Error ? error.message : settingsText(copy, "更新检查失败"));
     }
   }
 
@@ -62,13 +69,13 @@ export function useAppUpdateFlow() {
     setSettingsError("");
     if (visualUpdateStatus) {
       setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("downloading", snapshot ?? undefined));
-      setSettingsMessage("已切换到“下载中”模拟状态，不会下载真实安装包。");
+      setSettingsMessage(settingsText(copy, "已切换到“下载中”模拟状态，不会下载真实安装包。"));
       return;
     }
     try {
       publishAppUpdateSnapshot(await api.downloadUpdate());
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "更新下载失败");
+      setSettingsError(error instanceof Error ? error.message : settingsText(copy, "更新下载失败"));
     }
   }
 
@@ -76,13 +83,13 @@ export function useAppUpdateFlow() {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setSettingsMessage("更新模拟模式不会重启或安装应用。");
+      setSettingsMessage(settingsText(copy, "更新模拟模式不会重启或安装应用。"));
       return;
     }
     try {
       await api.quitAndInstallUpdate();
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "重启安装失败");
+      setSettingsError(error instanceof Error ? error.message : settingsText(copy, "重启安装失败"));
     }
   }
 
@@ -90,13 +97,13 @@ export function useAppUpdateFlow() {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setSettingsMessage("更新模拟模式不会打开真实下载页。");
+      setSettingsMessage(settingsText(copy, "更新模拟模式不会打开真实下载页。"));
       return;
     }
     try {
       await api.openUpdateDownloadPage();
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "打开下载页失败");
+      setSettingsError(error instanceof Error ? error.message : settingsText(copy, "打开下载页失败"));
     }
   }
 
@@ -105,9 +112,9 @@ export function useAppUpdateFlow() {
     setSettingsError("");
     try {
       await navigator.clipboard.writeText(buildAppUpdateDiagnosticText(appUpdateSnapshot));
-      setSettingsMessage("更新诊断已复制。");
+      setSettingsMessage(settingsText(copy, "更新诊断已复制。"));
     } catch (error) {
-      setSettingsError(error instanceof Error ? error.message : "复制更新诊断失败");
+      setSettingsError(error instanceof Error ? error.message : settingsText(copy, "复制更新诊断失败"));
     }
   }
 

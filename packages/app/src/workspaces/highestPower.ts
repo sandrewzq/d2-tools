@@ -118,16 +118,38 @@ export function buildHighestPowerConfirmText(input: {
   ].filter(Boolean).join("\n");
 }
 
-export function buildHighestPowerAlreadyOptimalMessage(characterClassName: string): string {
-  return `${characterClassName} 当前已经是最高光等组合。`;
+/**
+ * 最高光等写操作的回执结构。
+ *
+ * 和 `loadoutActions.ts` 同一套口径：这里只报「哪种结果、带什么值」，成句交给界面。
+ * 失败回执把两个计数都带上，界面要按「转移受理 1/3」这种分数渲染，不能自己估算。
+ */
+export type HighestPowerMessageToken =
+  | { kind: "already-optimal"; class_name: string }
+  | { kind: "transfer-progress"; item_count: number }
+  | { kind: "equip-progress"; item_count: number }
+  | {
+      kind: "result-with-failures";
+      partial: boolean;
+      transfer_success_count: number;
+      transfer_total_count: number;
+      equip_success_count: number;
+      equip_total_count: number;
+      failed_count: number;
+      failure_reason: string | null;
+    }
+  | { kind: "result-submitted"; class_name: string; equip_count: number };
+
+export function buildHighestPowerAlreadyOptimalMessage(characterClassName: string): HighestPowerMessageToken {
+  return { kind: "already-optimal", class_name: characterClassName };
 }
 
-export function buildHighestPowerTransferProgressMessage(itemCount: number): string {
-  return `正在从仓库取出 ${itemCount} 件最高光等装备...`;
+export function buildHighestPowerTransferProgressMessage(itemCount: number): HighestPowerMessageToken {
+  return { kind: "transfer-progress", item_count: itemCount };
 }
 
-export function buildHighestPowerEquipProgressMessage(itemCount: number): string {
-  return `正在装备最高光等 ${itemCount} 件装备...`;
+export function buildHighestPowerEquipProgressMessage(itemCount: number): HighestPowerMessageToken {
+  return { kind: "equip-progress", item_count: itemCount };
 }
 
 export function buildHighestPowerResultMessage(input: {
@@ -138,13 +160,19 @@ export function buildHighestPowerResultMessage(input: {
   equipTotalCount: number;
   failedCount: number;
   failureReason?: string;
-}): string {
+}): HighestPowerMessageToken {
   if (input.failedCount > 0) {
     const reason = input.failureReason?.trim();
-    const outcome = input.transferSuccessCount > 0 || input.equipSuccessCount > 0
-      ? "部分提交"
-      : "执行失败";
-    return `最高光等${outcome}：转移受理 ${input.transferSuccessCount}/${input.transferTotalCount}，装备受理 ${input.equipSuccessCount}/${input.equipTotalCount}，失败步骤 ${input.failedCount}。${reason ? `首个失败原因：${reason}` : "可在设置页查看操作日志。"}`;
+    return {
+      kind: "result-with-failures",
+      partial: input.transferSuccessCount > 0 || input.equipSuccessCount > 0,
+      transfer_success_count: input.transferSuccessCount,
+      transfer_total_count: input.transferTotalCount,
+      equip_success_count: input.equipSuccessCount,
+      equip_total_count: input.equipTotalCount,
+      failed_count: input.failedCount,
+      failure_reason: reason ? reason : null
+    };
   }
-  return `已提交给 ${input.characterClassName} 装备 ${input.equipSuccessCount} 件最高光等装备，正在确认游戏内状态。`;
+  return { kind: "result-submitted", class_name: input.characterClassName, equip_count: input.equipSuccessCount };
 }

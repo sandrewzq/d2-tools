@@ -6,6 +6,7 @@ import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
+import { settingsText } from "./settingsCopy.js";
 import { SettingsSourcesSection } from "./SettingsSourcesSection.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { SystemUpdateProgress, systemUpdateToneForStatus } from "../update/SystemUpdateProgress.js";
@@ -114,10 +115,6 @@ function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; l
     { key: "sources", ...copy.menu.sources },
     { key: "diagnostics", ...copy.menu.diagnostics }
   ];
-}
-
-function settingsText(copy: SettingsCopy, key: string): string {
-  return copy.inline[key] ?? key;
 }
 
 export function SettingsPageContentView(props: SettingsPageContentViewProps) {
@@ -288,9 +285,9 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           {activeSection === "account" ? <AccountSection {...sectionProps} lastAccountLoadedAt={props.lastAccountLoadedAt} accountSummary={props.accountSummary} onRefreshAccount={props.onRefreshAccount} onReauthorizeAccount={props.onReauthorizeAccount} isLoadingAccount={props.isLoadingAccount} /> : null}
           {activeSection === "library" ? <LibrarySection {...sectionProps} manifestStatus={props.manifestStatus} isInitializing={props.isInitializingManifest} onRefresh={props.onRefreshManifestStatus} onInitialize={props.onInitializeManifest} onRepair={props.onRepairManifest} /> : null}
           {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} isPreparingManifest={isAutoPreparingManifest || props.isInitializingManifest} hasAutoManifestFailure={hasAutoManifestFailure} manifestError={props.manifestStatusError} manifestReady={manifestIsReady} isAccountReady={Boolean(props.accountSummary)} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} onOpenBungiePortal={props.onOpenBungiePortal} onLoginBungie={props.onReauthorizeAccount} onRetryManifest={() => { setBungieError(""); setBungieMessage(""); setIsAutoPreparingManifest(true); setHasAutoManifestFailure(false); props.onInitializeManifest(); }} /> : null}
-          {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
+          {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} copy={copy} /></SettingsSection> : null}
           {activeSection === "backup" ? <BackupSection copy={copy} dataDir={props.diagnosticDataDir} onOpenDataDir={props.onOpenDataDir} onExport={props.onExportConfig} onImport={props.onImportConfig} onClearCache={props.onClearCache} onCopyGuide={props.onCopyDataBackupGuide} /> : null}
-          {activeSection === "sources" ? <SettingsSourcesSection interfaceLocale={interfaceLocale} onOpenLegalDocument={props.onOpenLegalDocument} onOpenExternal={props.onOpenExternal} /> : null}
+          {activeSection === "sources" ? <SettingsSourcesSection copy={copy} onOpenLegalDocument={props.onOpenLegalDocument} onOpenExternal={props.onOpenExternal} /> : null}
           {activeSection === "diagnostics" ? <DiagnosticsSection copy={copy} interfaceLocale={interfaceLocale} entries={filteredActionLog(props.actionLog, props.actionLogResultFilter, props.actionLogTypeFilter).slice(0, 8)} resultFilter={props.actionLogResultFilter} typeFilter={props.actionLogTypeFilter} onResultFilterChange={props.onActionLogResultFilterChange} onTypeFilterChange={props.onActionLogTypeFilterChange} onRefreshDiagnostics={props.onRefreshDiagnostics} onRefreshLog={props.onRefreshActionLog} onCopyExport={props.onCopyDiagnosticsExport} onCopyEntry={props.onCopyActionDiagnostic} /> : null}
         </main>
       </div>

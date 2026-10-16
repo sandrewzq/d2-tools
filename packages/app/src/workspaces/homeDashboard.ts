@@ -1,10 +1,4 @@
-import type { WeeklyIronBannerSummary, WeeklyPriorityKind } from "@d2-tools/core/weekly/summary";
-
-export type HomeDashboardDiagnosticRow = {
-  label?: string;
-  value?: string;
-  tone?: string;
-};
+import type { WeeklyIronBannerSummary, WeeklyPriorityKind, WeeklyTextToken } from "@d2-tools/core/weekly/summary";
 
 export type HomeDashboardDailyItem = {
   title: string;
@@ -65,8 +59,8 @@ export type HomeDashboardWeeklyActivityReward = {
 };
 
 export type HomeDashboardWeeklyActivityEntry = {
-  title: string;
-  detail?: string;
+  title: WeeklyTextToken;
+  detail?: WeeklyTextToken[];
   evidence?: string;
   source?: string;
   related_hashes?: number[];
@@ -81,17 +75,17 @@ export type HomeDashboardWeeklySummary = {
   };
   priorities: Record<HomeDashboardWeeklyPriorityKind, {
     status: "ready" | "pending" | "warning" | "error";
-    title: string;
-    detail: string;
+    title: WeeklyTextToken;
+    detail: WeeklyTextToken[];
     evidence?: string;
     source?: string;
     entries?: HomeDashboardWeeklyActivityEntry[];
   }>;
   iron_banner: WeeklyIronBannerSummary;
   public_clues: Array<{
-    title: string;
-    subtitle?: string;
-    description?: string;
+    title: WeeklyTextToken;
+    subtitle?: WeeklyTextToken;
+    description?: WeeklyTextToken;
     source?: string;
     weeklyActivityKind?: HomeDashboardWeeklyPriorityKind | "public_clue";
   }>;
@@ -113,7 +107,6 @@ export type HomeDashboardWorkspace = {
   selectedCharacterId?: string;
   selectedCharacterLabel?: string;
   briefingFetchedAt?: string;
-  diagnosticRows: HomeDashboardDiagnosticRow[];
   diagnosticError: string;
   accountError: string;
   hasAccountData: boolean;

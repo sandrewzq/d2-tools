@@ -3,17 +3,21 @@ import { isIronBannerActivityMode } from "../activities/modes.js";
 import type { DefinitionComponentData, DefinitionRecord } from "../manifest/definitions.js";
 import { classifyBucket } from "../items/classification.js";
 import type { BungieOAuthToken } from "../oauth/login.js";
-import type {
-  WeeklyActivityReward,
-  WeeklyActivityCharacterState,
-  WeeklyIronBannerChallenge,
-  WeeklyIronBannerLootItem,
-  WeeklyIronBannerLootPool,
-  WeeklyIronBannerRewardGroup,
-  WeeklyIronBannerSummary,
-  WeeklyLiveData,
-  WeeklyPriorityKind,
-  WeeklySummaryItem
+import {
+  weeklyCopy,
+  weeklyLiteral,
+  weeklyTokenSource,
+  type WeeklyActivityReward,
+  type WeeklyActivityCharacterState,
+  type WeeklyIronBannerChallenge,
+  type WeeklyIronBannerLootItem,
+  type WeeklyIronBannerLootPool,
+  type WeeklyIronBannerRewardGroup,
+  type WeeklyIronBannerSummary,
+  type WeeklyLiveData,
+  type WeeklyPriorityKind,
+  type WeeklySummaryItem,
+  type WeeklyTextToken
 } from "./summary.js";
 
 type PublicMilestone = {
@@ -200,9 +204,13 @@ export function buildWeeklyLiveDataFromBungie(input: BuildWeeklyLiveDataInput): 
     const candidateText = [milestoneName, names.join(" "), milestoneDescription].filter(Boolean).join(" ");
     const weeklyActivityKind = inferWeeklyActivityKind(candidateText);
     const item: WeeklySummaryItem = {
-      title: milestoneName ? `Bungie 公共里程碑：${milestoneName}` : `Bungie 公共活动：${names[0]}`,
-      subtitle: names.length ? `非完整掉落地图；${names.slice(0, 3).join(" / ")}` : "Bungie 公共里程碑",
-      description: milestoneDescription,
+      title: milestoneName
+        ? weeklyCopy("Bungie 公共里程碑：{name}", { name: milestoneName })
+        : weeklyCopy("Bungie 公共活动：{name}", { name: names[0] }),
+      subtitle: names.length
+        ? weeklyCopy("非完整掉落地图；{names}", { names: names.slice(0, 3).join(" / ") })
+        : weeklyCopy("Bungie 公共里程碑"),
+      description: weeklyLiteral(milestoneDescription),
       source: "Bungie",
       weeklyActivityKind
     };
@@ -242,8 +250,8 @@ function buildIronBannerSummary(
       return createMilestoneConfirmedIronBanner(totalCharacterIds.length, lootPool, milestoneWindow);
     }
     return createIronBannerState("unavailable", totalCharacterIds.length, {
-      title: "铁旗状态待确认",
-      detail: "登录 Bungie 后读取角色活动、每周挑战和萨拉丁库存。"
+      title: weeklyCopy("铁旗状态待确认"),
+      detail: [weeklyCopy("登录 Bungie 后读取角色活动、每周挑战和萨拉丁库存。")]
     }, lootPool);
   }
 
@@ -273,8 +281,8 @@ function buildIronBannerSummary(
       return createMilestoneConfirmedIronBanner(totalCharacterIds.length, lootPool, milestoneWindow);
     }
     return createIronBannerState("inactive", totalCharacterIds.length, {
-      title: "铁旗当前未开放",
-      detail: "固定保留此区域；当前角色活动列表没有返回铁旗玩法。"
+      title: weeklyCopy("铁旗当前未开放"),
+      detail: [weeklyCopy("固定保留此区域；当前角色活动列表没有返回铁旗玩法。")]
     }, lootPool);
   }
 
@@ -295,11 +303,12 @@ function buildIronBannerSummary(
 
   return {
     status: "active",
-    title: "铁旗已开放",
-    detail: [activityName, playlistName, "限时熔炉竞技场"].filter(Boolean).join(" · "),
-    activity_name: activityName,
+    title: weeklyCopy("铁旗已开放"),
+    detail: [weeklyLiteral(activityName), weeklyLiteral(playlistName), weeklyCopy("限时熔炉竞技场")]
+      .filter((token): token is WeeklyTextToken => Boolean(token)),
+    activity_name: weeklyLiteral(activityName),
     activity_icon: representative.definition.displayProperties?.icon,
-    playlist_name: playlistName,
+    playlist_name: weeklyLiteral(playlistName),
     evidence: relatedHashes.length ? `活动与目标 Hash：${relatedHashes.join(" / ")}` : undefined,
     source: "Bungie CharacterActivities + 当前 Manifest",
     ...timing,
@@ -322,12 +331,12 @@ function createMilestoneConfirmedIronBanner(
   const upcoming = milestone.status === "upcoming";
   return {
     status: upcoming ? "upcoming" : "active",
-    title: upcoming ? "铁旗即将开放" : "铁旗已开放",
+    title: weeklyCopy(upcoming ? "铁旗即将开放" : "铁旗已开放"),
     detail: upcoming
-      ? "Bungie 公共里程碑已提供铁旗开放时间。"
-      : "Bungie 公共里程碑已确认开放；当前角色挑战数据待读取。",
-    activity_name: "铁旗",
-    playlist_name: upcoming ? undefined : "当前玩法待读取",
+      ? [weeklyCopy("Bungie 公共里程碑已提供铁旗开放时间。")]
+      : [weeklyCopy("Bungie 公共里程碑已确认开放；当前角色挑战数据待读取。")],
+    activity_name: weeklyCopy("铁旗"),
+    playlist_name: upcoming ? undefined : weeklyCopy("当前玩法待读取"),
     source: "Bungie Public Milestones + 当前 Manifest",
     evidence: `里程碑 Hash：${milestone.milestoneHash}`,
     related_hashes: [milestone.milestoneHash],
@@ -345,7 +354,7 @@ function createMilestoneConfirmedIronBanner(
 function createIronBannerState(
   status: "inactive" | "unavailable",
   totalCharacters: number,
-  copy: { title: string; detail: string },
+  copy: { title: WeeklyTextToken; detail: WeeklyTextToken[] },
   lootPool: WeeklyIronBannerLootPool = emptyIronBannerLootPool()
 ): WeeklyIronBannerSummary {
   return {
@@ -835,8 +844,8 @@ function mapProfileActivities(
 
     const rewards = activityChallengeRewards(activityDefinition, challengeObjectives, definitions.items);
     items.push({
-      title: activityName,
-      subtitle: classification.subtitle,
+      title: weeklyLiteral(activityName) ?? weeklyCopy("本周活动"),
+      subtitle: weeklyCopy(classification.subtitle),
       description: undefined,
       source: "Bungie 角色周挑战 + 当前资料库",
       weeklyActivityKind: classification.kind,
@@ -859,8 +868,8 @@ function mapProfileActivities(
   });
   if (orderedSurges.length) {
     items.unshift({
-      title: orderedSurges.map((surge) => surge.name).join(" / "),
-      description: "仅对活动详情中列出对应修饰词的 PvE 内容生效；不作用于全部 PvE 或 PvP。",
+      title: weeklyLiteral(orderedSurges.map((surge) => surge.name).join(" / ")) ?? weeklyCopy("元素激涌"),
+      description: weeklyCopy("仅对活动详情中列出对应修饰词的 PvE 内容生效；不作用于全部 PvE 或 PvP。"),
       source: "Bungie CharacterActivities modifierHashes + 当前 Manifest",
       weeklyActivityKind: "weekly_surge",
       related_hashes: uniqueNumbers(orderedSurges.flatMap((surge) => [
@@ -1124,8 +1133,9 @@ function readableName(milestone: PublicMilestone): string | undefined {
 function uniqueByTitle(items: WeeklySummaryItem[]): WeeklySummaryItem[] {
   const seen = new Set<string>();
   return items.filter((item) => {
-    if (seen.has(item.title)) return false;
-    seen.add(item.title);
+    const title = weeklyTokenSource(item.title);
+    if (seen.has(title)) return false;
+    seen.add(title);
     return true;
   });
 }
@@ -1133,7 +1143,7 @@ function uniqueByTitle(items: WeeklySummaryItem[]): WeeklySummaryItem[] {
 function uniqueByKindAndTitle(items: WeeklySummaryItem[]): WeeklySummaryItem[] {
   const merged = new Map<string, WeeklySummaryItem>();
   for (const item of items) {
-    const key = `${item.weeklyActivityKind ?? "unknown"}:${item.title}`;
+    const key = `${item.weeklyActivityKind ?? "unknown"}:${weeklyTokenSource(item.title)}`;
     const current = merged.get(key);
     if (!current) {
       merged.set(key, item);

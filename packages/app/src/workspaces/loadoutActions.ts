@@ -1,5 +1,4 @@
 import type { AccountSummary, CharacterSummary } from "@d2-tools/core/account/summary";
-import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type { MissingLoadoutTransferPlan, MissingLoadoutTransferStep } from "./loadoutTransfer.js";
 
 export type LoadoutActionResultCounts = {
@@ -9,24 +8,123 @@ export type LoadoutActionResultCounts = {
   blockedCount?: number;
 };
 
-export function buildCharacterLoadoutTemplateName(character: CharacterSummary): string {
-  return `${character.class_name} 光等 ${character.light ?? "-"}`;
+/**
+ * 配装写操作的回执与确认句。
+ *
+ * 这里只产出结构，不产出中文句子：界面按 `kind` 查表成句，`item_name`、`slot_name`
+ * 这类不透明值原样带走。原先这些函数直接返回拼好的展示串，中文换英文时整条链路
+ * 都得改；改成结构之后，同一条回执在中英两侧共用同一份分支逻辑。
+ */
+export type LoadoutTransferStepPhase = MissingLoadoutTransferStep["phase"];
+
+/** 槽位级动作名。`equip` / `snapshot` 会点名配装栏，`clear` / `update-identifiers` 不点名。 */
+export type LoadoutSlotActionLabelToken =
+  | { action: "equip"; slot_name: string | null; slot_index: number }
+  | { action: "snapshot"; slot_name: string | null; slot_index: number }
+  | { action: "clear" }
+  | { action: "update-identifiers" };
+
+/** 补齐结果里的一个计数片段。没有计数的片段不出现，所以用数组而不是四个可选字段。 */
+export type LoadoutActionResultPart =
+  | { kind: "transferred"; count: number }
+  | { kind: "auto-equipped"; count: number }
+  | { kind: "prepared"; count: number }
+  | { kind: "blocked"; count: number };
+
+export type LoadoutActionMessageToken =
+  | { kind: "template-saved"; template_name: string }
+  | { kind: "template-deleted" }
+  | { kind: "template-renamed"; template_name: string }
+  | { kind: "no-target-character" }
+  | { kind: "transfer-plan-copied"; template_name: string; step_count: number }
+  | { kind: "account-required" }
+  | { kind: "all-ready" }
+  | { kind: "missing-items-copied"; item_count: number }
+  | { kind: "slot-action-progress"; label: LoadoutSlotActionLabelToken }
+  | { kind: "slot-action-failed"; label: LoadoutSlotActionLabelToken }
+  | { kind: "missing-none-actionable"; blocked_count: number }
+  | { kind: "missing-prepare"; item_count: number }
+  | {
+      kind: "missing-step-progress";
+      phase: LoadoutTransferStepPhase;
+      item_count: number;
+      target_class_name: string;
+    }
+  | { kind: "missing-result"; parts: LoadoutActionResultPart[] }
+  | { kind: "single-transfer-no-action"; item_name: string; blocked: boolean }
+  | { kind: "single-transfer-start"; item_name: string }
+  | { kind: "single-transfer-cancelled" }
+  | { kind: "single-transfer-no-target" }
+  | {
+      kind: "single-transfer-step-progress";
+      phase: LoadoutTransferStepPhase;
+      item_name: string;
+      target_class_name: string;
+    }
+  | { kind: "single-transfer-result"; item_name: string; parts: LoadoutActionResultPart[] }
+  | { kind: "single-equip-no-instance"; item_name: string }
+  | { kind: "single-equip-wrong-location"; item_name: string }
+  | { kind: "single-equip-progress"; item_name: string }
+  | { kind: "item-action-failed"; action: "transfer" | "equip"; item_name: string };
+
+/** 确认框正文。多行且分行有分支，所以整句一个 token，界面负责拼行。 */
+export type LoadoutConfirmToken =
+  | {
+      kind: "slot-action";
+      label: LoadoutSlotActionLabelToken;
+      class_name: string;
+      slot_name: string | null;
+      slot_index: number;
+    }
+  | {
+      kind: "missing-fill";
+      class_name: string;
+      item_count: number;
+      has_equip_swap: boolean;
+      has_pull_postmaster: boolean;
+      has_to_vault: boolean;
+      has_equip_target: boolean;
+      blocked_count: number;
+    }
+  | { kind: "single-transfer"; item_name: string }
+  | { kind: "single-equip"; item_name: string };
+
+/**
+ * 角色默认方案名。这串会写进本地模板并长期保存，所以跟创建时的界面语言走：
+ * 中文用户建出来是「术士 光等 1800」，英文用户建出来是「Warlock Light 1800」。
+ * 已存下来的名字不再随语言变，它是用户数据。
+ */
+export type LoadoutTemplateNameToken = {
+  kind: "character-default";
+  class_name: string;
+  light: number | null;
+};
+
+export function buildCharacterLoadoutTemplateName(character: CharacterSummary): LoadoutTemplateNameToken {
+  return { kind: "character-default", class_name: character.class_name, light: character.light ?? null };
 }
 
-export function buildSaveCharacterLoadoutSuccessMessage(templateName: string): string {
-  return `已保存本地配装模板：${templateName}`;
+export function buildSaveCharacterLoadoutSuccessMessage(templateName: string): LoadoutActionMessageToken {
+  return { kind: "template-saved", template_name: templateName };
 }
 
-export function buildLoadoutTemplateDeletedMessage(): string {
-  return "已删除本地配装模板。";
+export function buildLoadoutTemplateDeletedMessage(): LoadoutActionMessageToken {
+  return { kind: "template-deleted" };
 }
 
-export function buildLoadoutTemplateRenamedMessage(templateName: string): string {
-  return `已重命名本地方案：${templateName}`;
+export function buildLoadoutTemplateRenamedMessage(templateName: string): LoadoutActionMessageToken {
+  return { kind: "template-renamed", template_name: templateName };
 }
 
-export function buildLoadoutTemplateTransferNoTargetMessage(): string {
-  return "没有可用角色，无法生成转移计划。";
+export function buildLoadoutTemplateTransferNoTargetMessage(): LoadoutActionMessageToken {
+  return { kind: "no-target-character" };
+}
+
+export function buildLoadoutTemplateTransferCopiedMessage(input: {
+  template_name: string;
+  step_count: number;
+}): LoadoutActionMessageToken {
+  return { kind: "transfer-plan-copied", template_name: input.template_name, step_count: input.step_count };
 }
 
 export function buildLoadoutTemplateTransferClipboardText(plan: {
@@ -41,48 +139,57 @@ export function buildLoadoutTemplateTransferClipboardText(plan: {
   ].join("\n");
 }
 
-export function buildLoadoutTemplateTransferCopiedMessage(summary: string): string {
-  return summary || "已复制配装转移计划。";
+export function buildLoadoutCopyMissingNoAccountMessage(): LoadoutActionMessageToken {
+  return { kind: "account-required" };
 }
 
-export function buildLoadoutCopyMissingNoAccountMessage(): string {
-  return "请先读取账号数据。";
+export function buildMissingLoadoutAllReadyMessage(): LoadoutActionMessageToken {
+  return { kind: "all-ready" };
 }
 
-export function buildMissingLoadoutAllReadyMessage(): string {
-  return "当前方案装备已全部就位。";
-}
-
-export function buildMissingLoadoutItemsCopiedMessage(itemCount: number): string {
-  return `已复制待补齐清单，共 ${itemCount} 件。`;
+export function buildMissingLoadoutItemsCopiedMessage(itemCount: number): LoadoutActionMessageToken {
+  return { kind: "missing-items-copied", item_count: itemCount };
 }
 
 export function buildLoadoutSlotActionLabel(
   action: "equip" | "snapshot",
   slot: AccountSummary["characters"][number]["loadout_slots"][number]
-): string {
-  const slotName = slot.name || `槽位 ${slot.index + 1}`;
-  return action === "equip"
-    ? `应用游戏内配装栏「${slotName}」`
-    : `用当前装备覆盖游戏内配装栏「${slotName}」`;
+): LoadoutSlotActionLabelToken {
+  return { action, slot_name: slot.name || null, slot_index: slot.index };
 }
 
-export function buildLoadoutSlotActionProgressMessage(label: string): string {
-  return `${label}执行中...`;
+/** `clear` 和 `update-identifiers` 的动作名不点配装栏名，和上面两个分开建。 */
+export function buildLoadoutSlotActionCommandLabel(
+  action: "clear" | "update-identifiers"
+): LoadoutSlotActionLabelToken {
+  return { action };
+}
+
+export function buildLoadoutSlotActionProgressMessage(
+  label: LoadoutSlotActionLabelToken
+): LoadoutActionMessageToken {
+  return { kind: "slot-action-progress", label };
+}
+
+export function buildLoadoutSlotActionFailedMessage(
+  label: LoadoutSlotActionLabelToken
+): LoadoutActionMessageToken {
+  return { kind: "slot-action-failed", label };
 }
 
 export function buildLoadoutSlotActionConfirmText(input: {
-  label: string;
+  label: LoadoutSlotActionLabelToken;
   characterClassName: string;
   slotName?: string;
   slotIndex: number;
-}): string {
-  return [
-    `确认要${input.label}吗？`,
-    `角色：${input.characterClassName}`,
-    `配装栏：${input.slotName || `槽位 ${input.slotIndex + 1}`}`,
-    "说明：这会直接调用 Bungie 的游戏内配装栏接口，并写入本地操作日志。"
-  ].join("\n");
+}): LoadoutConfirmToken {
+  return {
+    kind: "slot-action",
+    label: input.label,
+    class_name: input.characterClassName,
+    slot_name: input.slotName ?? null,
+    slot_index: input.slotIndex
+  };
 }
 
 export function getMissingLoadoutActionableCount(plan: MissingLoadoutTransferPlan): number {
@@ -93,148 +200,126 @@ export function getMissingLoadoutActionableCount(plan: MissingLoadoutTransferPla
   ).size;
 }
 
-export function buildMissingLoadoutNoActionMessage(plan: MissingLoadoutTransferPlan): string {
+export function buildMissingLoadoutNoActionMessage(plan: MissingLoadoutTransferPlan): LoadoutActionMessageToken {
   return plan.blocked.length > 0
-    ? `当前没有可自动转移的缺失件，还有 ${plan.blocked.length} 件需要手动处理。`
-    : "当前方案装备已全部就位。";
+    ? { kind: "missing-none-actionable", blocked_count: plan.blocked.length }
+    : { kind: "all-ready" };
 }
 
 export function buildMissingLoadoutConfirmText(input: {
   targetCharacterClassName: string;
   actionableItemCount: number;
   transferPlan: MissingLoadoutTransferPlan;
-}): string {
-  return [
-    `确认给 ${input.targetCharacterClassName} 补齐 ${input.actionableItemCount} 件缺失装备？`,
-    input.transferPlan.steps.some((step) => step.phase === "equip-swap")
-      ? "其中一部分会先在来源角色身上装备替代装备，再把目标装备转出。"
-      : null,
-    input.transferPlan.steps.some((step) => step.phase === "pull-postmaster")
-      ? "其中一部分会先从邮政官取回，再继续后续转移。"
-      : null,
-    input.transferPlan.steps.some((step) => step.phase === "to-vault")
-      ? "其中一部分会先从其他角色背包移回仓库，再转到当前角色。"
-      : "这次可以直接从仓库补齐到当前角色。",
-    input.transferPlan.steps.some((step) => step.phase === "equip-target")
-      ? "补齐完成后，会自动把这些方案装备穿到目标角色身上。"
-      : null,
-    input.transferPlan.blocked.length > 0
-      ? `还有 ${input.transferPlan.blocked.length} 件暂时不会自动转移，例如其他角色已装备或仍在邮政官。`
-      : null
-  ].filter(Boolean).join("\n");
+}): LoadoutConfirmToken {
+  return {
+    kind: "missing-fill",
+    class_name: input.targetCharacterClassName,
+    item_count: input.actionableItemCount,
+    has_equip_swap: input.transferPlan.steps.some((step) => step.phase === "equip-swap"),
+    has_pull_postmaster: input.transferPlan.steps.some((step) => step.phase === "pull-postmaster"),
+    has_to_vault: input.transferPlan.steps.some((step) => step.phase === "to-vault"),
+    has_equip_target: input.transferPlan.steps.some((step) => step.phase === "equip-target"),
+    blocked_count: input.transferPlan.blocked.length
+  };
 }
 
-export function buildMissingLoadoutPrepareMessage(itemCount: number): string {
-  return `正在准备 ${itemCount} 件缺失装备...`;
+export function buildMissingLoadoutPrepareMessage(itemCount: number): LoadoutActionMessageToken {
+  return { kind: "missing-prepare", item_count: itemCount };
 }
 
 export function buildMissingLoadoutStepProgressMessage(
   step: MissingLoadoutTransferStep,
   targetCharacterClassName: string
-): string {
-  if (step.phase === "equip-swap") {
-    return `正在在来源角色身上装备 ${step.items.length} 件替代装备...`;
-  }
-  if (step.phase === "pull-postmaster") {
-    return `正在从邮政官取回 ${step.items.length} 件装备...`;
-  }
-  if (step.phase === "equip-target") {
-    return `正在给 ${targetCharacterClassName} 自动装备 ${step.items.length} 件方案装备...`;
-  }
-  return step.phase === "to-vault"
-    ? `正在从来源角色移回 ${step.items.length} 件装备到仓库...`
-    : `正在转入 ${step.items.length} 件装备到 ${targetCharacterClassName}...`;
+): LoadoutActionMessageToken {
+  return {
+    kind: "missing-step-progress",
+    phase: step.phase,
+    item_count: step.items.length,
+    target_class_name: targetCharacterClassName
+  };
 }
 
-export function buildMissingLoadoutResultMessage(input: LoadoutActionResultCounts): string {
-  const finishedParts = [
-    input.targetTransferCount > 0 ? `转入 ${input.targetTransferCount} 件` : null,
-    input.autoEquipCount > 0 ? `自动装备 ${input.autoEquipCount} 件` : null,
-    input.prepStepCount > 0 ? `前置处理 ${input.prepStepCount} 步` : null,
-    (input.blockedCount ?? 0) > 0 ? `仍有 ${input.blockedCount} 件需手动处理` : null
-  ].filter(Boolean);
-
-  return finishedParts.length
-    ? `方案补齐完成：${finishedParts.join("，")}。`
-    : "方案补齐完成。";
+export function buildMissingLoadoutResultMessage(input: LoadoutActionResultCounts): LoadoutActionMessageToken {
+  return { kind: "missing-result", parts: loadoutResultParts(input, true) };
 }
 
 export function buildSingleLoadoutTransferNoActionMessage(input: {
   itemName: string;
   transferPlan: MissingLoadoutTransferPlan;
-}): string {
-  return input.transferPlan.blocked.length > 0
-    ? `这件装备当前无法自动补齐：${input.itemName}。`
-    : `这件装备已经就位：${input.itemName}。`;
+}): LoadoutActionMessageToken {
+  return {
+    kind: "single-transfer-no-action",
+    item_name: input.itemName,
+    blocked: input.transferPlan.blocked.length > 0
+  };
 }
 
-export function buildSingleLoadoutTransferConfirmText(itemName: string): string {
-  return `确认只补齐「${itemName}」吗？`;
+export function buildSingleLoadoutTransferConfirmText(itemName: string): LoadoutConfirmToken {
+  return { kind: "single-transfer", item_name: itemName };
 }
 
-export function buildSingleLoadoutTransferStartMessage(itemName: string): string {
-  return `正在补齐 ${itemName}...`;
+export function buildSingleLoadoutTransferStartMessage(itemName: string): LoadoutActionMessageToken {
+  return { kind: "single-transfer-start", item_name: itemName };
 }
 
-export function buildSingleLoadoutTransferNoTargetMessage(): string {
-  return "没有可用角色，无法补齐这件装备。";
+export function buildSingleLoadoutTransferNoTargetMessage(): LoadoutActionMessageToken {
+  return { kind: "single-transfer-no-target" };
 }
 
-export function buildSingleLoadoutTransferCancelledMessage(): string {
-  return "已取消单件补齐。";
+export function buildSingleLoadoutTransferCancelledMessage(): LoadoutActionMessageToken {
+  return { kind: "single-transfer-cancelled" };
 }
 
 export function buildSingleLoadoutTransferStepProgressMessage(input: {
   step: MissingLoadoutTransferStep;
   itemName: string;
   targetCharacterClassName: string;
-}): string {
-  if (input.step.phase === "equip-swap") {
-    return `正在为来源角色换下 ${input.itemName}...`;
-  }
-  if (input.step.phase === "pull-postmaster") {
-    return `正在从邮政官取回 ${input.itemName}...`;
-  }
-  if (input.step.phase === "equip-target") {
-    return `正在给 ${input.targetCharacterClassName} 装备 ${input.itemName}...`;
-  }
-  return input.step.phase === "to-vault"
-    ? `正在把 ${input.itemName} 转回仓库...`
-    : `正在把 ${input.itemName} 转入 ${input.targetCharacterClassName}...`;
+}): LoadoutActionMessageToken {
+  return {
+    kind: "single-transfer-step-progress",
+    phase: input.step.phase,
+    item_name: input.itemName,
+    target_class_name: input.targetCharacterClassName
+  };
 }
 
 export function buildSingleLoadoutTransferResultMessage(input: {
   itemName: string;
-} & LoadoutActionResultCounts): string {
-  const finishedParts = [
-    input.targetTransferCount > 0 ? `转入 ${input.targetTransferCount} 件` : null,
-    input.autoEquipCount > 0 ? `自动装备 ${input.autoEquipCount} 件` : null,
-    input.prepStepCount > 0 ? `前置处理 ${input.prepStepCount} 步` : null
-  ].filter(Boolean);
-
-  return finishedParts.length
-    ? `单件补齐完成：${input.itemName}，${finishedParts.join("，")}。`
-    : `单件补齐完成：${input.itemName}。`;
+} & LoadoutActionResultCounts): LoadoutActionMessageToken {
+  return { kind: "single-transfer-result", item_name: input.itemName, parts: loadoutResultParts(input, false) };
 }
 
-export function buildSingleLoadoutEquipMissingSourceMessage(itemName: string): string {
-  return `找不到可直接装备的物品实例：${itemName}。`;
+export function buildSingleLoadoutEquipMissingSourceMessage(itemName: string): LoadoutActionMessageToken {
+  return { kind: "single-equip-no-instance", item_name: itemName };
 }
 
-export function buildSingleLoadoutEquipWrongLocationMessage(itemName: string): string {
-  return `「${itemName}」当前不在目标角色背包，请先用“只补这一件”。`;
+export function buildSingleLoadoutEquipWrongLocationMessage(itemName: string): LoadoutActionMessageToken {
+  return { kind: "single-equip-wrong-location", item_name: itemName };
 }
 
-export function buildSingleLoadoutEquipConfirmText(itemName: string): string {
-  return `确认只装备「${itemName}」吗？`;
+export function buildSingleLoadoutEquipConfirmText(itemName: string): LoadoutConfirmToken {
+  return { kind: "single-equip", item_name: itemName };
 }
 
-export function buildSingleLoadoutEquipProgressMessage(itemName: string): string {
-  return `正在装备 ${itemName}...`;
+export function buildSingleLoadoutEquipProgressMessage(itemName: string): LoadoutActionMessageToken {
+  return { kind: "single-equip-progress", item_name: itemName };
 }
 
-export function buildLoadoutItemActionFailureMessage(action: "transfer" | "equip", itemName: string): string {
-  return action === "transfer"
-    ? `单件补齐失败：${itemName}`
-    : `单件装备失败：${itemName}`;
+export function buildLoadoutItemActionFailureMessage(
+  action: "transfer" | "equip",
+  itemName: string
+): LoadoutActionMessageToken {
+  return { kind: "item-action-failed", action, item_name: itemName };
+}
+
+/** 只有非零计数才成段，顺序固定：转入、自动装备、前置处理，单件补齐不带「仍有」那段。 */
+function loadoutResultParts(input: LoadoutActionResultCounts, includeBlocked: boolean): LoadoutActionResultPart[] {
+  const parts: LoadoutActionResultPart[] = [];
+  if (input.targetTransferCount > 0) parts.push({ kind: "transferred", count: input.targetTransferCount });
+  if (input.autoEquipCount > 0) parts.push({ kind: "auto-equipped", count: input.autoEquipCount });
+  if (input.prepStepCount > 0) parts.push({ kind: "prepared", count: input.prepStepCount });
+  if (includeBlocked && (input.blockedCount ?? 0) > 0) {
+    parts.push({ kind: "blocked", count: input.blockedCount ?? 0 });
+  }
+  return parts;
 }

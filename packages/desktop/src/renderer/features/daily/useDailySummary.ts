@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
+import { homeTemplate, homeText, type HomeCopy } from "@d2-tools/ui";
 import type { DailySummary, WeeklySummary } from "../../api/types";
 import { api } from "../../api/client";
 import { buildWeeklyFocusText } from "../../utils/dailyShare";
 
-export function useDailySummary() {
+export function useDailySummary(input: { copy: HomeCopy }) {
+  const copy = input.copy;
   const [storedDailySummary, setStoredDailySummary] = useState<DailySummary | null>(null);
   const [storedWeeklySummary, setStoredWeeklySummary] = useState<WeeklySummary | null>(null);
   const [briefingFetchedAt, setBriefingFetchedAt] = useState("");
@@ -33,7 +35,7 @@ export function useDailySummary() {
         setClock(new Date());
       })
       .catch((error) => {
-        setDailyError(error instanceof Error ? error.message : "情报读取失败");
+        setDailyError(error instanceof Error ? error.message : homeText(copy, "情报读取失败"));
       });
     let request: Promise<void>;
     request = operation.finally(() => {
@@ -42,7 +44,7 @@ export function useDailySummary() {
       });
     loadRequestRef.current = { force, promise: request };
     return request;
-  }, []);
+  }, [copy]);
 
   useEffect(() => {
     const id = window.setInterval(() => setClock(new Date()), 60_000);
@@ -64,8 +66,8 @@ export function useDailySummary() {
   }, [dailyError, loadDailySummary]);
 
   const dailySummary = useMemo(
-    () => storedDailySummary ? updateDailyResetLabels(storedDailySummary, clock) : null,
-    [clock, storedDailySummary]
+    () => storedDailySummary ? updateDailyResetLabels(storedDailySummary, clock, copy) : null,
+    [clock, storedDailySummary, copy]
   );
   const dailyResourceStatus: "unavailable" | "loading" | "refreshing" | "ready" | "stale" | "error" = dailySummary
     ? isLoadingDaily
@@ -79,17 +81,17 @@ export function useDailySummary() {
         ? "error"
         : "unavailable";
   const weeklySummary = useMemo(
-    () => storedWeeklySummary ? updateWeeklyResetLabel(storedWeeklySummary, clock) : null,
-    [clock, storedWeeklySummary]
+    () => storedWeeklySummary ? updateWeeklyResetLabel(storedWeeklySummary, clock, copy) : null,
+    [clock, storedWeeklySummary, copy]
   );
 
   async function copyWeeklyFocus() {
     if (!dailySummary) return;
     try {
       await navigator.clipboard.writeText(buildWeeklyFocusText(dailySummary));
-      setDailyMessage("已复制本周重点");
+      setDailyMessage(homeText(copy, "已复制本周重点"));
     } catch {
-      setDailyMessage("复制失败，请检查系统剪贴板权限");
+      setDailyMessage(homeText(copy, "复制失败，请检查系统剪贴板权限"));
     }
   }
 
@@ -122,35 +124,35 @@ function nextHomeRefreshAt(daily: DailySummary, weekly: WeeklySummary, now: Date
   return candidates.sort((left, right) => left.getTime() - right.getTime())[0] ?? new Date(now.getTime() + 60 * 60_000);
 }
 
-function updateDailyResetLabels(summary: DailySummary, now: Date): DailySummary {
+function updateDailyResetLabels(summary: DailySummary, now: Date, copy: HomeCopy): DailySummary {
   return {
     ...summary,
     daily_reset: {
       ...summary.daily_reset,
-      time_remaining_label: formatRemaining("每日重置", now, new Date(summary.daily_reset.next_reset_iso))
+      time_remaining_label: formatRemaining(homeText(copy, "每日重置"), now, new Date(summary.daily_reset.next_reset_iso), copy)
     },
     weekly_reset: {
       ...summary.weekly_reset,
-      time_remaining_label: formatRemaining("每周重置", now, new Date(summary.weekly_reset.next_reset_iso))
+      time_remaining_label: formatRemaining(homeText(copy, "每周重置"), now, new Date(summary.weekly_reset.next_reset_iso), copy)
     }
   };
 }
 
-function updateWeeklyResetLabel(summary: WeeklySummary, now: Date): WeeklySummary {
+function updateWeeklyResetLabel(summary: WeeklySummary, now: Date, copy: HomeCopy): WeeklySummary {
   return {
     ...summary,
     weekly_reset: {
       ...summary.weekly_reset,
-      time_remaining_label: formatRemaining("每周重置", now, new Date(summary.weekly_reset.next_reset_iso))
+      time_remaining_label: formatRemaining(homeText(copy, "每周重置"), now, new Date(summary.weekly_reset.next_reset_iso), copy)
     }
   };
 }
 
-function formatRemaining(label: string, now: Date, target: Date): string {
+function formatRemaining(label: string, now: Date, target: Date, copy: HomeCopy): string {
   const remainingMinutes = Math.max(0, Math.ceil((target.getTime() - now.getTime()) / 60_000));
   const days = Math.floor(remainingMinutes / 1440);
   const hours = Math.floor((remainingMinutes % 1440) / 60);
   const minutes = remainingMinutes % 60;
-  if (days > 0) return `距离${label}还有 ${days} 天 ${hours} 小时`;
-  return `距离${label}还有 ${hours} 小时 ${minutes} 分钟`;
+  if (days > 0) return homeTemplate(copy, "距离{label}还有 {days} 天 {hours} 小时", { label, days, hours });
+  return homeTemplate(copy, "距离{label}还有 {hours} 小时 {minutes} 分钟", { label, hours, minutes });
 }

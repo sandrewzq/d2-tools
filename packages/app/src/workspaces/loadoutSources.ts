@@ -1,10 +1,15 @@
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 
+export type LoadoutSourceKind = "equipped" | "inventory" | "vault" | "postmaster";
+
+/**
+ * 只报位置身份（`source_kind` 加角色 id），不报显示名。
+ * 位置怎么叫由界面按 `source_kind` 查表；app 层不产界面串。
+ */
 export type LoadoutSourceItem = AccountItemSummary & {
   source_character_id?: string;
-  source_kind: "equipped" | "inventory" | "vault" | "postmaster";
-  source_label?: string;
+  source_kind: LoadoutSourceKind;
   is_vault_item?: boolean;
   is_postmaster_item?: boolean;
 };
@@ -31,21 +36,18 @@ export function getAllKnownAccountItemsWithSource(summary: AccountSummary): Load
     ...character.equipped_items.map((item) => ({
       ...item,
       source_character_id: character.character_id,
-      source_kind: "equipped" as const,
-      source_label: "已装备"
+      source_kind: "equipped" as const
     })),
     ...character.inventory_items.map((item) => ({
       ...item,
       source_character_id: character.character_id,
-      source_kind: "inventory" as const,
-      source_label: "背包"
+      source_kind: "inventory" as const
     })),
     ...character.postmaster_items.map((item) => ({
       ...item,
       source_character_id: character.character_id,
       is_postmaster_item: true,
-      source_kind: "postmaster" as const,
-      source_label: "邮政官"
+      source_kind: "postmaster" as const
     }))
   ]);
 
@@ -53,8 +55,7 @@ export function getAllKnownAccountItemsWithSource(summary: AccountSummary): Load
     ...summary.vault.items.map((item) => ({
       ...item,
       is_vault_item: true,
-      source_kind: "vault" as const,
-      source_label: "仓库"
+      source_kind: "vault" as const
     })),
     ...characterItems
   ];

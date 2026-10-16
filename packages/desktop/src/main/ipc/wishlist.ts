@@ -31,6 +31,7 @@ import {
 } from "@d2-tools/services/community/dimWishlistValidation";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
+import { mainText } from "../i18n/mainCopy.js";
 import { advanceRecommendationMatchCacheRevision, loadWeaponIdentityRelations } from "./community.js";
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 
@@ -55,10 +56,10 @@ export function registerWishlistIpcHandlers(): void {
   ipcMain.handle("wishlist:import:select", async (): Promise<DimWishlistImportPreview | null> => {
     const config = loadConfig();
     const result = await dialog.showOpenDialog({
-      title: "选择愿望单文本文件",
+      title: mainText(config.features.interface_locale, "选择愿望单文本文件"),
       defaultPath: config.data.data_dir,
       properties: ["openFile"],
-      filters: [{ name: "愿望单文本", extensions: ["txt", "wishlist"] }]
+      filters: [{ name: mainText(config.features.interface_locale, "愿望单文本"), extensions: ["txt", "wishlist"] }]
     });
     const path = result.filePaths[0];
     if (result.canceled || !path) return null;

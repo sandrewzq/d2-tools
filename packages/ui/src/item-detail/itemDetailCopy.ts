@@ -1,4 +1,5 @@
 import type { ItemDetailCopy } from "../i18n/types.js";
+import { replacePlaceholders } from "../i18n/placeholders.js";
 
 /**
  * 装备详情文案兜底查表。zh-CN 侧 `inline` 留空，key 本身就是最终展示的中文原文；
@@ -13,6 +14,5 @@ export function itemDetailText(copy: ItemDetailCopy, key: string): string {
  * en-US 侧以同一段原文为 key 查英文。查不到就退回原文，不会渲染成空白。
  */
 export function itemDetailTemplate(copy: ItemDetailCopy, key: string, values: Record<string, string | number>): string {
-  return itemDetailText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
-    name in values ? String(values[name]) : match);
+  return replacePlaceholders(itemDetailText(copy, key), values, (value) => itemDetailText(copy, value));
 }

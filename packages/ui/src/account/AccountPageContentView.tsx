@@ -11,6 +11,7 @@ import type {
   AccountSlotComparisonViewRow
 } from "@d2-tools/app/account";
 import { getLocaleCopy } from "../i18n/copy.js";
+import { accountTemplate, accountText, accountTokenText, accountTokensText } from "./accountCopy.js";
 import type { AccountCopy, InterfaceLocale } from "../i18n/types.js";
 import { GameAssetImage } from "../media/GameAssetImage.js";
 import { getRovingFocusIndex } from "../interaction/rovingFocus.js";
@@ -49,12 +50,16 @@ type AccountMode = "role_state" | "account_data";
 type AccountSection = "gear" | "configuration" | "postmaster" | "items" | "activity";
 
 const accountCategoryOrder: AccountSlotComparisonViewRow["category"][] = ["weapons", "armor"];
-const accountCategoryLabels: Record<AccountSlotComparisonViewRow["category"], string> = {
-  weapons: "武器",
-  armor: "护甲",
-  equipment: "装备类别",
-  other: "其他"
-};
+
+function accountCategoryLabel(category: AccountSlotComparisonViewRow["category"], copy: AccountCopy): string {
+  const keys: Record<AccountSlotComparisonViewRow["category"], string> = {
+    weapons: "武器",
+    armor: "护甲",
+    equipment: "装备类别",
+    other: "其他"
+  };
+  return accountText(copy, keys[category]);
+}
 
 function visibleAccountSlotRows(rows: AccountSlotComparisonViewRow[]): AccountSlotComparisonViewRow[] {
   return rows.filter((row) => {
@@ -360,7 +365,7 @@ function AccountPageWorkspace(props: {
       <ProductWorkspaceSplit className="account-workspace" id="account-workspace">
       <ProductWorkspaceSideRail element="aside" className="account-directory" ariaLabel={accountText(props.copy, "账号目录")} scrollRegion="pane" surface="list">
         <div className="account-column-head">
-          <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">账号目录</h3>
+          <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "账号目录")}</h3>
           <span data-ui-part="detail" data-info-priority="trace" data-text-tone="meta">{profile.accountName}</span>
         </div>
         <div className="account-mode-tabs" role="tablist" aria-orientation={directoryOrientation} aria-label={accountText(props.copy, "账号工作模式")}>
@@ -409,7 +414,7 @@ function AccountPageWorkspace(props: {
                 onKeyDown={(event) => handleDirectoryKeyDown(event, index)}
               >
                 <span>{item.label}</span>
-                {item.count !== undefined ? <small aria-label={`${item.count} ${accountText(props.copy, "件")}`}>{item.count}</small> : null}
+                {item.count !== undefined ? <small aria-label={accountTemplate(props.copy, "{count} 件", { count: item.count })}>{item.count}</small> : null}
               </button>
             </Fragment>
           ))}
@@ -424,8 +429,8 @@ function AccountPageWorkspace(props: {
                   菜单规则永远不生效。去掉这个属性，让菜单自己的字号接管。 */}
               <h2 data-ui-part="value" data-text-tone="primary">{profile.accountName}</h2>
               <p data-ui-part="detail" data-info-priority="reading" data-text-tone="body">
-                {props.viewModel.characterTabs.length} 个角色 · {profile.inventoryLine}
-                {profile.snapshotAt ? ` · ${accountText(props.copy, "更新于")} ${formatClockTime(profile.snapshotAt)}` : ""}
+                {accountTemplate(props.copy, "{count} 个角色 · {line}", { count: props.viewModel.characterTabs.length, line: accountTokenText(props.copy, profile.inventoryLine) })}
+                {profile.snapshotAt ? accountTemplate(props.copy, " · 更新于 {time}", { time: formatClockTime(profile.snapshotAt) }) : ""}
               </p>
             </div>
             <span
@@ -448,11 +453,12 @@ function AccountPageWorkspace(props: {
               const characterCapacity = props.viewModel.capacity.characters.find((character) => character.characterId === tab.key);
               return {
                 key: tab.key,
-                className: tab.className,
+                // 职业名是应用内映射产出的文案，切界面语言时要跟着走。
+                className: accountText(props.copy, tab.className),
                 emblemUrl: tab.emblemUrl,
                 isSelected: tab.isSelected,
-                title: `${accountText(props.copy, "切换到")}${tab.className}`,
-                detail: `${accountText(props.copy, "当前")} ${tab.power.currentLabel} · ${accountText(props.copy, "可装备最高光等")} ${tab.power.maxEquippable.label}`,
+                title: accountTemplate(props.copy, "切换到{name}", { name: accountText(props.copy, tab.className) }),
+                detail: accountTemplate(props.copy, "当前 {current} · 可装备最高光等 {max}", { current: tab.power.currentLabel, max: accountTokenText(props.copy, tab.power.maxEquippable.label) }),
                 capacity: characterCapacity ? {
                   label: formatCharacterCapacitySummary(characterCapacity, props.copy),
                   risk: characterCapacity.overallRisk
@@ -475,7 +481,7 @@ function AccountPageWorkspace(props: {
                 onClick={() => setIsPowerPanelOpen((current) => !current)}
               >
                 <span>{accountText(props.copy, "光等详情")}</span>
-                <PowerFractionValue value={props.selectedCharacter.power.dropBaseline} />
+                <PowerFractionValue copy={props.copy} value={props.selectedCharacter.power.dropBaseline} />
               </button>
               {props.actions.equipHighestPower ? <button
                 type="button"
@@ -544,10 +550,10 @@ function AccountPageWorkspace(props: {
           hidden={props.section !== "gear"}
         >
             <div className="account-column-head">
-              <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "战斗装备")}</h3>
+              <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountTemplate(props.copy, "{class}{label}", { class: accountText(props.copy, props.selectedCharacter.className), label: accountText(props.copy, "战斗装备") })}</h3>
               <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-                装备 {props.viewModel.loadout.equippedCount} 件 · 背包候选 {displayedInventoryCount} 件
-                {props.viewModel.loadout.activeTemplateName ? ` · ${accountText(props.copy, "关联配装")} ${props.viewModel.loadout.activeTemplateName} · ${accountText(props.copy, "命中")} ${props.viewModel.loadout.selectedCharacterLoadoutMatchCount}` : ""}
+                {accountTemplate(props.copy, "装备 {equipped} 件 · 背包候选 {candidates} 件", { equipped: props.viewModel.loadout.equippedCount, candidates: displayedInventoryCount })}
+                {props.viewModel.loadout.activeTemplateName ? accountTemplate(props.copy, " · 关联配装 {name} · 命中 {count}", { name: props.viewModel.loadout.activeTemplateName, count: props.viewModel.loadout.selectedCharacterLoadoutMatchCount }) : ""}
               </span>
             </div>
             <AccountSlotComparison
@@ -577,7 +583,7 @@ function AccountPageWorkspace(props: {
           tabIndex={-1}
           hidden={props.section !== "postmaster"}
         >
-            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.selectedCharacter.className}{accountText(props.copy, "邮政官")}</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{props.viewModel.postmaster.totalCount} 件 · {accountText(props.copy, "完整清单")}</span></div>
+            <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountTemplate(props.copy, "{class}{label}", { class: accountText(props.copy, props.selectedCharacter.className), label: accountText(props.copy, "邮政官") })}</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountTemplate(props.copy, "{count} 件 · {label}", { count: props.viewModel.postmaster.totalCount, label: accountText(props.copy, "完整清单") })}</span></div>
             <div className="account-section-notice status-message">{accountText(props.copy, "邮政官按当前角色独立保存；这里显示完整清单，取回操作不会自动执行。")}</div>
             {props.viewModel.postmaster.items.length ? (
               <div className="account-item-list">
@@ -615,9 +621,9 @@ function AccountPageWorkspace(props: {
             {props.activitySummary ? (
               <>
                 <div className="account-activity-grid">
-                  <article><span>PVE 完成情况</span><strong>{props.activitySummary.recent.pve.completed} 场</strong><p>最近记录中的 PVE 完成情况</p></article>
-                  <article><span>PVP 完成情况</span><strong>{props.activitySummary.recent.pvp.completed} 场</strong><p>最近记录中的 PVP 完成情况</p></article>
-                  <article><span>突袭 / 地牢</span><strong>{props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "raid").length} / {props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "dungeon").length}</strong><p>当前可读取的完成记录</p></article>
+                  <article><span>{accountText(props.copy, "PVE 完成情况")}</span><strong>{accountTemplate(props.copy, "{count} 场", { count: props.activitySummary.recent.pve.completed })}</strong><p>{accountText(props.copy, "最近记录中的 PVE 完成情况")}</p></article>
+                  <article><span>{accountText(props.copy, "PVP 完成情况")}</span><strong>{accountTemplate(props.copy, "{count} 场", { count: props.activitySummary.recent.pvp.completed })}</strong><p>{accountText(props.copy, "最近记录中的 PVP 完成情况")}</p></article>
+                  <article><span>{accountText(props.copy, "突袭 / 地牢")}</span><strong>{props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "raid").length} / {props.activitySummary.raids.entries.filter((entry) => entry.activity_type === "dungeon").length}</strong><p>{accountText(props.copy, "当前可读取的完成记录")}</p></article>
                 </div>
                 <div className="account-column-head"><h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "最近 10 场")}</h3><span data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "全部角色")}</span></div>
                 {props.activitySummary.recent_items.length ? (
@@ -625,7 +631,7 @@ function AccountPageWorkspace(props: {
                     {props.activitySummary.recent_items.slice(0, 10).map((item, index) => (
                       <div key={`${item.period}-${item.activity_name}`}>
                         <strong>{formatActivityMode(item.mode, props.copy)} · {item.activity_name}</strong>
-                        <span>{props.activityReview?.recent_10[index]?.status_label ?? (item.completed ? "完成" : "未完成")}</span>
+                        <span>{props.activityReview?.recent_10[index]?.status_label ?? accountText(props.copy, item.completed ? "完成" : "未完成")}</span>
                         <small>{formatCompactDateTime(item.period, new Date(), item.period)}</small>
                       </div>
                     ))}
@@ -638,9 +644,13 @@ function AccountPageWorkspace(props: {
       </ProductWorkspaceSplit>
       {isHighestPowerConfirmationOpen ? (
         <ConfirmationDialog
-          title={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件最高光等装备？")}`}
-          description={`${props.selectedCharacter.className} ${accountText(props.copy, "当前")} ${props.selectedCharacter.power.currentLabel}，${accountText(props.copy, "预计达到")} ${props.selectedCharacter.power.executablePower.label}。${accountText(props.copy, "Bungie 返回后按逐项结果更新页面，失败项保持原状态。")}`}
-          confirmLabel={`${accountText(props.copy, "装备操作")} ${highestPowerChanges.length} ${accountText(props.copy, "件")}`}
+          title={accountTemplate(props.copy, "装备操作 {count} 件最高光等装备？", { count: highestPowerChanges.length })}
+          description={accountTemplate(props.copy, "{name} 当前 {current}，预计达到 {target}。Bungie 返回后按逐项结果更新页面，失败项保持原状态。", {
+            name: accountText(props.copy, props.selectedCharacter.className),
+            current: props.selectedCharacter.power.currentLabel,
+            target: accountTokenText(props.copy, props.selectedCharacter.power.executablePower.label)
+          })}
+          confirmLabel={accountTemplate(props.copy, "装备操作 {count} 件", { count: highestPowerChanges.length })}
           cancelLabel={accountText(props.copy, "取消")}
           returnFocusRef={equipHighestPowerTriggerRef}
           onCancel={() => setIsHighestPowerConfirmationOpen(false)}
@@ -654,7 +664,7 @@ function AccountPageWorkspace(props: {
               <div className="account-highest-power-confirmation-row" key={row.key}>
                 <span>{accountText(props.copy, row.label)}</span>
                 <strong>{row.itemName}</strong>
-                <small>{accountText(props.copy, "光等")} {row.power ?? "—"} · {formatPowerSource(row, props.copy)}</small>
+                <small>{accountTemplate(props.copy, "光等 {power} · {source}", { power: row.power ?? "—", source: formatPowerSource(row, props.copy) })}</small>
               </div>
             ))}
           </div>
@@ -688,11 +698,11 @@ function AccountCapacityOverview(props: {
   const riskLabel = capacityRiskLabel(props.viewModel.capacity.overallRisk);
   const unknownBucketCount = selected.inventoryBuckets.filter((bucket) => bucket.risk === "unknown").length;
   const carriedSummary = selected.fullBucketCount > 0
-    ? `${selected.fullBucketCount} ${accountText(props.copy, "个槽位已满")}`
+    ? accountTemplate(props.copy, "{count} 个槽位已满", { count: selected.fullBucketCount })
     : selected.warningBucketCount > 0
-      ? `${selected.warningBucketCount} ${accountText(props.copy, "个槽位接近上限")}`
+      ? accountTemplate(props.copy, "{count} 个槽位接近上限", { count: selected.warningBucketCount })
       : unknownBucketCount > 0
-        ? `${unknownBucketCount} ${accountText(props.copy, "个上限待确认")}`
+        ? accountTemplate(props.copy, "{count} 个上限待确认", { count: unknownBucketCount })
         : accountText(props.copy, "8 个槽位正常");
 
   return (
@@ -726,7 +736,7 @@ function AccountCapacityMetric(props: {
 }) {
   const value = props.metric.capacity
     ? `${props.metric.itemCount} / ${props.metric.capacity}`
-    : `${props.metric.itemCount} ${accountText(props.copy, "件")}`;
+    : accountTemplate(props.copy, "{count} 件", { count: props.metric.itemCount });
 
   return (
     <div className="account-capacity-primary-card" data-risk={props.metric.risk}>
@@ -761,9 +771,9 @@ function formatCharacterCapacitySummary(
   copy: AccountCopy
 ): string {
   if (character.postmaster.risk === "danger") return accountText(copy, "邮政官已满，有覆盖风险");
-  if (character.fullBucketCount > 0) return `${character.fullBucketCount} ${accountText(copy, "个携带槽位已满")}`;
+  if (character.fullBucketCount > 0) return accountTemplate(copy, "{count} 个携带槽位已满", { count: character.fullBucketCount });
   if (character.postmaster.risk === "warning") return formatCapacityMetricStatus(character.postmaster, copy);
-  if (character.warningBucketCount > 0) return `${character.warningBucketCount} ${accountText(copy, "个携带槽位接近上限")}`;
+  if (character.warningBucketCount > 0) return accountTemplate(copy, "{count} 个携带槽位接近上限", { count: character.warningBucketCount });
   if (character.overallRisk === "unknown") return accountText(copy, "部分容量上限待确认");
   return accountText(copy, "容量正常");
 }
@@ -779,9 +789,9 @@ function formatCapacityMetricStatus(
       : accountText(copy, "已满");
   }
   if (metric.risk === "warning") {
-    return `${accountText(copy, "接近上限，剩余")} ${metric.remaining ?? 0} ${accountText(copy, "格")}`;
+    return accountTemplate(copy, "接近上限，剩余 {count} 格", { count: metric.remaining ?? 0 });
   }
-  return `${accountText(copy, "剩余")} ${metric.remaining ?? 0} ${accountText(copy, "格")}`;
+  return accountTemplate(copy, "剩余 {count} 格", { count: metric.remaining ?? 0 });
 }
 
 function AccountCharacterItemsPanel(props: { actions: AccountPageActions; copy: AccountCopy; viewModel: AccountPageViewModel }) {
@@ -797,27 +807,27 @@ function AccountCharacterItemsPanel(props: { actions: AccountPageActions; copy: 
       </header>
       {primaryItems.length ? (
         <div className="account-config-grid">
-          {primaryItems.map((item) => <AccountConfigItem item={item} key={item.key} />)}
+          {primaryItems.map((item) => <AccountConfigItem item={item} key={item.key} copy={props.copy} />)}
         </div>
-      ) : <AccountInlineState title="没有角色配置数据" detail="当前角色资料未返回职业分支、机灵或外观配置。" />}
+      ) : <AccountInlineState title={accountText(props.copy, "没有角色配置数据")} detail={accountText(props.copy, "当前角色资料未返回职业分支、机灵或外观配置。")} />}
       {extraItems.length ? (
         <details className="account-config-more">
           <summary>
             <span>
-              <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">更多配置</strong>
-              <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">公会战旗、终结技与动作</small>
+              <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "更多配置")}</strong>
+              <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "公会战旗、终结技与动作")}</small>
             </span>
-            <b>{extraItems.length} 项</b>
+            <b>{accountTemplate(props.copy, "{count} 项", { count: extraItems.length })}</b>
           </summary>
           <div className="account-config-grid">
-            {extraItems.map((item) => <AccountConfigItem item={item} key={item.key} />)}
+            {extraItems.map((item) => <AccountConfigItem item={item} key={item.key} copy={props.copy} />)}
           </div>
         </details>
       ) : null}
       <div className="account-column-head account-character-items-head">
         <h3 data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "携带物品与其他配置")}</h3>
         <span data-ui-part="detail" data-info-priority="support" data-text-tone="body">
-          {props.viewModel.items.carriedCount + props.viewModel.items.collectionCount + props.viewModel.items.unknownCount} 项 · {accountText(props.copy, "当前角色")}
+          {accountTemplate(props.copy, "{count} 项 · 当前角色", { count: props.viewModel.items.carriedCount + props.viewModel.items.collectionCount + props.viewModel.items.unknownCount })}
         </span>
       </div>
       <AccountDataGroups copy={props.copy} groups={props.viewModel.items.groups} />
@@ -825,14 +835,14 @@ function AccountCharacterItemsPanel(props: { actions: AccountPageActions; copy: 
   );
 }
 
-function AccountConfigItem(props: { item: AccountReadonlyItemView }) {
+function AccountConfigItem(props: { item: AccountReadonlyItemView; copy: AccountCopy }) {
   return (
     <div className="account-config-item" data-ui-kind="object-card" data-interactive="false">
       <AccountReadonlyIcon item={props.item} />
       <span>
         <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{props.item.name}</strong>
         <span data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{props.item.typeLabel}</span>
-        <small data-ui-part="source" data-info-priority="trace" data-text-tone="meta">{props.item.sourceLabel} · 只读</small>
+        <small data-ui-part="source" data-info-priority="trace" data-text-tone="meta">{accountTemplate(props.copy, "{source} · 只读", { source: props.item.sourceLabel })}</small>
       </span>
     </div>
   );
@@ -875,7 +885,7 @@ function AccountDataGroup(props: {
           <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, props.group.label)}</strong>
           <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, props.group.description)}</small>
         </span>
-        <b>{props.group.items.length} 项</b>
+        <b>{accountTemplate(props.copy, "{count} 项", { count: props.group.items.length })}</b>
       </summary>
       <div className="account-readonly-list">
         {props.group.items.length
@@ -908,8 +918,8 @@ function AccountReadonlyRow(props: { copy: AccountCopy; item: AccountReadonlyIte
         <small data-ui-part="detail" data-info-priority="reading" data-text-tone="body">{accountText(props.copy, props.item.typeLabel)} · {accountText(props.copy, props.item.sourceLabel)}</small>
         {typeof props.item.progressPercent === "number" ? (
           <span className={`account-readonly-progress ${props.item.isComplete ? "complete" : ""}`.trim()}>
-            <progress max={100} value={props.item.progressPercent} aria-label={props.item.progressLabel} />
-            <small>{props.item.progressLabel}</small>
+            <progress max={100} value={props.item.progressPercent} aria-label={accountTokensText(props.copy, props.item.progressLabel ?? [], accountText(props.copy, " · "))} />
+            <small>{accountTokensText(props.copy, props.item.progressLabel ?? [], accountText(props.copy, " · "))}</small>
           </span>
         ) : null}
       </span>
@@ -934,10 +944,10 @@ function AccountMaterialsGroup(props: {
     <details className="account-data-group account-material-group" open={isOpen} onToggle={(event) => setIsOpen(event.currentTarget.open)}>
       <summary>
         <span>
-          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">材料清单</strong>
-          <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">账号级数量，不属于角色装备</small>
+          <strong data-ui-part="value" data-info-priority="context" data-text-tone="primary">{accountText(props.copy, "材料清单")}</strong>
+          <small data-ui-part="detail" data-info-priority="support" data-text-tone="body">{accountText(props.copy, "账号级数量，不属于角色装备")}</small>
         </span>
-        <b>{rows.length} 种</b>
+        <b>{accountTemplate(props.copy, "{count} 种", { count: rows.length })}</b>
       </summary>
       {rows.length ? (
         <div className="account-material-list">
@@ -946,7 +956,7 @@ function AccountMaterialsGroup(props: {
               <GameAssetImage className="account-material-icon" src={row.material.icon} alt="" fallback={<span className="item-icon-placeholder" aria-hidden="true" />} />
               <div className="account-material-main">
                 <strong>{row.material.name}</strong>
-                <small>{row.meta}</small>
+                <small>{accountTokensText(props.copy, row.meta, accountText(props.copy, " / "))}</small>
               </div>
               <span className="account-material-quantity">{row.material.quantity.toLocaleString(props.interfaceLocale)}</span>
             </div>
@@ -1007,17 +1017,17 @@ function AccountPowerPanel(props: {
         </span>
         <span>
           <small>{accountText(props.copy, "可装备最高光等")}</small>
-          <PowerFractionValue value={props.power.maxEquippable} />
+          <PowerFractionValue copy={props.copy} value={props.power.maxEquippable} />
         </span>
         <span>
           <small>{accountText(props.copy, "奖励掉落基准")}</small>
-          <PowerFractionValue value={props.power.dropBaseline} />
+          <PowerFractionValue copy={props.copy} value={props.power.dropBaseline} />
         </span>
       </div>
       <p className="account-power-explanation">
         {!props.power.dropBaseline.complete
           ? accountText(props.copy, "奖励掉落基准正在等待完整账号装备数据。")
-          : props.power.dropBaseline.label === props.power.maxEquippable.label
+          : accountTokenText(props.copy, props.power.dropBaseline.label) === accountTokenText(props.copy, props.power.maxEquippable.label)
             ? accountText(props.copy, "奖励掉落基准与当前角色可装备最高一致。")
             : accountText(props.copy, "奖励掉落基准按整个账号每个位置的最高装备计算，不代表当前角色可以直接穿上这些装备。")}
       </p>
@@ -1072,7 +1082,7 @@ function AccountPowerPanel(props: {
         ))}
       </div>
       <div className="account-power-footer">
-        <span>{mode === "baseline" ? accountText(props.copy, "奖励掉落基准") : accountText(props.copy, "可执行最高方案")} <PowerFractionValue value={value} /></span>
+        <span>{mode === "baseline" ? accountText(props.copy, "奖励掉落基准") : accountText(props.copy, "可执行最高方案")} <PowerFractionValue copy={props.copy} value={value} /></span>
         <span>{accountText(props.copy, "数据来源")} {props.snapshotAt ? formatCompactDateTime(props.snapshotAt) : accountText(props.copy, "当前账号快照")}</span>
       </div>
       <p className={props.power.executableMatchesAccountMaximum ? "account-power-note" : "account-power-note warning"}>
@@ -1100,12 +1110,12 @@ function formatPowerAvailability(
   return accountText(copy, "状态待确认");
 }
 
-function PowerFractionValue(props: { value: CharacterPowerValueView }) {
+function PowerFractionValue(props: { copy: AccountCopy; value: CharacterPowerValueView }) {
   if (!props.value.complete || typeof props.value.whole !== "number") {
-    return <span className="account-power-fraction incomplete">{props.value.label}</span>;
+    return <span className="account-power-fraction incomplete">{accountTokenText(props.copy, props.value.label)}</span>;
   }
   return (
-    <span className="account-power-fraction" aria-label={props.value.label}>
+    <span className="account-power-fraction" aria-label={accountTokenText(props.copy, props.value.label)}>
       <span>{props.value.whole}</span>
       {props.value.remainder ? (
         <span className="account-power-fraction-part" aria-hidden="true">
@@ -1158,10 +1168,6 @@ function useAccountDirectoryOrientation(): "horizontal" | "vertical" {
   return orientation;
 }
 
-function accountText(copy: AccountCopy, key: string): string {
-  return copy.inline[key] ?? key;
-}
-
 type ActivityRecentItemMode = NonNullable<AccountPageViewModel["activity"]["summary"]>["recent_items"][number]["mode"];
 
 function formatActivityMode(mode: ActivityRecentItemMode, copy: AccountCopy): string {
@@ -1179,7 +1185,7 @@ function AccountSlotComparison(props: {
   const categories = accountCategoryOrder
     .map((category) => ({
       key: category,
-      label: accountText(props.copy, accountCategoryLabels[category]),
+      label: accountCategoryLabel(category, props.copy),
       rows: props.rows.filter((row) => row.category === category)
     }))
     .filter((category) => category.rows.length > 0);
@@ -1194,7 +1200,10 @@ function AccountSlotComparison(props: {
         <section className="account-slot-category" data-surface="section" key={category.key}>
           <header className="account-slot-category-head">
             <strong>{category.label}</strong>
-            <span>{category.rows.length} 个位置 · {category.rows.reduce((count, row) => count + row.equippedItems.length + row.inventoryItems.length, 0)} 件</span>
+            <span>{accountTemplate(props.copy, "{slots} 个位置 · {items} 件", {
+              slots: category.rows.length,
+              items: category.rows.reduce((count, row) => count + row.equippedItems.length + row.inventoryItems.length, 0)
+            })}</span>
           </header>
           <div className="account-slot-column-head" aria-hidden="true">
             <span>{accountText(props.copy, "位置")}</span>
@@ -1205,7 +1214,7 @@ function AccountSlotComparison(props: {
             <article className="account-slot-row" data-surface="row" key={row.key}>
               <div className="account-slot-heading">
                 <strong>{row.label}</strong>
-                <span>{accountText(props.copy, "装备")} {row.equippedItems.length} / {accountText(props.copy, "背包")} {row.inventoryItems.length}</span>
+                <span>{accountTemplate(props.copy, "装备 {equipped} / 背包 {inventory}", { equipped: row.equippedItems.length, inventory: row.inventoryItems.length })}</span>
               </div>
               <div className="account-slot-columns">
                 <section className="account-slot-column account-equipped-panel" aria-label={accountText(props.copy, "当前角色装备")}>
@@ -1296,9 +1305,9 @@ function renderAccountItemCard(
           description: accountText(props.copy, "配装引用")
         }
       : null;
-  const primaryFacts = item.primaryFacts.join(" · ") || accountText(props.copy, "实例摘要待补齐");
-  const stateFacts = item.stateFacts.join(" · ");
-  const recommendation = accountRecommendationSummary(item, props.recommendationSummaryByInstance);
+  const primaryFacts = accountTokensText(props.copy, item.primaryFacts, " · ") || accountText(props.copy, "实例摘要待补齐");
+  const stateFacts = accountTokensText(props.copy, item.stateFacts, " · ");
+  const recommendation = accountRecommendationSummary(item, props.copy, props.recommendationSummaryByInstance);
   const content = (
     <>
       <GameAssetImage
@@ -1316,7 +1325,7 @@ function renderAccountItemCard(
             ? <small className="account-slot-item-recommendation" data-status={recommendation.tone} title={recommendation.title}>{recommendation.text}</small>
             : stateFacts ? <small title={stateFacts}>{stateFacts}</small> : null}
           {recommendation && item.openPayload.item.locked ? (
-            <em data-status="success" title={accountText(props.copy, "已锁定")} aria-label={accountText(props.copy, "已锁定")}>锁定</em>
+            <em data-status="success" title={accountText(props.copy, "已锁定")} aria-label={accountText(props.copy, "已锁定")}>{accountText(props.copy, "锁定")}</em>
           ) : null}
           {status ? (
             <em data-status={status.kind} title={status.description} aria-label={status.description}>
@@ -1344,7 +1353,7 @@ function renderAccountItemCard(
       data-control-variant="quiet"
       key={item.key}
       aria-busy={item.isPending || item.isSyncing}
-      aria-label={`${accountText(props.copy, "查看")}${item.name}${accountText(props.copy, "详情")}`}
+      aria-label={accountTemplate(props.copy, "查看{name}详情", { name: item.name })}
       onClick={() => props.onOpenItem(item.openPayload)}
     >
       {content}
@@ -1363,6 +1372,7 @@ function AccountInlineState(props: { title: string; detail: string }) {
 
 function accountRecommendationSummary(
   item: AccountItemView,
+  copy: AccountCopy,
   recommendationSummaryByInstance?: VaultRecommendationSummaryIndex
 ): { text: string; title: string; tone: "ready" | "warning" | "error" | "pending" | "neutral" } | undefined {
   if (item.openPayload.item.group_key !== "weapons") return undefined;
@@ -1372,7 +1382,11 @@ function accountRecommendationSummary(
   if (!strongest) return undefined;
   const remainingSourceCount = Math.max(0, summaries.length - 1);
   return {
-    text: `${strongest.shortLabel} ${strongest.resultText}${remainingSourceCount ? ` · 另 ${remainingSourceCount} 个来源` : ""}`,
+    text: accountTemplate(copy, "{label} {result}{extra}", {
+      label: strongest.shortLabel,
+      result: strongest.resultText,
+      extra: remainingSourceCount ? accountTemplate(copy, " · 另 {count} 个来源", { count: remainingSourceCount }) : ""
+    }),
     title: summaries.map((summary) => summary.detail).join("\n"),
     tone: strongest.state === "full" || strongest.state === "core"
       ? "ready"

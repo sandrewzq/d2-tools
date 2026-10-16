@@ -164,19 +164,6 @@ const visibleVaultLocationFilters: Array<Exclude<VaultLocationFilter, "all">> = 
   "other_characters"
 ];
 
-/**
- * 护甲属性名。仓库侧已迁到 `VaultCopy.labels`，这张表只剩 `VaultTargetRulesPanel` 在用，
- * 那个组件目前是孤儿，等 S10 决定去留时一并处理。
- */
-export const armorStatLabels: Record<ArmorStatKey, string> = {
-  health: "生命值",
-  melee: "近战",
-  grenade: "手雷",
-  super: "超能",
-  class: "职业",
-  weapon: "武器"
-};
-
 export const groupSortOrder: Record<EquipmentGroupKey, number> = {
   weapons: 0,
   armor: 1,

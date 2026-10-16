@@ -1,8 +1,9 @@
 import { selectLibraryPageModel, type LibraryPageCache, type LibraryPageState } from "@d2-tools/app/library";
-import { LibraryPageContentView, type LibraryPageActions } from "@d2-tools/ui";
+import { LibraryPageContentView, type InterfaceLocale, type LibraryPageActions } from "@d2-tools/ui";
 import { useMemo } from "react";
 
 export type LibraryPageProps = {
+  interfaceLocale?: InterfaceLocale;
   cache: LibraryPageCache;
   state: LibraryPageState;
   actions: LibraryPageActions;
@@ -45,6 +46,7 @@ export function LibraryPage(props: LibraryPageProps) {
 
   return (
     <LibraryPageContentView
+      interfaceLocale={props.interfaceLocale}
       model={model}
       actions={props.actions}
     />

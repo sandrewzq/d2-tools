@@ -1,6 +1,7 @@
 import {
   createWebSnapshotProvider,
   type WebHomeSnapshot,
+  type WebSnapshotCopy,
   type WebSnapshotSource
 } from "./webAdapter";
 
@@ -12,8 +13,9 @@ export type WebApiRouter = {
   handle: (request: Request) => Promise<Response | null>;
 };
 
-export function createWebApiRouter(provider: WebApiSnapshotProvider = {}): WebApiRouter {
+export function createWebApiRouter(copy: WebSnapshotCopy, provider: WebApiSnapshotProvider = {}): WebApiRouter {
   const snapshotProvider = createWebSnapshotProvider({
+    copy,
     source: toSnapshotSource(provider)
   });
 

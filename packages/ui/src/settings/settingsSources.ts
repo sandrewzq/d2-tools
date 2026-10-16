@@ -1,7 +1,10 @@
 export type SettingsSourceCategory = "official" | "community" | "reference";
 
 export type SettingsSourceEntry = {
+  /** 稳定标识：copy 表按它覆盖展示文案，与本地化后的 name 无关。 */
+  id: string;
   category: SettingsSourceCategory;
+  /** 项目名：专有名词保持原文；带中文描述的名字由 copy 表覆盖。 */
   name: string;
   role: string;
   content: string;
@@ -15,6 +18,7 @@ export type SettingsSourceEntry = {
 
 export const settingsSourceEntries: SettingsSourceEntry[] = [
   {
+    id: "bungie-api",
     category: "official",
     name: "Bungie API",
     role: "官方实时数据",
@@ -26,6 +30,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "应用不把账号令牌发送给第三方推荐工具。"
   },
   {
+    id: "destiny-2-manifest",
     category: "official",
     name: "Destiny 2 Manifest",
     role: "官方游戏定义",
@@ -37,6 +42,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "本地资料库会按 Bungie 返回的版本后台更新。"
   },
   {
+    id: "dim-wish-list-sources",
     category: "community",
     name: "DIM Wish List Sources",
     role: "社区愿望单数据",
@@ -48,6 +54,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "只反映愿望单作者偏好，不等于 Bungie 官方结论；文本由用户给出链接或文件导入，应用不替用户固定上游地址。"
   },
   {
+    id: "starside",
     category: "reference",
     name: "Starside · Destiny 2 中文资料台",
     role: "社区中文资料",
@@ -59,6 +66,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "静态资料页不能证明实时轮换，当前轮换仍以 Bungie 登录数据为准。"
   },
   {
+    id: "destiny-item-manager",
     category: "reference",
     name: "Destiny Item Manager（DIM）",
     role: "产品与交互参考",
@@ -71,6 +79,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "d2-tools 直接调用 Bungie API，不通过 DIM 读取账号。"
   },
   {
+    id: "d2armorpicker",
     category: "reference",
     name: "D2ArmorPicker",
     role: "护甲配装参考",
@@ -83,6 +92,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "护甲结果由 d2-tools 自己的账号快照和规则计算。"
   },
   {
+    id: "d2-armor-solver",
     category: "reference",
     name: "d2-armor-solver",
     role: "Armor 3.0 求解表达参考",
@@ -95,6 +105,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "只借鉴问题表达和交互思路，具体规则以 d2-tools 实现为准。"
   },
   {
+    id: "roll-report",
     category: "reference",
     name: "Roll Report",
     role: "Roll 分析参考",
@@ -107,6 +118,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
     note: "d2-tools 不直接调用其线上接口。"
   },
   {
+    id: "d2-additional-info",
     category: "reference",
     name: "d2-additional-info",
     role: "Manifest 补充数据参考",
@@ -119,6 +131,7 @@ export const settingsSourceEntries: SettingsSourceEntry[] = [
   }
 ];
 
+/** 分类标题的 zh-CN 原文；en-US 由 copy.sourceCategoryLabels 覆盖。 */
 export const settingsSourceCategoryLabels: Record<SettingsSourceCategory, string> = {
   official: "官方数据来源",
   community: "社区资料来源",

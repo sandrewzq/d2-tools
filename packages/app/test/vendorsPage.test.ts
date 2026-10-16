@@ -46,7 +46,7 @@ describe("vendor snapshot workspace", () => {
 
     expect(model.statusBanner).toEqual({
       tone: "neutral",
-      message: "已按当前机灵模组更新商人属性",
+      message: [{ key: "已按当前机灵模组更新商人属性" }],
       live: "polite",
       busy: false
     });
@@ -64,7 +64,7 @@ describe("vendor snapshot workspace", () => {
 
     expect(model.selectedVendor).toMatchObject({
       detailState: "partial",
-      detailFailureMessage: "仄详情读取失败",
+      detailFailureMessage: [{ key: "仄详情读取失败" }],
       displayStatusLabel: "部分详情失败",
       railStatusLabel: "部分详情失败 · 2 件物品"
     });
@@ -82,7 +82,7 @@ describe("vendor snapshot workspace", () => {
 
     expect(model.selectedVendor).toMatchObject({
       detailState: "partial",
-      detailFailureMessage: "1 个角色的属性与插槽详情读取失败",
+      detailFailureMessage: [{ key: "{count} 个角色的属性与插槽详情读取失败", count: 1 }],
       displayStatusLabel: "部分详情失败"
     });
   });
@@ -113,7 +113,10 @@ describe("vendor snapshot workspace", () => {
 
     expect(model.statusBanner).toEqual({
       tone: "error",
-      message: "1 个角色商人列表读取失败；1 个商人详情读取失败",
+      message: [
+        { key: "{count} 个角色商人列表读取失败", count: 1 },
+        { key: "{count} 个商人详情读取失败", count: 1 }
+      ],
       live: "polite",
       busy: false
     });

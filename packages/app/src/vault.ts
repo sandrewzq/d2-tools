@@ -40,7 +40,6 @@ export type {
   VaultViewMode
 } from "./workspaces/vaultList.js";
 export {
-  armorStatLabels,
   buildVaultArmorSetFilters,
   buildVaultContextFacts,
   buildVaultFrameFilters,
@@ -81,7 +80,8 @@ export type {
   HighestPowerEquipPlan,
   HighestPowerEquipPlanItem,
   HighestPowerExecutionPlan,
-  HighestPowerItemSource
+  HighestPowerItemSource,
+  HighestPowerMessageToken
 } from "./workspaces/highestPower.js";
 export {
   buildHighestPowerAlreadyOptimalMessage,

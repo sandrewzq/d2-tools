@@ -6,12 +6,13 @@ import type {
 } from "../api/types";
 import { AiPage } from "../features/ai/AiPage";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
-import type { ShellAssistantMode } from "@d2-tools/ui";
+import type { ShellAssistantMode, InterfaceLocale } from "@d2-tools/ui";
 import type { AssistantArtifact } from "@d2-tools/app/capabilities";
 
 export function GlobalAssistantSidebar(props: {
   assistantMode: ShellAssistantMode;
   isConfigured: boolean;
+  interfaceLocale?: InterfaceLocale;
   account: AccountSummary | null;
   daily: DailySummary | null;
   activity: ActivityHistorySummary | null;
@@ -28,6 +29,7 @@ export function GlobalAssistantSidebar(props: {
   return (
     <AiPage
       isConfigured={props.isConfigured}
+      interfaceLocale={props.interfaceLocale}
       account={props.account}
       daily={props.daily}
       activity={props.activity}

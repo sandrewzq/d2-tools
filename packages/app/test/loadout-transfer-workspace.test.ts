@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
-import {
-  buildMissingLoadoutTransferPlan,
-  describeMissingLoadoutBlockedReason
-} from "../src/workspaces/loadoutTransfer";
+import { buildMissingLoadoutTransferPlan } from "../src/workspaces/loadoutTransfer";
 
 describe("loadout transfer workspace", () => {
   it("builds staged transfer batches for missing loadout items", () => {
@@ -52,17 +49,6 @@ describe("loadout transfer workspace", () => {
         reason: "other-character-equipped"
       })
     ]);
-  });
-
-  it("maps blocked reasons into player-facing guidance", () => {
-    expect(describeMissingLoadoutBlockedReason("other-character-equipped")).toEqual({
-      label: "其他角色已装备",
-      hint: "先去对应角色卸下这件装备，再回来补齐。"
-    });
-    expect(describeMissingLoadoutBlockedReason("missing-instance-id")).toEqual({
-      label: "缺少实例数据",
-      hint: "这件物品当前无法精确定位，刷新账号数据后再试。"
-    });
   });
 });
 

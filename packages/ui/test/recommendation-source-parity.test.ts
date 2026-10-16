@@ -32,6 +32,8 @@ const INSTANCE_ID = "instance-1";
 // 来源名刻意保持两轮相同：它必须不是排序/判定的输入变量。
 const SOURCE_LABEL = "同一来源";
 const RULE_ID = "rule-1";
+// 投影层现在按 copy 出句；本用例只比事实字段，用 zh 侧表即可。
+const recommendationCopy = { inline: vaultCopy["zh-CN"].inline };
 
 function slot(label: string, matched: boolean): RecommendationSourceSlotMatch {
   return {
@@ -109,6 +111,7 @@ function withoutSourceId<T extends { sourceId: string }>(summary: T): Omit<T, "s
 
 function summarize(prefix: SourcePrefix, state: RecommendationSourceMatch["state"]) {
   return buildVaultRecommendationSourceSummaries(
+    recommendationCopy,
     weaponItem(),
     instanceMatch([sourceMatch(prefix, state)])
   );
@@ -118,6 +121,7 @@ describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来�
   it("来源类型互换后，摘要与排序的顺序一致", () => {
     // 两条来源：一条命中、一条未命中。唯一变量是 sourceId 前缀。
     const dimFirst = buildVaultRecommendationSourceSummaries(
+      recommendationCopy,
       weaponItem(),
       instanceMatch([
         sourceMatch("dim", "full"),
@@ -125,6 +129,7 @@ describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来�
       ])
     );
     const csvFirst = buildVaultRecommendationSourceSummaries(
+      recommendationCopy,
       weaponItem(),
       instanceMatch([
         sourceMatch("csv", "full", "doc-2"),
@@ -146,7 +151,7 @@ describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来�
     const factIndex = (prefix: SourcePrefix) => {
       const item = weaponItem();
       const key = getVaultCommunityInstanceKey(item);
-      return buildVaultRecommendationFilterFactIndex(new Map([
+      return buildVaultRecommendationFilterFactIndex(recommendationCopy, new Map([
         [key, summarize(prefix, "full")]
       ]));
     };
@@ -158,8 +163,9 @@ describe("T56 I1：来源事实的判定、筛选、卡片、排序不得按来�
   });
 
   it("同构来源的来源选项逐字段相同，且同一分组键的多条记录收敛成一行", () => {
-    const options = (prefix: SourcePrefix) => buildVaultRecommendationSourceOptions([
+    const options = (prefix: SourcePrefix) => buildVaultRecommendationSourceOptions(recommendationCopy, [
       buildVaultRecommendationSourceSummaries(
+        recommendationCopy,
         weaponItem(),
         // 分组键相同的两条记录。这是**消费层的分组机制**（键相同就并成一行）；
         // 生产端现在是「一个具名来源一个键」，跨格式的粒度由 services 侧的对拍用例钉住。

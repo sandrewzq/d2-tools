@@ -4,20 +4,10 @@ import type { LocalLoadoutPlan } from "@d2-tools/core/loadouts/plans";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import { selectInGameSlotPlanLink } from "./loadoutCrossSource.js";
 import {
-  buildLoadoutCompareRows,
-  isMatchingTemplateItem,
-  isTemplateItemReady,
-  isTemplateItemReadyFromPlan,
-  type LoadoutCompareRow
-} from "./loadoutViewModel.js";
-import {
   buildMissingLoadoutTransferPlan,
-  describeMissingLoadoutBlockedReason,
-  type MissingLoadoutBlockedDescription,
   type MissingLoadoutTransferPlan
 } from "./loadoutTransfer.js";
 import {
-  findBestTemplateSourceItem,
   getAllKnownAccountItemsWithSource,
   type LoadoutSourceItem
 } from "./loadoutSources.js";
@@ -28,11 +18,6 @@ import {
   isArtifactEquipmentBucket,
   isSubclassBucket
 } from "@d2-tools/core/items/classification";
-import {
-  buildLoadoutItemStatus,
-  summarizeLoadoutItemStatuses,
-  type LoadoutItemStatus
-} from "./loadoutItemStatus.js";
 import { getMissingLoadoutActionableCount } from "./loadoutActions.js";
 
 export type LoadoutsPageWorkspace = {
@@ -42,19 +27,13 @@ export type LoadoutsPageWorkspace = {
   compareTemplate: LoadoutTemplate | null;
   selectedAnalysis: LoadoutTemplateAnalysis | null;
   transferPlan: MissingLoadoutTransferPlan | null;
-  statusSummary: Array<{ key: LoadoutItemStatus["summary_key"]; label: string; count: number }>;
-  visibleCompareRows: LoadoutCompareRow[];
   missingCount: number;
-  readyCount: number;
-  actionableCount: number;
 };
 
 export type LoadoutsPageModel = {
   entries: LoadoutEntryView[];
   selectedEntryId: string;
   selectedDetail: LoadoutsSelectedDetailView;
-  riskSummary: LoadoutRiskSummaryView;
-  compare: LoadoutCompareView;
 };
 
 export type LoadoutsPageInput = {
@@ -87,21 +66,21 @@ export type LoadoutEntryView = {
   sourceLink?: { plan_id: string; plan_name: string } | null;
 };
 
-export type LoadoutTemplateItemRowView = {
-  item: LoadoutTemplate["items"][number];
-  status: LoadoutItemStatus;
-  blockedDetails: MissingLoadoutBlockedDescription | null;
-  sourceItem: LoadoutSourceItem | null;
-  transferFeedbackKey: string;
-  equipFeedbackKey: string;
-};
-
 export type InGameLoadoutItemView = AccountSummary["characters"][number]["loadout_slots"][number]["items"][number];
+
+/**
+ * 这件装备在哪。只报位置身份和角色名，不报拼好的显示串：
+ * 「已装备 · 泰坦」这类措辞由界面按 `source_kind` 查表拼。
+ */
+export type InGameItemLocationView =
+  | { kind: "located"; source_kind: LoadoutSourceItem["source_kind"]; character_name?: string }
+  | { kind: "unlocated" }
+  | { kind: "no_instance_id" };
 
 export type InGameLoadoutItemRowView = {
   item: InGameLoadoutItemView;
   locatedItem: LoadoutSourceItem | null;
-  locationLabel: string;
+  location: InGameItemLocationView;
   located: boolean;
   category: "weapon" | "armor" | "subclass" | "artifact" | "other";
   equipped_on_target_character: boolean;
@@ -114,8 +93,6 @@ export type LoadoutsSelectedDetailView =
     template: LoadoutTemplate;
     analysis: LoadoutTemplateAnalysis | null;
     transferPlan: MissingLoadoutTransferPlan | null;
-    statusSummary: Array<{ key: LoadoutItemStatus["summary_key"]; label: string; count: number }>;
-    itemRows: LoadoutTemplateItemRowView[];
   }
   | {
     kind: "in-game-slot";
@@ -132,18 +109,6 @@ export type LoadoutsSelectedDetailView =
     title: string;
     message: string;
   };
-
-export type LoadoutRiskSummaryView = {
-  missingCount: number;
-  readyCount: number;
-  actionableCount: number;
-};
-
-export type LoadoutCompareView = {
-  compareTemplate: LoadoutTemplate | null;
-  options: Array<{ id: string; name: string }>;
-  visibleRows: LoadoutCompareRow[];
-};
 
 export function selectLoadoutsPageModel(input: LoadoutsPageInput): LoadoutsPageModel {
   return createLoadoutsPageWorkspace(input).model;
@@ -169,26 +134,9 @@ export function createLoadoutsPageWorkspace(input: LoadoutsPageInput): LoadoutsP
     })
     : null;
   const actionableCount = transferPlan ? getMissingLoadoutActionableCount(transferPlan) : 0;
-  const readyCount = selectedTemplate && transferPlan
-    ? Math.max(selectedTemplate.items.length - actionableCount - transferPlan.blocked.length, 0)
-    : selectedAnalysis?.equipped.length ?? 0;
   const missingCount = selectedTemplate && transferPlan
     ? actionableCount + transferPlan.blocked.length
     : selectedAnalysis?.missing.length ?? 0;
-  const statuses = selectedTemplate
-    ? selectedTemplate.items.map((item) => getLoadoutItemStatus({
-      item,
-      template: selectedTemplate,
-      selectedAnalysis,
-      transferPlan,
-      accountSummary: input.accountSummary
-    }))
-    : [];
-  const statusSummary = summarizeLoadoutItemStatuses(statuses);
-  const compareRows = selectedTemplate && compareTemplate
-    ? buildLoadoutCompareRows(selectedTemplate, compareTemplate)
-    : [];
-  const visibleCompareRows = input.showDiffOnly ? compareRows.filter((row) => row.changed) : compareRows;
   const loadoutEntries = buildLoadoutEntries({
     accountSummary: input.accountSummary,
     templates: input.templates,
@@ -210,21 +158,8 @@ export function createLoadoutsPageWorkspace(input: LoadoutsPageInput): LoadoutsP
       selectedTemplate,
       selectedAnalysis,
       transferPlan,
-      statusSummary,
       templates: input.templates
-    }),
-    riskSummary: {
-      missingCount,
-      readyCount,
-      actionableCount
-    },
-    compare: {
-      compareTemplate,
-      options: input.templates
-        .filter((template) => template.id !== selectedTemplate?.id)
-        .map((template) => ({ id: template.id, name: template.name })),
-      visibleRows: visibleCompareRows
-    }
+    })
   };
 
   return {
@@ -234,11 +169,7 @@ export function createLoadoutsPageWorkspace(input: LoadoutsPageInput): LoadoutsP
     compareTemplate,
     selectedAnalysis,
     transferPlan,
-    statusSummary,
-    visibleCompareRows,
-    missingCount,
-    readyCount,
-    actionableCount
+    missingCount
   };
 }
 
@@ -262,7 +193,6 @@ function selectLoadoutsSelectedDetail(input: {
   selectedTemplate: LoadoutTemplate | null;
   selectedAnalysis: LoadoutTemplateAnalysis | null;
   transferPlan: MissingLoadoutTransferPlan | null;
-  statusSummary: Array<{ key: LoadoutItemStatus["summary_key"]; label: string; count: number }>;
   templates: LoadoutTemplate[];
 }): LoadoutsSelectedDetailView {
   if (input.selectedEntryId.startsWith("in-game-")) {
@@ -286,14 +216,7 @@ function selectLoadoutsSelectedDetail(input: {
     kind: "local-template",
     template,
     analysis: template.id === input.selectedTemplate?.id ? input.selectedAnalysis : null,
-    transferPlan: template.id === input.selectedTemplate?.id ? input.transferPlan : null,
-    statusSummary: template.id === input.selectedTemplate?.id ? input.statusSummary : [],
-    itemRows: buildLoadoutTemplateItemRows({
-      template,
-      selectedAnalysis: template.id === input.selectedTemplate?.id ? input.selectedAnalysis : null,
-      transferPlan: template.id === input.selectedTemplate?.id ? input.transferPlan : null,
-      accountSummary: input.accountSummary
-    })
+    transferPlan: template.id === input.selectedTemplate?.id ? input.transferPlan : null
   };
 }
 
@@ -339,16 +262,20 @@ function buildInGameLoadoutItemRows(
     const characterName = locatedItem?.source_character_id
       ? characterNames.get(locatedItem.source_character_id)
       : undefined;
-    const locationLabel = locatedItem
-      ? [locatedItem.source_label, characterName].filter(Boolean).join(" · ")
+    const location: InGameItemLocationView = locatedItem
+      ? {
+        kind: "located",
+        source_kind: locatedItem.source_kind,
+        ...(characterName ? { character_name: characterName } : {})
+      }
       : item.instance_id
-        ? "当前账号未定位"
-        : "未提供实例 ID";
+        ? { kind: "unlocated" }
+        : { kind: "no_instance_id" };
 
     return {
       item,
       locatedItem,
-      locationLabel,
+      location,
       located: Boolean(locatedItem),
       category: classifyInGameLoadoutItem(item, locatedItem),
       equipped_on_target_character: Boolean(
@@ -382,43 +309,6 @@ function classifyInGameLoadoutItem(
   // Bungie 原始 CharacterLoadouts 只返回实例 ID 和 Plug Hash；没有账号快照
   // 或 bucket 定义时，不能根据数组顺序猜测这是武器、护甲还是其他槽位。
   return "other";
-}
-
-function buildLoadoutTemplateItemRows(input: {
-  template: LoadoutTemplate;
-  selectedAnalysis: LoadoutTemplateAnalysis | null;
-  transferPlan: MissingLoadoutTransferPlan | null;
-  accountSummary: AccountSummary | null;
-}): LoadoutTemplateItemRowView[] {
-  return input.template.items.map((item) => {
-    const status = getLoadoutItemStatus({
-      item,
-      template: input.template,
-      selectedAnalysis: input.selectedAnalysis,
-      transferPlan: input.transferPlan,
-      accountSummary: input.accountSummary
-    });
-    const blockedDetails = getLoadoutItemBlockedDetails(item, input.transferPlan);
-    const sourceItem = !blockedDetails
-      ? findBestTemplateSourceItem(item, input.accountSummary, input.template.character_id)
-      : null;
-    return {
-      item,
-      status,
-      blockedDetails,
-      sourceItem,
-      transferFeedbackKey: buildLoadoutActionFeedbackKey(input.template.id, item, "transfer"),
-      equipFeedbackKey: buildLoadoutActionFeedbackKey(input.template.id, item, "equip")
-    };
-  });
-}
-
-function buildLoadoutActionFeedbackKey(
-  templateId: string,
-  item: { hash: number; instance_id?: string },
-  action: "transfer" | "equip"
-): string {
-  return `${templateId}:${item.instance_id ?? `hash:${item.hash}`}:${action}`;
 }
 
 function buildLoadoutEntries(input: {
@@ -456,7 +346,8 @@ function buildLoadoutEntries(input: {
         .map((slot): LoadoutEntry => ({
         id: `in-game-${character.character_id}-${slot.index}`,
         source: "in-game",
-        title: slot.name || `配装栏 ${slot.index + 1}`,
+        // 没有名字时报空串，由界面按语言补「配装栏 N」。
+        title: slot.name || "",
         subtitle: `${character.class_name} / 槽位 ${slot.index + 1} / ${slot.item_count} 件装备`,
         statusLabel: "可应用",
         statusTone: "neutral",
@@ -477,35 +368,6 @@ function formatInGameLoadoutSlotPreview(
   items: AccountSummary["characters"][number]["loadout_slots"][number]["items"]
 ): string {
   return items.slice(0, 4).map((item) => item.name).join(" / ") || "当前槽位为空";
-}
-
-export function getLoadoutItemStatus(input: {
-  item: LoadoutTemplate["items"][number];
-  template: LoadoutTemplate;
-  selectedAnalysis: LoadoutTemplateAnalysis | null;
-  transferPlan: MissingLoadoutTransferPlan | null;
-  accountSummary: AccountSummary | null;
-}): LoadoutItemStatus {
-  const isReady = input.transferPlan
-    ? isTemplateItemReadyFromPlan(input.item, input.transferPlan)
-    : isTemplateItemReady(input.item, input.selectedAnalysis);
-  const sourceItem = !isReady
-    ? findBestTemplateSourceItem(input.item, input.accountSummary, input.template.character_id)
-    : null;
-  return buildLoadoutItemStatus({
-    isReady,
-    sourceItem,
-    targetCharacterId: input.template.character_id,
-    accountSummary: input.accountSummary
-  });
-}
-
-export function getLoadoutItemBlockedDetails(
-  item: LoadoutTemplate["items"][number],
-  transferPlan: MissingLoadoutTransferPlan | null
-): MissingLoadoutBlockedDescription | null {
-  const blockedEntry = transferPlan?.blocked.find((entry) => isMatchingTemplateItem(item, entry.item)) ?? null;
-  return blockedEntry ? describeMissingLoadoutBlockedReason(blockedEntry.reason) : null;
 }
 
 function normalizeAccountItemsForCore(

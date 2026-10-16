@@ -1,7 +1,18 @@
 import { homePageFocus, homePageLabels, type HomePageKey } from "@d2-tools/app/home";
+import type { ShellCopy } from "@d2-tools/ui";
 import type { AccountSummary } from "../../../api/types";
 
 export type AssistantPageKey = HomePageKey;
+
+/**
+ * 页面名查表：上下文与会话历史里存的是页面 key（如 `vault`），渲染前用 `shell.navigation` 出文案。
+ * 旧会话记录里这个字段可能还是中文页名字面量（那是已落盘数据），它不会命中 navigation，
+ * 这里原样返回即可 —— 绝不能拿它去当 key 查表，否则会把旧记录显示成空白。
+ */
+export function resolveAssistantPageLabel(shell: ShellCopy, value: string | null | undefined): string {
+  if (!value) return "";
+  return (shell.navigation as Record<string, string>)[value] ?? value;
+}
 
 export type AssistantPageContext = {
   page_key: AssistantPageKey;

@@ -1,6 +1,17 @@
 import { useRef } from "react";
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
+import type { LoadoutSlotActionLabelToken } from "@d2-tools/app/loadouts";
+import {
+  highestPowerMessageText,
+  loadoutActionMessageText,
+  loadoutConfirmText,
+  loadoutSlotActionLabelText,
+  loadoutTemplate,
+  loadoutTemplateNameText,
+  loadoutText,
+  type LoadoutsCopy
+} from "@d2-tools/ui";
 import { api } from "../../api/client";
 import {
   type AccountItemActionPatch,
@@ -26,7 +37,9 @@ import {
 import {
   buildCharacterLoadoutTemplateName,
   buildLoadoutItemActionFailureMessage,
+  buildLoadoutSlotActionCommandLabel,
   buildLoadoutSlotActionConfirmText,
+  buildLoadoutSlotActionFailedMessage,
   buildLoadoutSlotActionLabel,
   buildLoadoutSlotActionProgressMessage,
   buildLoadoutTemplateDeletedMessage,
@@ -73,13 +86,16 @@ export function useLoadoutWriteActions(input: {
   loadoutLibrary: LoadoutLibraryBridge;
   diagnostics: DiagnosticsBridge;
   loadoutActionFeedback: LoadoutActionFeedbackBridge;
-  setLoadoutMessage: (message: string) => void;
+  /** 回执由 app 侧出结构、这里成句，所以钩子要拿到当前语言的配装文案。 */
+  copy: LoadoutsCopy;
+  setLoadoutMessage: (message: string, tone?: "info" | "error") => void;
   setItemActionMessage: (message: string) => void;
   setAccountOperationFeedback: (feedback: AccountOperationFeedbackView | undefined) => void;
   setIsRunningItemAction: (isRunning: boolean) => void;
   applyAcceptedAccountActionPatches: (patches: readonly AccountItemActionPatch[]) => void;
   openItemDetail: (item: AccountItemSummary, source?: SelectedItemSource) => void | Promise<void>;
 }) {
+  const copy = input.copy;
   // 配装页可能从模板条目、迁移计划等多个入口同时打开同一实例。
   // 共享详情 hook 已负责跨页面缓存和 in-flight 去重，这里再挡住本 feature
   // 内重复的 open 调用，避免快速连点导致弹层状态反复切换或重复启动读取。
@@ -124,16 +140,21 @@ export function useLoadoutWriteActions(input: {
         phase: options.failedCount || options.requiresFullRefresh ? "partial-confirmed" : "confirmed",
         itemInstanceIds: patches.map((patch) => patch.item_instance_id),
         message: options.failedCount
-          ? `已应用 ${patches.length} 项变化，另有 ${options.failedCount} 项失败。`
+          ? loadoutTemplate(copy, "已应用 {applied} 项变化，另有 {failed} 项失败。", {
+              applied: patches.length,
+              failed: options.failedCount
+            })
           : options.requiresFullRefresh
-            ? `已应用 ${patches.length} 项变化；其余已受理变化会在下次账号同步后显示。`
-            : `已应用 ${patches.length} 项变化。`
+            ? loadoutTemplate(copy, "已应用 {applied} 项变化；其余已受理变化会在下次账号同步后显示。", {
+                applied: patches.length
+              })
+            : loadoutTemplate(copy, "已应用 {applied} 项变化。", { applied: patches.length })
       });
     } else if (options.requiresFullRefresh) {
       input.setAccountOperationFeedback({
         tone: "warning",
         phase: "partial-confirmed",
-        message: "写入已由 Bungie 受理；页面会在下次账号同步时校准。"
+        message: loadoutText(copy, "写入已由 Bungie 受理；页面会在下次账号同步时校准。")
       });
     }
     void input.diagnostics.loadActionLog().catch(() => undefined);
@@ -143,15 +164,18 @@ export function useLoadoutWriteActions(input: {
     input.setLoadoutMessage("");
     try {
       const template = await api.createLoadoutTemplate({
-        name: buildCharacterLoadoutTemplateName(character),
+        name: loadoutTemplateNameText(copy, buildCharacterLoadoutTemplateName(character)),
         character_id: character.character_id,
         class_name: character.class_name,
         equipped_items: character.equipped_items
       });
       await input.loadoutLibrary.reloadTemplates();
-      input.setLoadoutMessage(buildSaveCharacterLoadoutSuccessMessage(template.name));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSaveCharacterLoadoutSuccessMessage(template.name)));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "配装模板保存失败");
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutText(copy, "配装模板保存失败"),
+        "error"
+      );
     }
   }
 
@@ -161,7 +185,7 @@ export function useLoadoutWriteActions(input: {
       const template = await api.createLoadoutTemplate({
         name: draft.name,
         character_id: draft.character_id,
-        class_name: draft.class_name ?? "未知职业",
+        class_name: draft.class_name ?? loadoutText(copy, "未知职业"),
         equipped_items: draft.items.map((item) => ({
           hash: item.hash,
           instance_id: item.instance_id,
@@ -173,19 +197,22 @@ export function useLoadoutWriteActions(input: {
         }))
       });
       await input.loadoutLibrary.reloadTemplates();
-      input.setLoadoutMessage(`已保存攻略草稿：${template.name}`);
+      input.setLoadoutMessage(loadoutTemplate(copy, "已保存攻略草稿：{name}", { name: template.name }));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "攻略草稿保存失败");
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutText(copy, "攻略草稿保存失败"),
+        "error"
+      );
     }
   }
 
   async function equipHighestPowerItems(character: AccountSummary["characters"][number]) {
     input.setLoadoutMessage("");
-    input.setItemActionMessage("正在提交最高光等装备请求...");
+    input.setItemActionMessage(loadoutText(copy, "正在提交最高光等装备请求..."));
     input.setAccountOperationFeedback({
       tone: "pending",
       phase: "submitting",
-      message: "正在提交最高光等装备请求..."
+      message: loadoutText(copy, "正在提交最高光等装备请求...")
     });
     input.setIsRunningItemAction(true);
     let hasSuccessfulWrite = false;
@@ -195,15 +222,15 @@ export function useLoadoutWriteActions(input: {
     try {
       const account = input.accountSummary;
       if (!account) {
-        const message = "当前没有可用账号数据，未执行最高光等写操作。";
-        input.setLoadoutMessage(message);
+        const message = loadoutText(copy, "当前没有可用账号数据，未执行最高光等写操作。");
+        input.setLoadoutMessage(message, "error");
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
       const targetCharacter = account.characters.find((entry) => entry.character_id === character.character_id);
       if (!targetCharacter) {
-        const message = "当前账号数据中找不到目标角色，未执行最高光等写操作。";
-        input.setLoadoutMessage(message);
+        const message = loadoutText(copy, "当前账号数据中找不到目标角色，未执行最高光等写操作。");
+        input.setLoadoutMessage(message, "error");
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
@@ -213,7 +240,7 @@ export function useLoadoutWriteActions(input: {
       });
       const executionPlan = createHighestPowerExecutionPlan(plan);
       if (!plan.executable_items.length) {
-        const message = buildHighestPowerAlreadyOptimalMessage(targetCharacter.class_name);
+        const message = highestPowerMessageText(copy, buildHighestPowerAlreadyOptimalMessage(targetCharacter.class_name));
         input.setLoadoutMessage(message);
         input.setAccountOperationFeedback({ tone: "success", phase: "confirmed", message });
         return;
@@ -226,7 +253,7 @@ export function useLoadoutWriteActions(input: {
       let firstFailureReason: string | undefined;
 
       if (executionPlan.transfer_items.length) {
-        const message = buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length);
+        const message = highestPowerMessageText(copy, buildHighestPowerTransferProgressMessage(executionPlan.transfer_items.length));
         input.setItemActionMessage(message);
         input.setAccountOperationFeedback({ tone: "pending", phase: "submitting", message });
         if (executionPlan.transfer_items.length === 1) {
@@ -285,7 +312,7 @@ export function useLoadoutWriteActions(input: {
       ));
 
       if (equipItems.length) {
-        const message = buildHighestPowerEquipProgressMessage(equipItems.length);
+        const message = highestPowerMessageText(copy, buildHighestPowerEquipProgressMessage(equipItems.length));
         input.setItemActionMessage(message);
         input.setAccountOperationFeedback({ tone: "pending", phase: "submitting", message });
         if (equipItems.length === 1) {
@@ -351,14 +378,16 @@ export function useLoadoutWriteActions(input: {
           }))
       ];
       if (!finalExpectedPatches.length) {
-        const reason = firstFailureReason ? `首个失败原因：${firstFailureReason}` : "请在设置页查看操作日志。";
-        const message = `最高光等执行失败：没有写入请求被受理。${reason}`;
-        input.setLoadoutMessage(message);
+        const reason = firstFailureReason
+          ? loadoutTemplate(copy, "首个失败原因：{reason}", { reason: firstFailureReason })
+          : loadoutText(copy, "请在设置页查看操作日志。");
+        const message = loadoutTemplate(copy, "最高光等执行失败：没有写入请求被受理。{reason}", { reason });
+        input.setLoadoutMessage(message, "error");
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
         return;
       }
 
-      const resultMessage = buildHighestPowerResultMessage({
+      const resultMessage = highestPowerMessageText(copy, buildHighestPowerResultMessage({
         characterClassName: targetCharacter.class_name,
         transferSuccessCount: transferAcceptedCount,
         transferTotalCount: executionPlan.transfer_items.length,
@@ -366,7 +395,7 @@ export function useLoadoutWriteActions(input: {
         equipTotalCount: equipItems.length,
         failedCount: failedSteps,
         failureReason: firstFailureReason
-      });
+      }));
       input.setLoadoutMessage(resultMessage);
       input.setAccountOperationFeedback({
         tone: failedSteps > 0 ? "warning" : "success",
@@ -375,12 +404,15 @@ export function useLoadoutWriteActions(input: {
         message: resultMessage
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "装备最高光等失败";
+      const message = error instanceof Error ? error.message : loadoutText(copy, "装备最高光等失败");
       const finalAcceptedPatches = collapseAccountWritePatches(acceptedWritePatches);
       if (finalAcceptedPatches.length) {
         applyAcceptedAccountPatches(finalAcceptedPatches);
-        const partialMessage = `最高光等已应用 ${finalAcceptedPatches.length} 项变化；后续步骤失败：${message}`;
-        input.setLoadoutMessage(partialMessage);
+        const partialMessage = loadoutTemplate(copy, "最高光等已应用 {applied} 项变化；后续步骤失败：{error}", {
+          applied: finalAcceptedPatches.length,
+          error: message
+        });
+        input.setLoadoutMessage(partialMessage, "error");
         input.setAccountOperationFeedback({
           tone: "warning",
           phase: "partial-confirmed",
@@ -388,7 +420,7 @@ export function useLoadoutWriteActions(input: {
           message: partialMessage
         });
       } else {
-        input.setLoadoutMessage(message);
+        input.setLoadoutMessage(message, "error");
         input.setAccountOperationFeedback({ tone: "error", phase: "failed", message });
       }
     } finally {
@@ -409,19 +441,19 @@ export function useLoadoutWriteActions(input: {
   async function runLoadoutWriteAction(
     character: AccountSummary["characters"][number],
     slot: AccountSummary["characters"][number]["loadout_slots"][number],
-    label: string,
+    label: LoadoutSlotActionLabelToken,
     run: () => Promise<ItemActionResult>,
     expectedPatches: readonly AccountItemActionPatch[] = []
   ) {
     input.setLoadoutMessage("");
-    input.setItemActionMessage(buildLoadoutSlotActionProgressMessage(label));
+    input.setItemActionMessage(loadoutActionMessageText(copy, buildLoadoutSlotActionProgressMessage(label)));
 
-    if (!window.confirm(buildLoadoutSlotActionConfirmText({
+    if (!window.confirm(loadoutConfirmText(copy, buildLoadoutSlotActionConfirmText({
       label,
       characterClassName: character.class_name,
       slotName: slot.name,
       slotIndex: slot.index
-    }))) {
+    })))) {
       return;
     }
 
@@ -431,14 +463,17 @@ export function useLoadoutWriteActions(input: {
       const outcome = applySuccessfulWriteResult(result);
       const patches = [...outcome.patches, ...expectedPatches];
       input.setLoadoutMessage(patches.length
-        ? `${result.message}，页面已更新。`
-        : "写入请求已受理；页面会在下次账号同步时校准。");
+        ? loadoutTemplate(copy, "{message}，页面已更新。", { message: result.message })
+        : loadoutText(copy, "写入请求已受理；页面会在下次账号同步时校准。"));
       finishAcceptedWriteActions({
         requiresFullRefresh: outcome.requiresFullRefresh,
         patches
       });
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : `${label}失败`);
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutActionMessageText(copy, buildLoadoutSlotActionFailedMessage(label)),
+        "error"
+      );
       await input.diagnostics.loadActionLog();
     } finally {
       input.setIsRunningItemAction(false);
@@ -494,7 +529,7 @@ export function useLoadoutWriteActions(input: {
     await runLoadoutWriteAction(
       character,
       slot,
-      "清空游戏内配装栏",
+      buildLoadoutSlotActionCommandLabel("clear"),
       () => api.clearLoadout({
         membership_type: input.accountSummary?.membership_type ?? 0,
         character_id: character.character_id,
@@ -512,7 +547,7 @@ export function useLoadoutWriteActions(input: {
     await runLoadoutWriteAction(
       character,
       slot,
-      "更新游戏内配装标识",
+      buildLoadoutSlotActionCommandLabel("update-identifiers"),
       () => api.updateLoadoutIdentifiers({
         membership_type: input.accountSummary?.membership_type ?? 0,
         character_id: character.character_id,
@@ -528,9 +563,12 @@ export function useLoadoutWriteActions(input: {
   async function deleteLoadoutTemplate(id: string) {
     try {
       await input.loadoutLibrary.deleteTemplate(id);
-      input.setLoadoutMessage(buildLoadoutTemplateDeletedMessage());
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateDeletedMessage()));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "删除配装模板失败");
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutText(copy, "删除配装模板失败"),
+        "error"
+      );
     }
   }
 
@@ -538,9 +576,12 @@ export function useLoadoutWriteActions(input: {
     input.setLoadoutMessage("");
     try {
       const renamed = await input.loadoutLibrary.renameTemplate(template);
-      input.setLoadoutMessage(buildLoadoutTemplateRenamedMessage(renamed.name));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateRenamedMessage(renamed.name)));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "本地方案重命名失败");
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutText(copy, "本地方案重命名失败"),
+        "error"
+      );
     }
   }
 
@@ -550,7 +591,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     void analysis;
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先同步装备数据。");
+      input.setLoadoutMessage(loadoutText(copy, "请先同步装备数据。"), "error");
       return;
     }
     const account = input.accountSummary;
@@ -558,7 +599,7 @@ export function useLoadoutWriteActions(input: {
     const targetCharacter = account.characters.find((character) => character.character_id === template.character_id)
       ?? account.characters[0];
     if (!targetCharacter) {
-      input.setLoadoutMessage("没有可用角色，无法转移缺失件。");
+      input.setLoadoutMessage(loadoutText(copy, "没有可用角色，无法转移缺失件。"), "error");
       return;
     }
 
@@ -569,21 +610,21 @@ export function useLoadoutWriteActions(input: {
     });
     const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
-      input.setLoadoutMessage(buildMissingLoadoutNoActionMessage(transferPlan));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildMissingLoadoutNoActionMessage(transferPlan)));
       return;
     }
 
-    if (!window.confirm(buildMissingLoadoutConfirmText({
+    if (!window.confirm(loadoutConfirmText(copy, buildMissingLoadoutConfirmText({
       targetCharacterClassName: targetCharacter.class_name,
       actionableItemCount,
       transferPlan
-    }))) {
-      input.setLoadoutMessage("已取消缺失件转移。");
+    })))) {
+      input.setLoadoutMessage(loadoutText(copy, "已取消缺失件转移。"));
       return;
     }
 
     input.setIsRunningItemAction(true);
-    input.setItemActionMessage(buildMissingLoadoutPrepareMessage(actionableItemCount));
+    input.setItemActionMessage(loadoutActionMessageText(copy, buildMissingLoadoutPrepareMessage(actionableItemCount)));
     let hasSuccessfulWrite = false;
     let requiresFullRefresh = false;
     let operationFailed = false;
@@ -595,7 +636,7 @@ export function useLoadoutWriteActions(input: {
       let prepStepCount = 0;
       for (const step of transferPlan.steps) {
         if (step.phase === "equip-swap") {
-          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
+          input.setItemActionMessage(loadoutActionMessageText(copy, buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name)));
           const equipResult = await api.batchEquipItems({
             membership_type: account.membership_type,
             character_id: step.character_id,
@@ -613,13 +654,13 @@ export function useLoadoutWriteActions(input: {
           acceptedPatches.push(...outcome.patches);
 
           if (equipResult.failed_count > 0) {
-            throw new Error(equipResult.message || "替代装备装备失败，请检查来源角色装备状态后重试。");
+            throw new Error(equipResult.message || loadoutText(copy, "替代装备装备失败，请检查来源角色装备状态后重试。"));
           }
           prepStepCount += equipResult.success_count;
           continue;
         }
         if (step.phase === "pull-postmaster") {
-          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
+          input.setItemActionMessage(loadoutActionMessageText(copy, buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name)));
           for (const item of step.items) {
             const result = await api.pullFromPostmaster({
               membership_type: account.membership_type,
@@ -638,7 +679,7 @@ export function useLoadoutWriteActions(input: {
           continue;
         }
         if (step.phase === "equip-target") {
-          input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
+          input.setItemActionMessage(loadoutActionMessageText(copy, buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name)));
           const equipResult = await api.batchEquipItems({
             membership_type: account.membership_type,
             character_id: step.character_id,
@@ -657,11 +698,11 @@ export function useLoadoutWriteActions(input: {
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
-            throw new Error(equipResult.message || "方案装备自动穿戴失败，请检查当前角色状态后重试。");
+            throw new Error(equipResult.message || loadoutText(copy, "方案装备自动穿戴失败，请检查当前角色状态后重试。"));
           }
           continue;
         }
-        input.setItemActionMessage(buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name));
+        input.setItemActionMessage(loadoutActionMessageText(copy, buildMissingLoadoutStepProgressMessage(step, targetCharacter.class_name)));
 
         const result = await api.batchTransferItems({
           membership_type: account.membership_type,
@@ -686,19 +727,22 @@ export function useLoadoutWriteActions(input: {
         }
 
         if (result.failed_count > 0) {
-          throw new Error(result.message || "缺失件转移未全部成功，请检查物品状态后重试。");
+          throw new Error(result.message || loadoutText(copy, "缺失件转移未全部成功，请检查物品状态后重试。"));
         }
       }
-      const resultSummary = buildMissingLoadoutResultMessage({
+      const resultSummary = loadoutActionMessageText(copy, buildMissingLoadoutResultMessage({
         targetTransferCount,
         autoEquipCount,
         prepStepCount,
         blockedCount: transferPlan.blocked.length
-      });
-      input.setLoadoutMessage(`${resultSummary} 页面已更新。`);
+      }));
+      input.setLoadoutMessage(loadoutTemplate(copy, "{message} 页面已更新。", { message: resultSummary }));
     } catch (error) {
       operationFailed = true;
-      input.setLoadoutMessage(error instanceof Error ? error.message : "缺失件转移失败");
+      input.setLoadoutMessage(
+        error instanceof Error ? error.message : loadoutText(copy, "缺失件转移失败"),
+        "error"
+      );
     } finally {
       if (hasSuccessfulWrite) finishAcceptedWriteActions({
         requiresFullRefresh,
@@ -716,7 +760,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "transfer");
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先同步装备数据。");
+      input.setLoadoutMessage(loadoutText(copy, "请先同步装备数据。"), "error");
       return;
     }
     const account = input.accountSummary;
@@ -724,7 +768,7 @@ export function useLoadoutWriteActions(input: {
     const targetCharacter = account.characters.find((character) => character.character_id === template.character_id)
       ?? account.characters[0];
     if (!targetCharacter) {
-      input.setLoadoutMessage(buildSingleLoadoutTransferNoTargetMessage());
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutTransferNoTargetMessage()), "error");
       return;
     }
 
@@ -735,22 +779,22 @@ export function useLoadoutWriteActions(input: {
     });
     const actionableItemCount = getMissingLoadoutActionableCount(transferPlan);
     if (!actionableItemCount) {
-      input.setLoadoutMessage(buildSingleLoadoutTransferNoActionMessage({
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutTransferNoActionMessage({
         itemName: item.name,
         transferPlan
-      }));
+      })));
       return;
     }
 
-    if (!window.confirm(buildSingleLoadoutTransferConfirmText(item.name))) {
-      input.setLoadoutMessage(buildSingleLoadoutTransferCancelledMessage());
+    if (!window.confirm(loadoutConfirmText(copy, buildSingleLoadoutTransferConfirmText(item.name)))) {
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutTransferCancelledMessage()));
       return;
     }
 
     input.setIsRunningItemAction(true);
     input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "pending");
-    input.setItemActionMessage(buildSingleLoadoutTransferStartMessage(item.name));
-    input.setLoadoutMessage(buildSingleLoadoutTransferStartMessage(item.name));
+    input.setItemActionMessage(loadoutActionMessageText(copy, buildSingleLoadoutTransferStartMessage(item.name)));
+    input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutTransferStartMessage(item.name)));
     let actionSucceeded = false;
     let hasSuccessfulWrite = false;
     let requiresFullRefresh = false;
@@ -762,11 +806,11 @@ export function useLoadoutWriteActions(input: {
       let prepStepCount = 0;
       for (const step of transferPlan.steps) {
         if (step.phase === "equip-swap") {
-          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+          const stepMessage = loadoutActionMessageText(copy, buildSingleLoadoutTransferStepProgressMessage({
             step,
             itemName: item.name,
             targetCharacterClassName: targetCharacter.class_name
-          });
+          }));
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
@@ -786,18 +830,18 @@ export function useLoadoutWriteActions(input: {
           acceptedPatches.push(...outcome.patches);
 
           if (equipResult.failed_count > 0) {
-            throw new Error(equipResult.message || "来源角色替换装备失败，请稍后重试。");
+            throw new Error(equipResult.message || loadoutText(copy, "来源角色替换装备失败，请稍后重试。"));
           }
           prepStepCount += equipResult.success_count;
           continue;
         }
 
         if (step.phase === "pull-postmaster") {
-          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+          const stepMessage = loadoutActionMessageText(copy, buildSingleLoadoutTransferStepProgressMessage({
             step,
             itemName: item.name,
             targetCharacterClassName: targetCharacter.class_name
-          });
+          }));
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           for (const entry of step.items) {
@@ -819,11 +863,11 @@ export function useLoadoutWriteActions(input: {
         }
 
         if (step.phase === "equip-target") {
-          const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+          const stepMessage = loadoutActionMessageText(copy, buildSingleLoadoutTransferStepProgressMessage({
             step,
             itemName: item.name,
             targetCharacterClassName: targetCharacter.class_name
-          });
+          }));
           input.setItemActionMessage(stepMessage);
           input.setLoadoutMessage(stepMessage);
           const equipResult = await api.batchEquipItems({
@@ -844,16 +888,16 @@ export function useLoadoutWriteActions(input: {
 
           autoEquipCount += equipResult.success_count;
           if (equipResult.failed_count > 0) {
-            throw new Error(equipResult.message || "目标角色装备失败，请稍后重试。");
+            throw new Error(equipResult.message || loadoutText(copy, "目标角色装备失败，请稍后重试。"));
           }
           continue;
         }
 
-        const stepMessage = buildSingleLoadoutTransferStepProgressMessage({
+        const stepMessage = loadoutActionMessageText(copy, buildSingleLoadoutTransferStepProgressMessage({
           step,
           itemName: item.name,
           targetCharacterClassName: targetCharacter.class_name
-        });
+        }));
         input.setItemActionMessage(stepMessage);
         input.setLoadoutMessage(stepMessage);
 
@@ -881,20 +925,25 @@ export function useLoadoutWriteActions(input: {
         }
 
         if (result.failed_count > 0) {
-          throw new Error(result.message || "单件补齐未全部成功，请检查物品状态后重试。");
+          throw new Error(result.message || loadoutText(copy, "单件补齐未全部成功，请检查物品状态后重试。"));
         }
       }
 
-      const resultSummary = buildSingleLoadoutTransferResultMessage({
+      const resultSummary = loadoutActionMessageText(copy, buildSingleLoadoutTransferResultMessage({
         itemName: item.name,
         targetTransferCount,
         autoEquipCount,
         prepStepCount
-      });
-      input.setLoadoutMessage(`${resultSummary} 页面已更新。`);
+      }));
+      input.setLoadoutMessage(loadoutTemplate(copy, "{message} 页面已更新。", { message: resultSummary }));
       actionSucceeded = true;
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("transfer", item.name));
+      input.setLoadoutMessage(
+        error instanceof Error
+          ? error.message
+          : loadoutActionMessageText(copy, buildLoadoutItemActionFailureMessage("transfer", item.name)),
+        "error"
+      );
     } finally {
       if (hasSuccessfulWrite) finishAcceptedWriteActions({
         requiresFullRefresh,
@@ -913,30 +962,30 @@ export function useLoadoutWriteActions(input: {
   ) {
     const feedbackKey = buildLoadoutActionFeedbackKey(template.id, item, "equip");
     if (!input.accountSummary) {
-      input.setLoadoutMessage("请先同步装备数据。");
+      input.setLoadoutMessage(loadoutText(copy, "请先同步装备数据。"), "error");
       return;
     }
     const account = input.accountSummary;
 
     const sourceItem = findBestTemplateSourceItem(item, account, template.character_id);
     if (!sourceItem?.instance_id) {
-      input.setLoadoutMessage(buildSingleLoadoutEquipMissingSourceMessage(item.name));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutEquipMissingSourceMessage(item.name)), "error");
       return;
     }
     if (sourceItem.source_kind !== "inventory" || sourceItem.source_character_id !== template.character_id) {
-      input.setLoadoutMessage(buildSingleLoadoutEquipWrongLocationMessage(item.name));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutEquipWrongLocationMessage(item.name)), "error");
       return;
     }
 
-    if (!window.confirm(buildSingleLoadoutEquipConfirmText(item.name))) {
-      input.setLoadoutMessage("已取消单件装备。");
+    if (!window.confirm(loadoutConfirmText(copy, buildSingleLoadoutEquipConfirmText(item.name)))) {
+      input.setLoadoutMessage(loadoutText(copy, "已取消单件装备。"));
       return;
     }
 
     input.setIsRunningItemAction(true);
     input.loadoutActionFeedback.setSingleActionFeedback(feedbackKey, "pending");
-    input.setItemActionMessage(buildSingleLoadoutEquipProgressMessage(item.name));
-    input.setLoadoutMessage(buildSingleLoadoutEquipProgressMessage(item.name));
+    input.setItemActionMessage(loadoutActionMessageText(copy, buildSingleLoadoutEquipProgressMessage(item.name)));
+    input.setLoadoutMessage(loadoutActionMessageText(copy, buildSingleLoadoutEquipProgressMessage(item.name)));
     try {
       const result = await api.equipItem({
         membership_type: account.membership_type,
@@ -950,10 +999,15 @@ export function useLoadoutWriteActions(input: {
         patches: outcome.patches
       });
       input.setLoadoutMessage(outcome.patches.length
-        ? `${result.message}，页面已更新。`
-        : "写入请求已受理；页面会在下次账号同步时校准。");
+        ? loadoutTemplate(copy, "{message}，页面已更新。", { message: result.message })
+        : loadoutText(copy, "写入请求已受理；页面会在下次账号同步时校准。"));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : buildLoadoutItemActionFailureMessage("equip", item.name));
+      input.setLoadoutMessage(
+        error instanceof Error
+          ? error.message
+          : loadoutActionMessageText(copy, buildLoadoutItemActionFailureMessage("equip", item.name)),
+        "error"
+      );
     } finally {
       input.setIsRunningItemAction(false);
       input.setItemActionMessage("");
@@ -967,7 +1021,7 @@ export function useLoadoutWriteActions(input: {
   ) {
     const matchedItem = findBestTemplateSourceItem(item, input.accountSummary, templateCharacterId);
     if (!matchedItem) {
-      input.setLoadoutMessage(`没有找到「${item.name}」的可用来源。`);
+      input.setLoadoutMessage(loadoutTemplate(copy, "没有找到「{item}」的可用来源。", { item: item.name }), "error");
       return;
     }
 

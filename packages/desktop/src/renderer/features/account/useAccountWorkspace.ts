@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { loadAccountWorkspace, loadAccountDerivedWorkspace } from "@d2-tools/app/account";
+import { accountTemplate, accountText, getLocaleCopy, type AccountCopy, type InterfaceLocale } from "@d2-tools/ui";
 import type { VaultRecommendationScanState } from "@d2-tools/app/account";
 import {
   api } from "../../api/client";
@@ -31,6 +32,9 @@ export function useAccountWorkspace(input: {
   onLoginComplete: () => void;
   onManifestInitialized: () => void;
 }) {
+  // 状态条回执跟随界面语言；落盘快照与 Bungie 返回的原文不在这里翻译。
+  const locale = input.state.languagePreferences.interfaceLocale;
+  const copy = getLocaleCopy(locale).account;
   const [loginMessage, setLoginMessage] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -83,8 +87,12 @@ export function useAccountWorkspace(input: {
         setIsShowingCachedAccount(true);
         const cachedAt = new Date(cached.saved_at);
         setLastAccountLoadedAt(Number.isNaN(cachedAt.getTime()) ? null : cachedAt);
-        setAccountSyncMessage(`正在显示 ${formatCachedTime(cached.saved_at)} 的本地缓存`);
-        setActivityMessage(`正在显示上次装备数据（${formatCachedTime(cached.saved_at)}）；本次同步完成后页面会自动更新`);
+        setAccountSyncMessage(accountTemplate(copy, "正在显示 {time} 的本地缓存", {
+          time: formatCachedTime(cached.saved_at, copy, locale)
+        }));
+        setActivityMessage(accountTemplate(copy, "正在显示上次装备数据（{time}）；本次同步完成后页面会自动更新", {
+          time: formatCachedTime(cached.saved_at, copy, locale)
+        }));
       })
       .catch(() => undefined);
     return () => {
@@ -179,7 +187,7 @@ export function useAccountWorkspace(input: {
       await input.diagnostics.refreshDiagnostics();
       await refreshAccountSnapshot("initial");
     } catch (error) {
-      setLoginError(formatBungieLoginError(error));
+      setLoginError(formatBungieLoginError(error, copy));
     } finally {
       setIsLoggingIn(false);
     }
@@ -192,11 +200,13 @@ export function useAccountWorkspace(input: {
 
     try {
       const status = await api.initializeManifest();
-      setManifestMessage(`资料库已初始化：${status.version ?? "未知版本"}`);
+      setManifestMessage(accountTemplate(copy, "资料库已初始化：{version}", {
+        version: status.version ?? accountText(copy, "未知版本")
+      }));
       input.onManifestInitialized();
       await input.diagnostics.refreshDiagnostics();
     } catch (error) {
-      setManifestError(error instanceof Error ? error.message : "资料库初始化失败");
+      setManifestError(error instanceof Error ? error.message : accountText(copy, "资料库初始化失败"));
     } finally {
       setIsInitializingManifest(false);
     }
@@ -209,7 +219,7 @@ export function useAccountWorkspace(input: {
     // 覆盖页面。主进程负责把权威请求排到已有 in-flight 请求之后。
     setAccountError("");
     const previousSummary = getAccountSummarySnapshot();
-    if (reason === "manual") setAccountSyncMessage("正在同步角色装备、背包、仓库和配装");
+    if (reason === "manual") setAccountSyncMessage(accountText(copy, "正在同步角色装备、背包、仓库和配装"));
     // 初次读取和用户手动同步属于可见的前台动作；定时、回到前台和
     // 写操作触发的同步都在后台完成，不占用手动同步按钮的忙碌状态。
     const foreground = reason === "initial" || reason === "manual";
@@ -246,7 +256,7 @@ export function useAccountWorkspace(input: {
           if (workspace.status !== "success") {
             // 抛错误对象本身而不是新造一个：`code` / `causeCategory` 是判断
             // 「到底是不是登录失效」的唯一依据，只传 message 会把它们丢掉（Bug #88）。
-            throw workspace.error ?? new Error("账号数据读取失败");
+            throw workspace.error ?? new Error(accountText(copy, "账号数据读取失败"));
           }
           summary = workspace.data.account;
           setVaultTags(workspace.data.tags);
@@ -255,7 +265,9 @@ export function useAccountWorkspace(input: {
           setImportedWishlist(workspace.data.wishlist);
           hasLoadedLocalAccountDataRef.current = true;
           setAccountWarning(workspace.data.warnings.length
-            ? `本地增强数据读取失败：${formatAccountWorkspaceWarnings(workspace.data.warnings)}`
+            ? accountTemplate(copy, "本地增强数据读取失败：{warnings}", {
+                warnings: formatAccountWorkspaceWarnings(workspace.data.warnings, copy)
+              })
             : "");
         } else {
           summary = await api.getAccountSummary({
@@ -271,7 +283,7 @@ export function useAccountWorkspace(input: {
           reason === "manual" || reason === "write-action"
         );
         if (!acceptedSummary) {
-          throw new Error("同步返回的账号快照早于页面当前状态，本次结果未应用");
+          throw new Error(accountText(copy, "同步返回的账号快照早于页面当前状态，本次结果未应用"));
         }
         summary = acceptedSummary;
         // 完整账号同步是受理状态唯一的合法覆盖者（T78）：窗口内写进来的同步不动它，
@@ -280,7 +292,7 @@ export function useAccountWorkspace(input: {
         setIsShowingCachedAccount(false);
         setLastAccountLoadedAt(new Date());
         if (reason === "manual") {
-          setAccountSyncMessage(formatAccountSyncMessage(previousSummary, summary, reason));
+          setAccountSyncMessage(formatAccountSyncMessage(previousSummary, summary, reason, copy));
         } else if (reason === "initial" || reason === "auto") {
           // 初始与静默同步只更新数据和时间，不保留绿色成功横幅。
           // 玩家刚完成的单件操作因此不会与历史同步成功提示重复。
@@ -300,16 +312,16 @@ export function useAccountWorkspace(input: {
             covered_weapon_count: [...vaultRecommendationCardSummary.values()].filter((item) => item.coverage === "covered").length,
             retained_result_count: vaultRecommendationCardSummary.size,
             message: vaultRecommendationCardSummary.size
-              ? "装备数据已更新，当前暂时显示上次推荐结果，后台正在按变化实例重新核对。"
+              ? accountText(copy, "装备数据已更新，当前暂时显示上次推荐结果，后台正在按变化实例重新核对。")
               : undefined
           }));
         }
         if (reason === "initial" || reason === "manual") {
           setActivityMessage(reason === "manual"
             ? hasSameProfileVersion(previousSummary, summary)
-              ? "装备数据已同步，游戏中的内容没有变化"
-              : "装备数据已从游戏更新"
-            : "装备数据已同步，最近活动会继续在后台读取");
+              ? accountText(copy, "装备数据已同步，游戏中的内容没有变化")
+              : accountText(copy, "装备数据已从游戏更新")
+            : accountText(copy, "装备数据已同步，最近活动会继续在后台读取"));
         }
         if (reason === "initial") void refreshAccountDerivedData(summary);
         // 推荐核对只依赖武器实例与 Roll。取出、存入、装备和锁定只改变
@@ -320,15 +332,18 @@ export function useAccountWorkspace(input: {
         return summary;
       } catch (error) {
         if (requestSequence !== accountRequestSequenceRef.current) return null;
-        const resolvedMessage = formatAccountLoadFailure(input.state, error);
+        const resolvedMessage = formatAccountLoadFailure(input.state, error, copy);
         if (getAccountSummarySnapshot()) {
           if (reason === "auto") {
-            setAccountSyncMessage("自动同步暂时失败，继续显示上次装备数据");
+            setAccountSyncMessage(accountText(copy, "自动同步暂时失败，继续显示上次装备数据"));
             return null;
           }
           setIsShowingCachedAccount(true);
-          if (reason !== "write-action") setAccountSyncMessage("同步失败，继续显示上次账号数据");
-          setAccountError(`${formatAccountRefreshFailurePrefix(reason)}，仍显示上次装备数据。${resolvedMessage}`);
+          if (reason !== "write-action") setAccountSyncMessage(accountText(copy, "同步失败，继续显示上次账号数据"));
+          setAccountError(accountTemplate(copy, "{prefix}，仍显示上次装备数据。{message}", {
+            prefix: formatAccountRefreshFailurePrefix(reason, copy),
+            message: resolvedMessage
+          }));
         } else {
           setAccountError(resolvedMessage);
           setAccountSummaryState(null);
@@ -362,12 +377,12 @@ export function useAccountWorkspace(input: {
     if (requestSequence !== derivedRequestSequenceRef.current) return;
     if (derived.status === "success") {
       setActivitySummary(derived.data.activitySummary);
-      setActivityMessage(derived.data.activitySummary ? "最近活动已更新" : "");
+      setActivityMessage(derived.data.activitySummary ? accountText(copy, "最近活动已更新") : "");
       return;
     }
 
     setActivitySummary(null);
-    setActivityError(derived.error?.message ?? "最近活动读取失败");
+    setActivityError(derived.error?.message ?? accountText(copy, "最近活动读取失败"));
   }
 
   async function loadVaultCommunityMatch(
@@ -399,10 +414,15 @@ export function useAccountWorkspace(input: {
       retained_result_count: retainedResultCount,
       started_at: startedAt,
       message: affectedWeaponHashes
-        ? `推荐规则已变化，正在重新核对 ${scopedWeaponCount} 件受影响武器；其他结果保持不变。`
+        ? accountTemplate(copy, "推荐规则已变化，正在重新核对 {count} 件受影响武器；其他结果保持不变。", {
+            count: scopedWeaponCount
+          })
         : retainedResultCount
-          ? `正在重新核对 ${totalWeaponCount} 件账号武器，暂时保留上次 ${retainedResultCount} 件结果。`
-          : `正在核对 ${totalWeaponCount} 件账号武器。`
+          ? accountTemplate(copy, "正在重新核对 {total} 件账号武器，暂时保留上次 {retained} 件结果。", {
+              total: totalWeaponCount,
+              retained: retainedResultCount
+            })
+          : accountTemplate(copy, "正在核对 {count} 件账号武器。", { count: totalWeaponCount })
     });
     let derived: Awaited<ReturnType<typeof loadAccountDerivedWorkspace>>;
     try {
@@ -415,7 +435,7 @@ export function useAccountWorkspace(input: {
       });
     } catch (error) {
       if (requestSequence !== communityRequestSequenceRef.current) return;
-      const message = error instanceof Error ? error.message : "武器推荐来源核对失败";
+      const message = error instanceof Error ? error.message : accountText(copy, "武器推荐来源核对失败");
       setVaultRecommendationScan({
         phase: retainedResultCount ? "partial" : "error",
         total_weapon_count: totalWeaponCount,
@@ -425,7 +445,10 @@ export function useAccountWorkspace(input: {
         started_at: startedAt,
         completed_at: new Date().toISOString(),
         message: retainedResultCount
-          ? `本次核对失败，继续显示上次 ${retainedResultCount} 件结果：${message}`
+          ? accountTemplate(copy, "本次核对失败，继续显示上次 {count} 件结果：{message}", {
+              count: retainedResultCount,
+              message
+            })
           : message
       });
       setIsVaultCommunityMatchLoading(false);
@@ -448,7 +471,10 @@ export function useAccountWorkspace(input: {
           manifest_version: derived.data.vaultRecommendationManifestVersion,
           recommendation_revision: derived.data.vaultRecommendationRevision,
           message: retainedResultCount
-            ? `${blockingIssue.message} 继续显示上次 ${retainedResultCount} 件结果。`
+            ? accountTemplate(copy, "{message} 继续显示上次 {count} 件结果。", {
+                message: blockingIssue.message,
+                count: retainedResultCount
+              })
             : blockingIssue.message
         });
         setIsVaultCommunityMatchLoading(false);
@@ -482,7 +508,7 @@ export function useAccountWorkspace(input: {
         ...(warningMessage ? { message: warningMessage } : {})
       });
     } else {
-      const message = derived.error?.message ?? "武器推荐来源核对失败";
+      const message = derived.error?.message ?? accountText(copy, "武器推荐来源核对失败");
       setVaultRecommendationScan({
         phase: retainedResultCount ? "partial" : "error",
         total_weapon_count: totalWeaponCount,
@@ -492,7 +518,10 @@ export function useAccountWorkspace(input: {
         started_at: startedAt,
         completed_at: new Date().toISOString(),
         message: retainedResultCount
-          ? `本次核对失败，继续显示上次 ${retainedResultCount} 件结果：${message}`
+          ? accountTemplate(copy, "本次核对失败，继续显示上次 {count} 件结果：{message}", {
+              count: retainedResultCount,
+              message
+            })
           : message
       });
     }
@@ -628,52 +657,69 @@ function reconcileRecommendationCardSummaries(
   return reconciled;
 }
 
-function formatCachedTime(value: string): string {
+function formatCachedTime(value: string, copy: AccountCopy, locale: InterfaceLocale): string {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "时间未知" : date.toLocaleString("zh-CN");
+  return Number.isNaN(date.getTime()) ? accountText(copy, "时间未知") : date.toLocaleString(locale);
 }
 
-function formatAccountWorkspaceWarnings(warnings: Array<{ source: string; message: string }>): string {
-  return warnings.map((warning) => `${formatAccountWarningSource(warning.source)}：${warning.message}`).join("；");
+function formatAccountWorkspaceWarnings(
+  warnings: Array<{ source: string; message: string }>,
+  copy: AccountCopy
+): string {
+  return warnings
+    .map((warning) => accountTemplate(copy, "{source}：{message}", {
+      source: formatAccountWarningSource(warning.source, copy),
+      message: warning.message
+    }))
+    .join(accountText(copy, "；"));
 }
 
-function formatAccountWarningSource(source: string): string {
-  if (source === "vault-tags") return "本地标签";
-  if (source === "target-rules") return "目标规则";
-  if (source === "equipment-targets") return "装备目标";
+function formatAccountWarningSource(source: string, copy: AccountCopy): string {
+  if (source === "vault-tags") return accountText(copy, "本地标签");
+  if (source === "target-rules") return accountText(copy, "目标规则");
+  if (source === "equipment-targets") return accountText(copy, "装备目标");
   // 面向用户的来源名：本地这份数据就是「推荐来源」，不出现格式名（T56 口径）。
-  if (source === "wishlist") return "推荐来源";
-  return "本地数据";
+  if (source === "wishlist") return accountText(copy, "推荐来源");
+  return accountText(copy, "本地数据");
 }
 
-function formatAccountRefreshFailurePrefix(reason: AccountRefreshReason): string {
-  if (reason === "auto") return "自动同步装备数据失败";
-  if (reason === "write-action") return "操作后同步装备数据失败";
-  if (reason === "manual") return "同步装备数据失败";
-  return "读取装备数据失败";
+function formatAccountRefreshFailurePrefix(reason: AccountRefreshReason, copy: AccountCopy): string {
+  if (reason === "auto") return accountText(copy, "自动同步装备数据失败");
+  if (reason === "write-action") return accountText(copy, "操作后同步装备数据失败");
+  if (reason === "manual") return accountText(copy, "同步装备数据失败");
+  return accountText(copy, "读取装备数据失败");
 }
 
 function formatAccountSyncMessage(
   previous: AccountSummary | null,
   next: AccountSummary,
-  reason: AccountRefreshReason
+  reason: AccountRefreshReason,
+  copy: AccountCopy
 ): string {
-  if (reason === "initial" || !previous) return "装备数据已从游戏同步";
+  if (reason === "initial" || !previous) return accountText(copy, "装备数据已从游戏同步");
   if (hasSameProfileVersion(previous, next)) {
-    return "装备数据已同步，游戏中的内容没有变化";
+    return accountText(copy, "装备数据已同步，游戏中的内容没有变化");
   }
   const previousVaultIds = new Set(previous.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
   const nextVaultIds = new Set(next.vault.items.flatMap((item) => item.instance_id ? [item.instance_id] : []));
   const movedOut = [...previousVaultIds].filter((instanceId) => !nextVaultIds.has(instanceId)).length;
   const movedIn = [...nextVaultIds].filter((instanceId) => !previousVaultIds.has(instanceId)).length;
   const changes = [
-    movedOut ? `${movedOut} 件装备移出仓库` : "",
-    movedIn ? `${movedIn} 件装备移入仓库` : ""
+    movedOut ? accountTemplate(copy, "{count} 件装备移出仓库", { count: movedOut }) : "",
+    movedIn ? accountTemplate(copy, "{count} 件装备移入仓库", { count: movedIn }) : ""
   ].filter(Boolean);
-  if (changes.length) return `装备数据已同步：${changes.join("，")}`;
+  if (changes.length) {
+    return accountTemplate(copy, "装备数据已同步：{changes}", {
+      changes: changes.join(accountText(copy, "，"))
+    });
+  }
   const countDelta = next.vault.item_count - previous.vault.item_count;
-  if (countDelta) return `装备数据已同步：仓库总数${countDelta > 0 ? "增加" : "减少"} ${Math.abs(countDelta)} 件`;
-  return "装备数据已同步，游戏中的内容没有变化";
+  if (countDelta) {
+    return countDelta > 0
+      ? accountTemplate(copy, "装备数据已同步：仓库总数增加 {count} 件", { count: Math.abs(countDelta) })
+      : accountTemplate(copy, "装备数据已同步：仓库总数减少 {count} 件", { count: Math.abs(countDelta) });
+  }
+  return accountText(copy, "装备数据已同步，游戏中的内容没有变化");
 }
 
 function hasSameProfileVersion(

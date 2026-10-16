@@ -3,13 +3,11 @@ import type { AccountItemSummary, AccountSummary } from "@d2-tools/core/account/
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import {
   createLoadoutsPageWorkspace,
-  getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus,
   selectLoadoutsPageModel
 } from "../src/workspaces/loadoutsPage";
 
 describe("loadouts page workspace", () => {
-  it("derives selected analysis, transfer status, and visible compare rows outside Desktop", () => {
+  it("derives selected analysis and transfer plan outside Desktop", () => {
     const templates = [targetTemplate(), compareTemplate()];
     const workspace = createLoadoutsPageWorkspace({
       accountSummary: accountSummary(),
@@ -26,18 +24,7 @@ describe("loadouts page workspace", () => {
       "vault-energy"
     ]);
     expect(workspace.transferPlan?.steps.map((step) => step.phase)).toEqual(["to-character", "equip-target"]);
-    expect(workspace.readyCount).toBe(1);
     expect(workspace.missingCount).toBe(1);
-    expect(workspace.actionableCount).toBe(1);
-    expect(workspace.statusSummary).toEqual([
-      { key: "equipped", label: "已装备", count: 1 },
-      { key: "vault", label: "仓库", count: 1 }
-    ]);
-    expect(workspace.visibleCompareRows).toHaveLength(1);
-    expect(workspace.visibleCompareRows[0]).toMatchObject({
-      slot: "Energy Weapons",
-      changed: true
-    });
   });
 
   it("combines local templates and in-game slots into one loadout entry list", () => {
@@ -91,12 +78,6 @@ describe("loadouts page workspace", () => {
     });
 
     expect(workspace.model.selectedEntryId).toBe("local-template-target");
-    expect(workspace.model.riskSummary).toEqual({
-      missingCount: 1,
-      readyCount: 1,
-      actionableCount: 1
-    });
-    expect(workspace.model.compare.visibleRows).toHaveLength(1);
     expect(workspace.model.selectedDetail.kind).toBe("local-template");
     if (workspace.model.selectedDetail.kind !== "local-template") {
       throw new Error("expected local template detail");
@@ -110,7 +91,6 @@ describe("loadouts page workspace", () => {
       "to-character",
       "equip-target"
     ]);
-    expect(workspace.model.selectedDetail.itemRows.map((row) => row.status.key)).toEqual(["equipped", "vault"]);
   });
 
   it("exposes a page model selector without requiring callers to use the full workspace", () => {
@@ -128,13 +108,6 @@ describe("loadouts page workspace", () => {
       "local-template-compare"
     ]);
     expect(model.selectedEntryId).toBe("local-template-target");
-    expect(model.riskSummary).toEqual({
-      missingCount: 1,
-      readyCount: 1,
-      actionableCount: 1
-    });
-    expect(model.compare.options).toEqual([{ id: "compare", name: "Raid" }]);
-    expect(model.compare.visibleRows).toHaveLength(1);
     expect(model.selectedDetail.kind).toBe("local-template");
   });
 
@@ -175,32 +148,6 @@ describe("loadouts page workspace", () => {
     expect(workspace.model.selectedDetail.items).toEqual([
       { instance_id: "target-equipped", name: "Kinetic Ready", bucket_name: "Kinetic Weapons" }
     ]);
-  });
-
-  it("exposes row helpers for UI without requiring Desktop feature imports", () => {
-    const template = targetTemplate();
-    const summary = accountSummary();
-    const workspace = createLoadoutsPageWorkspace({
-      accountSummary: summary,
-      templates: [template],
-      selectedTemplateId: "target",
-      compareTemplateId: "",
-      showDiffOnly: false
-    });
-
-    const vaultItem = template.items[1];
-    expect(getLoadoutItemStatus({
-      item: vaultItem,
-      template,
-      selectedAnalysis: workspace.selectedAnalysis,
-      transferPlan: workspace.transferPlan,
-      accountSummary: summary
-    })).toMatchObject({
-      key: "vault",
-      badge_label: "仓库待取"
-    });
-
-    expect(getLoadoutItemBlockedDetails(vaultItem, workspace.transferPlan)).toBeNull();
   });
 });
 

@@ -1,3 +1,4 @@
+import { settingsText, type SettingsCopy } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import type { ActionLogEntry } from "../../api/types";
 import {
@@ -28,6 +29,8 @@ const shellBackgroundTaskTypes = [
 ] as const;
 
 export function useDiagnosticsSettings(input: {
+  /** 设置页的临时回执跟着界面语言走，由 `useDesktopProductShell` 传入。 */
+  copy: SettingsCopy;
   onConfigChanged: () => void;
   initialColorMode?: "light" | "dark";
   initialDensity?: "compact" | "standard" | "comfortable";
@@ -40,7 +43,7 @@ export function useDiagnosticsSettings(input: {
   const diagnosticsStatus = useDiagnosticsStatusState();
   const aiSettingsState = useAiSettingsState();
   const actionLogState = useActionLogState();
-  const appUpdateFlow = useAppUpdateFlow();
+  const appUpdateFlow = useAppUpdateFlow({ copy: input.copy });
   // 根 Shell 只订阅会出现在全局状态区的任务。账号写后同步等高频任务
   // 留在对应功能域，避免每次进度变化重建整个菜单 Context。
   const backgroundTaskState = useBackgroundTaskSummariesByTypes(shellBackgroundTaskTypes);
@@ -50,6 +53,7 @@ export function useDiagnosticsSettings(input: {
   const languagePreferencesState = useLanguagePreferencesState(normalizeInitialLanguagePreferences(input.initialLanguagePreferences));
 
   const settingsModel = createDiagnosticsSettingsModel({
+    copy: input.copy,
     onConfigChanged: input.onConfigChanged,
     setDiagnosticDataDir: diagnosticsStatus.setDiagnosticDataDir,
     setDiagnosticManifestVersion: diagnosticsStatus.setDiagnosticManifestVersion,
@@ -72,13 +76,13 @@ export function useDiagnosticsSettings(input: {
     activeBackgroundTasks: backgroundTaskState.activeBackgroundTasks,
     backgroundTasks: backgroundTaskState.backgroundTasks,
     checkAppUpdate: appUpdateFlow.checkAppUpdate,
-    copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(entry, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
-    copyDataBackupGuide: () => copyDataBackupGuide(diagnosticsStatus.diagnosticDataDir, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
-    copyDiagnosticsExport: () => copyDiagnosticsExport(appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyActionDiagnostic: (entry: ActionLogEntry) => copyActionDiagnostic(input.copy, entry, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyDataBackupGuide: () => copyDataBackupGuide(input.copy, diagnosticsStatus.diagnosticDataDir, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    copyDiagnosticsExport: () => copyDiagnosticsExport(input.copy, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
     copyAppUpdateDiagnostic: appUpdateFlow.copyAppUpdateDiagnostic,
-    exportConfig: () => runConfigBackupAction(api.exportConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
-    importConfig: () => runConfigBackupAction(api.importConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
-    clearCache: () => runConfigBackupAction(api.clearCache, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    exportConfig: () => runConfigBackupAction(input.copy, api.exportConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    importConfig: () => runConfigBackupAction(input.copy, api.importConfig, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
+    clearCache: () => runConfigBackupAction(input.copy, api.clearCache, appUpdateFlow.setSettingsMessage, appUpdateFlow.setSettingsError),
     diagnosticDataDir: diagnosticsStatus.diagnosticDataDir,
     diagnosticError: diagnosticsStatus.diagnosticError,
     diagnosticManifestVersion: diagnosticsStatus.diagnosticManifestVersion,
@@ -91,7 +95,7 @@ export function useDiagnosticsSettings(input: {
     initializeManifest: manifestStatusState.initializeManifest,
     isInitializingManifest: manifestStatusState.isInitializingManifest,
     isLoadingManifestStatus: manifestStatusState.isLoadingManifestStatus,
-    loadActionLog: () => loadActionLog(actionLogState.setActionLog, appUpdateFlow.setSettingsError),
+    loadActionLog: () => loadActionLog(input.copy, actionLogState.setActionLog, appUpdateFlow.setSettingsError),
     manifestTask: manifestStatusState.manifestTask,
     manifestStatus: manifestStatusState.manifestStatus,
     manifestStatusError: manifestStatusState.manifestStatusError,
@@ -141,6 +145,7 @@ function interfaceLocaleToBungieLocale(locale: "zh-CN" | "en-US"): "zh-chs" | "e
 }
 
 async function runConfigBackupAction(
+  copy: SettingsCopy,
   action: () => Promise<{ ok: true; message: string; path?: string }>,
   setSettingsMessage: (message: string) => void,
   setSettingsError: (message: string) => void
@@ -152,6 +157,6 @@ async function runConfigBackupAction(
     const result = await action();
     setSettingsMessage(result.message);
   } catch (error) {
-    setSettingsError(error instanceof Error ? error.message : "配置操作失败");
+    setSettingsError(error instanceof Error ? error.message : settingsText(copy, "配置操作失败"));
   }
 }

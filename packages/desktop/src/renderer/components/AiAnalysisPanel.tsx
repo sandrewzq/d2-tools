@@ -13,12 +13,18 @@ import {
 } from "@d2-tools/app/capabilities";
 import {
   AiAssistantPanelView,
+  assistantTemplate,
+  assistantText,
+  getLocaleCopy,
   type AiAssistantHistoryEntryView,
-  type AiAssistantMessageView
+  type AiAssistantMessageView,
+  type InterfaceLocale,
+  type ShellCopy
 } from "@d2-tools/ui";
 import type { AccountItemSummary, AccountSummary, ActivityHistorySummary, DailySummary, VaultTags } from "../api/types";
 import { services } from "../api/services";
 import type { AssistantPageContext } from "../shared/domain/assistant/assistantContext";
+import { resolveAssistantPageLabel } from "../shared/domain/assistant/assistantContext";
 import {
   getDesktopAssistantManifestVersion,
   runDesktopAssistantCapabilityPrelude
@@ -31,15 +37,9 @@ import {
   type AssistantHistoryEntry
 } from "../utils/assistantHistory";
 
-const quickPrompts = [
-  "我现在最应该清理哪些装备？",
-  "帮我分析仓库里值得保留的 PVE 武器。",
-  "这周我应该优先刷什么？",
-  "根据当前账号数据，给我一个配装整理计划。"
-];
-
 export function AiAnalysisPanel(props: {
   account: AccountSummary | null;
+  interfaceLocale?: InterfaceLocale;
   daily: DailySummary | null;
   activity: ActivityHistorySummary | null;
   pageContext: AssistantPageContext;
@@ -52,6 +52,8 @@ export function AiAnalysisPanel(props: {
   onClose: () => void;
   isLoadingAccount: boolean;
 }) {
+  const shellCopy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").shell;
+  const copy = shellCopy.assistant;
   const [messages, setMessages] = useState<AiAssistantMessageView[]>([]);
   const [question, setQuestion] = useState("");
   const [error, setError] = useState("");
@@ -82,16 +84,16 @@ export function AiAnalysisPanel(props: {
       ? "current"
       : "historical";
   const snapshotLabel = snapshotState === "historical"
-    ? `历史快照：${formatSnapshotTime(latestContextSnapshot?.created_at)}`
+    ? assistantTemplate(copy, "历史快照：{time}", { time: formatSnapshotTime(copy, latestContextSnapshot?.created_at) })
     : snapshotState === "current"
-      ? `当前快照：${formatSnapshotTime(latestContextSnapshot?.created_at)}`
-      : "尚未创建上下文快照";
-  const sessionTitle = activeSession?.title ?? (messages.length ? "当前会话" : "新会话");
+      ? assistantTemplate(copy, "当前快照：{time}", { time: formatSnapshotTime(copy, latestContextSnapshot?.created_at) })
+      : assistantText(copy, "尚未创建上下文快照");
+  const sessionTitle = activeSession?.title ?? (messages.length ? assistantText(copy, "当前会话") : assistantText(copy, "新会话"));
   const contextChip = [
-    `当前页面：${pageContext.page_label}`,
-    `仓库 ${props.items.length} 件`,
-    props.account ? `角色 ${props.account.characters.length} 个` : "账号未读取",
-    props.daily ? "今日信息已载入" : "今日信息未载入",
+    copy.currentPage(resolveAssistantPageLabel(shellCopy, pageContext.page_key)),
+    assistantTemplate(copy, "仓库 {count} 件", { count: props.items.length }),
+    props.account ? assistantTemplate(copy, "角色 {count} 个", { count: props.account.characters.length }) : assistantText(copy, "账号未读取"),
+    props.daily ? assistantText(copy, "今日信息已载入") : assistantText(copy, "今日信息未载入"),
     snapshotLabel
   ].join(" · ");
 
@@ -144,10 +146,10 @@ export function AiAnalysisPanel(props: {
         context
       });
       if (chatState.status === "error") {
-        throw new Error(chatState.error.message);
+        throw new Error(chatState.error.message || assistantText(copy, "AI 聊天失败"));
       }
       if (chatState.status !== "success") {
-        throw new Error("AI 聊天失败");
+        throw new Error(assistantText(copy, "AI 聊天失败"));
       }
       const reply = chatState.data.reply;
       const artifact = createAssistantArmorSolutionComparisonArtifact({
@@ -169,15 +171,15 @@ export function AiAnalysisPanel(props: {
       };
       const assistantMessage: AiAssistantMessageView = {
         role: "assistant",
-        text: appendCapabilityTrace(reply.text, capabilityPrelude.trace_summary),
+        text: appendCapabilityTrace(copy, reply.text, capabilityPrelude.trace_summary),
         context_snapshot_id: contextSnapshot.snapshot_id,
         ...(artifact ? { artifact } : {})
       };
       const nextMessages = [...previousMessages, contextualUserMessage, assistantMessage];
       setMessages(nextMessages);
-      saveSession(trimmedQuestion, nextMessages, contextSnapshot, latestPageContext.page_label);
+      saveSession(trimmedQuestion, nextMessages, contextSnapshot, latestPageContext.page_key);
     } catch (analysisError) {
-      setError(analysisError instanceof Error ? analysisError.message : "AI 聊天失败");
+      setError(analysisError instanceof Error ? analysisError.message : assistantText(copy, "AI 聊天失败"));
       setQuestion(trimmedQuestion);
       setMessages(previousMessages);
     } finally {
@@ -189,7 +191,7 @@ export function AiAnalysisPanel(props: {
     title: string,
     nextMessages: AiAssistantMessageView[],
     contextSnapshot: AssistantContextSnapshot,
-    pageLabel: string
+    pageKey: string
   ) {
     const existingSession = activeSessionId ? history.find((entry) => entry.id === activeSessionId) : undefined;
     const id = activeSessionId ?? `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -199,7 +201,7 @@ export function AiAnalysisPanel(props: {
     setHistory(saveAssistantSession(window.localStorage, {
       id,
       title: existingSession?.title ?? title,
-      page_label: pageLabel,
+      page_label: pageKey,
       messages: nextMessages,
       context_snapshots: appendContextSnapshot(existingSession?.context_snapshots ?? [], contextSnapshot)
     }));
@@ -239,6 +241,7 @@ export function AiAnalysisPanel(props: {
 
   return (
     <AiAssistantPanelView
+      copy={copy}
       isConfigured
       sessionTitle={sessionTitle}
       messages={messages}
@@ -247,14 +250,19 @@ export function AiAnalysisPanel(props: {
       isSending={isSendingChat}
       isLoadingAccount={props.isLoadingAccount}
       hasAccountItems={props.items.length > 0}
-      history={history}
+      history={history.map((entry) => ({
+        id: entry.id,
+        title: entry.title,
+        page_label: resolveAssistantPageLabel(shellCopy, entry.page_label),
+        messages: entry.messages
+      }))}
       activeSessionId={activeSessionId}
       isSessionDrawerOpen={isSessionDrawerOpen}
       isContextDrawerOpen={isContextDrawerOpen}
       contextChip={contextChip}
       context={{
-        pageLabel: pageContext.page_label,
-        focus: pageContext.focus,
+        pageLabel: resolveAssistantPageLabel(shellCopy, pageContext.page_key),
+        focus: assistantText(copy, pageContext.focus),
         facts: contextFacts,
         itemCount: props.items.length,
         characterCount: props.account?.characters.length ?? 0,
@@ -263,7 +271,7 @@ export function AiAnalysisPanel(props: {
         snapshotState,
         snapshotLabel
       }}
-      quickPrompts={quickPrompts}
+      quickPrompts={copy.quickPrompts}
       onQuestionChange={setQuestion}
       onSubmit={() => void sendChat()}
       onQuickPrompt={(prompt) => void sendChat(prompt)}
@@ -307,9 +315,9 @@ function appendAssistantContext(
   return sections.join("\n");
 }
 
-function appendCapabilityTrace(reply: string, traceSummary: string): string {
+function appendCapabilityTrace(copy: ShellCopy["assistant"], reply: string, traceSummary: string): string {
   if (!traceSummary) return reply;
-  return `${reply.trimEnd()}\n\n数据引用：${traceSummary}`;
+  return `${reply.trimEnd()}\n\n${assistantTemplate(copy, "数据引用：{summary}", { summary: traceSummary })}`;
 }
 
 function appendContextSnapshot(
@@ -322,8 +330,8 @@ function appendContextSnapshot(
   ].slice(-30);
 }
 
-function formatSnapshotTime(value: string | undefined): string {
-  if (!value) return "待创建";
+function formatSnapshotTime(copy: ShellCopy["assistant"], value: string | undefined): string {
+  if (!value) return assistantText(copy, "待创建");
   const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date.toLocaleString("zh-CN", { hour12: false }) : value;
+  return Number.isFinite(date.getTime()) ? copy.formatDateTime(value) : value;
 }

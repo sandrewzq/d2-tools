@@ -6,6 +6,7 @@ import {
   isWeaponSystemPlug,
   perkGroupsToPoolColumns,
   weaponSocketColumnLabel,
+  type WeaponChampionEffectKey,
   type WeaponDetailViewModel,
   type WeaponDetailInstanceMetadata,
   type WeaponPerkSelectionColumn,
@@ -28,11 +29,18 @@ import type {
 } from "@d2-tools/core/community-perks";
 import type { AccountWeaponRollSlot } from "@d2-tools/core/account/summary";
 import type { ItemReleaseSummary } from "@d2-tools/core/items/release";
+import type { ChampionTypeKey } from "@d2-tools/core/items/breakerTypes";
 import type { VaultTags } from "@d2-tools/core/vault/tags";
+import {
+  itemDetailTemplate,
+  itemDetailText,
+  type ItemDetailCopy
+} from "@d2-tools/ui";
 
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
 
 export type BuildDesktopWeaponDetailInput = {
+  copy: ItemDetailCopy;
   selectedItem: SelectedItemDetail;
   accountSummary?: AccountSummary | null;
   sameNameItems?: SameNameItemSummary[];
@@ -126,8 +134,7 @@ export function buildWeaponDetailView(
     champion: item.breaker_type
       ? {
           key: item.breaker_type.champion_type,
-          label: championLabels[item.breaker_type.champion_type],
-          effect_label: championEffectLabels[item.breaker_type.champion_type],
+          effect_key: championEffectKeyByType[item.breaker_type.champion_type],
           description: item.breaker_type.description,
           icon: item.breaker_type.icon,
           source: item.breaker_type.source === "item"
@@ -144,7 +151,10 @@ export function buildWeaponDetailView(
             ?? (version.hash === item.hash ? item.release?.description : undefined);
           return {
             hash: version.hash,
-            label: [releaseLabel ?? version.tier ?? `版本 ${index + 1}`, version.is_adept ? "专家" : undefined]
+            label: [
+              releaseLabel ?? version.tier ?? itemDetailTemplate(input.copy, "版本 {index}", { index: index + 1 }),
+              version.is_adept ? itemDetailText(input.copy, "专家") : undefined
+            ]
               .filter(Boolean)
               .join(" · "),
             release_label: releaseLabel,
@@ -153,7 +163,7 @@ export function buildWeaponDetailView(
         })
       : [{
           hash: item.hash,
-          label: item.release?.description ?? "当前版本",
+          label: item.release?.description ?? itemDetailText(input.copy, "当前版本"),
           release_label: item.release?.description,
           is_current: true
         }],
@@ -164,7 +174,7 @@ export function buildWeaponDetailView(
     current_stats: currentStats,
     pending_stats: buildPendingWeaponStats(item, input.pendingPerks),
     stat_modifiers: buildCurrentWeaponStatModifiers(item),
-    pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks),
+    pending_stat_modifiers: buildPendingWeaponStatModifiers(item, input.pendingPerks, input.copy),
     configuration: {
       intrinsic,
       // 定义（perks）没加载时，账号实例不能按 fixed 处理，否则界面不会采用可切换栏位，
@@ -356,7 +366,8 @@ function buildRollSelectionColumns(item: SelectedItemDetail): WeaponPerkSelectio
 // 「有无命中」的对照表，「不符 / 本件没有这个推荐项」会出现在根本没有本件的对象上。
 export function buildWeaponRecommendationViews(
   recommendation: CommunityWeaponRecommendation | null,
-  item: SelectedItemDetail
+  item: SelectedItemDetail,
+  copy: ItemDetailCopy
 ): WeaponDetailViewModel["recommendations"] {
   const classification = classifyWeaponConfiguration(item);
   const isFixedExotic = classification.isExotic && classification.kind === "fixed";
@@ -370,13 +381,15 @@ export function buildWeaponRecommendationViews(
           names: requirement.candidate_names,
           candidates: buildSourceRequirementCandidates(requirement)
         }));
-      const purposeLabel = recommendationPurposeSummary(record.purposes);
+      const purposeLabel = recommendationPurposeSummary(record.purposes, copy);
       return {
         id: `source:${record.rule_stable_id}`,
         mode: record.purposes[0] ?? "general",
         purposes: record.purposes,
         presentation: "perk_pool" as const,
-        title: requirements.length ? `${purposeLabel} Perk 池` : `${purposeLabel} 武器推荐`,
+        title: requirements.length
+          ? itemDetailTemplate(copy, "{purpose} Perk 池", { purpose: purposeLabel })
+          : itemDetailTemplate(copy, "{purpose} 武器推荐", { purpose: purposeLabel }),
         // 只有来源自己写的说明。整份推荐集的免责声明由区域顶部说一次（`recommendation.disclaimer`），
         // 不在这里逐卡兜底——那样每张卡都会重复同一句，用户读到的是「相同的话说了 N 遍」。
         reason: record.note ?? "",
@@ -393,10 +406,11 @@ export function buildWeaponRecommendationViews(
 }
 
 function recommendationPurposeSummary(
-  purposes: ReadonlyArray<"pve" | "pvp" | "general">
+  purposes: ReadonlyArray<"pve" | "pvp" | "general">,
+  copy: ItemDetailCopy
 ): string {
-  const labels = purposes.map((purpose) => purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : "通用");
-  return [...new Set(labels)].join(" / ") || "通用";
+  const labels = purposes.map((purpose) => purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : itemDetailText(copy, "通用"));
+  return [...new Set(labels)].join(" / ") || itemDetailText(copy, "通用");
 }
 
 function buildSourceRequirementCandidates(
@@ -713,7 +727,8 @@ function buildCurrentWeaponStatModifiers(
 
 function buildPendingWeaponStatModifiers(
   item: SelectedItemDetail,
-  pendingPerks: Record<number, number> | undefined
+  pendingPerks: Record<number, number> | undefined,
+  copy: ItemDetailCopy
 ): Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> | undefined {
   if (!item.sockets?.length || !pendingPerks || !Object.keys(pendingPerks).length) return undefined;
   const result: Partial<Record<WeaponStatKey, Array<{ source: string; amount: number }>>> = {};
@@ -725,7 +740,7 @@ function buildPendingWeaponStatModifiers(
       const amount = (pending.stat_modifiers?.[key] ?? 0) - (socket.selected_plug?.stat_modifiers?.[key] ?? 0);
       if (!amount) continue;
       (result[key] ??= []).push({
-        source: `${socket.selected_plug?.name ?? "当前配置"} → ${pending.name}`,
+        source: `${socket.selected_plug?.name ?? itemDetailText(copy, "当前配置")} → ${pending.name}`,
         amount
       });
     }
@@ -753,20 +768,10 @@ function damageFromInstance(
       icon: instance.damage_type_icon
     };
   }
-  const fallback = instance.damage_type === 1
-    ? { key: "kinetic", label: "动能" }
-    : instance.damage_type === 2
-      ? { key: "arc", label: "电弧" }
-      : instance.damage_type === 3
-        ? { key: "solar", label: "烈日" }
-        : instance.damage_type === 4
-          ? { key: "void", label: "虚空" }
-          : instance.damage_type === 6
-            ? { key: "stasis", label: "冰影" }
-            : instance.damage_type === 7
-              ? { key: "strand", label: "缚丝" }
-              : undefined;
-  return fallback ? { ...fallback, icon: instance.damage_type_icon } : undefined;
+  // 枚举值→元素 key。元素名交给 UI 按 `copy` 现查；认不出的枚举值一律不给元素，
+  // 与迁移前「认不出就不显示」的行为一致。
+  const key = damageTypeKeyByEnumValue[instance.damage_type ?? -1];
+  return key ? { key, icon: instance.damage_type_icon } : undefined;
 }
 
 function buildWeaponUpgrades(item: Pick<
@@ -841,7 +846,8 @@ function buildWeaponUpgrades(item: Pick<
     catalyst: catalystSummary,
     enhancement: enhancement
       ? {
-          name: /空的|empty/i.test(enhancement.name) ? "未强化" : enhancement.name,
+          name: enhancement.name,
+          empty: /空的|empty/i.test(enhancement.name),
           level: extractDisplayedLevel(enhancement.name)
         }
       : undefined,
@@ -930,6 +936,16 @@ function firstStatModifier(
   ));
 }
 
+/** 实例的 damageType 枚举值 → 元素 key。取值与 `packages/core/src/items/damageTypes.ts` 对齐。 */
+const damageTypeKeyByEnumValue: Partial<Record<number, string>> = {
+  1: "kinetic",
+  2: "arc",
+  3: "solar",
+  4: "void",
+  6: "stasis",
+  7: "strand"
+};
+
 const weaponStatKeyByHash: Partial<Record<number, WeaponStatKey>> = {
   4043523819: "impact",
   1240592695: "range",
@@ -962,22 +978,16 @@ const weaponStatKeys: WeaponStatKey[] = [
   "draw_time"
 ];
 
-const championLabels = {
-  barrier: "反屏障",
-  overload: "反过载",
-  unstoppable: "反势不可挡"
-} as const;
-
-const championEffectLabels = {
-  barrier: "贯穿护盾",
-  overload: "干扰",
-  unstoppable: "眩晕"
-} as const;
+const championEffectKeyByType: Record<ChampionTypeKey, WeaponChampionEffectKey> = {
+  barrier: "pierce",
+  overload: "disrupt",
+  unstoppable: "stagger"
+};
 
 function championFromInstance(
   breakerType: number | undefined
 ): WeaponDetailViewModel["identity"]["champion"] {
-  const championType = breakerType === 1
+  const championType: ChampionTypeKey | undefined = breakerType === 1
     ? "barrier"
     : breakerType === 2
       ? "overload"
@@ -987,8 +997,7 @@ function championFromInstance(
   if (!championType) return undefined;
   return {
     key: championType,
-    label: championLabels[championType],
-    effect_label: championEffectLabels[championType],
+    effect_key: championEffectKeyByType[championType],
     source: "weapon"
   };
 }

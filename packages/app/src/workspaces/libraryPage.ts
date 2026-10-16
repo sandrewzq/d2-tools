@@ -216,16 +216,24 @@ export type LibraryDropAccessKey = "available" | "rotation" | "archived" | "unkn
 export type LibraryDropAccessFilter = LibraryDropAccessKey | "all";
 export type LibraryAcquisitionStatus = "current" | "historical" | "unknown";
 
+/**
+ * 位置名文案 token：`labelKey` 是中文原文模板（角色职业名处写 `{name}`），
+ * `characterClassName` 是数据侧的角色职业名，`仓库` 这类没有角色的位置不带它。
+ * app 只产出零件，查表成句交给渲染层，切界面语言不用改这里的分支。
+ */
+export type LibraryOwnershipLocationWorkspace = {
+  kind: "vault" | "equipped" | "inventory" | "postmaster";
+  labelKey: string;
+  characterClassName?: string;
+  count: number;
+  characterId?: string;
+};
+
 export type LibraryOwnershipEntry = {
   status: "owned" | "not_owned" | "unavailable";
   totalCount: number;
   vaultCount: number;
-  locations: Array<{
-    kind: "vault" | "equipped" | "inventory" | "postmaster";
-    label: string;
-    count: number;
-    characterId?: string;
-  }>;
+  locations: LibraryOwnershipLocationWorkspace[];
 };
 
 export type LibraryEquipmentFilter = {
@@ -1050,21 +1058,24 @@ export function buildLibraryOwnership(account: AccountSummary | null | undefined
   const ownership = new Map<number, LibraryOwnershipEntry>();
   if (!account) return ownership;
 
-  addOwnedItems(ownership, account.vault.items, { kind: "vault", label: "仓库" });
+  addOwnedItems(ownership, account.vault.items, { kind: "vault", labelKey: "仓库" });
   for (const character of account.characters) {
     addOwnedItems(ownership, character.equipped_items, {
       kind: "equipped",
-      label: `${character.class_name}已装备`,
+      labelKey: "{name}已装备",
+      characterClassName: character.class_name,
       characterId: character.character_id
     });
     addOwnedItems(ownership, character.inventory_items, {
       kind: "inventory",
-      label: `${character.class_name}背包`,
+      labelKey: "{name}背包",
+      characterClassName: character.class_name,
       characterId: character.character_id
     });
     addOwnedItems(ownership, character.postmaster_items, {
       kind: "postmaster",
-      label: `${character.class_name}邮政官`,
+      labelKey: "{name}邮政官",
+      characterClassName: character.class_name,
       characterId: character.character_id
     });
   }

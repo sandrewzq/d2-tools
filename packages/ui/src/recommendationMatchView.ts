@@ -6,6 +6,37 @@
 
 import type { RecommendationSourceSlotMatch } from "@d2-tools/core/community-perks";
 
+/**
+ * 推荐匹配投影的查表接口。本文件的输出同时被仓库页（VaultCopy）和武器详情（ItemDetailCopy）
+ * 消费，所以不绑定某一侧的表：调用方传自己那份 copy 的 `inline` 加界面语言即可。
+ * `inline` 传表对象本身（而不是再包一层闭包），模块级缓存才能按引用稳定命中——
+ * `copy.inline` 是每语言一份的模块级对象，引用不会每次渲染都变。
+ */
+export type RecommendationMatchCopy = {
+  inline: Record<string, string>;
+  /** 来源名排序折叠用的界面语言；不传按历史行为 `zh-Hans-CN`。 */
+  locale?: string;
+};
+
+/** 同 `vaultText` / `itemDetailText`：zh 侧表空、key 即中文原文，en 侧按原文查英文。 */
+function recommendationMatchText(copy: RecommendationMatchCopy, key: string): string {
+  return copy.inline[key] ?? key;
+}
+
+/** 同 `vaultTemplate` / `itemDetailTemplate`：带 `{占位符}` 的句子走这里。 */
+function recommendationMatchTemplate(
+  copy: RecommendationMatchCopy,
+  key: string,
+  values: Record<string, string | number>
+): string {
+  return recommendationMatchText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
+    name in values ? String(values[name]) : match);
+}
+
+function recommendationSortLocale(copy: RecommendationMatchCopy): string {
+  return copy.locale ?? "zh-Hans-CN";
+}
+
 export type CuratedRecommendationMatchPresentation = {
   summary: string;
   detail: string;
@@ -17,51 +48,53 @@ export type CuratedRecommendationMatchPresentation = {
 };
 
 export type RecommendationSlotMatchPresentation = {
-  label: "符合" | "不符" | "无法判断" | "来源未要求";
+  label: string;
   tone: "success" | "error" | "pending" | "neutral";
   instanceOwnedFallback: string;
   currentEnabledFallback: string;
 };
 
 export function presentRecommendationSlotMatch(
+  copy: RecommendationMatchCopy,
   state: RecommendationSourceSlotMatch["state"],
   facts: { hasInstanceOwned: boolean; hasCurrentEnabled: boolean }
 ): RecommendationSlotMatchPresentation {
   if (state === "match") {
     return {
-      label: "符合",
+      label: recommendationMatchText(copy, "符合"),
       tone: "success",
-      instanceOwnedFallback: "未返回可核对项",
-      currentEnabledFallback: "未返回当前启用项"
+      instanceOwnedFallback: recommendationMatchText(copy, "未返回可核对项"),
+      currentEnabledFallback: recommendationMatchText(copy, "未返回当前启用项")
     };
   }
   if (state === "different") {
     return {
-      label: "不符",
+      label: recommendationMatchText(copy, "不符"),
       tone: "error",
-      instanceOwnedFallback: facts.hasInstanceOwned ? "未返回可核对项" : "本版本无此栏位",
-      currentEnabledFallback: facts.hasInstanceOwned || facts.hasCurrentEnabled
+      instanceOwnedFallback: recommendationMatchText(copy, facts.hasInstanceOwned ? "未返回可核对项" : "本版本无此栏位"),
+      currentEnabledFallback: recommendationMatchText(copy, facts.hasInstanceOwned || facts.hasCurrentEnabled
         ? "未返回当前启用项"
-        : "本版本无此栏位"
+        : "本版本无此栏位")
     };
   }
   if (state === "uncheckable") {
     return {
-      label: "无法判断",
+      label: recommendationMatchText(copy, "无法判断"),
       tone: "pending",
-      instanceOwnedFallback: facts.hasInstanceOwned ? "该栏位数据不完整" : "未读取到该栏位",
-      currentEnabledFallback: facts.hasCurrentEnabled ? "该栏位数据不完整" : "该栏位当前项未读取"
+      instanceOwnedFallback: recommendationMatchText(copy, facts.hasInstanceOwned ? "该栏位数据不完整" : "未读取到该栏位"),
+      currentEnabledFallback: recommendationMatchText(copy, facts.hasCurrentEnabled ? "该栏位数据不完整" : "该栏位当前项未读取")
     };
   }
   return {
-    label: "来源未要求",
+    label: recommendationMatchText(copy, "来源未要求"),
     tone: "neutral",
-    instanceOwnedFallback: "来源未要求核对",
-    currentEnabledFallback: "来源未要求核对"
+    instanceOwnedFallback: recommendationMatchText(copy, "来源未要求核对"),
+    currentEnabledFallback: recommendationMatchText(copy, "来源未要求核对")
   };
 }
 
 export function presentCuratedRecommendationMatch(
+  copy: RecommendationMatchCopy,
   source: RecommendationSourceMatch,
   sourceLabel = source.source_label
 ): CuratedRecommendationMatchPresentation {
@@ -78,8 +111,8 @@ export function presentCuratedRecommendationMatch(
 
   if (source.state === "weapon_only" || requirementCount === 0) {
     return {
-      summary: "仅推荐武器 · 未指定 Roll",
-      detail: `${sourceLabel}：来源推荐这把武器，但没有指定需要核对的 Roll。`,
+      summary: recommendationMatchText(copy, "仅推荐武器 · 未指定 Roll"),
+      detail: recommendationMatchTemplate(copy, "{source}：来源推荐这把武器，但没有指定需要核对的 Roll。", { source: sourceLabel }),
       matchedRequirementCount: 0,
       requirementCount: 0,
       matchedPerkCount: 0,
@@ -89,15 +122,20 @@ export function presentCuratedRecommendationMatch(
   }
 
   const perkText = perkSlots.length
-    ? `Perk ${matchedPerkCount}/${perkSlots.length}`
-    : "Perk 未要求";
+    ? recommendationMatchTemplate(copy, "Perk {matched}/{total}", { matched: matchedPerkCount, total: perkSlots.length })
+    : recommendationMatchText(copy, "Perk 未要求");
   const pendingText = uncheckableRequirementCount > 0
-    ? ` · ${uncheckableRequirementCount} 项无法判断`
+    ? recommendationMatchTemplate(copy, " · {count} 项无法判断", { count: uncheckableRequirementCount })
     : "";
-  const summary = `${perkText} · 完整 ${matchedRequirementCount}/${requirementCount}${pendingText}`;
+  const summary = recommendationMatchTemplate(copy, "{perk} · 完整 {matched}/{total}{pending}", {
+    perk: perkText,
+    matched: matchedRequirementCount,
+    total: requirementCount,
+    pending: pendingText
+  });
   return {
     summary,
-    detail: `${sourceLabel}：${summary}。同栏候选任选其一，不同栏位分别核对。`,
+    detail: recommendationMatchTemplate(copy, "{source}：{summary}。同栏候选任选其一，不同栏位分别核对。", { source: sourceLabel, summary }),
     matchedRequirementCount,
     requirementCount,
     matchedPerkCount,
@@ -181,6 +219,7 @@ export type VaultRecommendationManagedSourceOptionInput = {
 };
 
 let cachedSummaryIndexInput: {
+  copy: RecommendationMatchCopy;
   instanceMatchMap?: ReadonlyMap<string, VaultItemInstanceMatchInfo>;
   cardSummaryMap?: ReadonlyMap<string, RecommendationCardSummary>;
   itemSignatures: Map<string, string>;
@@ -192,18 +231,20 @@ export function getVaultCommunityInstanceKey(item: AccountItemSummary): string {
 }
 
 export function buildVaultRecommendationSourceSummaries(
+  copy: RecommendationMatchCopy,
   item: AccountItemSummary,
   instanceMatch?: VaultItemInstanceMatchInfo,
   cardSummary?: RecommendationCardSummary
 ): VaultRecommendationSourceSummary[] {
   // 所有来源（含 DIM）都来自同一份来源事实，卡片不再有 DIM 专属汇总。
   const summaries = cardSummary
-    ? cardSummary.sources.map(cardSourceSummary)
-    : (instanceMatch?.source_matches ?? []).map(sourceMatchSummary);
-  return summaries.sort(compareSourceSummaries);
+    ? cardSummary.sources.map((source) => cardSourceSummary(copy, source))
+    : (instanceMatch?.source_matches ?? []).map((source) => sourceMatchSummary(copy, source));
+  return summaries.sort((left, right) => compareSourceSummaries(copy, left, right));
 }
 
 export function buildVaultRecommendationSummaryIndex(
+  copy: RecommendationMatchCopy,
   items: readonly AccountItemSummary[],
   instanceMatchMap?: ReadonlyMap<string, VaultItemInstanceMatchInfo>,
   cardSummaryMap?: ReadonlyMap<string, RecommendationCardSummary>
@@ -213,8 +254,12 @@ export function buildVaultRecommendationSummaryIndex(
     const instanceKey = getVaultCommunityInstanceKey(item);
     return [instanceKey, recommendationItemSignature(item)] as const;
   }));
+  // 缓存身份必须含文案表与语言：换了界面语言还命中上一种语言的缓存，会把旧语言的句子留在页面上。
+  // `inline` 与 `locale` 都是模块级稳定值，所以即使调用方每次渲染新造 `copy` 对象也能正确比对。
   if (
     cachedSummaryIndexInput !== null
+    && cachedSummaryIndexInput.copy.inline === copy.inline
+    && cachedSummaryIndexInput.copy.locale === copy.locale
     && cachedSummaryIndexInput.instanceMatchMap === instanceMatchMap
     && cachedSummaryIndexInput.cardSummaryMap === cardSummaryMap
     && sameRecommendationItemSignatures(cachedSummaryIndexInput.itemSignatures, itemSignatures)
@@ -228,13 +273,14 @@ export function buildVaultRecommendationSummaryIndex(
     index.set(
       instanceKey,
       buildVaultRecommendationSourceSummaries(
+        copy,
         item,
         instanceMatchMap?.get(instanceKey),
         cardSummaryMap?.get(instanceKey)
       )
     );
   }
-  cachedSummaryIndexInput = { instanceMatchMap, cardSummaryMap, itemSignatures, index };
+  cachedSummaryIndexInput = { copy, instanceMatchMap, cardSummaryMap, itemSignatures, index };
   return index;
 }
 
@@ -330,6 +376,7 @@ export function inferVaultRecommendationResultForSource(
 }
 
 export function selectVaultRecommendationSourceSummaries(
+  copy: RecommendationMatchCopy,
   summaries: readonly VaultRecommendationSourceSummary[]
 ): VaultRecommendationSourceSummary[] {
   const summariesBySource = new Map<string, VaultRecommendationSourceSummary>();
@@ -340,16 +387,17 @@ export function selectVaultRecommendationSourceSummaries(
       summariesBySource.set(sourceId, summary);
     }
   }
-  return [...summariesBySource.values()].sort(compareSourceSummaries);
+  return [...summariesBySource.values()].sort((left, right) => compareSourceSummaries(copy, left, right));
 }
 
 export function buildVaultRecommendationFilterFactIndex(
+  copy: RecommendationMatchCopy,
   summaryIndex: VaultRecommendationSummaryIndex
 ): Map<string, Map<string, VaultRecommendationFilterFact>> {
   const factIndex = new Map<string, Map<string, VaultRecommendationFilterFact>>();
   for (const [instanceKey, summaries] of summaryIndex) {
     const factsBySource = new Map<string, VaultRecommendationFilterFact>();
-    for (const summary of selectVaultRecommendationSourceSummaries(summaries)) {
+    for (const summary of selectVaultRecommendationSourceSummaries(copy, summaries)) {
       factsBySource.set(summary.sourceId, recommendationFilterFactFromSummary(summary));
     }
     if (factsBySource.size) factIndex.set(instanceKey, factsBySource);
@@ -408,6 +456,7 @@ function recommendationFilterFactFromSummary(
 }
 
 export function buildVaultRecommendationSourceOptions(
+  copy: RecommendationMatchCopy,
   summaryGroups: ReadonlyArray<readonly VaultRecommendationSourceSummary[]>,
   managedSources: readonly VaultRecommendationManagedSourceOptionInput[] = [],
   managedSourcesAuthoritative = false
@@ -419,7 +468,7 @@ export function buildVaultRecommendationSourceOptions(
   for (const source of managedSources) {
     if (!source.configured || source.state !== "active") continue;
     const sourceId = source.source_key;
-    const sourceLabel = displayVaultRecommendationSourceLabel(source.label);
+    const sourceLabel = displayVaultRecommendationSourceLabel(copy, source.label);
     options.set(sourceId, {
       sourceId,
       sourceLabel,
@@ -440,7 +489,7 @@ export function buildVaultRecommendationSourceOptions(
       if (existing) {
         existing.count += 1;
       } else {
-        const displaySourceLabel = displayVaultRecommendationSourceLabel(summary.sourceLabel);
+        const displaySourceLabel = displayVaultRecommendationSourceLabel(copy, summary.sourceLabel);
         options.set(sourceId, {
           sourceId,
           sourceLabel: displaySourceLabel,
@@ -450,41 +499,42 @@ export function buildVaultRecommendationSourceOptions(
       }
     }
   }
-  // 所有来源同级：按来源名排序，不再按来源类型或写死顺序排权重。
+  // 所有来源同级：按来源名排序，不再按来源类型或写死顺序排权重。折叠语言跟界面语言走。
   return [...options.values()].sort((left, right) => (
-    left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN")
+    left.sourceLabel.localeCompare(right.sourceLabel, recommendationSortLocale(copy))
   ));
 }
 
-export function vaultRecommendationResultLabel(result: VaultRecommendationResult): string {
-  if (result === "matched") return "符合推荐";
-  if (result === "partial") return "部分符合";
-  if (result === "not_matched") return "未符合";
-  if (result === "uncheckable") return "无法判断";
-  return "无推荐";
+export function vaultRecommendationResultLabel(copy: RecommendationMatchCopy, result: VaultRecommendationResult): string {
+  if (result === "matched") return recommendationMatchText(copy, "符合推荐");
+  if (result === "partial") return recommendationMatchText(copy, "部分符合");
+  if (result === "not_matched") return recommendationMatchText(copy, "未符合");
+  if (result === "uncheckable") return recommendationMatchText(copy, "无法判断");
+  return recommendationMatchText(copy, "无推荐");
 }
 
-export function vaultSourceRecommendationResultLabel(result: VaultRecommendationResult): string {
-  if (result === "matched") return "符合推荐";
-  if (result === "partial") return "部分符合";
-  if (result === "not_matched") return "未符合";
-  if (result === "uncheckable") return "无法判断";
-  return "未收录";
+export function vaultSourceRecommendationResultLabel(copy: RecommendationMatchCopy, result: VaultRecommendationResult): string {
+  if (result === "matched") return recommendationMatchText(copy, "符合推荐");
+  if (result === "partial") return recommendationMatchText(copy, "部分符合");
+  if (result === "not_matched") return recommendationMatchText(copy, "未符合");
+  if (result === "uncheckable") return recommendationMatchText(copy, "无法判断");
+  return recommendationMatchText(copy, "未收录");
 }
 
 export function formatRecommendationPurposes(
+  copy: RecommendationMatchCopy,
   purposes: Array<"pve" | "pvp" | "general">
 ): string {
   const unique = [...new Set(purposes)];
   return unique.length
-    ? unique.map((purpose) => purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : "通用").join(" / ")
-    : "用途未注明";
+    ? unique.map((purpose) => purpose === "pve" ? "PVE" : purpose === "pvp" ? "PVP" : recommendationMatchText(copy, "通用")).join(" / ")
+    : recommendationMatchText(copy, "用途未注明");
 }
 
-function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendationSourceSummary {
-  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_label);
+function sourceMatchSummary(copy: RecommendationMatchCopy, source: RecommendationSourceMatch): VaultRecommendationSourceSummary {
+  const sourceLabel = displayVaultRecommendationSourceLabel(copy, source.source_label);
   const shortSourceLabel = compactVaultRecommendationSourceLabel(sourceLabel);
-  const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
+  const presentation = presentCuratedRecommendationMatch(copy, source, sourceLabel);
   return {
     sourceId: source.source_group_id,
     sourceLabel,
@@ -503,21 +553,27 @@ function sourceMatchSummary(source: RecommendationSourceMatch): VaultRecommendat
     unit: "item",
     purposes: source.purposes,
     resultText: presentation.summary,
-    text: `${shortSourceLabel}：${presentation.summary}`,
-    detail: withDeclaredLabel(presentation.detail, source.declared_label)
+    text: recommendationMatchTemplate(copy, "{source}：{summary}", { source: shortSourceLabel, summary: presentation.summary }),
+    detail: withDeclaredLabel(copy, presentation.detail, source.declared_label)
   };
 }
 
-function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecommendationSourceSummary {
-  const sourceLabel = displayVaultRecommendationSourceLabel(source.source_label);
+function cardSourceSummary(copy: RecommendationMatchCopy, source: RecommendationCardSourceSummary): VaultRecommendationSourceSummary {
+  const sourceLabel = displayVaultRecommendationSourceLabel(copy, source.source_label);
   const shortSourceLabel = compactVaultRecommendationSourceLabel(sourceLabel);
-  const resultText = source.state === "weapon_only" || source.requirement_count === 0
-    ? "仅推荐武器 · 未指定 Roll"
-    : `${source.perk_requirement_count > 0
-        ? `Perk ${source.matched_perk_count}/${source.perk_requirement_count}`
-        : "Perk 未要求"} · 完整 ${source.matched_requirement_count}/${source.requirement_count}${source.uncheckable_requirement_count > 0
-          ? ` · ${source.uncheckable_requirement_count} 项无法判断`
-          : ""}`;
+  const isWeaponOnly = source.state === "weapon_only" || source.requirement_count === 0;
+  const resultText = isWeaponOnly
+    ? recommendationMatchText(copy, "仅推荐武器 · 未指定 Roll")
+    : recommendationMatchTemplate(copy, "{perk} · 完整 {matched}/{total}{pending}", {
+        perk: source.perk_requirement_count > 0
+          ? recommendationMatchTemplate(copy, "Perk {matched}/{total}", { matched: source.matched_perk_count, total: source.perk_requirement_count })
+          : recommendationMatchText(copy, "Perk 未要求"),
+        matched: source.matched_requirement_count,
+        total: source.requirement_count,
+        pending: source.uncheckable_requirement_count > 0
+          ? recommendationMatchTemplate(copy, " · {count} 项无法判断", { count: source.uncheckable_requirement_count })
+          : ""
+      });
   return {
     sourceId: source.source_group_id,
     sourceLabel,
@@ -534,11 +590,12 @@ function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecomm
     unit: "item",
     purposes: source.purposes,
     resultText,
-    text: `${shortSourceLabel}：${resultText}`,
+    text: recommendationMatchTemplate(copy, "{source}：{summary}", { source: shortSourceLabel, summary: resultText }),
     detail: withDeclaredLabel(
-      source.state === "weapon_only" || source.requirement_count === 0
-        ? `${sourceLabel}：来源推荐这把武器，但没有指定需要核对的 Roll。`
-        : `${sourceLabel}：${resultText}。同栏候选任选其一，不同栏位分别核对。`,
+      copy,
+      isWeaponOnly
+        ? recommendationMatchTemplate(copy, "{source}：来源推荐这把武器，但没有指定需要核对的 Roll。", { source: sourceLabel })
+        : recommendationMatchTemplate(copy, "{source}：{summary}。同栏候选任选其一，不同栏位分别核对。", { source: sourceLabel, summary: resultText }),
       source.declared_label
     )
   };
@@ -548,18 +605,21 @@ function cardSourceSummary(source: RecommendationCardSourceSummary): VaultRecomm
  * 主名是用户给这次导入起的名字；文件里声明的名字只在两者不同时作为副标题跟在说明后面。
  * 副标题只出现在说明文字里——徽标一行放不下两个字。
  */
-function withDeclaredLabel(detail: string, declaredLabel?: string): string {
-  return declaredLabel ? `${detail}（文件内名称：${declaredLabel}）` : detail;
+function withDeclaredLabel(copy: RecommendationMatchCopy, detail: string, declaredLabel?: string): string {
+  return declaredLabel
+    ? recommendationMatchTemplate(copy, "{detail}（文件内名称：{label}）", { detail, label: declaredLabel })
+    : detail;
 }
 
 function compareSourceSummaries(
+  copy: RecommendationMatchCopy,
   left: VaultRecommendationSourceSummary,
   right: VaultRecommendationSourceSummary
 ): number {
-  // 所有来源同级：只按符合程度排序，平级按来源名。来源类型不参与排序。
+  // 所有来源同级：只按符合程度排序，平级按来源名。来源类型不参与排序。折叠语言跟界面语言走。
   const rankDifference = summaryRank(left) - summaryRank(right);
   if (rankDifference) return rankDifference;
-  return left.sourceLabel.localeCompare(right.sourceLabel, "zh-Hans-CN");
+  return left.sourceLabel.localeCompare(right.sourceLabel, recommendationSortLocale(copy));
 }
 
 function summaryRank(summary: VaultRecommendationSourceSummary): number {
@@ -583,8 +643,8 @@ function isBetterSourceSummary(
 
 // 来源显示名一律用来源自己的 label（导入时固化的来源名）。
 // 这里只做「没有名字时」的兜底，不再按 sourceId 写死具体来源。
-export function displayVaultRecommendationSourceLabel(sourceLabel?: string): string {
-  return sourceLabel?.trim() || "推荐来源";
+export function displayVaultRecommendationSourceLabel(copy: RecommendationMatchCopy, sourceLabel?: string): string {
+  return sourceLabel?.trim() || recommendationMatchText(copy, "推荐来源");
 }
 
 // 卡片上的短名同样来自来源自己的 label，只做长度截断；不同来源必须能分辨。

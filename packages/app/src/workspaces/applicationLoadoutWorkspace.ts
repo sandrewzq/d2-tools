@@ -4,19 +4,26 @@ import type {
   CharacterLoadoutSlotSummary,
   CharacterSummary
 } from "@d2-tools/core/account/summary";
-import type { ArmorSlot } from "@d2-tools/core/armor";
+import type { ArmorSlot, ArmorStatModSlotRuleMode } from "@d2-tools/core/armor";
 import {
   loadoutPlanArmorStatKeys,
   matchLocalLoadoutPlan,
   normalizeLoadoutPlanArmorStatModSlotRules,
   summarizeLoadoutPlanArmorStatModRules,
+  type LoadoutPlanArmorPlannerMode,
   type LoadoutPlanArmorStatKey,
   type LocalLoadoutPlan,
   type LocalLoadoutPlanItemMatch,
   type LocalLoadoutPlanItemMatchStatus,
-  type LocalLoadoutPlanMatch
+  type LocalLoadoutPlanMatch,
+  type LocalLoadoutPlanSourceKind
 } from "@d2-tools/core/loadouts/plans";
-import { normalizeCompareSlot, selectApplicationLoadoutInGameLink, type CrossSourceLink } from "./loadoutCrossSource.js";
+import {
+  normalizeCompareSlot,
+  selectApplicationLoadoutInGameLink,
+  type CrossSourceLink,
+  type LoadoutCompareSlot
+} from "./loadoutCrossSource.js";
 
 export type ApplicationLoadoutScreen =
   | { kind: "library"; selected_plan_id?: string }
@@ -57,12 +64,12 @@ export type ApplicationLoadoutDirectoryEntryView = {
   id: string;
   title: string;
   class_name: string;
-  source_label: string;
+  source_label: LocalLoadoutPlanSourceKind;
   item_count: number;
   updated_at: string;
   has_subclass: boolean;
   has_armor_targets: boolean;
-  status_label: string;
+  status_label: ApplicationLoadoutWearLabel;
   status_tone: "neutral" | "ready" | "warning";
   /** 这套方案在游戏内槽位上的落点；账号未读时为空。见 `loadoutCrossSource`。 */
   in_game_link: CrossSourceLink | null;
@@ -77,7 +84,7 @@ export type ApplicationLoadoutItemDetailView = {
   plug_hashes: number[];
   notes?: string;
   match: LocalLoadoutPlanItemMatch | null;
-  status_label: string;
+  status_label: ApplicationLoadoutItemStatus;
   status_tone: "neutral" | "ready" | "warning";
   candidate_count: number;
 };
@@ -88,6 +95,112 @@ export type ApplicationLoadoutWearState =
   | "needs-review"
   | "ready";
 
+/**
+ * 穿戴结论。`needs-review` 时报「N 项需要处理」，数字跟着一起走，
+ * 这样方案库列表拿不到逐条原因也拼得出同一句。措辞在界面侧。
+ */
+export type ApplicationLoadoutWearLabel = {
+  wear: ApplicationLoadoutWearState;
+  block_count: number;
+};
+
+/** 单件装备目标在账号里的对位结果；`unconfigured` 也涵盖还没核对过的情况。 */
+export type ApplicationLoadoutItemStatus = LocalLoadoutPlanItemMatchStatus;
+
+/**
+ * 穿戴前要处理的每一件事。分开列而不是合成一句「有 N 项待处理」——
+ * 它们各自要求不同的下一步动作。
+ */
+export type ApplicationLoadoutWearBlockReason =
+  | { kind: "no-targets" }
+  | { kind: "account-required" }
+  | { kind: "no-target-character" }
+  | { kind: "target-character-missing" }
+  | { kind: "items-unverified" }
+  | { kind: "unconfigured"; count: number }
+  | { kind: "available"; count: number }
+  | { kind: "needs-selection"; count: number }
+  | { kind: "missing"; count: number }
+  | { kind: "plug-unavailable"; count: number };
+
+/** 对比页底部的选择提示。 */
+export type ApplicationLoadoutSelectionMessage =
+  | { kind: "too-many"; maximum: number }
+  | { kind: "ready"; count: number; has_in_game_reference: boolean }
+  | { kind: "needs-more"; missing: number };
+
+/**
+ * 对比表里「没什么可报」的四种。来源不同，措辞也不同，不能合并成一条：
+ * 方案侧没配和游戏内没返回是两回事，看不出差别就分不清是漏配还是没读到。
+ */
+export type ApplicationLoadoutCompareEmpty =
+  | "unconfigured"
+  | "unset"
+  | "unavailable"
+  | "none";
+
+/** 「N 个 X」里的单位。 */
+export type ApplicationLoadoutCountUnit =
+  | "plug"
+  | "returned-plug"
+  | "ability"
+  | "aspect"
+  | "fragment"
+  | "subclass-mod";
+
+/** 子职业 Plug 明细的分组名。 */
+export type ApplicationLoadoutPlugGroupKey =
+  | "ability"
+  | "aspect"
+  | "fragment"
+  | "subclass-mod"
+  | "unclassified";
+
+export type ApplicationLoadoutPlugGroup = {
+  group: ApplicationLoadoutPlugGroupKey;
+  hashes: number[];
+};
+
+export type ApplicationLoadoutCompareValue =
+  | { kind: "text"; text: string }
+  | { kind: "count"; count: number; unit: ApplicationLoadoutCountUnit }
+  | { kind: "empty"; empty: ApplicationLoadoutCompareEmpty }
+  | { kind: "item-ref"; hash: number }
+  | { kind: "instance-ref"; suffix: string }
+  | { kind: "subclass-ref"; hash: number }
+  | { kind: "armor-mode"; mode: LoadoutPlanArmorPlannerMode }
+  | { kind: "stat-mod"; mode: ArmorStatModSlotRuleMode; stat: LoadoutPlanArmorStatKey | null }
+  | { kind: "armor-set-single"; set_hash: number; piece_count: number }
+  | { kind: "armor-set-split"; first_hash: number; second_hash: number }
+  | { kind: "stat-chain"; stats: LoadoutPlanArmorStatKey[] }
+  | { kind: "series"; parts: ApplicationLoadoutCompareValue[] }
+  | { kind: "plug-groups"; groups: ApplicationLoadoutPlugGroup[]; empty_socket_count?: number }
+  | { kind: "plug-hashes"; hashes: number[] };
+
+export type ApplicationLoadoutCompareRowLabel =
+  | { kind: "class" }
+  | { kind: "subclass" }
+  | { kind: "subclass-config" }
+  | { kind: "slot"; slot: LoadoutCompareSlot }
+  | { kind: "slot-plugs"; slot: LoadoutCompareSlot }
+  | { kind: "armor-minimum"; stat: LoadoutPlanArmorStatKey }
+  | { kind: "armor-mod-count"; mod: "plus5" | "plus10" }
+  | { kind: "armor-stat-mod"; slot: ArmorSlot }
+  | { kind: "armor-mode" }
+  | { kind: "armor-priority" }
+  | { kind: "armor-exotic" }
+  | { kind: "armor-set" }
+  | { kind: "notes" };
+
+/** 游戏内槽位名可能为空，这时由界面按语言补「游戏内槽位 N」。 */
+export type ApplicationLoadoutCompareColumnTitle =
+  | { kind: "plan"; name: string }
+  | { kind: "in-game-slot"; name: string; index: number };
+
+export type ApplicationLoadoutCompareColumnSubtitle =
+  | { kind: "plan"; class_name: string; target_count: number }
+  | { kind: "in-game"; class_name: string };
+
 export type ApplicationLoadoutDetailView = {
   plan: LocalLoadoutPlan;
   item_rows: ApplicationLoadoutItemDetailView[];
@@ -95,8 +208,8 @@ export type ApplicationLoadoutDetailView = {
   target_character: CharacterSummary | null;
   wear_state: ApplicationLoadoutWearState;
   wear_enabled: boolean;
-  wear_label: string;
-  wear_block_reasons: string[];
+  wear_label: ApplicationLoadoutWearLabel;
+  wear_block_reasons: ApplicationLoadoutWearBlockReason[];
   configured_item_count: number;
   configured_plug_count: number;
   has_subclass: boolean;
@@ -137,16 +250,16 @@ export type ApplicationLoadoutCompareColumn =
   | {
       id: string;
       kind: "application";
-      title: string;
-      subtitle: string;
+      title: ApplicationLoadoutCompareColumnTitle;
+      subtitle: ApplicationLoadoutCompareColumnSubtitle;
       plan: LocalLoadoutPlan;
       completeness: "complete";
     }
   | {
       id: string;
       kind: "in-game";
-      title: string;
-      subtitle: string;
+      title: ApplicationLoadoutCompareColumnTitle;
+      subtitle: ApplicationLoadoutCompareColumnSubtitle;
       character: CharacterSummary;
       slot: CharacterLoadoutSlotSummary;
       completeness: "partial";
@@ -155,19 +268,19 @@ export type ApplicationLoadoutCompareColumn =
 export type ApplicationLoadoutCompareCell = {
   column_id: string;
   state: "value" | "empty" | "unknown";
-  value: string;
+  value: ApplicationLoadoutCompareValue;
   /**
    * 计数之外的展开明细。`value` 只报数量，光看数量分不出两边选的是不是同一批星象和碎片；
    * 明细给出实际的 Plug 列表。判「有没有变」仍然只看 `fingerprint`，跟这里显示成什么样无关。
    */
-  detail?: string;
+  detail?: ApplicationLoadoutCompareValue;
   fingerprint: string;
 };
 
 export type ApplicationLoadoutCompareRow = {
   key: string;
   section: "identity" | "equipment" | "armor" | "notes";
-  label: string;
+  label: ApplicationLoadoutCompareRowLabel;
   changed: boolean;
   cells: ApplicationLoadoutCompareCell[];
 };
@@ -178,7 +291,7 @@ export type ApplicationLoadoutCompareViewModel = {
   minimum_selection_count: 2;
   maximum_selection_count: 3;
   can_compare: boolean;
-  selection_message: string;
+  selection_message: ApplicationLoadoutSelectionMessage;
   showDiffOnly: boolean;
   in_game_reference_id?: string;
   columns: ApplicationLoadoutCompareColumn[];
@@ -300,8 +413,8 @@ export function selectApplicationLoadoutCompareViewModel(
   const applicationColumns: ApplicationLoadoutCompareColumn[] = plans.map((plan) => ({
     id: `application:${plan.id}`,
     kind: "application",
-    title: plan.name,
-    subtitle: `${plan.class_name} · ${plan.item_targets.length} 个装备目标`,
+    title: { kind: "plan", name: plan.name },
+    subtitle: { kind: "plan", class_name: plan.class_name, target_count: plan.item_targets.length },
     plan,
     completeness: "complete"
   }));
@@ -322,12 +435,12 @@ export function selectApplicationLoadoutCompareViewModel(
     maximum_selection_count: 3,
     can_compare: canCompare,
     selection_message: planIds.length > 3
-      ? "最多选择 3 个应用配装"
+      ? { kind: "too-many", maximum: 3 }
       : canCompare
-      ? `正在比较 ${planIds.length} 个应用配装${inGameColumn ? "，并加入 1 个游戏内只读参照" : ""}`
-      : planIds.length < 2
-        ? `还需选择 ${2 - planIds.length} 个应用配装`
-        : "最多选择 3 个应用配装",
+        ? { kind: "ready", count: planIds.length, has_in_game_reference: Boolean(inGameColumn) }
+        : planIds.length < 2
+          ? { kind: "needs-more", missing: 2 - planIds.length }
+          : { kind: "too-many", maximum: 3 },
     showDiffOnly,
     ...(inGameColumn ? { in_game_reference_id: inGameColumn.id } : {}),
     columns,
@@ -369,13 +482,7 @@ export function selectApplicationLoadoutDetailView(
     target_character: targetCharacter,
     wear_state: wearState,
     wear_enabled: wearState === "ready",
-    wear_label: wearState === "ready"
-      ? "可进入穿戴核对"
-      : wearState === "waiting-account"
-        ? "等待账号核对"
-        : wearState === "empty"
-          ? "尚未配置装备"
-          : `${wearBlockReasons.length} 项需要处理`,
+    wear_label: { wear: wearState, block_count: wearBlockReasons.length },
     wear_block_reasons: wearBlockReasons,
     configured_item_count: plan.item_targets.filter((target) => (
       Boolean(target.item_hash || target.selected_instance_id)
@@ -396,7 +503,7 @@ function buildApplicationLoadoutDirectoryEntry(
     id: plan.id,
     title: plan.name,
     class_name: plan.class_name,
-    source_label: applicationLoadoutSourceLabel(plan.source.kind),
+    source_label: plan.source.kind,
     item_count: plan.item_targets.length,
     updated_at: plan.updated_at ?? plan.created_at,
     has_subclass: detail.has_subclass,
@@ -430,42 +537,31 @@ function buildWearBlockReasons(
   accountSummary: AccountSummary | null,
   matchSummary: LocalLoadoutPlanMatch | null,
   targetCharacter: CharacterSummary | null
-): string[] {
-  if (!plan.item_targets.length) return ["至少配置一个装备目标后才能穿戴。"];
-  if (!accountSummary) return ["需要读取账号数据并在执行前刷新核对。"];
-  const reasons: string[] = [];
-  if (!plan.target_character_id) reasons.push("尚未选择目标角色。");
-  else if (!targetCharacter) reasons.push("目标角色不在当前账号快照中。");
-  if (!matchSummary) return [...reasons, "尚未核对方案中的装备实例。"];
-  if (matchSummary.unconfigured_count) reasons.push(`${matchSummary.unconfigured_count} 个装备槽尚未配置。`);
-  if (matchSummary.available_count) reasons.push(`${matchSummary.available_count} 个装备目标需要绑定唯一实例。`);
-  if (matchSummary.needs_selection_count) reasons.push(`${matchSummary.needs_selection_count} 个装备目标存在多个候选实例。`);
-  if (matchSummary.missing_count) reasons.push(`${matchSummary.missing_count} 个装备目标在账号内未找到。`);
-  if (matchSummary.plug_unavailable_count) reasons.push(`${matchSummary.plug_unavailable_count} 个装备目标的 Plug 当前不可用。`);
+): ApplicationLoadoutWearBlockReason[] {
+  if (!plan.item_targets.length) return [{ kind: "no-targets" }];
+  if (!accountSummary) return [{ kind: "account-required" }];
+  const reasons: ApplicationLoadoutWearBlockReason[] = [];
+  if (!plan.target_character_id) reasons.push({ kind: "no-target-character" });
+  else if (!targetCharacter) reasons.push({ kind: "target-character-missing" });
+  if (!matchSummary) return [...reasons, { kind: "items-unverified" }];
+  if (matchSummary.unconfigured_count) reasons.push({ kind: "unconfigured", count: matchSummary.unconfigured_count });
+  if (matchSummary.available_count) reasons.push({ kind: "available", count: matchSummary.available_count });
+  if (matchSummary.needs_selection_count) reasons.push({ kind: "needs-selection", count: matchSummary.needs_selection_count });
+  if (matchSummary.missing_count) reasons.push({ kind: "missing", count: matchSummary.missing_count });
+  if (matchSummary.plug_unavailable_count) reasons.push({ kind: "plug-unavailable", count: matchSummary.plug_unavailable_count });
   return reasons;
 }
 
 function itemMatchPresentation(
   status: LocalLoadoutPlanItemMatchStatus | undefined
 ): Pick<ApplicationLoadoutItemDetailView, "status_label" | "status_tone"> {
-  if (status === "selected") return { status_label: "已绑定实例", status_tone: "ready" };
-  if (status === "available") return { status_label: "需要确认实例", status_tone: "warning" };
-  if (status === "needs-selection") return { status_label: "需要选择实例", status_tone: "warning" };
-  if (status === "missing") return { status_label: "账号内未找到", status_tone: "warning" };
-  if (status === "plug-unavailable") return { status_label: "目标 Plug 不可用", status_tone: "warning" };
-  return { status_label: "尚未配置", status_tone: "neutral" };
-}
-
-function applicationLoadoutSourceLabel(source: LocalLoadoutPlan["source"]["kind"]): string {
-  switch (source) {
-    case "current-equipment": return "当前装备";
-    case "bungie-loadout": return "游戏内配装复制";
-    case "dim-link": return "DIM 创建方式";
-    case "guide": return "攻略成果";
-    case "armor-plan": return "自动配甲";
-    case "assistant-targets": return "AI 装备目标";
-    default: return "手动创建";
-  }
+  if (status === "selected") return { status_label: "selected", status_tone: "ready" };
+  if (status === "available") return { status_label: "available", status_tone: "warning" };
+  if (status === "needs-selection") return { status_label: "needs-selection", status_tone: "warning" };
+  if (status === "missing") return { status_label: "missing", status_tone: "warning" };
+  if (status === "plug-unavailable") return { status_label: "plug-unavailable", status_tone: "warning" };
+  // 还没核对过（`match` 为空）和核对过但没配装备走的是同一条兜底，措辞一样。
+  return { status_label: "unconfigured", status_tone: "neutral" };
 }
 
 function createInGameCompareColumn(
@@ -474,8 +570,8 @@ function createInGameCompareColumn(
   return {
     id: inGameReferenceId(reference),
     kind: "in-game",
-    title: reference.slot.name || `游戏内槽位 ${reference.slot.index + 1}`,
-    subtitle: `${reference.character.class_name} · 游戏内只读参照`,
+    title: { kind: "in-game-slot", name: reference.slot.name, index: reference.slot.index },
+    subtitle: { kind: "in-game", class_name: reference.character.class_name },
     character: reference.character,
     slot: reference.slot,
     completeness: "partial"
@@ -490,13 +586,15 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
       + plan.subclass_target.fragment_hashes.length
       + plan.subclass_target.mod_hashes.length
     : 0;
-  addProjectionValue(projection, "identity:class", "identity", "职业", plan.class_name);
+  addProjectionValue(projection, "identity:class", "identity", { kind: "class" }, { kind: "text", text: plan.class_name }, "value", plan.class_name);
   addProjectionValue(
     projection,
     "identity:subclass",
     "identity",
-    "子职业",
-    plan.subclass_target?.subclass_hash ? `子职业 ${plan.subclass_target.subclass_hash}` : "未配置",
+    { kind: "subclass" },
+    plan.subclass_target?.subclass_hash
+      ? { kind: "subclass-ref", hash: plan.subclass_target.subclass_hash }
+      : { kind: "empty", empty: "unconfigured" },
     plan.subclass_target?.subclass_hash ? "value" : "empty",
     plan.subclass_target?.subclass_hash ? String(plan.subclass_target.subclass_hash) : "empty"
   );
@@ -504,36 +602,39 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     projection,
     "identity:subclass-config",
     "identity",
-    "子职业配置",
-    subclassConfigurationCount ? formatApplicationSubclassConfiguration(plan) : "未配置",
+    { kind: "subclass-config" },
+    subclassConfigurationCount
+      ? { kind: "series", parts: applicationSubclassConfigurationCounts(plan) }
+      : { kind: "empty", empty: "unconfigured" },
     subclassConfigurationCount ? "value" : "empty",
     subclassConfigurationCount && plan.subclass_target
       ? subclassConfigurationFingerprint(plan.subclass_target)
       : "empty",
-    subclassConfigurationCount ? formatApplicationSubclassConfigurationDetail(plan) : undefined
+    subclassConfigurationCount ? applicationSubclassConfigurationDetail(plan) : undefined
   );
   for (const target of plan.item_targets) {
     const slot = normalizeCompareSlot(target.slot);
-    const identity = target.item_hash
-      ? `物品 ${target.item_hash}`
-      : target.selected_instance_id
-        ? `实例 …${target.selected_instance_id.slice(-6)}`
-        : "未配置";
     addProjectionValue(
       projection,
       `equipment:${slot.key}:item`,
       "equipment",
-      slot.label,
-      identity,
-      identity === "未配置" ? "empty" : "value",
+      { kind: "slot", slot: slot.slot },
+      target.item_hash
+        ? { kind: "item-ref", hash: target.item_hash }
+        : target.selected_instance_id
+          ? { kind: "instance-ref", suffix: target.selected_instance_id.slice(-6) }
+          : { kind: "empty", empty: "unconfigured" },
+      target.item_hash || target.selected_instance_id ? "value" : "empty",
       `${target.item_hash ?? ""}|${target.selected_instance_id ?? ""}`
     );
     addProjectionValue(
       projection,
       `equipment:${slot.key}:plugs`,
       "equipment",
-      `${slot.label} Plug`,
-      target.plug_hashes.length ? `${target.plug_hashes.length} 个 Plug` : "未配置",
+      { kind: "slot-plugs", slot: slot.slot },
+      target.plug_hashes.length
+        ? { kind: "count", count: target.plug_hashes.length, unit: "plug" }
+        : { kind: "empty", empty: "unconfigured" },
       target.plug_hashes.length ? "value" : "empty",
       target.plug_hashes.length ? sortedNumbers(target.plug_hashes) : "empty"
     );
@@ -544,44 +645,34 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
       projection,
       `armor:minimum:${stat}`,
       "armor",
-      `${armorStatLabel(stat)}最低值`,
-      value === undefined ? "未设置" : String(value),
-      value === undefined ? "empty" : "value"
+      { kind: "armor-minimum", stat },
+      value === undefined ? { kind: "empty", empty: "unset" } : { kind: "text", text: String(value) },
+      value === undefined ? "empty" : "value",
+      value === undefined ? "unset" : String(value)
     );
   }
   const armorModSummary = summarizeLoadoutPlanArmorStatModRules(plan.armor_constraints);
-  addProjectionValue(
-    projection,
-    "armor:plus5",
-    "armor",
-    "+5 属性模组",
-    plan.armor_constraints ? String(armorModSummary.plus5) : "未设置",
-    plan.armor_constraints ? "value" : "empty",
-    plan.armor_constraints ? String(armorModSummary.plus5) : "empty"
-  );
-  addProjectionValue(
-    projection,
-    "armor:plus10",
-    "armor",
-    "+10 属性模组",
-    plan.armor_constraints ? String(armorModSummary.plus10) : "未设置",
-    plan.armor_constraints ? "value" : "empty",
-    plan.armor_constraints ? String(armorModSummary.plus10) : "empty"
-  );
+  for (const mod of ["plus5", "plus10"] as const) {
+    addProjectionValue(
+      projection,
+      `armor:${mod}`,
+      "armor",
+      { kind: "armor-mod-count", mod },
+      plan.armor_constraints
+        ? { kind: "text", text: String(armorModSummary[mod]) }
+        : { kind: "empty", empty: "unset" },
+      plan.armor_constraints ? "value" : "empty",
+      plan.armor_constraints ? String(armorModSummary[mod]) : "empty"
+    );
+  }
   if (plan.armor_constraints?.armor_stat_mod_slot_rules) {
     for (const rule of normalizeLoadoutPlanArmorStatModSlotRules(plan.armor_constraints)) {
-      const value = rule.mode === "auto"
-        ? "自动"
-        : rule.mode === "none"
-          ? "不安装"
-          : rule.mode === "plus5" ? "+5" : "+10";
-      const stat = rule.stat ? armorStatLabel(rule.stat) : "属性自动";
       addProjectionValue(
         projection,
         `armor:stat-mod:${rule.slot}`,
         "armor",
-        `${armorSlotLabel(rule.slot)}属性模组`,
-        `${value} · ${stat}`,
+        { kind: "armor-stat-mod", slot: rule.slot },
+        { kind: "stat-mod", mode: rule.mode, stat: rule.stat ?? null },
         "value",
         `${rule.mode}:${rule.stat ?? "auto"}`
       );
@@ -591,18 +682,21 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     projection,
     "armor:mode",
     "armor",
-    "自动配甲模式",
-    plan.armor_constraints?.planner_mode ?? "未设置",
-    plan.armor_constraints?.planner_mode ? "value" : "empty"
+    { kind: "armor-mode" },
+    plan.armor_constraints?.planner_mode
+      ? { kind: "armor-mode", mode: plan.armor_constraints.planner_mode }
+      : { kind: "empty", empty: "unset" },
+    plan.armor_constraints?.planner_mode ? "value" : "empty",
+    plan.armor_constraints?.planner_mode ?? "unset"
   );
   addProjectionValue(
     projection,
     "armor:priority",
     "armor",
-    "属性优先级",
+    { kind: "armor-priority" },
     plan.armor_constraints?.priority_stats.length
-      ? plan.armor_constraints.priority_stats.map(armorStatLabel).join(" → ")
-      : "未设置",
+      ? { kind: "stat-chain", stats: plan.armor_constraints.priority_stats }
+      : { kind: "empty", empty: "unset" },
     plan.armor_constraints?.priority_stats.length ? "value" : "empty",
     plan.armor_constraints?.priority_stats.join(",") || "empty"
   );
@@ -610,12 +704,12 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     projection,
     "armor:exotic",
     "armor",
-    "异域护甲约束",
+    { kind: "armor-exotic" },
     plan.armor_constraints?.exotic_item_hash
-      ? `物品 ${plan.armor_constraints.exotic_item_hash}`
+      ? { kind: "item-ref", hash: plan.armor_constraints.exotic_item_hash }
       : plan.armor_constraints?.exotic_instance_id
-        ? `实例 …${plan.armor_constraints.exotic_instance_id.slice(-6)}`
-        : "未设置",
+        ? { kind: "instance-ref", suffix: plan.armor_constraints.exotic_instance_id.slice(-6) }
+        : { kind: "empty", empty: "unset" },
     plan.armor_constraints?.exotic_item_hash || plan.armor_constraints?.exotic_instance_id ? "value" : "empty",
     plan.armor_constraints?.exotic_item_hash || plan.armor_constraints?.exotic_instance_id
       ? `${plan.armor_constraints?.exotic_item_hash ?? ""}|${plan.armor_constraints?.exotic_instance_id ?? ""}`
@@ -626,8 +720,8 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     projection,
     "armor:set",
     "armor",
-    "护甲套装约束",
-    formatArmorSetConstraint(setConstraint),
+    { kind: "armor-set" },
+    armorSetConstraintValue(setConstraint),
     setConstraint && setConstraint.mode !== "none" ? "value" : "empty",
     setConstraint && setConstraint.mode !== "none" ? armorSetConstraintFingerprint(setConstraint) : "empty"
   );
@@ -635,23 +729,24 @@ function projectApplicationLoadout(plan: LocalLoadoutPlan): CompareProjection {
     projection,
     "notes:notes",
     "notes",
-    "备注",
-    plan.notes?.trim() || "无",
-    plan.notes?.trim() ? "value" : "empty"
+    { kind: "notes" },
+    plan.notes?.trim() ? { kind: "text", text: plan.notes.trim() } : { kind: "empty", empty: "none" },
+    plan.notes?.trim() ? "value" : "empty",
+    plan.notes?.trim() || "none"
   );
   return projection;
 }
 
 function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): CompareProjection {
   const projection: CompareProjection = new Map();
-  addProjectionValue(projection, "identity:class", "identity", "职业", reference.character.class_name);
+  addProjectionValue(projection, "identity:class", "identity", { kind: "class" }, { kind: "text", text: reference.character.class_name }, "value", reference.character.class_name);
   const subclass = reference.slot.items.find((item) => normalizeCompareSlot(item.bucket_name ?? "").key === "subclass");
   addProjectionValue(
     projection,
     "identity:subclass",
     "identity",
-    "子职业",
-    subclass?.name ?? "未返回",
+    { kind: "subclass" },
+    subclass ? { kind: "text", text: subclass.name } : { kind: "empty", empty: "unavailable" },
     subclass ? "value" : "unknown",
     subclass ? String(subclass.item_hash ?? subclass.name) : "unknown"
   );
@@ -659,17 +754,19 @@ function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): Com
     projection,
     "identity:subclass-config",
     "identity",
-    "子职业配置",
-    subclass?.plug_hashes
-      ? (subclass.plug_hashes.length ? `${subclass.plug_hashes.length} 个已返回 Plug` : "未配置")
-      : "未返回",
+    { kind: "subclass-config" },
+    !subclass?.plug_hashes
+      ? { kind: "empty", empty: "unavailable" }
+      : subclass.plug_hashes.length
+        ? { kind: "count", count: subclass.plug_hashes.length, unit: "returned-plug" }
+        : { kind: "empty", empty: "unconfigured" },
     subclass?.plug_hashes
       ? (subclass.plug_hashes.length ? "value" : "empty")
       : "unknown",
     subclass?.plug_hashes
       ? (sortedNumbers(subclass.plug_hashes) || "empty")
       : "unknown",
-    formatInGameSubclassConfigurationDetail(subclass)
+    inGameSubclassConfigurationDetail(subclass)
   );
   for (const item of reference.slot.items) {
     const slot = normalizeCompareSlot(item.bucket_name ?? item.name);
@@ -678,8 +775,8 @@ function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): Com
       projection,
       `equipment:${slot.key}:item`,
       "equipment",
-      slot.label,
-      item.name,
+      { kind: "slot", slot: slot.slot },
+      { kind: "text", text: item.name },
       "value",
       `${item.item_hash ?? ""}|${item.instance_id ?? ""}`
     );
@@ -687,8 +784,10 @@ function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): Com
       projection,
       `equipment:${slot.key}:plugs`,
       "equipment",
-      `${slot.label} Plug`,
-      item.plug_hashes ? `${item.plug_hashes.length} 个已返回 Plug` : "未返回",
+      { kind: "slot-plugs", slot: slot.slot },
+      item.plug_hashes
+        ? { kind: "count", count: item.plug_hashes.length, unit: "returned-plug" }
+        : { kind: "empty", empty: "unavailable" },
       item.plug_hashes ? (item.plug_hashes.length ? "value" : "empty") : "unknown",
       item.plug_hashes ? (sortedNumbers(item.plug_hashes) || "empty") : "unknown"
     );
@@ -698,18 +797,19 @@ function projectInGameLoadout(reference: ApplicationLoadoutInGameReference): Com
       projection,
       `armor:minimum:${stat}`,
       "armor",
-      `${armorStatLabel(stat)}最低值`,
-      "未返回",
-      "unknown"
+      { kind: "armor-minimum", stat },
+      { kind: "empty", empty: "unavailable" },
+      "unknown",
+      "unavailable"
     );
   }
-  addProjectionValue(projection, "armor:plus5", "armor", "+5 属性模组数量", "未返回", "unknown");
-  addProjectionValue(projection, "armor:plus10", "armor", "+10 属性模组数量", "未返回", "unknown");
-  addProjectionValue(projection, "armor:mode", "armor", "自动配甲模式", "未返回", "unknown");
-  addProjectionValue(projection, "armor:priority", "armor", "属性优先级", "未返回", "unknown");
-  addProjectionValue(projection, "armor:exotic", "armor", "异域护甲约束", "未返回", "unknown");
-  addProjectionValue(projection, "armor:set", "armor", "护甲套装约束", "未返回", "unknown");
-  addProjectionValue(projection, "notes:notes", "notes", "备注", "未返回", "unknown");
+  addProjectionValue(projection, "armor:plus5", "armor", { kind: "armor-mod-count", mod: "plus5" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "armor:plus10", "armor", { kind: "armor-mod-count", mod: "plus10" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "armor:mode", "armor", { kind: "armor-mode" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "armor:priority", "armor", { kind: "armor-priority" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "armor:exotic", "armor", { kind: "armor-exotic" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "armor:set", "armor", { kind: "armor-set" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
+  addProjectionValue(projection, "notes:notes", "notes", { kind: "notes" }, { kind: "empty", empty: "unavailable" }, "unknown", "unavailable");
   return projection;
 }
 
@@ -731,7 +831,7 @@ function buildCompareRows(
       return {
         column_id: column.id,
         state: unknown ? "unknown" : "empty",
-        value: unknown ? "未返回" : "未配置",
+        value: { kind: "empty", empty: unknown ? "unavailable" : "unconfigured" },
         fingerprint: unknown ? "unknown" : "empty"
       };
     });
@@ -748,11 +848,11 @@ function addProjectionValue(
   projection: CompareProjection,
   key: string,
   section: ApplicationLoadoutCompareRow["section"],
-  label: string,
-  value: string,
+  label: ApplicationLoadoutCompareRowLabel,
+  value: ApplicationLoadoutCompareValue,
   state: ApplicationLoadoutCompareCell["state"] = "value",
-  fingerprint = value,
-  detail?: string
+  fingerprint: string,
+  detail?: ApplicationLoadoutCompareValue
 ): void {
   projection.set(key, {
     key,
@@ -762,18 +862,21 @@ function addProjectionValue(
   });
 }
 
-function formatApplicationSubclassConfiguration(plan: LocalLoadoutPlan): string {
+/**
+ * 子职业配置的计数摘要，只列非零项，顺序与旧版一致。
+ *
+ * `mod_hashes` 在新代码里一律为空。旧版本存下来的方案可能带着把它当模组写的 hash，
+ * 这里照旧显示，不替用户把已有数据藏起来。
+ */
+function applicationSubclassConfigurationCounts(plan: LocalLoadoutPlan): ApplicationLoadoutCompareValue[] {
   const target = plan.subclass_target;
-  if (!target) return "未配置";
-  // `mod_hashes` 在新代码里一律为空。旧版本存下来的方案可能带着把它当模组写的 hash，
-  // 这里照旧显示，不替用户把已有数据藏起来。
-  const parts = [
-    target.ability_hashes.length ? `${target.ability_hashes.length} 个技能` : "",
-    target.aspect_hashes.length ? `${target.aspect_hashes.length} 个星相` : "",
-    target.fragment_hashes.length ? `${target.fragment_hashes.length} 个碎片` : "",
-    target.mod_hashes.length ? `${target.mod_hashes.length} 个子职业模组` : ""
-  ].filter(Boolean);
-  return parts.join(" · ");
+  if (!target) return [];
+  const parts: ApplicationLoadoutCompareValue[] = [];
+  if (target.ability_hashes.length) parts.push({ kind: "count", count: target.ability_hashes.length, unit: "ability" });
+  if (target.aspect_hashes.length) parts.push({ kind: "count", count: target.aspect_hashes.length, unit: "aspect" });
+  if (target.fragment_hashes.length) parts.push({ kind: "count", count: target.fragment_hashes.length, unit: "fragment" });
+  if (target.mod_hashes.length) parts.push({ kind: "count", count: target.mod_hashes.length, unit: "subclass-mod" });
+  return parts;
 }
 
 /**
@@ -782,9 +885,9 @@ function formatApplicationSubclassConfiguration(plan: LocalLoadoutPlan): string 
  * 方案侧只有 hash，没有名字（这里拿不到 Manifest），所以两边都按 hash 列出来：
  * 显示成名字和显示成 hash 混在一张对比表里，反而看不出同一批 Plug 是不是对上了。
  */
-function formatApplicationSubclassConfigurationDetail(plan: LocalLoadoutPlan): string {
+function applicationSubclassConfigurationDetail(plan: LocalLoadoutPlan): ApplicationLoadoutCompareValue | undefined {
   const target = plan.subclass_target;
-  if (!target) return "";
+  if (!target) return undefined;
   // `socket_overrides` 收的是全部带索引的 Plug，里面本来就含技能、星相和碎片。
   // 直接整组当「未分类」列出来会让同一批 Plug 显示两遍，这里把已经归过类的减掉。
   const classified = new Set([
@@ -795,48 +898,43 @@ function formatApplicationSubclassConfigurationDetail(plan: LocalLoadoutPlan): s
   ]);
   const unclassified = Object.values(target.socket_overrides ?? {})
     .filter((hash) => !classified.has(hash));
-  return formatSubclassPlugHashGroups([
-    ["技能", target.ability_hashes],
-    ["星相", target.aspect_hashes],
-    ["碎片", target.fragment_hashes],
-    ["子职业模组", target.mod_hashes],
-    ["未分类", unclassified]
-  ]);
-}
-
-function formatSubclassPlugHashGroups(groups: [string, number[]][]): string {
-  return groups
-    .filter(([, hashes]) => hashes.length > 0)
-    .map(([label, hashes]) => `${label} ${sortedNumbers(hashes)}`)
-    .join(" · ");
+  return {
+    kind: "plug-groups",
+    groups: [
+      { group: "ability", hashes: target.ability_hashes },
+      { group: "aspect", hashes: target.aspect_hashes },
+      { group: "fragment", hashes: target.fragment_hashes },
+      { group: "subclass-mod", hashes: target.mod_hashes },
+      { group: "unclassified", hashes: unclassified }
+    ]
+  };
 }
 
 /**
  * 游戏内那一列的子职业明细。
  *
  * 分类结果来自账号摘要（`subclass_configuration`），拿不到时只能把所有 Plug 混在一起列，
- * 不猜哪一格是什么。空槽位单独报一句：`plug_hashes` 里没有它们，光比 Plug 列表看不出
+ * 不猜哪一格是什么。空槽位计数单独带走：`plug_hashes` 里没有它们，光比 Plug 列表看不出
  * 「对面少插了一格」。
  */
-function formatInGameSubclassConfigurationDetail(
+function inGameSubclassConfigurationDetail(
   subclass: CharacterLoadoutSlotItemSummary | undefined
-): string | undefined {
+): ApplicationLoadoutCompareValue | undefined {
   const configuration = subclass?.subclass_configuration;
   // 整个子职业一个 Plug 都没插时 `plug_hashes` 是空的，但空槽位布局仍要报出来：
   // 光是「未配置」看不出对面是没插满还是压根没读回来。
   if (!configuration && !subclass?.plug_hashes?.length) return undefined;
-  const groups = configuration
-    ? formatSubclassPlugHashGroups([
-        ["技能", configuration.abilities.map((plug) => plug.hash)],
-        ["星相", configuration.aspects.map((plug) => plug.hash)],
-        ["碎片", configuration.fragments.map((plug) => plug.hash)],
-        ["未分类", configuration.other.map((plug) => plug.hash)]
-      ])
-    : `已返回 Plug ${sortedNumbers(subclass?.plug_hashes ?? [])}`;
-  const emptyCount = configuration?.empty_socket_indexes.length ?? 0;
-  return emptyCount
-    ? `${groups} · 空槽位 ${emptyCount} 格`
-    : groups;
+  if (!configuration) return { kind: "plug-hashes", hashes: subclass?.plug_hashes ?? [] };
+  return {
+    kind: "plug-groups",
+    groups: [
+      { group: "ability", hashes: configuration.abilities.map((plug) => plug.hash) },
+      { group: "aspect", hashes: configuration.aspects.map((plug) => plug.hash) },
+      { group: "fragment", hashes: configuration.fragments.map((plug) => plug.hash) },
+      { group: "unclassified", hashes: configuration.other.map((plug) => plug.hash) }
+    ],
+    empty_socket_count: configuration.empty_socket_indexes.length
+  };
 }
 
 function subclassConfigurationFingerprint(target: NonNullable<LocalLoadoutPlan["subclass_target"]>): string {
@@ -849,12 +947,14 @@ function subclassConfigurationFingerprint(target: NonNullable<LocalLoadoutPlan["
   ]) || "empty";
 }
 
-function formatArmorSetConstraint(
+function armorSetConstraintValue(
   constraint: NonNullable<NonNullable<LocalLoadoutPlan["armor_constraints"]>["set_constraint"]> | undefined
-): string {
-  if (!constraint || constraint.mode === "none") return "未设置";
-  if (constraint.mode === "single") return `套装 ${constraint.set_hash} · ${constraint.piece_count} 件`;
-  return `套装 ${constraint.first_set_hash} + ${constraint.second_set_hash} · 2+2`;
+): ApplicationLoadoutCompareValue {
+  if (!constraint || constraint.mode === "none") return { kind: "empty", empty: "unset" };
+  if (constraint.mode === "single") {
+    return { kind: "armor-set-single", set_hash: constraint.set_hash, piece_count: constraint.piece_count };
+  }
+  return { kind: "armor-set-split", first_hash: constraint.first_set_hash, second_hash: constraint.second_set_hash };
 }
 
 function armorSetConstraintFingerprint(
@@ -907,27 +1007,6 @@ function compareRowOrder(left: string, right: string): number {
       - (rightIndex === -1 ? fixedOrder.length : rightIndex);
   }
   return left.localeCompare(right, "zh-CN");
-}
-
-function armorStatLabel(stat: LoadoutPlanArmorStatKey): string {
-  switch (stat) {
-    case "health": return "生命";
-    case "melee": return "近战";
-    case "grenade": return "手雷";
-    case "super": return "超能";
-    case "class": return "职业技能";
-    case "weapon": return "武器";
-  }
-}
-
-function armorSlotLabel(slot: ArmorSlot): string {
-  return {
-    helmet: "头盔",
-    arms: "臂铠",
-    chest: "胸甲",
-    legs: "腿甲",
-    class: "职业物品"
-  }[slot];
 }
 
 function inGameReferenceId(reference: ApplicationLoadoutInGameReference): string {

@@ -1,3 +1,4 @@
+import { accountTemplate, accountText, type AccountCopy } from "@d2-tools/ui";
 import type { StartupState } from "../../api/types";
 
 /**
@@ -12,22 +13,22 @@ import type { StartupState } from "../../api/types";
  * 「是不是认证类」只能看结构化字段（IPC 错误的 `code` / `causeCategory`），
  * 所以调用方必须把**错误对象**传进来，不能只传 message 字符串。
  */
-export function formatAccountLoadFailure(state: StartupState, error: unknown): string {
-  const message = accountErrorText(error);
+export function formatAccountLoadFailure(state: StartupState, error: unknown, copy: AccountCopy): string {
+  const message = accountErrorText(error, copy);
 
   if (state.cards.bungieConfig.status !== "ready") {
-    return `未连接 Bungie：请先在设置里填写 Bungie API Key、Client ID 和 Client Secret。${message}`;
+    return accountTemplate(copy, "未连接 Bungie：请先在设置里填写 Bungie API Key、Client ID 和 Client Secret。{message}", { message });
   }
 
   if (state.cards.account.status !== "ready") {
-    return `账号还没有登录：请先完成 Bungie 登录。${message}`;
+    return accountTemplate(copy, "账号还没有登录：请先完成 Bungie 登录。{message}", { message });
   }
 
   if (isAuthenticationFailure(error)) {
-    return `登录可能已失效，请重新登录 Bungie。${message}`;
+    return accountTemplate(copy, "登录可能已失效，请重新登录 Bungie。{message}", { message });
   }
 
-  return `读取装备数据时遇到临时问题，稍后会自动重新同步。${message}`;
+  return accountTemplate(copy, "读取装备数据时遇到临时问题，稍后会自动重新同步。{message}", { message });
 }
 
 /**
@@ -42,10 +43,10 @@ export function isAuthenticationFailure(error: unknown): boolean {
 }
 
 /** 错误可能是 Error，也可能是跨包传过来的纯对象（`ServiceError`），两种都要能取到文案。 */
-function accountErrorText(error: unknown): string {
+function accountErrorText(error: unknown, copy: AccountCopy): string {
   if (error && typeof error === "object") {
     const message = (error as { message?: unknown }).message;
     if (typeof message === "string" && message.trim()) return message;
   }
-  return "账号数据读取失败";
+  return accountText(copy, "账号数据读取失败");
 }

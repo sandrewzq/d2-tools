@@ -1,4 +1,4 @@
-import { ProductShellHost } from "@d2-tools/ui";
+import { getLocaleCopy, ProductShellHost } from "@d2-tools/ui";
 import type { StartupState } from "../api/types";
 import { HomePageItemDetailHost } from "./HomePageItemDetailHost";
 import { HomePageRoutes } from "./HomePageRoutes";
@@ -34,7 +34,12 @@ export function HomePage(props: {
         renderPage={() => (
           <>
             <RendererPerformanceProfiler id={`menu:${shell.activePage}`}>
-              {shell.startupGate ?? <HomePageRoutes activePage={shell.activePage} />}
+              {shell.startupGate ?? (
+                <HomePageRoutes
+                  activePage={shell.activePage}
+                  copy={getLocaleCopy(shell.productPreferences.interfaceLocale).shell}
+                />
+              )}
             </RendererPerformanceProfiler>
             <RendererPerformanceProfiler id="item-detail-overlay">
               <HomePageItemDetailHost {...shell.itemDetailHostProps} />

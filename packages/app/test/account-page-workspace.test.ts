@@ -127,7 +127,7 @@ describe("account page workspace", () => {
       }
     ]);
     expect(workspace.accountProfileLine).toBe("Membership 1 / membership-1");
-    expect(workspace.accountInventoryLine).toBe("仓库 2 件");
+    expect(workspace.accountInventoryLine).toEqual({ key: "仓库 {count} 件", values: { count: 2 } });
     expect(workspace.selectedCharacterSummary).toBe("光等 2015 / 已装备 1 件 / 背包 1 件");
     expect(workspace.selectedCharacterItems.map((entry) => entry.name)).toEqual(["已装备手炮", "背包胸甲"]);
     expect(workspace.equippedSlotCategories.map((category) => category.label)).toEqual(["武器"]);
@@ -152,20 +152,30 @@ describe("account page workspace", () => {
     expect(workspace.materialRows).toEqual([{
       key: "material:301",
       material,
-      meta: "Legendary / 材料"
+      meta: [
+        { key: "Legendary", literal: true },
+        { key: "材料", literal: true }
+      ]
     }]);
     expect(workspace.postmasterPreviewItems).toMatchObject([{
       key: "postmaster-1",
       item: postmaster,
-      meta: "动能武器 / Legendary / 光等 2005",
+      meta: [
+        { key: "动能武器", literal: true },
+        { key: "Legendary", literal: true },
+        { key: "光等 {power}", values: { power: 2005 } }
+      ],
       isPending: true,
       isLoadoutMatch: true
     }]);
     expect(workspace.loadoutSlotRows).toMatchObject([{
       key: "char-1-loadout-0",
-      title: "虚空配装",
-      subtitle: "槽位 1 / 8 件装备",
-      preview: "已装备手炮 / 背包胸甲"
+      title: { key: "虚空配装", literal: true },
+      subtitle: { key: "槽位 {index} / {count} 件装备", values: { index: 1, count: 8 } },
+      preview: [
+        { key: "已装备手炮", literal: true },
+        { key: "背包胸甲", literal: true }
+      ]
     }]);
   });
 
@@ -203,7 +213,7 @@ describe("account page workspace", () => {
     expect(viewModel.profile).toMatchObject({
       accountName: "tester",
       profileLine: "Membership 1 / membership-1",
-      inventoryLine: "仓库 2 件"
+      inventoryLine: { key: "仓库 {count} 件", values: { count: 2 } }
     });
     expect(viewModel.selectedCharacter?.characterId).toBe("char-1");
     expect(viewModel.loadout.slotComparisonRows[0]?.equippedItems[0]?.openPayload).toMatchObject({
@@ -214,12 +224,15 @@ describe("account page workspace", () => {
     expect(viewModel.loadout.slotComparisonRows[1]?.inventoryItems[0]).toMatchObject({
       key: "inventory-1",
       isPending: true,
-      primaryFacts: ["Legendary"],
-      stateFacts: ["总值 68"]
+      primaryFacts: [{ key: "Legendary", literal: true }],
+      stateFacts: [{ key: "总值 {total}", values: { total: 68 } }]
     });
     expect(viewModel.activity.summary).toBeNull();
     expect(viewModel.activity.message).toBe("");
-    expect(viewModel.materials.rows[0]?.meta).toBe("Legendary / 材料");
+    expect(viewModel.materials.rows[0]?.meta).toEqual([
+      { key: "Legendary", literal: true },
+      { key: "材料", literal: true }
+    ]);
     expect(viewModel.postmaster.items[0]?.openPayload).toMatchObject({
       source_character_id: "char-1",
       is_postmaster_item: true,
@@ -242,15 +255,31 @@ describe("account page workspace", () => {
     expect(getAccountPageItemKey({ ...equipped, instance_id: undefined })).toBe("hash:100");
     expect(getCharacterCombinedItems(account.characters[0]!).map((entry) => entry.name))
       .toEqual(["已装备手炮", "背包胸甲"]);
-    expect(formatAccountItemMeta(equipped)).toBe("能量武器 / Legendary / 光等 2010 / 已锁定");
-    expect(formatAccountItemMeta(inventory)).toBe("胸甲 / Legendary / 总值 68 / 生命值 20 / 职业 16 / 手雷 14");
+    expect(formatAccountItemMeta(equipped)).toEqual([
+      { key: "能量武器", literal: true },
+      { key: "Legendary", literal: true },
+      { key: "光等 {power}", values: { power: 2010 } },
+      { key: "已锁定" }
+    ]);
+    expect(formatAccountItemMeta(inventory)).toEqual([
+      { key: "胸甲", literal: true },
+      { key: "Legendary", literal: true },
+      { key: "总值 {total}", values: { total: 68 } },
+      { key: "生命值 {health}", values: { health: 20 } },
+      { key: "职业 {class}", values: { class: 16 } },
+      { key: "手雷 {grenade}", values: { grenade: 14 } }
+    ]);
     expect(formatAccountItemFacts(equipped)).toEqual({
-      primary: ["Hand Cannon", "Legendary", "光等 2010"],
-      state: ["锁定"]
+      primary: [
+        { key: "Hand Cannon", literal: true },
+        { key: "Legendary", literal: true },
+        { key: "光等 {power}", values: { power: 2010 } }
+      ],
+      state: [{ key: "锁定" }]
     });
     expect(formatAccountItemFacts(inventory)).toEqual({
-      primary: ["Legendary"],
-      state: ["总值 68"]
+      primary: [{ key: "Legendary", literal: true }],
+      state: [{ key: "总值 {total}", values: { total: 68 } }]
     });
   });
 

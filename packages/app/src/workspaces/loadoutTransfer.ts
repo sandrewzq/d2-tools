@@ -64,11 +64,6 @@ export type MissingLoadoutTransferPlan = {
   }>;
 };
 
-export type MissingLoadoutBlockedDescription = {
-  label: string;
-  hint: string;
-};
-
 type SourceItem = AccountItemSummary & {
   source_kind: "equipped" | "inventory" | "vault" | "postmaster";
   source_character_id?: string;
@@ -228,34 +223,6 @@ export function buildMissingLoadoutTransferPlan(input: {
     already_on_character_count: alreadyOnCharacterCount,
     blocked
   };
-}
-
-export function describeMissingLoadoutBlockedReason(
-  reason: MissingLoadoutTransferPlan["blocked"][number]["reason"]
-): MissingLoadoutBlockedDescription {
-  switch (reason) {
-    case "other-character-equipped":
-      return {
-        label: "其他角色已装备",
-        hint: "先去对应角色卸下这件装备，再回来补齐。"
-      };
-    case "postmaster":
-      return {
-        label: "还在邮政官",
-        hint: "先把物品取回角色背包，再执行补齐。"
-      };
-    case "missing-instance-id":
-      return {
-        label: "缺少实例数据",
-        hint: "这件物品当前无法精确定位，刷新账号数据后再试。"
-      };
-    case "not-found":
-    default:
-      return {
-        label: "未找到来源",
-        hint: "账号里暂时找不到这件装备，可能已经分解或在别的角色上变化了。"
-      };
-  }
 }
 
 function collectSourceItems(summary: AccountSummary): SourceItem[] {

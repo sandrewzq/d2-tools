@@ -18,6 +18,7 @@ import {
 } from "@d2-tools/services/cache/maintenance";
 import { resetAccountSession } from "../runtime/accountSession.js";
 import { resetAccountCacheMetrics } from "@d2-tools/services/account/cacheMetrics";
+import { mainTemplate, mainText } from "../i18n/mainCopy.js";
 
 type ConfigBackupResult = {
   ok: true;
@@ -41,16 +42,17 @@ export function registerConfigIpcHandlers(): void {
 
   ipcMain.handle("config:export", async (): Promise<ConfigBackupResult> => {
     const config = loadConfig();
+    const locale = config.features.interface_locale;
     const backupDir = join(config.data.data_dir, "backups");
     mkdirSync(backupDir, { recursive: true });
     const result = await dialog.showSaveDialog({
-      title: "创建 d2-tools 便携备份",
+      title: mainText(locale, "创建 d2-tools 便携备份"),
       defaultPath: join(backupDir, `d2-tools-backup-${timestampForFileName()}.json`),
-      filters: [{ name: "d2-tools 便携备份", extensions: ["json"] }]
+      filters: [{ name: mainText(locale, "d2-tools 便携备份"), extensions: ["json"] }]
     });
 
     if (result.canceled || !result.filePath) {
-      return { ok: true, message: "已取消创建便携备份。" };
+      return { ok: true, message: mainText(locale, "已取消创建便携备份。") };
     }
 
     const backup = createPortableBackup({
@@ -61,22 +63,23 @@ export function registerConfigIpcHandlers(): void {
     writePortableBackup(result.filePath, backup);
     return {
       ok: true,
-      message: `便携备份已创建：${result.filePath}。备份不包含账号令牌、Bungie/AI 密钥、资料库、缓存或日志。`,
+      message: mainTemplate(locale, "便携备份已创建：{path}。备份不包含账号令牌、Bungie/AI 密钥、资料库、缓存或日志。", { path: result.filePath }),
       path: result.filePath
     };
   });
 
   ipcMain.handle("config:import", async (): Promise<ConfigBackupResult> => {
     const config = loadConfig();
+    const locale = config.features.interface_locale;
     const result = await dialog.showOpenDialog({
-      title: "恢复 d2-tools 便携备份",
+      title: mainText(locale, "恢复 d2-tools 便携备份"),
       defaultPath: config.data.data_dir,
       properties: ["openFile"],
-      filters: [{ name: "d2-tools 备份", extensions: ["json"] }]
+      filters: [{ name: mainText(locale, "d2-tools 备份"), extensions: ["json"] }]
     });
 
     if (result.canceled || !result.filePaths[0]) {
-      return { ok: true, message: "已取消恢复备份。" };
+      return { ok: true, message: mainText(locale, "已取消恢复备份。") };
     }
 
     const inputPath = result.filePaths[0];
@@ -84,15 +87,15 @@ export function registerConfigIpcHandlers(): void {
 
     const confirmation = await dialog.showMessageBox({
       type: "warning",
-      title: "恢复便携备份",
-      message: `将恢复 ${portableBackupFileCount(backup)} 组用户数据和本地偏好。`,
-      detail: "恢复不会导入或覆盖账号令牌、Bungie/AI 密钥和当前数据目录。现有用户数据会先保存为本机回滚备份。是否继续？",
-      buttons: ["恢复", "取消"],
+      title: mainText(locale, "恢复便携备份"),
+      message: mainTemplate(locale, "将恢复 {count} 组用户数据和本地偏好。", { count: portableBackupFileCount(backup) }),
+      detail: mainText(locale, "恢复不会导入或覆盖账号令牌、Bungie/AI 密钥和当前数据目录。现有用户数据会先保存为本机回滚备份。是否继续？"),
+      buttons: [mainText(locale, "恢复"), mainText(locale, "取消")],
       defaultId: 1,
       cancelId: 1
     });
     if (confirmation.response !== 0) {
-      return { ok: true, message: "已取消恢复便携备份。" };
+      return { ok: true, message: mainText(locale, "已取消恢复便携备份。") };
     }
 
     const rollbackPath = join(
@@ -118,7 +121,7 @@ export function registerConfigIpcHandlers(): void {
 
     return {
       ok: true,
-      message: `便携备份已恢复：${basename(inputPath)}。回滚备份：${rollbackPath}。请重启应用；目标电脑仍需重新登录并填写所需密钥。`,
+      message: mainTemplate(locale, "便携备份已恢复：{name}。回滚备份：{path}。请重启应用；目标电脑仍需重新登录并填写所需密钥。", { name: basename(inputPath), path: rollbackPath }),
       path: inputPath
     };
   });
@@ -147,7 +150,7 @@ export function registerConfigIpcHandlers(): void {
 
       return {
         ok: true,
-        message: "缓存已清理。账号授权、配置、资料库、本地标记和日志已保留。",
+        message: mainText(config.features.interface_locale, "缓存已清理。账号授权、配置、资料库、本地标记和日志已保留。"),
         cache: result.status
       };
     }

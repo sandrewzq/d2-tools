@@ -2,11 +2,14 @@ import type {
   ArmorSocketLabel,
   ArmorStatTrack,
   SelectedItemSourceKind,
+  WeaponChampionEffectKey,
   WeaponDetailAmmo,
+  WeaponDetailChampionEffect,
   WeaponDetailEntryKind,
   WeaponSocketColumnLabel,
   WeaponStatTrack
 } from "@d2-tools/app/items";
+import type { DamageTypeKey } from "@d2-tools/core/items/damageTypes";
 import type { ItemDetailCopy } from "../i18n/types.js";
 import { itemDetailTemplate, itemDetailText } from "./itemDetailCopy.js";
 
@@ -22,6 +25,7 @@ type WeaponStatKey = WeaponStatTrack["key"];
 type AmmoTypeKey = WeaponDetailAmmo["key"];
 type ArmorStatKey = ArmorStatTrack["key"];
 type ItemDetailEntryKind = WeaponDetailEntryKind;
+type ChampionKey = WeaponDetailChampionEffect["key"];
 
 const weaponStatNames: Record<WeaponStatKey, string> = {
   impact: "伤害",
@@ -54,6 +58,31 @@ const ammoNames: Record<AmmoTypeKey, string> = {
   heavy: "重型弹药"
 };
 
+/**
+ * 元素名。`raid` 不在这里：迁移前 app 就没有给过这一档的中文名，硬补一个等于自造措辞。
+ * 查不到时返回 `undefined`，由调用方退回数据自带的名字。
+ */
+const damageTypeNames: Partial<Record<DamageTypeKey, string>> = {
+  kinetic: "动能",
+  arc: "电弧",
+  solar: "烈日",
+  void: "虚空",
+  stasis: "冰影",
+  strand: "缚丝"
+};
+
+const championNames: Record<ChampionKey, string> = {
+  barrier: "反屏障",
+  overload: "反过载",
+  unstoppable: "反势不可挡"
+};
+
+const championEffectNames: Record<WeaponChampionEffectKey, string> = {
+  pierce: "贯穿护盾",
+  disrupt: "干扰",
+  stagger: "眩晕"
+};
+
 /** 武器属性名。 */
 export function weaponStatLabel(copy: ItemDetailCopy, key: WeaponStatKey): string {
   return itemDetailText(copy, weaponStatNames[key]);
@@ -67,6 +96,22 @@ export function armorStatLabel(copy: ItemDetailCopy, key: ArmorStatKey): string 
 /** 弹药类型名，摘要里那颗图标旁边的字。 */
 export function weaponAmmoLabel(copy: ItemDetailCopy, key: AmmoTypeKey): string {
   return itemDetailText(copy, ammoNames[key]);
+}
+
+/** 元素名。量表里没有这一档时返回 `undefined`，调用方用数据自带的名字兜底。 */
+export function weaponDamageLabel(copy: ItemDetailCopy, key: string): string | undefined {
+  const name = damageTypeNames[key as DamageTypeKey];
+  return name === undefined ? undefined : itemDetailText(copy, name);
+}
+
+/** 勇士类型名，摘要里那颗图标旁边的字。 */
+export function weaponChampionLabel(copy: ItemDetailCopy, key: ChampionKey): string {
+  return itemDetailText(copy, championNames[key]);
+}
+
+/** 勇士效果名：「靠什么打断」。 */
+export function weaponChampionEffectLabel(copy: ItemDetailCopy, key: WeaponChampionEffectKey): string {
+  return itemDetailText(copy, championEffectNames[key]);
 }
 
 /** 锻造标识。只做锻造，不标强化。 */

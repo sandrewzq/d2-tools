@@ -1,5 +1,6 @@
 import { api } from "../../api/client";
 import type { ActionLogEntry, D2Config } from "../../api/types";
+import { settingsText, type SettingsCopy } from "@d2-tools/ui";
 import { formatAssistantCapabilityAuditDiagnostics } from "../../shared/domain/assistant/assistantCapabilityAudit";
 
 export type DiagnosticsBridge = {
@@ -38,6 +39,8 @@ export function createDiagnosticsSettingsState() {
 }
 
 export function createDiagnosticsSettingsModel(input: {
+  /** 设置页的临时回执跟着界面语言走；剪贴板文本和操作日志里的验证文案这次不动（见 T1 backlog 的取舍记录）。 */
+  copy: SettingsCopy;
   onConfigChanged: () => void;
   setDiagnosticDataDir: (value: string) => void;
   setDiagnosticManifestVersion: (value: string | undefined) => void;
@@ -69,7 +72,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setLanguagePreferences(languagePreferencesFromConfig(config));
       input.setActionLog(log);
     } catch (error) {
-      input.setDiagnosticError(error instanceof Error ? error.message : "状态诊断失败");
+      input.setDiagnosticError(error instanceof Error ? error.message : settingsText(input.copy, "状态诊断失败"));
     } finally {
       input.setIsRefreshingDiagnostics(false);
     }
@@ -97,7 +100,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setColorMode(saved.features.color_mode);
       input.onConfigChanged();
     } catch (error) {
-      input.setSettingsError(error instanceof Error ? error.message : "颜色模式保存失败");
+      input.setSettingsError(error instanceof Error ? error.message : settingsText(input.copy, "颜色模式保存失败"));
       void refreshDiagnostics();
     }
   }
@@ -118,7 +121,7 @@ export function createDiagnosticsSettingsModel(input: {
       input.setDensity(saved.features.density);
       input.onConfigChanged();
     } catch (error) {
-      input.setSettingsError(error instanceof Error ? error.message : "信息密度保存失败");
+      input.setSettingsError(error instanceof Error ? error.message : settingsText(input.copy, "信息密度保存失败"));
       void refreshDiagnostics();
     }
   }
@@ -144,11 +147,11 @@ export function createDiagnosticsSettingsModel(input: {
       };
       const saved = await api.saveConfig(nextConfig);
       input.setLanguagePreferences(languagePreferencesFromConfig(saved));
-      input.setSettingsMessage("语言设置已保存，正在后台检查资料库语言数据。");
+      input.setSettingsMessage(settingsText(input.copy, "语言设置已保存，正在后台检查资料库语言数据。"));
       input.onConfigChanged();
       await api.getManifestStatus();
     } catch (error) {
-      input.setSettingsError(error instanceof Error ? error.message : "语言设置保存失败");
+      input.setSettingsError(error instanceof Error ? error.message : settingsText(input.copy, "语言设置保存失败"));
       void refreshDiagnostics();
     }
   }
@@ -171,15 +174,15 @@ export function languagePreferencesFromConfig(config: D2Config): LanguagePrefere
   };
 }
 
-export async function loadActionLog(setActionLog: (entries: ActionLogEntry[]) => void, setSettingsError: (value: string) => void) {
+export async function loadActionLog(copy: SettingsCopy, setActionLog: (entries: ActionLogEntry[]) => void, setSettingsError: (value: string) => void) {
   try {
     setActionLog(await api.getActionLog());
   } catch (error) {
-    setSettingsError(error instanceof Error ? error.message : "操作日志读取失败");
+    setSettingsError(error instanceof Error ? error.message : settingsText(copy, "操作日志读取失败"));
   }
 }
 
-export async function copyDiagnosticsExport(setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {
+export async function copyDiagnosticsExport(copy: SettingsCopy, setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {
   setSettingsMessage("");
   setSettingsError("");
   try {
@@ -189,13 +192,14 @@ export async function copyDiagnosticsExport(setSettingsMessage: (value: string) 
       "",
       formatAssistantCapabilityAuditDiagnostics()
     ].join("\n"));
-    setSettingsMessage("已复制脱敏诊断导出");
+    setSettingsMessage(settingsText(copy, "已复制脱敏诊断导出"));
   } catch (error) {
-    setSettingsError(error instanceof Error ? error.message : "诊断导出失败");
+    setSettingsError(error instanceof Error ? error.message : settingsText(copy, "诊断导出失败"));
   }
 }
 
 export async function copyDataBackupGuide(
+  copy: SettingsCopy,
   dataDir: string,
   setSettingsMessage: (value: string) => void,
   setSettingsError: (value: string) => void
@@ -204,9 +208,9 @@ export async function copyDataBackupGuide(
   setSettingsError("");
   try {
     await navigator.clipboard.writeText(buildDataBackupGuide(dataDir));
-    setSettingsMessage("已复制备份/迁移说明");
+    setSettingsMessage(settingsText(copy, "已复制备份/迁移说明"));
   } catch {
-    setSettingsError("复制失败，请检查系统剪贴板权限");
+    setSettingsError(settingsText(copy, "复制失败，请检查系统剪贴板权限"));
   }
 }
 
@@ -236,12 +240,12 @@ export function buildDataBackupGuide(dataDir: string): string {
   ].join("\n");
 }
 
-export async function copyActionDiagnostic(entry: ActionLogEntry, setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {
+export async function copyActionDiagnostic(copy: SettingsCopy, entry: ActionLogEntry, setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {
   try {
     await navigator.clipboard.writeText(buildActionDiagnosticText(entry));
-    setSettingsMessage("已复制操作诊断");
+    setSettingsMessage(settingsText(copy, "已复制操作诊断"));
   } catch {
-    setSettingsError("复制失败，请检查系统剪贴板权限");
+    setSettingsError(settingsText(copy, "复制失败，请检查系统剪贴板权限"));
   }
 }
 
