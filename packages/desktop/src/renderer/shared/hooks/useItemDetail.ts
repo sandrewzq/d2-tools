@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { ItemDetailCopy } from "@d2-tools/ui";
-import { itemDetailText } from "@d2-tools/ui";
+import { itemDetailErrorText, itemDetailText } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import type { AccountItemDetail, AccountItemSummary, ItemDefinitionDetail, ItemSearchResult, LibraryHistory } from "../../api/types";
 import {
@@ -266,7 +266,7 @@ export function useItemDetail(options: {
             : current);
           appendItemDetailError(
             setItemDetailError,
-            errorMessage(error, itemDetailText(copy, "物品定义详情读取失败"))
+            errorMessage(copy, error, "物品定义详情读取失败")
           );
         }));
     }
@@ -329,7 +329,7 @@ export function useItemDetail(options: {
           : value);
       }).catch((error) => {
         if (!isCurrent()) return;
-        appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "物品定义详情读取失败")));
+        appendItemDetailError(setItemDetailError, errorMessage(copy, error, "物品定义详情读取失败"));
       }));
     }
     if (instanceId && needsInstance) {
@@ -355,7 +355,7 @@ export function useItemDetail(options: {
           : value);
       }).catch((error) => {
         if (!isCurrent()) return;
-        appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "完整实例 Roll 读取失败")));
+        appendItemDetailError(setItemDetailError, errorMessage(copy, error, "完整实例 Roll 读取失败"));
       }));
     }
     await Promise.allSettled(requests);
@@ -406,7 +406,7 @@ export function useItemDetail(options: {
       return true;
     }).catch((error) => {
       if (!isCurrent()) return false;
-      appendItemDetailError(setItemDetailError, errorMessage(error, itemDetailText(copy, "物品定义详情读取失败")));
+      appendItemDetailError(setItemDetailError, errorMessage(copy, error, "物品定义详情读取失败"));
       return false;
     }).finally(() => {
       if (definitionRequestsRef.current.get(itemKey) === request) {
@@ -478,7 +478,7 @@ export function useItemDetail(options: {
         setSelectedItem((value) => value?.item_key === itemKey
           ? withDetailLoadingState(value, { definition: false, instance: false })
           : value);
-        setItemDetailError(errorMessage(error, itemDetailText(copy, "账号实例详情刷新失败")));
+        setItemDetailError(errorMessage(copy, error, "账号实例详情刷新失败"));
       }
       throw error;
     } finally {
@@ -661,8 +661,9 @@ function mergeDefinitionWithoutLoadingState(
   };
 }
 
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+/** 上游错误原文过一遍装备详情表：登记过的中文按当前语言出句，其余原文原样透出。 */
+function errorMessage(copy: ItemDetailCopy, error: unknown, fallbackKey: string): string {
+  return itemDetailErrorText(copy, error, fallbackKey);
 }
 
 function appendItemDetailError(

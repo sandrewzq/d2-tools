@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
-import { homeTemplate, homeText, type HomeCopy } from "@d2-tools/ui";
+import { homeErrorText, homeTemplate, homeText, type HomeCopy } from "@d2-tools/ui";
 import type { DailySummary, WeeklySummary } from "../../api/types";
 import { api } from "../../api/client";
 import { buildWeeklyFocusText } from "../../utils/dailyShare";
@@ -35,7 +35,7 @@ export function useDailySummary(input: { copy: HomeCopy }) {
         setClock(new Date());
       })
       .catch((error) => {
-        setDailyError(error instanceof Error ? error.message : homeText(copy, "情报读取失败"));
+        setDailyError(homeErrorText(copy, error, "情报读取失败"));
       });
     let request: Promise<void>;
     request = operation.finally(() => {

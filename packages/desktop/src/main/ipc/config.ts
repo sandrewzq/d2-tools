@@ -30,9 +30,21 @@ type ConfigBackupResult = {
 export function registerConfigIpcHandlers(): void {
   ipcMain.handle("config:get", () => loadConfig());
 
-  ipcMain.handle("config:save", (_event, config: D2Config) => {
+  ipcMain.handle("config:save", (event, config: D2Config) => {
+    const previous = loadConfig();
     saveConfig(config);
-    return loadConfig();
+    const saved = loadConfig();
+    if (previous.data.manifest_language !== saved.data.manifest_language) {
+      // 资料库语言变了，页面上的装备名、Perk 名和掉落池名字要按新语言重新取一遍。
+      // 渲染层有模块级 store（账号快照、资料库状态、简报等）装着上一语言的名字，主进程
+      // 里也已经按旧语言建好了账号会话和简报缓存，光重读配置刷不掉它们。这里整窗重载：
+      // 渲染层的模块级 store 随之重建，主进程那几处按语言做键，换语言自然不命中（Bug #119）。
+      // 等这一轮 IPC 回复发出去再重载，调用方拿得到保存结果。
+      setImmediate(() => {
+        if (!event.sender.isDestroyed()) event.sender.reload();
+      });
+    }
+    return saved;
   });
 
   ipcMain.handle("config:open-data-dir", async () => {

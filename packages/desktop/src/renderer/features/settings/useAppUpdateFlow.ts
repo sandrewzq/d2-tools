@@ -23,6 +23,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     getAppUpdateSnapshot
   );
   const [visualAppUpdateSnapshot, setVisualAppUpdateSnapshot] = useState<AppUpdateSnapshot | null>(null);
+  // 存的是文案 key 而不是成句结果：设置页的保存动作会切换界面语言，成句结果会留在旧语言里，交给消费点查表。
   const [settingsMessage, setSettingsMessage] = useState("");
   const [settingsError, setSettingsError] = useState("");
   const visualUpdateStatus = getVisualAppUpdateStatus();
@@ -54,7 +55,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     setSettingsError("");
     if (visualUpdateStatus) {
       setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("available", snapshot ?? undefined));
-      setSettingsMessage(settingsText(copy, "已切换到“发现新版本”模拟状态。"));
+      setSettingsMessage("已切换到“发现新版本”模拟状态。");
       return;
     }
     try {
@@ -69,7 +70,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     setSettingsError("");
     if (visualUpdateStatus) {
       setVisualAppUpdateSnapshot((snapshot) => createVisualAppUpdateSnapshot("downloading", snapshot ?? undefined));
-      setSettingsMessage(settingsText(copy, "已切换到“下载中”模拟状态，不会下载真实安装包。"));
+      setSettingsMessage("已切换到“下载中”模拟状态，不会下载真实安装包。");
       return;
     }
     try {
@@ -83,7 +84,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setSettingsMessage(settingsText(copy, "更新模拟模式不会重启或安装应用。"));
+      setSettingsMessage("更新模拟模式不会重启或安装应用。");
       return;
     }
     try {
@@ -97,7 +98,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     setSettingsMessage("");
     setSettingsError("");
     if (visualUpdateStatus) {
-      setSettingsMessage(settingsText(copy, "更新模拟模式不会打开真实下载页。"));
+      setSettingsMessage("更新模拟模式不会打开真实下载页。");
       return;
     }
     try {
@@ -112,7 +113,7 @@ export function useAppUpdateFlow(input: { copy: SettingsCopy }) {
     setSettingsError("");
     try {
       await navigator.clipboard.writeText(buildAppUpdateDiagnosticText(appUpdateSnapshot));
-      setSettingsMessage(settingsText(copy, "更新诊断已复制。"));
+      setSettingsMessage("更新诊断已复制。");
     } catch (error) {
       setSettingsError(error instanceof Error ? error.message : settingsText(copy, "复制更新诊断失败"));
     }

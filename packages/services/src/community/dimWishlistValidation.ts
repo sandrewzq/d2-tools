@@ -41,7 +41,7 @@ import {
  * 「按行忽略」的前提是**这一行按来源本意无法成立**。把「每栏任选其一」摊开写成笛卡尔积的作者
  * 会顺手多写几行，其中一部分自己就矛盾（同一栏写了两个 perk）——那是写法带来的冗余，不是笔误：
  * 这份文件因此被逐行报了 7291 条「不可能同时拥有」，看着像坏了一大半，其实读取期照样把它归约
- * 成同一组候选。判据与实现见 `expansionRowsFor`：留下的行构成一组完整候选，且被丢掉那一行的
+ * 成同一组候选。判据就是主循环里的 `keptFormsProduct`：留下的行构成一组完整候选，且被丢掉那一行的
  * 内容已被其中一行整个包含时，记为「展开写法的冗余」（`merged_row_count`）——不报问题、
  * 不计进跳过行数，**写进库的行与从前逐条相同**。
  *
@@ -92,7 +92,7 @@ export type DimWishlistImportFilterResult = {
   issues: DimWishlistImportIssue[];
 };
 
-export function filterDimWishlistForImport(input: {
+export type DimWishlistImportFilterInput = {
   wishlist: DimWishlist;
   parse_issues?: readonly DimWishlistParseIssue[];
   options: SourceOptions;
@@ -104,7 +104,27 @@ export function filterDimWishlistForImport(input: {
    * 与从前行为一致。
    */
   identity?: { relations: readonly WeaponIdentityRelation[] };
-}): DimWishlistImportFilterResult {
+};
+
+/** 校验进度。分母取这份愿望单里出现的武器数——主循环是按武器转的，不是按行。 */
+export type DimWishlistImportProgress = {
+  processed_weapon_count: number;
+  total_weapon_count: number;
+};
+
+/**
+ * 分步校验：主循环做成迭代器，每处理完一杆枪 yield 一次进度。
+ *
+ * 主循环在大愿望单上要跑几十秒，而它是同步的。从前直接跑在调用方的 event loop 上，
+ * 主进程整段冻结：窗口不响应、IPC 排队，连「取消」都进不来。拆成迭代器之后，
+ * 驱动方可以在每步之间让出 event loop，顺便把进度报给界面。
+ *
+ * 同步入口 `filterDimWishlistForImport` 就是「一路 next 到底」，两条路共用这一个实现，
+ * 不会分叉出第二套判据。
+ */
+export function* filterDimWishlistForImportSteps(
+  input: DimWishlistImportFilterInput
+): Generator<DimWishlistImportProgress, DimWishlistImportFilterResult> {
   const issues: DimWishlistImportIssue[] = [];
   let issueCount = 0;
   const record = (issue: DimWishlistImportIssue): void => {
@@ -182,6 +202,13 @@ export function filterDimWishlistForImport(input: {
   let skippedWeaponCount = 0;
   let mergedRowCount = 0;
   let mergedWeaponCount = 0;
+  let processedWeaponCount = 0;
+  const totalWeaponCount = rulesByWeapon.size;
+  /** 一杆枪走完（含两条 `continue` 出口）就记一次进度，驱动方据此决定要不要让出 event loop。 */
+  const advance = (): DimWishlistImportProgress => {
+    processedWeaponCount += 1;
+    return { processed_weapon_count: processedWeaponCount, total_weapon_count: totalWeaponCount };
+  };
 
   for (const [itemHash, rules] of rulesByWeapon) {
     const { evaluated } = diagnoseDimWishlistRules(itemHash, rules, input.options);
@@ -199,15 +226,24 @@ export function filterDimWishlistForImport(input: {
 
     if (droppedEntries.length === 0) {
       for (const entry of keptEntries) keep(entry);
+      yield advance();
       continue;
     }
 
     // 摊开写的展开行不算笔误：认出来的行不进问题清单，也不计进跳过行数。
     // **写进库的行与从前逐条相同**——认不认得出展开写法，只影响报数，不影响数据。
+    // 实测某份社区愿望单文本：3 个 perk 及以上的行 7306 条，每一条都被同一把枪的某条两 perk 行
+    // 整个包含，0 例外；这类行里有一部分自己就矛盾（同一栏写了两个 perk），从前会被逐行报成
+    // 「不可能同时拥有」，一份正常文件看着像坏了一大半（那份文件报了 7291 行）。
     //
     // 同一行写了两次同一个 perk 的要摘出来：那种行去重后可能又撞上同栏冲突，若当成展开行一带而过，
     // 「你把一个 perk 写了两遍」这条提示就永远不报了。笔误优先于写法。
-    const expansionRows = expansionRowsFor(keptEntries);
+    //
+    // 这个布尔值下面还要再用一次（判「丢行把候选集合拆残了」），所以只算一遍：归约是 O(组合数²)，
+    // 而展开行在社区愿望单里占绝大多数（实测某份 18MB 文件 96.6% 的行都是），每杆枪都走这里，
+    // 多算的那一遍占掉校验耗时的三分之一。
+    const keptFormsProduct = formsCompleteProduct(dimColumnRequirementSets(keptEntries));
+    const expansionRows = keptFormsProduct ? keptEntries.map((entry) => entry.rule.perk_hashes) : null;
     const mergedEntries = droppedEntries.filter((dropped) => (
       expansionRows !== null
       && dropped.issue.category === "same_slot"
@@ -229,7 +265,7 @@ export function filterDimWishlistForImport(input: {
     // 那种行带着同栏冲突，只要它在，`formsCompleteProduct(留下的行)` 就不可能成立——
     // 换句话说是它自己先把这道分支关上了，而不是靠「不许展开行进来」挡住的。
     if (formsCompleteProduct(dimColumnRequirementSets(evaluated))
-      && !formsCompleteProduct(dimColumnRequirementSets(keptEntries))
+      && !keptFormsProduct
       && keptEntries.length > 0) {
       skippedWeaponCount += 1;
       record({
@@ -239,10 +275,12 @@ export function filterDimWishlistForImport(input: {
         perk_name: "",
         message: "丢掉问题行后，这把枪剩下的规则凑不成「每栏任选其一」，整把枪的规则已一起跳过。"
       });
+      yield advance();
       continue;
     }
     if (keptEntries.length === 0) skippedWeaponCount += 1;
     for (const entry of keptEntries) keep(entry);
+    yield advance();
   }
 
   const survivingBlockIds = new Set(
@@ -268,6 +306,16 @@ export function filterDimWishlistForImport(input: {
     issue_count: issueCount,
     issues
   };
+}
+
+/** 同步入口：一路 `next` 到底，不关心进度。测试与不介意阻塞的调用方用它。 */
+export function filterDimWishlistForImport(
+  input: DimWishlistImportFilterInput
+): DimWishlistImportFilterResult {
+  const steps = filterDimWishlistForImportSteps(input);
+  let step = steps.next();
+  while (!step.done) step = steps.next();
+  return step.value;
 }
 
 /**
@@ -333,17 +381,11 @@ function rowIssueFor(
  *
  * 所以要按**一把枪**看，而不是按行看：这把枪留下的行本身就是一组完整的「每栏任选其一」时，
  * 被丢掉的那一行只要内容已被留下的某一行整个包含，就只是这组候选摊开时的冗余——
- * 「丢掉它不改变任何匹配」是可验证的，报成问题反而是误导。
+ * 「丢掉它不改变任何匹配」是可验证的，报成问题反而是误导。判据就是主循环里那个
+ * `keptFormsProduct`（留下的行能不能归约），再配合下面的 `isCoveredByKeptRow` 逐行比对。
  *
- * 返回每行写到的 perk（供 `isCoveredByKeptRow` 比对）；不构成一组候选时返回 null。
  * 「单独一条 Roll」不必另设守卫：共享的归约判据只对**至少两条**组合才给得出池子，一条写得再全也归约不成。
  */
-function expansionRowsFor(
-  entries: ReadonlyArray<DiagnosedDimWishlistRule<DimWishlistRule>>
-): number[][] | null {
-  if (!formsCompleteProduct(dimColumnRequirementSets(entries))) return null;
-  return entries.map((entry) => entry.rule.perk_hashes);
-}
 
 /**
  * 被丢掉那一行写到的 perk 是不是已经全在留下的某一行里——是的话丢掉它不改变任何匹配。

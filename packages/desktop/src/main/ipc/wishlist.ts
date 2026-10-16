@@ -26,7 +26,8 @@ import {
   collectWeaponRecommendationPlugSetHashes
 } from "@d2-tools/services/community/weaponRecommendationKnowledge";
 import {
-  filterDimWishlistForImport,
+  filterDimWishlistForImportSteps,
+  type DimWishlistImportFilterInput,
   type DimWishlistImportFilterResult
 } from "@d2-tools/services/community/dimWishlistValidation";
 import { loadConfig } from "@d2-tools/services/config/store";
@@ -36,6 +37,9 @@ import { advanceRecommendationMatchCacheRevision, loadWeaponIdentityRelations } 
 import { removeDimWishlistEquipmentTargets } from "./targets.js";
 
 const maximumWishlistBytes = 128 * 1024 * 1024;
+
+/** 校验的一片最多占这么久，超过就让出一次 event loop（见 `filterWishlist`）。 */
+const wishlistFilterSliceMs = 16;
 
 /**
  * 待确认的导入。**两条来路共用这一张表**：本地文件记文件路径，链接记下载下来的临时文件，
@@ -284,16 +288,30 @@ function buildWishlistPreview(
  */
 async function filterWishlist(
   wishlist: DimWishlist,
-  parseIssues: Parameters<typeof filterDimWishlistForImport>[0]["parse_issues"]
+  parseIssues: DimWishlistImportFilterInput["parse_issues"]
 ): Promise<DimWishlistImportFilterResult> {
   // 身份关系只取一次：校验的展开与定义装载都要用它，两次往返还会让两侧读到不同的表。
   const relations = await loadWishlistIdentityRelations(wishlist);
-  return filterDimWishlistForImport({
+  const options = await loadValidationOptions(wishlist, relations);
+  // 校验的主循环在大愿望单上要跑几十秒，而它本身是同步的。这里自己驱动分步迭代器，
+  // 每片不超过 `wishlistFilterSliceMs` 就让出一次 event loop——不然整段压在 event loop 上，
+  // 窗口不响应、IPC 排队，连「取消」都进不来。
+  const steps = filterDimWishlistForImportSteps({
     wishlist,
     parse_issues: parseIssues,
-    options: await loadValidationOptions(wishlist, relations),
+    options,
     identity: { relations }
   });
+  let step = steps.next();
+  let sliceStartedAt = Date.now();
+  while (!step.done) {
+    if (Date.now() - sliceStartedAt >= wishlistFilterSliceMs) {
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      sliceStartedAt = Date.now();
+    }
+    step = steps.next();
+  }
+  return step.value;
 }
 
 /** 身份关系取不到时返回空数组：展开退化成「规则只覆盖它自己那把枪」，与从前行为一致。 */

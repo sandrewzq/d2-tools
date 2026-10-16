@@ -260,7 +260,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </nav>
         </aside>
         <main className="settings-content" data-reference-id="settings.content" data-surface="content-stack">
-          {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{props.message}</p> : null}
+          {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{settingsText(copy, props.message)}</p> : null}
           {props.error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{props.error}</p> : null}
           {activeSection === "overview" ? (
             <OverviewSection
@@ -561,7 +561,7 @@ function BungieSection(props: any) {
     {!props.isPreparingManifest && props.hasAutoManifestFailure && props.manifestError ? <div className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert"><strong>{settingsText(copy, "资料库自动准备失败")}</strong><p>{settingsText(copy, "配置已经保存，不需要重新填写。请检查网络后重试。")}</p><small>{settingsText(copy, "失败原因：")} {props.manifestError}</small><SettingsButton data-control-variant="primary" onClick={props.onRetryManifest}>{settingsText(copy, "重试准备资料库")}</SettingsButton></div> : null}
     {props.bungieUi.tone === "ready" && !props.isAccountReady ? <div className="settings-feedback" data-ui-kind="callout" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite"><strong>{settingsText(copy, "Bungie 配置已完成，现在可以登录")}</strong><p>{settingsText(copy, "登录不依赖资料库。登录后会先读取账号，资料库继续在后台准备，名称和图标会在准备完成后补齐。")}</p><SettingsButton data-control-variant="primary" onClick={props.onLoginBungie}>{settingsText(copy, "登录 Bungie")}</SettingsButton></div> : null}
     {props.error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{props.error}</p> : null}
-    {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{props.message}</p> : null}
+    {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{settingsText(copy, props.message)}</p> : null}
   </SettingsSection>;
 }
 

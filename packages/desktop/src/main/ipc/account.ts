@@ -49,7 +49,8 @@ export function registerAccountIpcHandlers(): void {
     return accountId
       ? loadCachedAccountSnapshot(config.data.data_dir, {
           accountId,
-          manifestRevision: manifestRevision || undefined
+          manifestRevision: manifestRevision || undefined,
+          manifestLanguage: config.data.manifest_language
         })
       : null;
   });

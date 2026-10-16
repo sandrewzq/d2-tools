@@ -53,7 +53,11 @@ export async function getHomeBriefing(options: HomeBriefingRefreshOptions = {}):
     config.data.data_dir,
     token?.membership_id ?? "public",
     manifest.version ?? "manifest-unavailable",
-    manifest.language ?? config.data.manifest_language,
+    // 简报里的装备名由本地资料库决定，所以键里放配置的资料库语言。
+    // 不能用 `getManifestStatus()` 那份元数据缓存的语言：它记的是「上次抓元数据时用的语言」，
+    // 中英文资料库又共用同一个版本号，换回中文后它仍是 en，上一语言建出来的简报会被当成命中，
+    // 于是中文界面里继续显示英文武器名（Bug #118）。
+    config.data.manifest_language,
     // 受控掉落数据集的版本也在 key 里：数据集一换版本，缓存的掉落池就过时了。
     // 不然要等每日 / 每周重置才会重建周报，改完数据在界面上看不到。
     activityLootDatasetV1.revision

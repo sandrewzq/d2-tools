@@ -16,17 +16,21 @@ import type { VendorsCopy } from "../i18n/types.js";
 /**
  * 文案 token：`key` 是中文原文模板（数字处写 `{count}`），`count` 是取值。
  * app 只产出 key 与值，这里负责查表成句。
+ * `values` 放 `count` 之外的占位符取值；其中 `{class}` 会按界面语言查表，其余原样替换。
  */
 export type VendorTextTokenView = {
   key: string;
   count?: number;
+  values?: Record<string, string | number>;
 };
 
-/** token 成句：带计数用模板查表，不带计数按整句查表；查不到都退回 key 本身。 */
+/** token 成句：带取值用模板查表，不带任何取值按整句查表；查不到都退回 key 本身。 */
 function vendorTextTokenText(copy: VendorsCopy, token: VendorTextTokenView): string {
-  return token.count === undefined
-    ? vendorsText(copy, token.key)
-    : vendorsTemplate(copy, token.key, { count: token.count });
+  if (token.count === undefined && !token.values) return vendorsText(copy, token.key);
+  return vendorsTemplate(copy, token.key, {
+    ...token.values,
+    ...(token.count === undefined ? {} : { count: token.count })
+  });
 }
 
 /** 多段 token 之间用跟着语言走的连接符拼。 */
@@ -67,7 +71,7 @@ export type VendorInventoryItemView = {
     state: "owned" | "not_owned" | "partial" | "unknown";
     count: number | null;
     label: string;
-    locationLabels: string[];
+    locations: VendorTextTokenView[];
     asOf?: string;
   };
   canPurchase?: boolean;
@@ -827,7 +831,9 @@ function VendorOfferButton(props: {
         ownershipLabel: props.item.ownership
           ? vendorsTemplate(props.copy, props.item.ownership.label, { count: props.item.ownership.count ?? 0 })
           : undefined,
-        ownershipLocationLabel: props.item.ownership?.locationLabels.join(" · ") || undefined,
+        ownershipLocationLabel: props.item.ownership?.locations.length
+          ? props.item.ownership.locations.map((token) => vendorTextTokenText(props.copy, token)).join(vendorsText(props.copy, " · "))
+          : undefined,
         ownershipAsOfLabel: props.item.ownership?.asOf
           ? formatFullDateTime(props.item.ownership.asOf, text("账号数据时间未读取"))
           : undefined

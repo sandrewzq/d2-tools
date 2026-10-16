@@ -247,7 +247,8 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
             await measureRuntime("account.refresh.persistence", async () => {
               await saveCachedAccountSnapshot(config.data.data_dir, nextSave.snapshot, new Date(), {
                 accountId: nextSave.accountId,
-                ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {})
+                ...(nextSave.manifestRevision ? { manifestRevision: nextSave.manifestRevision } : {}),
+                manifestLanguage: config.data.manifest_language
               });
               // 账号数据换了一份，护甲规划器的棋子缓存就跟它对不上了，见 armorPiecesStore。
               await clearCachedArmorPieces(config.data.data_dir);
@@ -263,7 +264,8 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
     const cached = activeAccountId
       ? await loadCachedAccountSnapshot(config.data.data_dir, {
           accountId: activeAccountId,
-          manifestRevision: manifestRevision || undefined
+          manifestRevision: manifestRevision || undefined,
+          manifestLanguage: config.data.manifest_language
         })
       : null;
     const session = createAccountSession({
@@ -290,6 +292,7 @@ async function getAccountSessionState(): Promise<AccountSessionState> {
       loadDefinitions: loadAccountDefinitions,
       itemDetailStore: createAccountItemDetailStore(config.data.data_dir),
       manifestRevision: manifestRevision || "manifest-unavailable",
+      manifestLanguage: config.data.manifest_language,
       initialSnapshot: cached?.snapshot,
       onSnapshot: (snapshot) => {
         publishAccountSnapshotChanged(snapshot);

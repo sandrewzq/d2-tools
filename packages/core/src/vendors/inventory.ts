@@ -113,7 +113,10 @@ export type VendorOwnedLocationKind = "vault" | "equipped" | "inventory" | "post
 export type VendorOwnedLocation = {
   kind: VendorOwnedLocationKind;
   characterId?: string;
-  characterLabel?: string;
+  /** 职业名（如 `猎人`）。这是应用对 `classType` 的映射结果，算界面文案，渲染层按 `{class}` 查表。 */
+  className?: string;
+  /** 同职业第几个角色，只在该职业有多个角色时才有值（如两个猎人里的第 2 个）。 */
+  duplicateIndex?: number;
   count: number;
 };
 
@@ -240,24 +243,27 @@ export function buildVendorAccountIdentityIndex(account: AccountSummary | null):
 
   const byItemHash = new Map<number, VendorOwnedIdentitySummary>();
   const seenInstanceIds = new Set<string>();
-  const characterLabels = buildVendorCharacterLabels(account);
+  const duplicateIndexes = buildVendorDuplicateIndexes(account);
 
   for (const character of account.characters) {
-    const characterLabel = characterLabels.get(character.character_id) ?? character.class_name;
+    const duplicateIndex = duplicateIndexes.get(character.character_id);
     addVendorOwnedItems(byItemHash, seenInstanceIds, character.equipped_items ?? [], {
       kind: "equipped",
       characterId: character.character_id,
-      characterLabel
+      className: character.class_name,
+      ...(duplicateIndex === undefined ? {} : { duplicateIndex })
     });
     addVendorOwnedItems(byItemHash, seenInstanceIds, character.inventory_items ?? [], {
       kind: "inventory",
       characterId: character.character_id,
-      characterLabel
+      className: character.class_name,
+      ...(duplicateIndex === undefined ? {} : { duplicateIndex })
     });
     addVendorOwnedItems(byItemHash, seenInstanceIds, character.postmaster_items ?? [], {
       kind: "postmaster",
       characterId: character.character_id,
-      characterLabel
+      className: character.class_name,
+      ...(duplicateIndex === undefined ? {} : { duplicateIndex })
     });
   }
 
@@ -307,20 +313,22 @@ function addVendorOwnedItems(
   }
 }
 
-function buildVendorCharacterLabels(account: AccountSummary): Map<string, string> {
+/** 同职业有多个角色时给第 2 个及以后编号，用来区分（如两个猎人里的第 2 个）；职业唯一时不编号。 */
+function buildVendorDuplicateIndexes(account: AccountSummary): Map<string, number> {
   const classCounts = new Map<string, number>();
   const classIndexes = new Map<string, number>();
   for (const character of account.characters) {
     classCounts.set(character.class_name, (classCounts.get(character.class_name) ?? 0) + 1);
   }
-  return new Map(account.characters.map((character) => {
+  const result = new Map<string, number>();
+  for (const character of account.characters) {
     const duplicateIndex = (classIndexes.get(character.class_name) ?? 0) + 1;
     classIndexes.set(character.class_name, duplicateIndex);
-    const label = (classCounts.get(character.class_name) ?? 0) > 1
-      ? `${character.class_name} ${duplicateIndex}`
-      : character.class_name;
-    return [character.character_id, label];
-  }));
+    if ((classCounts.get(character.class_name) ?? 0) > 1) {
+      result.set(character.character_id, duplicateIndex);
+    }
+  }
+  return result;
 }
 
 export function createVendorCacheContextKey(context: VendorCharacterContext): string {

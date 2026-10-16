@@ -11,6 +11,11 @@ export type AccountItemDetailCacheKey = {
   membership_type: number;
   destiny_membership_id: string;
   manifest_revision: string;
+  /**
+   * 详情里的装备名、Perk 名、插槽名都是本地化文本，而中英文资料库共用同一个 Manifest
+   * 版本号：只按版本号做身份，换语言后会命中上一语言写下的详情（Bug #118）。
+   */
+  manifest_language: string;
   instance_id: string;
 };
 
@@ -63,14 +68,15 @@ export async function loadCachedAccountItemDetail(
     const database = await openDatabase(dataDir);
     try {
       const row = database.prepare(`
-        SELECT membership_type, destiny_membership_id, manifest_revision, instance_id, fetched_at, detail_json
+        SELECT membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id, fetched_at, detail_json
         FROM account_item_details
         WHERE membership_type = ? AND destiny_membership_id = ?
-          AND manifest_revision = ? AND instance_id = ?
+          AND manifest_revision = ? AND manifest_language = ? AND instance_id = ?
       `).get(
         key.membership_type,
         key.destiny_membership_id,
         key.manifest_revision,
+        key.manifest_language,
         key.instance_id
       ) as DetailRow | undefined;
       return row ? parseDetailRow(row) : null;
@@ -103,15 +109,16 @@ export async function saveCachedAccountItemDetail(
   await enqueueMutation(dataDir, (database) => {
     database.prepare(`
       INSERT INTO account_item_details (
-        membership_type, destiny_membership_id, manifest_revision, instance_id, fetched_at, detail_json
-      ) VALUES (?, ?, ?, ?, ?, ?)
-      ON CONFLICT(membership_type, destiny_membership_id, manifest_revision, instance_id) DO UPDATE SET
+        membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id, fetched_at, detail_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id) DO UPDATE SET
         fetched_at = excluded.fetched_at,
         detail_json = excluded.detail_json
     `).run(
       key.membership_type,
       key.destiny_membership_id,
       key.manifest_revision,
+      key.manifest_language,
       key.instance_id,
       cached.fetched_at,
       JSON.stringify(cached.detail)
@@ -130,8 +137,14 @@ export async function deleteCachedAccountItemDetail(
     const result = database.prepare(`
       DELETE FROM account_item_details
       WHERE membership_type = ? AND destiny_membership_id = ?
-        AND manifest_revision = ? AND instance_id = ?
-    `).run(key.membership_type, key.destiny_membership_id, key.manifest_revision, key.instance_id);
+        AND manifest_revision = ? AND manifest_language = ? AND instance_id = ?
+    `).run(
+      key.membership_type,
+      key.destiny_membership_id,
+      key.manifest_revision,
+      key.manifest_language,
+      key.instance_id
+    );
     deleted = Number(result.changes) > 0;
   });
   return deleted;
@@ -162,6 +175,7 @@ export function createAccountItemDetailCacheKey(key: AccountItemDetailCacheKey):
     key.membership_type,
     key.destiny_membership_id,
     key.manifest_revision,
+    key.manifest_language,
     key.instance_id
   ]);
 }
@@ -170,6 +184,7 @@ type DetailRow = {
   membership_type: number;
   destiny_membership_id: string;
   manifest_revision: string;
+  manifest_language: string;
   instance_id: string;
   fetched_at: string;
   detail_json: string;
@@ -223,10 +238,11 @@ async function openDatabase(dataDir: string): Promise<DatabaseSync> {
         membership_type INTEGER NOT NULL,
         destiny_membership_id TEXT NOT NULL,
         manifest_revision TEXT NOT NULL,
+        manifest_language TEXT NOT NULL,
         instance_id TEXT NOT NULL,
         fetched_at TEXT NOT NULL,
         detail_json TEXT NOT NULL,
-        PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, instance_id)
+        PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id)
       );
     `);
     validateSchema(database);
@@ -247,10 +263,11 @@ async function openDatabase(dataDir: string): Promise<DatabaseSync> {
           membership_type INTEGER NOT NULL,
           destiny_membership_id TEXT NOT NULL,
           manifest_revision TEXT NOT NULL,
+          manifest_language TEXT NOT NULL,
           instance_id TEXT NOT NULL,
           fetched_at TEXT NOT NULL,
           detail_json TEXT NOT NULL,
-          PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, instance_id)
+          PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id)
         );
       `);
     } catch {
@@ -272,10 +289,11 @@ function createMemoryDatabase(): DatabaseSync {
       membership_type INTEGER NOT NULL,
       destiny_membership_id TEXT NOT NULL,
       manifest_revision TEXT NOT NULL,
+      manifest_language TEXT NOT NULL,
       instance_id TEXT NOT NULL,
       fetched_at TEXT NOT NULL,
       detail_json TEXT NOT NULL,
-      PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, instance_id)
+      PRIMARY KEY (membership_type, destiny_membership_id, manifest_revision, manifest_language, instance_id)
     );
   `);
   return database;
@@ -290,6 +308,7 @@ function validateSchema(database: DatabaseSync): void {
     "membership_type",
     "destiny_membership_id",
     "manifest_revision",
+    "manifest_language",
     "instance_id",
     "fetched_at",
     "detail_json"
@@ -305,6 +324,7 @@ function validateSchema(database: DatabaseSync): void {
     "membership_type",
     "destiny_membership_id",
     "manifest_revision",
+    "manifest_language",
     "instance_id"
   ])) {
     throw new Error("Account item detail cache schema is invalid");
@@ -319,6 +339,7 @@ function parseDetailRow(row: DetailRow): CachedAccountItemDetail | null {
       membership_type: row.membership_type,
       destiny_membership_id: row.destiny_membership_id,
       manifest_revision: row.manifest_revision,
+      manifest_language: row.manifest_language,
       instance_id: row.instance_id,
       fetched_at: row.fetched_at,
       detail: sanitizeAccountItemSummary(detail)
@@ -338,8 +359,9 @@ function assertCacheKey(key: AccountItemDetailCacheKey): void {
   }
   if (!nonEmptyString(key.destiny_membership_id)
     || !nonEmptyString(key.manifest_revision)
+    || !nonEmptyString(key.manifest_language)
     || !nonEmptyString(key.instance_id)) {
-    throw new Error("Account item detail cache membership, manifest revision or instance id is invalid");
+    throw new Error("Account item detail cache membership, manifest revision, manifest language or instance id is invalid");
   }
 }
 

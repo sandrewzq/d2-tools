@@ -32,17 +32,19 @@ export type VendorDetailState = "pending" | "ready" | "partial" | "failed";
 /**
  * 文案 token：`key` 是中文原文模板（数字处写 `{count}`），`count` 是取值。
  * app 只产出 key 与值，查表成句交给渲染层，切语言不用改这里的分支。
+ * `values` 放 `count` 之外的占位符取值；其中 `{class}` 会按界面语言查表，其余原样替换。
  */
 export type VendorTextTokenWorkspace = {
   key: string;
   count?: number;
+  values?: Record<string, string | number>;
 };
 
 export type VendorOfferOwnershipWorkspace = {
   state: VendorInventoryStatus;
   count: number | null;
   label: string;
-  locationLabels: string[];
+  locations: VendorTextTokenWorkspace[];
   asOf?: string;
 };
 
@@ -697,7 +699,7 @@ function createVendorOfferOwnership(
       state: "unknown",
       count: null,
       label: "账号状态未读取",
-      locationLabels: []
+      locations: []
     };
   }
 
@@ -707,12 +709,12 @@ function createVendorOfferOwnership(
       state: "not_owned",
       count: 0,
       label: equipmentKind ? "账号无同身份实例" : "账号未拥有",
-      locationLabels: [],
+      locations: [],
       asOf: index.sourceProfileMintedAt
     };
   }
 
-  const locationLabels = formatVendorOwnedLocations(owned, selectedCharacterId);
+  const locations = formatVendorOwnedLocations(owned, selectedCharacterId);
   if (owned.dataState === "partial") {
     return {
       state: "partial",
@@ -722,7 +724,7 @@ function createVendorOfferOwnership(
           ? "账号至少有 {count} 件同身份装备"
           : "账号至少已有 {count} 件"
         : "账号实例未完整读取",
-      locationLabels,
+      locations,
       asOf: index.sourceProfileMintedAt
     };
   }
@@ -733,7 +735,7 @@ function createVendorOfferOwnership(
     label: equipmentKind
       ? "账号有 {count} 件同身份装备"
       : "账号已有 {count} 件",
-    locationLabels,
+    locations,
     asOf: index.sourceProfileMintedAt
   };
 }
@@ -741,18 +743,28 @@ function createVendorOfferOwnership(
 function formatVendorOwnedLocations(
   owned: VendorOwnedIdentitySummary,
   selectedCharacterId?: string
-): string[] {
+): VendorTextTokenWorkspace[] {
   return [...owned.locations]
     .sort((left, right) => (
       vendorOwnedLocationPriority(left, selectedCharacterId)
       - vendorOwnedLocationPriority(right, selectedCharacterId)
     ))
     .map((location) => {
-      if (location.kind === "vault") return `仓库 ${location.count} 件`;
-      const characterLabel = location.characterLabel ?? "角色";
-      if (location.kind === "equipped") return `${characterLabel} · 已装备 ${location.count} 件`;
-      if (location.kind === "inventory") return `${characterLabel} · 背包 ${location.count} 件`;
-      return `${characterLabel} · 邮政官 ${location.count} 件`;
+      if (location.kind === "vault") {
+        return { key: "仓库 {count} 件", count: location.count };
+      }
+      // 职业名走 `{class}` 查表；同职业序号紧跟其后，中英都是空格加数字，所以拼进取值里。
+      const values = {
+        class: location.className ?? "角色",
+        suffix: location.duplicateIndex ? ` ${location.duplicateIndex}` : ""
+      };
+      if (location.kind === "equipped") {
+        return { key: "{class}{suffix} · 已装备 {count} 件", count: location.count, values };
+      }
+      if (location.kind === "inventory") {
+        return { key: "{class}{suffix} · 背包 {count} 件", count: location.count, values };
+      }
+      return { key: "{class}{suffix} · 邮政官 {count} 件", count: location.count, values };
     });
 }
 

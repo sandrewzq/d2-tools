@@ -35,3 +35,17 @@ export function homeTokenList(copy: HomeCopy, tokens: WeeklyTextToken[] | undefi
     .filter(Boolean)
     .join(homeText(copy, " · "));
 }
+
+/**
+ * 上游抛出的错误文本也过一遍查表。
+ *
+ * IPC 带上来的 `message` 是上游原文（`core` / `services` 里抛的中文），英文界面下会整条露出中文。
+ * 把已经登记过的原文交给同一张表查译文，未登记的（例如 Bungie 自己返回的英文错误）原样透出。
+ */
+export function homeErrorText(copy: HomeCopy, error: unknown, fallbackKey: string): string {
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return homeText(copy, message);
+  }
+  return homeText(copy, fallbackKey);
+}

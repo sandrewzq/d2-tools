@@ -427,13 +427,15 @@ function buildManifestAlert(
     return null;
   }
   if (alert.kind === "error") {
+    // 上游错误原文也过一遍表：登记过的中文按当前语言出句，未登记的原文（例如 Bungie 的英文错误）原样透出。
+    const errorText = alert.error ? libraryText(copy, alert.error) : libraryText(copy, "未知错误");
     return {
       title: alert.hasUsableManifest
         ? libraryText(copy, "资料库后台更新失败")
         : libraryText(copy, "资料库状态读取失败"),
       message: alert.hasUsableManifest
-        ? `${alert.error ?? libraryText(copy, "未知错误")} ${libraryText(copy, "旧资料库仍可继续使用。")}`
-        : alert.error ?? libraryText(copy, "未知错误"),
+        ? `${errorText} ${libraryText(copy, "旧资料库仍可继续使用。")}`
+        : errorText,
       primaryAction: alert.hasUsableManifest ? "update" : "repair",
       statusLabel: libraryText(copy, "失败"),
       tone: "error",

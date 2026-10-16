@@ -31,3 +31,18 @@ export function accountTokenText(copy: AccountCopy, token: AccountTextToken): st
 export function accountTokensText(copy: AccountCopy, tokens: AccountTextToken[], separator: string): string {
   return tokens.map((token) => accountTokenText(copy, token)).join(separator);
 }
+
+/**
+ * 上游抛出的错误文本也过一遍查表。
+ *
+ * IPC 带上来的 `message` 是上游原文（`core` / `services` 里抛的中文），英文界面下会整条露出中文。
+ * 把已经登记过的原文交给同一张表查译文，未登记的（例如 Bungie 自己返回的英文错误）原样透出。
+ * 错误可能是 `Error`，也可能是跨包传过来的纯对象（`ServiceError`），两种都要能取到文案。
+ */
+export function accountErrorText(copy: AccountCopy, error: unknown, fallbackKey: string): string {
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return accountText(copy, message);
+  }
+  return accountText(copy, fallbackKey);
+}

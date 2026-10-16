@@ -104,7 +104,10 @@ function createModel(options: { detailFailure?: boolean } = {}) {
       state: "owned" as const,
       count: 2,
       label: "账号有 2 件同身份装备",
-      locationLabels: ["猎人 · 已装备 1 件", "仓库 1 件"],
+      locations: [
+        { key: "{class}{suffix} · 已装备 {count} 件", count: 1, values: { class: "猎人", suffix: "" } },
+        { key: "仓库 {count} 件", count: 1 }
+      ],
       asOf: "2026-07-12T11:30:00.000Z"
     },
     stats: { "2996146975": 18 },
@@ -148,7 +151,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
           state: "not_owned" as const,
           count: 0,
           label: "账号无同身份实例",
-          locationLabels: [],
+          locations: [],
           asOf: "2026-07-12T11:30:00.000Z"
         },
         sourcePath: "仄 → 奇异装备优惠"

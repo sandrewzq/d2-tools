@@ -102,9 +102,11 @@ async function requestBungieJson<T>(
     if (timeoutSignal.aborted && !options.signal?.aborted) {
       throw createServiceError({
         code: "bungie_timeout",
-        message: `Bungie 请求在 ${timeoutMs} ms 后超时`,
+        // 超时是高频错误，界面文案交给渲染层按这条固定原文查表出句，毫秒数放 details。
+        message: "Bungie 请求超时",
         retryable: true,
         causeCategory: "timeout",
+        details: { timeout_ms: timeoutMs },
         cause: error
       });
     }

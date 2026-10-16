@@ -147,7 +147,7 @@ export function createDiagnosticsSettingsModel(input: {
       };
       const saved = await api.saveConfig(nextConfig);
       input.setLanguagePreferences(languagePreferencesFromConfig(saved));
-      input.setSettingsMessage(settingsText(input.copy, "语言设置已保存，正在后台检查资料库语言数据。"));
+      input.setSettingsMessage("语言设置已保存，正在后台检查资料库语言数据。");
       input.onConfigChanged();
       await api.getManifestStatus();
     } catch (error) {
@@ -192,7 +192,7 @@ export async function copyDiagnosticsExport(copy: SettingsCopy, setSettingsMessa
       "",
       formatAssistantCapabilityAuditDiagnostics()
     ].join("\n"));
-    setSettingsMessage(settingsText(copy, "已复制脱敏诊断导出"));
+    setSettingsMessage("已复制脱敏诊断导出");
   } catch (error) {
     setSettingsError(error instanceof Error ? error.message : settingsText(copy, "诊断导出失败"));
   }
@@ -208,7 +208,7 @@ export async function copyDataBackupGuide(
   setSettingsError("");
   try {
     await navigator.clipboard.writeText(buildDataBackupGuide(dataDir));
-    setSettingsMessage(settingsText(copy, "已复制备份/迁移说明"));
+    setSettingsMessage("已复制备份/迁移说明");
   } catch {
     setSettingsError(settingsText(copy, "复制失败，请检查系统剪贴板权限"));
   }
@@ -243,7 +243,7 @@ export function buildDataBackupGuide(dataDir: string): string {
 export async function copyActionDiagnostic(copy: SettingsCopy, entry: ActionLogEntry, setSettingsMessage: (value: string) => void, setSettingsError: (value: string) => void) {
   try {
     await navigator.clipboard.writeText(buildActionDiagnosticText(entry));
-    setSettingsMessage(settingsText(copy, "已复制操作诊断"));
+    setSettingsMessage("已复制操作诊断");
   } catch {
     setSettingsError(settingsText(copy, "复制失败，请检查系统剪贴板权限"));
   }

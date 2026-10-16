@@ -1,4 +1,4 @@
-import { accountTemplate, accountText, type AccountCopy } from "@d2-tools/ui";
+import { accountErrorText, accountTemplate, type AccountCopy } from "@d2-tools/ui";
 import type { StartupState } from "../../api/types";
 
 /**
@@ -14,7 +14,7 @@ import type { StartupState } from "../../api/types";
  * 所以调用方必须把**错误对象**传进来，不能只传 message 字符串。
  */
 export function formatAccountLoadFailure(state: StartupState, error: unknown, copy: AccountCopy): string {
-  const message = accountErrorText(error, copy);
+  const message = accountErrorText(copy, error, "账号数据读取失败");
 
   if (state.cards.bungieConfig.status !== "ready") {
     return accountTemplate(copy, "未连接 Bungie：请先在设置里填写 Bungie API Key、Client ID 和 Client Secret。{message}", { message });
@@ -40,13 +40,4 @@ export function isAuthenticationFailure(error: unknown): boolean {
   const { code, causeCategory } = error as { code?: unknown; causeCategory?: unknown };
   if (causeCategory === "authentication" || causeCategory === "authorization") return true;
   return typeof code === "string" && (code === "auth_required" || code.endsWith("AUTH_REQUIRED"));
-}
-
-/** 错误可能是 Error，也可能是跨包传过来的纯对象（`ServiceError`），两种都要能取到文案。 */
-function accountErrorText(error: unknown, copy: AccountCopy): string {
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message;
-  }
-  return accountText(copy, "账号数据读取失败");
 }

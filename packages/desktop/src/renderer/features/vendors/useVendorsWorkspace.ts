@@ -5,7 +5,7 @@ import {
 } from "@d2-tools/app/vendors";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { VendorCharacterScope } from "@d2-tools/core/vendors/inventory";
-import { vendorsTemplate, vendorsText, type VendorsCopy } from "@d2-tools/ui";
+import { vendorsErrorText, vendorsTemplate, vendorsText, type VendorsCopy } from "@d2-tools/ui";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
@@ -33,7 +33,7 @@ export function resolveVendorRefreshState(
     return {
       snapshot: cached,
       refreshState: "failed",
-      refreshError: error instanceof Error ? error.message : vendorsText(copy, "商人数据刷新失败")
+      refreshError: vendorsErrorText(copy, error, "商人数据刷新失败")
     };
   }
   const armorerChanged = Object.keys(refreshed.characterContexts).some((characterId) =>
@@ -139,7 +139,7 @@ export function useVendorsWorkspace(input: {
         setRefreshError(resolved.refreshError ?? "");
       } else {
         setRefreshState("failed");
-        setRefreshError(error instanceof Error ? error.message : vendorsText(input.copy, "商人数据读取失败"));
+        setRefreshError(vendorsErrorText(input.copy, error, "商人数据读取失败"));
       }
     } finally {
       if (manualRequestSequenceRef.current === requestSequence) {
@@ -229,11 +229,11 @@ export function useVendorsWorkspace(input: {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (availableSnapshot) setSnapshot(availableSnapshot);
         setRefreshState("failed");
-        setRefreshError(error instanceof Error
-          ? (availableSnapshot
-              ? vendorsTemplate(input.copy, "继续显示上次库存。{message}", { message: error.message })
-              : error.message)
-          : vendorsText(input.copy, "商人数据读取失败"));
+        setRefreshError(availableSnapshot
+          ? vendorsTemplate(input.copy, "继续显示上次库存。{message}", {
+            message: vendorsErrorText(input.copy, error, "商人数据读取失败")
+          })
+          : vendorsErrorText(input.copy, error, "商人数据读取失败"));
       } finally {
         if (requestSequence === requestSequenceRef.current && requestContextKey === requestContextKeyRef.current) {
           contextLoadPendingRef.current = false;

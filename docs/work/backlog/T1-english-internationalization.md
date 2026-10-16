@@ -848,10 +848,10 @@ Web 壳在后端 `/api/home-snapshot` 拿不到数据时会自己造一份兜底
 - `packages/app/src/workspaces/accountPage.ts:537` 的 `|| \`位置 ${bucketHash}\``：`bucketLabels`（`packages/core/src/items/classification.ts:42-75`）的键已经涵盖 `accountEquipmentBucketHashes` 的全部 8 个哈希，`limit?.bucket_name` 再兜一层，这条分支不可达，与 `formatTime.ts` 的 `defaultFallback` 同类。
 - `accountPage.ts` 里只被测试断言、界面不读的两个字段：`selectedCharacterSummary`（`:377`，合成串 `光等 2015 / 已装备 1 件 / 背包 1 件`，只有 `account-page-workspace.test.ts:131` 读）与 `AccountCharacterDetailView.lightLabel`（`:443`）。UI 侧读 `selectedCharacter` 只取 `characterId` / `className` / `power`（`lightLabel` 与它同级的 `summary` 都没有读取点）。
 
-**还差一步、需要先定口径的两类：**
+**还差一步、需要先定口径的一类：**
 
-- **主进程抛出的中文错误文本**：`packages/desktop/src/main`、`packages/services`、`packages/core` 里共 143 处 `throw new Error("中文…")` / `createServiceError({ message })`。它们经 `toServiceError(error, "")` 归一化后以 `message` 字段透传给渲染层，渲染层在拿不到 `code` 映射时会把这段中文当错误说明显示出来。这跟主进程弹窗、后台任务文案不是一回事：后两者是「框架已经知道该显示什么，只是没翻译」，前者是「要不要把错误文本从自然语言改成 code + 参数」的产品与架构决定。两条路：一是保留上游文本、只在渲染层按 `code` 兜底（现状，英文界面下这类错误会露中文，但排查信息最完整）；二是把高频错误收敛成 code + 参数、由渲染层出句（彻底但要动 services / core，且丢掉部分上游细节）。定口径前不动。
-- **`ownership.locationLabels`**（`仓库 N 件`、`角色 · 已装备 N 件`）：渲染点是装备详情弹窗里的商人持有条，属 `item-detail` 的表，不在商人菜单范围内，本轮只登记。
+- **主进程抛出的中文错误文本**：`packages/desktop/src/main`、`packages/services`、`packages/core` 里共 143 处 `throw new Error("中文…")` / `createServiceError({ message })`。它们经 `toServiceError(error, "")` 归一化后以 `message` 字段透传给渲染层，渲染层在拿不到 `code` 映射时会把这段中文当错误说明显示出来。这跟主进程弹窗、后台任务文案不是一回事：后两者是「框架已经知道该显示什么，只是没翻译」，前者是「要不要把错误文本从自然语言改成 code + 参数」的产品与架构决定。**口径已定（2026-10-16）：只收敛会出屏的高频错误**——不新建 code 表，改成让上游原文过一次 copy 查表，登记过的按当前语言出句，未登记的原文原样透出，其余 100 余处维持现状，不逐条改写成 code，也不丢上游排查细节。收敛清单与实施记录见下。
+- **`ownership.locationLabels`**：渲染点是装备详情弹窗里的商人持有条。原登记为「需要先定口径」，同日按 token 套路迁完，口径与商人菜单的 `ownership.label` 一致（见 §6「阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）」）。
 
 **已知脆弱点（不是漏翻，是机制脆弱）：**
 
@@ -947,6 +947,86 @@ Web 壳在后端 `/api/home-snapshot` 拿不到数据时会自己造一份兜底
 - **测试**：`packages/core/test/weekly.summary.test.ts` 的断言改成比对 token 结构与 `weeklyTokenSource` 输出，没新增用例。
 - **实窗复核（英文 + 真实账号克隆）**：铁旗卡片渲染 `Iron Banner is not open` / `This area stays in the layout; the current character activities did not return an Iron Banner mode.`；活动激涌卡片渲染 `Only applies to PvE activities that explicitly list the modifier; it is not active across all PvE or PvP.`；活动行渲染 `Nightfall challenge` / `Dungeon challenge` / `Raid challenge`（这三条来自 `classification.subtitle`，原本也会露中文）。首页 144 处残留中文按关键词（铁旗 / 里程碑 / 挑战 / 待确认 / 轮换 / 日落等）过滤后为 0，剩下的全是 Manifest 数据（武器名、活动名、`item_type`）。亮暗两轮横向溢出 0、console 错误 0；`pnpm typecheck` 8 个包、`pnpm test` 153 文件 / 691 用例 + 架构 15 文件 / 92 用例、`node scripts/check-i18n-hardcoded.mjs` 零命中全部通过。
 
+#### 阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）
+
+背景：上一节把 `ownership.locationLabels` 登记为「需要先定口径」。它的渲染点是装备详情弹窗里的商人持有条（`Instance location` / `实例位置`），值是 app 拼好的成品中文串（`术士 · 背包 1 件 · 仓库 5 件`、`仓库 9 件`），英文界面下会整条露中文加 `{count}` 模板。定下来的口径与商人菜单 `ownership.label` 一致：app 出 key + 参数，渲染层成句。
+
+- **core 侧拆开成品标签**（`packages/core/src/vendors/inventory.ts`）：`VendorOwnedLocation.characterLabel`（值是 `猎人 2` 这种拼好的标签）换成 `className` + `duplicateIndex`。`buildVendorCharacterLabels` 相应换成 `buildVendorDuplicateIndexes`，只给同职业的第 2 个及以后角色编号，职业唯一时不编号。职业名是应用对 `classType` 的映射结果，算文案，所以留作 `className` 交给渲染层按 `{class}` 查表。
+- **app 侧产 token**（`packages/app/src/workspaces/vendorsPage.ts`）：`VendorTextTokenWorkspace` 加 `values`，`VendorOfferOwnershipWorkspace.locationLabels: string[]` 换成 `locations: VendorTextTokenWorkspace[]`。`formatVendorOwnedLocations` 产出 4 条 key：`仓库 {count} 件`、`{class}{suffix} · 已装备 {count} 件`、`{class}{suffix} · 背包 {count} 件`、`{class}{suffix} · 邮政官 {count} 件`。职业名走 `{class}` 占位符（`replacePlaceholders` 会把它过 copy 表），同职业序号拼进取值里的 `suffix`——中英都是空格加数字，不用进表。
+- **UI 侧成句**（`packages/ui/src/vendors/VendorsPageContentView.tsx`）：`VendorTextTokenView` 加 `values`，`vendorTextTokenText` 把 `count` 与 `values` 合并后走 `vendorsTemplate`；合成处用 `vendorsText(copy, " · ")` 连接多段，不再用字面量 ` · `。
+- **放 vendors 表而不是 itemDetail 表**：上一节按渲染位置（装备详情弹窗）判成 `item-detail` 的表。实施时按产出方归到 vendors 表——token 由 `workspaces/vendorsPage.ts` 产出、消费点是 `VendorsPageContentView.tsx` 的合成处，跟 `VendorTextTokenWorkspace` 同一张表，同表改动不用跨包对表。
+- **文案表**（`packages/ui/src/i18n/copy/vendors.ts`）：zh / en 各补 9 键——4 条模板、` · ` 分隔符、`泰坦` / `猎人` / `术士` / `角色`（en 侧措辞与 `itemDetail` 表一致，`角色` 是 `className` 缺失时的兜底）。
+- **测试**：`packages/core/test/vendors.inventory.test.ts` 与 `packages/ui/test/vendors-page.test.tsx` 的 fixture 跟着改成 token 形态，没新增用例。`vendors-page.test.tsx:36` 那条 `ownershipLocationLabel: "猎人 · 已装备 1 件 · 仓库 1 件"` 逐字没动，它是 zh-CN 输出不变的证据。
+
+#### 阶段 D 验收记录：实例位置的英文实窗 A/B（2026-10-16）
+
+- **方法**：真实数据目录的克隆 + `packages/desktop` 的 dev server（53172）+ Playwright `_electron`，走真实账号快照与 zh-chs 资料库。
+- **界面语言怎么切**：`D2_DATA_DIR` 只改写入路径、不改读取路径（主进程裸调 `loadConfig()`），所以壳内的语言按钮点了会被真实目录的 config 读回中文，`D2_INTERFACE_LOCALE` 也只作用于写入。改成临时把真实 `config.json` 的 `features.interface_locale` 设成 `en-US`，验收后还原（sha256 与备份一致，`7669bea…`）。
+- **A/B 结果**（同一条物品「光耀万钧手套」，账号有 6 件同身份装备）：
+  - zh-CN：`实例位置：术士 · 背包 1 件 · 仓库 5 件`
+  - en-US：`Instance location: Warlock · Inventory 1 · Vault 5`
+  - 另一条只有仓库的：zh-CN `实例位置：仓库 9 件` / en-US `Instance location: Vault 9`
+- **残留中文逐条归属**：商人名 `指挥官萨瓦拉`、物品名 `光耀万钧手套` 和物品描述 `需要本周等级7或12的军械库配给。` 都来自 Manifest。该轮 `D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE=0`，资料库语言固定 zh-chs，属设计内。
+- **验证**：`pnpm typecheck` 8 个包通过；`npx vitest run packages/core/test/vendors.inventory.test.ts packages/ui/test/vendors-page.test.tsx packages/ui/test/shared-item-detail.test.tsx` 3 文件 / 14 用例通过。未跑全量 `pnpm test` 与 `pnpm test:quality`。
+- **顺带一条环境坑**：`packages/web` 与 `packages/desktop` 的 dev server 默认端口都是 53172，同时只能起一个。web 的 dev server 占着这个端口时起实窗，加载到的是 Web 预览壳（账号显示 `Web Guardian`、状态条 `Preview data`、商人页 `No vendor inventory loaded`），不是 desktop renderer——排查时会误判成「实窗没数据」。
+
+#### 阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）
+
+口径见上方「阶段 D 登记：本轮不迁的剩余项」里的抛错文本那条。勘察结果与做法：
+
+- **渲染层没有 `code` → 句子的映射表**。全仓 `error instanceof Error ? error.message` 形态的消费点 82 处，`code` 只在一处被读（`packages/desktop/src/renderer/features/account/accountLoadError.ts` 的 `isAuthenticationFailure`，判断认证失败与否，不出句）。所以「按 code 出句」实际要先建一张 code 表，改动面比收益大。
+- **改用上游原文查表**：`packages/ui` 按域加 5 个 helper，`xxxErrorText(copy, error, fallbackKey)` —— 取 `error.message` 交给同一张 `xxxText` 表，登记过的原文按当前语言出句，未登记的原文（典型是 Bungie 返回的英文 HTTP 错误）原样透出，拿不到 message 时退回 `fallbackKey`。因为 `xxxText` 是 `copy.inline[key] ?? key`，zh 侧不写键，**中文输出逐字不变**，只在 en 表补译文。
+- **新增导出**（均在 `packages/ui/src/index.ts`）：`vendorsErrorText`、`accountErrorText`、`homeErrorText`、`itemDetailErrorText`、`loadoutErrorText`。
+- **本批收口的六个域**：
+  - 商人 —— `packages/desktop/src/renderer/features/vendors/useVendorsWorkspace.ts:36`、`:142`、`:234`、`:236`（`:293` 的 `resolved.refreshError` 已本地化，未动）。
+  - 账号读取 —— `packages/desktop/src/renderer/features/account/accountLoadError.ts:17`，同时删掉该文件里同名的本地函数。
+  - 每日情报 —— `packages/desktop/src/renderer/features/daily/useDailySummary.ts:38`。
+  - 资料库 —— `packages/ui/src/library/LibraryPageContentView.tsx` 的 `manifestAlert.kind === "error"` 单元。
+  - 装备详情 —— `packages/desktop/src/renderer/shared/hooks/useItemDetail.ts:666` 的本地 `errorMessage` 改为委托，5 处调用点跟着走。
+  - 配装写操作 —— `packages/desktop/src/renderer/features/loadouts/useLoadoutWriteActions.ts:177`、`:204`、`:408`、`:475`、`:570`、`:583`、`:744`、`:944`、`:1008`。
+- **一处中文外观有意变化**：`packages/services/src/bungie/client.ts:106` 的 `bungie_timeout` 消息由 `` `Bungie 请求在 ${timeoutMs} ms 后超时` `` 改成固定原文 `Bungie 请求超时`，毫秒数移进 `details.timeout_ms`。查询串里插值会让 key 无限多，翻译表盖不住。
+- **文案表新增键**（只在 en 侧补，zh 侧 `inline` 留空是既有约定）：`packages/ui/src/i18n/copy/vendors.ts` 与 `account.ts` 各 6 键，`home.ts` 7 键，`library.ts` 4 键，`itemDetail.ts` 12 键（含 `bungieGameStateRejections` 的 1634 / 1640 两条长原文），`loadouts.ts` 9 键。
+- **有意不改**：`useLoadoutWriteActions.ts:1103` 的 `error.message` 参与 `/1623|not in.*inventory|不在.*背包/i` 判据，是判断逻辑不是界面文案。
+- **本批未做（另开一片）**：`packages/ui/src/loadouts/LoadoutsPageContentView.tsx:2674` 的 DIM 导出 blocker、`:3764` 的护甲规划 issues（20 余条）、vault 批量写操作、设置菜单与 AI 面板的表单校验。
+- **验证**：`pnpm typecheck` 8 个包通过；`pnpm test:ci`（docs:check + build + test:behavior + test:quality + test:architecture）通过，行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例。未新增用例。
+
+#### 阶段 D 修复记录：设置页回执跟随语言切换（2026-10-16，Bug #117）
+
+- **现象**：在设置页切界面语言后，成功回执留在旧语言里，看起来「中英文反了」——中文页面上挂英文回执，英文页面上挂中文回执。
+- **原因**：上一节（设置菜单的渲染层临时回执）把**成句结果**存进了 `settingsMessage` 状态，`diagnosticsModel.ts` 在写入时用当时的 `input.copy` 成句。`saveLanguagePreferences` 拿到的 copy 是保存**前**的那份，而保存成功后 `setLanguagePreferences` 已经把界面语言换掉、页面按新语言重渲染，回执字符串却还是旧语言。
+- **修法**：状态改存文案 key，成句交给消费点。`packages/ui/src/settings/SettingsPageContentView.tsx` 两处渲染点从 `{props.message}` 改成 `{settingsText(copy, props.message)}`；`diagnosticsModel.ts` 的 4 处、`useAppUpdateFlow.ts` 的 5 处成功回执不再在写入时成句。zh 侧 key 就是原文，输出逐字不变，en 侧按切换后的语言出句。
+- **没跟着改的**：失败分支仍在写入时成句——保存失败时语言没切，没有这层错位。上游回执（`useDiagnosticsSettings.ts` 里 `result.message`，主进程给的配置备份结果）过表查不到就原样透出。
+- **实窗验证**（Desktop，真实数据目录）：`界面语言` 从 zh-CN 切到 en-US 后回执是 `Language settings saved. Checking manifest language data in the background.`，切回 zh-CN 后是 `语言设置已保存，正在后台检查资料库语言数据。`——两个方向都对上当前语言。验证前临时改过真实 `config.json` 的 `features.interface_locale`，验完已还原，sha256 与备份一致（`9333875…`）。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
+
+#### 阶段 D 修复记录：本地化名字的缓存身份带上语言（2026-10-16，Bug #118）
+
+- **现象**：界面是中文，首页「本周轮换地牢 / 突袭」的掉落池却列英文武器名（`Ice Breaker`、`Forbearance`、`Nation of Beasts`），配装页背包候选是英文装备名，装备详情里的 Perk 名也是英文。
+- **原因**：中英文资料库共用同一个 Manifest 版本号（`244213.26.06.29.2000-1-bnet.65864`），语言却不在缓存身份里，所以按版本号失效的缓存看不见语言切换。三处缓存都中：
+  - 首页简报的 `context_key` 取的是 `getManifestStatus()` 那份**元数据缓存**的语言（`packages/desktop/src/main/runtime/homeBriefing.ts:56`）。那份记的是「上次抓 Manifest 元数据时用的语言」，切回中文后仍是 `en`，上一语言建出来的英文简报因此被当成命中，`briefingFromCache` 原样返回里面的英文装备名。
+  - 账号快照缓存只校验账号与 Manifest 版本（`packages/services/src/account/snapshotStore.ts`），而快照里的装备名是本地化文本。配装页背包候选直接来自快照（`collectItemPickerCandidates(props.accountSummary, …)`），于是跟着显示旧语言的装备名。
+  - 装备详情缓存的主键是 `membership_type + destiny_membership_id + manifest_revision + instance_id`（`packages/services/src/account/itemDetailStore.ts`），详情里的 `socket_plugs` / `sockets` 带 Perk 名，同样不随语言失效。
+- **修法**：语言进缓存身份。
+  - 首页简报的 `context_key` 改用 `config.data.manifest_language`：简报里的名字由本地资料库决定，资料库语言就是这份语言。
+  - 账号快照缓存新增可选 `manifestLanguage` 选项与 `manifest_language` 字段，给了就参与校验，比较前统一转小写。桌面侧四处调用点（`accountSession.ts` 的会话键、保存、读取，`ipc/account.ts` 的缓存读取）都传 `config.data.manifest_language`。
+  - 装备详情缓存把 `manifest_language` 加进 `AccountItemDetailCacheKey`、SQL 主键与 `createAccountItemDetailCacheKey`；账号会话新增 `manifestLanguage` 选项，桌面侧从配置传入。旧库由 `validateSchema` 认出主键不匹配后重建，不需要手写迁移。
+- **实窗验证**（Desktop，真实数据目录，`interface_locale: zh-CN`、`manifest_language: zh-chs`）：修复前首页掉落池是 `Ice Breaker` / `VS Velocity Baton` / `Forbearance` / `Nation of Beasts`；修复后同一位置是 `破冰者` / `VS速度指挥` / `自制` / `野兽国度`。zh-chs 资料库里这几个 hash 本来就有中文名，所以先前显示英文是取错了缓存，不是资料库缺名字。
+- **缓存层核对**（临时脚本，跑在 `packages/services/dist` 上）：快照用 `en` 写入后，`zh-chs` 读不到、`EN` 仍读得到；详情同一个实例的 `en` 与 `zh-chs` 两条并存、互不串。真实 `cache/account-cache.sqlite` 的副本上确认旧表被重建成带 `manifest_language` 主键的新表，11 条无语言标记的旧行随重建一起清掉。
+- **没跟着改的**：`manifest_language` 与 `manifestRevision` 一样保持可选，缓存层不替调用方编造语言；未传语言的调用点行为不变。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
+
+#### 阶段 D 修复记录：切语言后页面自动重载（2026-10-16，Bug #119）
+
+- **现象**：在设置页把语言从中文切到 English（含资料库语言），界面文案跟着换了，但页面上的装备名、Perk 名和掉落池名字还是旧语言。这批残留只在切到另一种语言后冒出来，当前语言的页面上看不到。
+- **原因**：保存配置这条路只落盘，不触发任何重取。`packages/desktop/src/main/ipc/config.ts` 的 `config:save` 只做 `saveConfig` 加回读；设置页的 `saveLanguagePreferences`（`packages/desktop/src/renderer/features/settings/diagnosticsModel.ts:128`）保存完只调 `input.onConfigChanged()` 和 `api.getManifestStatus()`，而 `onConfigChanged` → `App.refresh()` 只重读启动状态、换界面语言，不重取装备名。渲染层的账号快照等数据装在模块级 store 里（`packages/desktop/src/renderer/shared/stores/accountEntityStore.ts`），只靠组件重挂载清不掉；`useDailySummary` 的取数时机也只有挂载、下一个重置点和 15 分钟错误重试。
+- **修法**：`config:save` 发现 `manifest_language` 变了就整窗重载一次（`event.sender.reload()`，排在 IPC 回复之后）。渲染层的模块级 store 随重载重建；主进程那边账号会话、资料库 worker 运行时、首页简报和几处缓存都按语言做键，换语言自然不命中（见上一节）。只改界面语言不重载：那条路 `App.refresh()` 已经能当场换掉文案。
+- **实窗验证**（Desktop 实窗，真实数据目录；探针用配置副本加符号链接拼出的数据目录，真实 `config.json` 全程没动，sha256 前后一致 `7669bea…`）：
+  - 首页本周轮换掉落池：起始 zh-chs 是 `破冰者` / `速度指挥` / `自制` / `野兽国度`；切到 en 后重载，变成 `Ice Breaker` / `Velocity Baton` / `Chill Inhibitor` / `Adjudicator` / `Prosecutor` / `Forbearance` / `Nation of Beasts`；切回 zh-chs 后重载，又是中文。
+  - 仓库列表 80 条装备名：起始含中文 80/80，切到 en 后 0/80，切回后 80/80。
+  - 同一件装备的账号快照 Perk 名与装备详情插槽名：起始中文占比 100% 与 77%，切到 en 后两处都是 0%，切回后回到 100% 与 77%。
+- **已知代价**：换语言会整窗重载，重载后回到首页，当前菜单不保留。菜单是 `useDesktopProductShell` 里的 React 状态，既不在启动状态里也不在 URL 里，没有可以还原的落点。换语言本来就要把页面上按语言取的数据全部重取，这个代价按现状接受。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
+
 ## 7. 验收标准
 
 ### 功能验收
@@ -971,7 +1051,7 @@ Web 壳在后端 `/api/home-snapshot` 拿不到数据时会自己造一份兜底
 - `pnpm i18n:hardcoded:check` 保持零命中：JSX 文本节点与五个展示属性上不得再出现中文硬编码。
 - 发布说明明确英文支持范围；在全部核心工作流完成前，不标记为“完整英文支持”。
 
-本轮实跑结果见 §6「阶段 D 验收记录：英文界面实跑（2026-10-15）」与「阶段 D 验收记录：Desktop 实窗英文验收（2026-10-16）」：Web 预览壳下 8 个菜单在 1280 暗色 / 1280 亮色 / 980 暗色 / 760 暗色横向溢出为 0；Desktop 实窗下 8 个菜单在亮色 / 暗色横向溢出为 0，残留中文逐条归属到 Manifest 数据、账号派生值与上游 API 文本。`pnpm test`、`pnpm typecheck`、`node scripts/check-i18n-hardcoded.mjs` 均通过。首页周报那批 core 直接产出的文案已按方案 A 迁完（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），英文实窗复核后残留中文为 0。
+本轮实跑结果见 §6「阶段 D 验收记录：英文界面实跑（2026-10-15）」与「阶段 D 验收记录：Desktop 实窗英文验收（2026-10-16）」：Web 预览壳下 8 个菜单在 1280 暗色 / 1280 亮色 / 980 暗色 / 760 暗色横向溢出为 0；Desktop 实窗下 8 个菜单在亮色 / 暗色横向溢出为 0，残留中文逐条归属到 Manifest 数据、账号派生值与上游 API 文本。`pnpm test`、`pnpm typecheck`、`node scripts/check-i18n-hardcoded.mjs` 均通过。首页周报那批 core 直接产出的文案已按方案 A 迁完（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），英文实窗复核后残留中文为 0。商人持有条的实例位置（`Instance location` / `实例位置`）也已按同一套路迁完，英文实窗 A/B 对照见 §6「阶段 D 验收记录：实例位置的英文实窗 A/B（2026-10-16）」。抛错文本这一类已按「只收敛会出屏的高频错误」收口六个域（账号 / 商人 / 每日情报 / 资料库 / 装备详情 / 配装写操作，见 §6「阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）」），其余保留上游中文原文。反方向也修了一处：中文界面上显示的装备名与 Perk 名先前仍可能是英文，根因是语言没进缓存身份，见 §6「阶段 D 修复记录：本地化名字的缓存身份带上语言（2026-10-16，Bug #118）」；切语言后页面不自动重取这件事也一并修了，见 §6「阶段 D 修复记录：切语言后页面自动重载（2026-10-16，Bug #119）」。
 
 ## 8. 依赖与风险
 
@@ -983,6 +1063,6 @@ Web 壳在后端 `/api/home-snapshot` 拿不到数据时会自己造一份兜底
 
 ## 9. 完成定义
 
-只有当仓库、配装、装备详情、AI 助手、页面标题/状态和平台 adapter 均完成英文接入，并通过英文主流程、窄屏、明暗主题和质量门禁验收之后，T1 才能标记完成。首页周报 core 文案这一条已解决（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），Web 与 Desktop 两侧的实窗验收也都跑过（见 §6）。
+只有当仓库、配装、装备详情、AI 助手、页面标题/状态和平台 adapter 均完成英文接入，并通过英文主流程、窄屏、明暗主题和质量门禁验收之后，T1 才能标记完成。首页周报 core 文案这一条已解决（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），商人持有条的实例位置已解决（见 §6「阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）」），Web 与 Desktop 两侧的实窗验收也都跑过（见 §6）。剩下未收口的是主进程 / services / core 的抛错文本：会出屏的六个域已收（见 §6「阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）」），配装页 DIM 导出与护甲规划、vault 批量写、设置与 AI 表单这几片仍会把上游中文当错误说明显示。
 
 在此之前，T1 保持「部分完成」，对外只能描述为「英文界面部分可用」。

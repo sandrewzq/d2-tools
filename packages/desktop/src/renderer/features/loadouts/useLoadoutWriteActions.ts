@@ -6,6 +6,7 @@ import {
   highestPowerMessageText,
   loadoutActionMessageText,
   loadoutConfirmText,
+  loadoutErrorText,
   loadoutSlotActionLabelText,
   loadoutTemplate,
   loadoutTemplateNameText,
@@ -173,7 +174,7 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(loadoutActionMessageText(copy, buildSaveCharacterLoadoutSuccessMessage(template.name)));
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutText(copy, "配装模板保存失败"),
+        loadoutErrorText(copy, error, "配装模板保存失败"),
         "error"
       );
     }
@@ -200,7 +201,7 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(loadoutTemplate(copy, "已保存攻略草稿：{name}", { name: template.name }));
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutText(copy, "攻略草稿保存失败"),
+        loadoutErrorText(copy, error, "攻略草稿保存失败"),
         "error"
       );
     }
@@ -404,7 +405,7 @@ export function useLoadoutWriteActions(input: {
         message: resultMessage
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : loadoutText(copy, "装备最高光等失败");
+      const message = loadoutErrorText(copy, error, "装备最高光等失败");
       const finalAcceptedPatches = collapseAccountWritePatches(acceptedWritePatches);
       if (finalAcceptedPatches.length) {
         applyAcceptedAccountPatches(finalAcceptedPatches);
@@ -471,7 +472,7 @@ export function useLoadoutWriteActions(input: {
       });
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutActionMessageText(copy, buildLoadoutSlotActionFailedMessage(label)),
+        error ? loadoutErrorText(copy, error, "") : loadoutActionMessageText(copy, buildLoadoutSlotActionFailedMessage(label)),
         "error"
       );
       await input.diagnostics.loadActionLog();
@@ -566,7 +567,7 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateDeletedMessage()));
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutText(copy, "删除配装模板失败"),
+        loadoutErrorText(copy, error, "删除配装模板失败"),
         "error"
       );
     }
@@ -579,7 +580,7 @@ export function useLoadoutWriteActions(input: {
       input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateRenamedMessage(renamed.name)));
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutText(copy, "本地方案重命名失败"),
+        loadoutErrorText(copy, error, "本地方案重命名失败"),
         "error"
       );
     }
@@ -740,7 +741,7 @@ export function useLoadoutWriteActions(input: {
     } catch (error) {
       operationFailed = true;
       input.setLoadoutMessage(
-        error instanceof Error ? error.message : loadoutText(copy, "缺失件转移失败"),
+        loadoutErrorText(copy, error, "缺失件转移失败"),
         "error"
       );
     } finally {
@@ -939,8 +940,8 @@ export function useLoadoutWriteActions(input: {
       actionSucceeded = true;
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error
-          ? error.message
+        error
+          ? loadoutErrorText(copy, error, "")
           : loadoutActionMessageText(copy, buildLoadoutItemActionFailureMessage("transfer", item.name)),
         "error"
       );
@@ -1003,8 +1004,8 @@ export function useLoadoutWriteActions(input: {
         : loadoutText(copy, "写入请求已受理；页面会在下次账号同步时校准。"));
     } catch (error) {
       input.setLoadoutMessage(
-        error instanceof Error
-          ? error.message
+        error
+          ? loadoutErrorText(copy, error, "")
           : loadoutActionMessageText(copy, buildLoadoutItemActionFailureMessage("equip", item.name)),
         "error"
       );

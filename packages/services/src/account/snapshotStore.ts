@@ -20,6 +20,12 @@ export type CachedAccountSnapshot = {
    * This is intentionally optional: the store must never invent a Manifest version.
    */
   manifest_revision?: string;
+  /**
+   * 快照里的装备名是本地化文本，中英文资料库又共用同一个 Manifest 版本号，
+   * 所以语言也要进缓存身份；缺了它，换语言后会继续显示上一语言的装备名（Bug #118）。
+   * 与 `manifest_revision` 一样可选，缓存层不替调用方编造语言。
+   */
+  manifest_language?: string;
   snapshot: AccountSnapshot;
 };
 
@@ -27,6 +33,8 @@ export type AccountSnapshotCacheOptions = {
   accountId?: string;
   /** Explicit Manifest version associated with this snapshot, if available. */
   manifestRevision?: string;
+  /** 快照里名字的语言；给了就参与缓存校验。 */
+  manifestLanguage?: string;
 };
 
 const fileName = "account-snapshot-cache.json";
@@ -41,11 +49,14 @@ export async function loadCachedAccountSnapshot(
     const parsed = JSON.parse(await readFile(snapshotPath(dataDir), "utf8")) as Partial<CachedAccountSnapshot>;
     const expectedManifestRevision = normalizeManifestRevision(options.manifestRevision);
     const cachedManifestRevision = normalizeManifestRevision(parsed.manifest_revision);
+    const expectedManifestLanguage = normalizeManifestLanguage(options.manifestLanguage);
+    const cachedManifestLanguage = normalizeManifestLanguage(parsed.manifest_language);
     if (parsed.version !== 5
       || !parsed.saved_at
       || !isAccountSnapshot(parsed.snapshot)
       || (options.accountId !== undefined && parsed.account_id !== options.accountId)
-      || (expectedManifestRevision !== undefined && cachedManifestRevision !== expectedManifestRevision)) {
+      || (expectedManifestRevision !== undefined && cachedManifestRevision !== expectedManifestRevision)
+      || (expectedManifestLanguage !== undefined && cachedManifestLanguage !== expectedManifestLanguage)) {
       return null;
     }
     return {
@@ -57,6 +68,9 @@ export async function loadCachedAccountSnapshot(
         : {}),
       ...(normalizeManifestRevision(parsed.manifest_revision)
         ? { manifest_revision: normalizeManifestRevision(parsed.manifest_revision) }
+        : {}),
+      ...(normalizeManifestLanguage(parsed.manifest_language)
+        ? { manifest_language: normalizeManifestLanguage(parsed.manifest_language) }
         : {}),
       snapshot: sanitizeAccountSnapshot(parsed.snapshot)
     };
@@ -83,6 +97,9 @@ export async function saveCachedAccountSnapshot(
       snapshot_revision: createNextRevision(previousRevision, now.getTime()),
       ...(normalizeManifestRevision(options.manifestRevision)
         ? { manifest_revision: normalizeManifestRevision(options.manifestRevision) }
+        : {}),
+      ...(normalizeManifestLanguage(options.manifestLanguage)
+        ? { manifest_language: normalizeManifestLanguage(options.manifestLanguage) }
         : {}),
       snapshot: sanitizeAccountSnapshot(snapshot)
     };
@@ -143,6 +160,11 @@ function normalizeManifestRevision(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const normalized = value.trim();
   return normalized || undefined;
+}
+
+/** 语言按不区分大小写比较：`ZH-CHS` 与 `zh-chs` 是同一份资料库。 */
+function normalizeManifestLanguage(value: unknown): string | undefined {
+  return normalizeManifestRevision(value)?.toLowerCase();
 }
 
 function snapshotPath(dataDir: string): string {

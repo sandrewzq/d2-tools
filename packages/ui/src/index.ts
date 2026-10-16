@@ -84,7 +84,7 @@ export type {
 } from "./library/libraryFilters.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
-export { loadoutTemplate, loadoutText } from "./loadouts/loadoutCopy.js";
+export { loadoutErrorText, loadoutTemplate, loadoutText } from "./loadouts/loadoutCopy.js";
 export { settingsTemplate, settingsText } from "./settings/settingsCopy.js";
 export {
   highestPowerMessageText,
@@ -95,12 +95,12 @@ export {
 } from "./loadouts/loadoutActionCopy.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
 export { SharedItemDetailDialog, SharedItemDetailLoading } from "./item-detail/SharedItemDetailDialog.js";
-export { itemDetailTemplate, itemDetailText } from "./item-detail/itemDetailCopy.js";
-export { accountTemplate, accountText, accountTokenText, accountTokensText } from "./account/accountCopy.js";
+export { itemDetailErrorText, itemDetailTemplate, itemDetailText } from "./item-detail/itemDetailCopy.js";
+export { accountErrorText, accountTemplate, accountText, accountTokenText, accountTokensText } from "./account/accountCopy.js";
 export { shellTemplate, shellText } from "./shell/shellCopy.js";
 export { libraryTemplate, libraryText } from "./library/libraryCopy.js";
-export { homeTemplate, homeText } from "./home/homeCopy.js";
-export { vendorsTemplate, vendorsText } from "./vendors/vendorCopy.js";
+export { homeErrorText, homeTemplate, homeText } from "./home/homeCopy.js";
+export { vendorsErrorText, vendorsTemplate, vendorsText } from "./vendors/vendorCopy.js";
 export {
   armorSocketLabelText,
   armorStatLabel,
