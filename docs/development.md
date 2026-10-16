@@ -543,6 +543,9 @@ packages/desktop/release/
 - Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
 - Windows 代码签名不是发布前置条件；没有证书时仍可发布、自动下载并在下载完成后提示用户手动重启安装。若未来配置签名证书，electron-builder 可通过 `CSC_LINK` / `CSC_KEY_PASSWORD` 自动签名；workflow 始终校验 `latest.yml` 版本、安装器文件名和 blockmap 对应关系。
 
+- 版本号只在 `release` 分支推进：发布脚本读当前分支的 `package.json` 加一，提交成 `release: prepare vX.Y.Z` 并推到 `release`，不回写开发分支。`dev` 停在最后一次发布过的号（`release` 到 0.0.30 时 `dev` 仍是 0.0.29）是预期结果，不要手动去 `dev` 改版本号
+- 从 `dev` 跑发布脚本不会误发：目标 tag 已存在于远端时脚本直接报「远程 tag vX.Y.Z 已存在」并停止，但会先白跑一遍安装、测试和类型检查
+
 ### 6.3 发布前检查
 
 1. `pnpm install --frozen-lockfile` 通过
