@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import { listBackgroundTasks, startBackgroundTask } from "../backgroundTasks.js";
+import { currentMainLocale, mainText } from "../i18n/mainCopy.js";
 import type {
   AssetCacheTaskCompletion,
   AssetCacheTaskInput,
@@ -47,7 +48,7 @@ function queueAssetCacheTask(input: AssetCacheTaskInput): BackgroundTaskSnapshot
   return startBackgroundTask({
     type: "asset-cache",
     dedupeKey: key,
-    title: "缓存游戏资源",
+    title: mainText(currentMainLocale(), "缓存游戏资源"),
     message: input.src,
     run: async () => {
       let timeout: ReturnType<typeof setTimeout> | undefined;

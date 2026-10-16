@@ -28,10 +28,80 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         ai: "AI 助手",
         appVersion: "应用版本",
         backgroundTasks: "后台任务"
-      }
+      },
+      sourceCategoryLabels: {},
+      sourceEntryDetails: {},
+      sourceEntryCount: (count) => `${count} 项`
     },
     "en-US": {
       inline: {
+        "同步中": "Syncing",
+        "更新游戏内配装标识": "Update in-game loadout identifiers",
+        "更新状态": "Update status",
+        "正在检查资料库是否有新版。": "Checking whether a newer manifest is available.",
+        "清空游戏内配装栏": "Clear in-game loadout slots",
+        "登录 Bungie": "Sign in to Bungie",
+        "紧凑": "Compact",
+        "舒适": "Comfortable",
+        "AI 配置读取失败": "Failed to read the AI configuration",
+        "目标服务未返回模型列表，请手动填写模型 ID。": "The target service did not return a model list. Enter the model ID manually.",
+        "请先阅读并确认 AI 数据发送范围，再保存 AI 配置。": "Read and confirm the AI data sharing scope before saving the AI configuration.",
+        "AI 配置已保存。": "AI configuration saved.",
+        "AI 配置保存失败": "Failed to save the AI configuration",
+        "请先阅读并确认 AI 数据发送范围，再保存并测试连接。": "Read and confirm the AI data sharing scope before saving and testing the connection.",
+        "AI 连接测试失败": "AI connection test failed",
+        "API 格式": "API format",
+        "不启用 AI": "AI disabled",
+        "填写你的 AI API Key": "Enter your AI API Key",
+        "支持填写服务根地址，或完整接口地址": "Accepts a service root URL or a full endpoint URL",
+        "根地址和完整接口地址都兼容。程序会按当前 API 格式识别或补齐 /chat/completions、/responses 或 /messages 请求地址。": "Both the root URL and a full endpoint URL work. The app detects or appends /chat/completions, /responses, or /messages according to the current API format.",
+        "模型": "Model",
+        "请选择模型": "Select a model",
+        "先刷新模型列表": "Refresh the model list first",
+        "输入模型 ID，例如 gpt-5.4": "Enter a model ID, for example gpt-5.4",
+        "刷新中...": "Refreshing...",
+        "刷新模型": "Refresh models",
+        "手动输入模型 ID": "Enter the model ID manually",
+        "改为下拉选择": "Switch to dropdown",
+        "模型列表会在 API 格式、Key 或 Base URL 变化后重新读取；服务未返回列表时可手动填写模型 ID。": "The model list is re-read after the API format, Key, or Base URL changes. If the service returns no list, enter the model ID manually.",
+        "AI 数据发送说明": "AI data sharing notes",
+        "AI 请求会从本机直接发送到当前 API 格式和 Base URL 对应的服务，不经过 d2-tools 自建服务器。": "AI requests go from this machine directly to the service matching the current API format and Base URL. They do not pass through a d2-tools server.",
+        "会发送": "Sent",
+        "你的问题、当前页面，以及分析所需的装备名称、Perk、光等、仓库 / 配装 / 商人 / 活动摘要和本地备注。": "Your question, the current page, and the item names, perks, power levels, vault, loadout, vendor, and activity summaries, and local notes needed for the analysis.",
+        "仅用于认证": "Authentication only",
+        "AI API Key 会作为认证请求头发送到当前服务，但不会写入模型提示正文。": "The AI API Key is sent to the current service as an authentication header, but is never written into the model prompt.",
+        "不会放入提示": "Never put in the prompt",
+        "Bungie Token、Client Secret、Bungie API Key、AI API Key、账号名、Membership ID、角色 ID、装备实例 ID 和物品 Hash。": "Bungie Token, Client Secret, Bungie API Key, AI API Key, account name, Membership ID, character ID, item instance ID, and item hash.",
+        "我已了解并同意将上述游戏数据发送到当前配置的 AI 服务": "I understand and agree that the game data above is sent to the currently configured AI service",
+        "当前未启用 AI；启用后需要确认。": "AI is currently disabled; confirmation is required once you enable it.",
+        "已确认。更换 API 格式或 Base URL 后需要重新确认。": "Confirmed. Changing the API format or Base URL requires confirming again.",
+        "未确认前，AI 分析不会发送游戏数据。": "Until confirmed, AI analysis does not send game data.",
+        "保存 AI 配置": "Save AI configuration",
+        "测试中...": "Testing...",
+        "保存并测试连接": "Save and test connection",
+        "{message} {protocol} / {model}": "{message} {protocol} / {model}",
+        "状态诊断失败": "Status check failed",
+        "颜色模式保存失败": "Failed to save color mode",
+        "信息密度保存失败": "Failed to save density",
+        "语言设置已保存，正在后台检查资料库语言数据。": "Language settings saved. Checking manifest language data in the background.",
+        "语言设置保存失败": "Failed to save language settings",
+        "操作日志读取失败": "Failed to read the action log",
+        "已复制脱敏诊断导出": "Copied the redacted diagnostics export",
+        "诊断导出失败": "Failed to export diagnostics",
+        "已复制备份/迁移说明": "Copied the backup and migration guide",
+        "复制失败，请检查系统剪贴板权限": "Copy failed. Check the system clipboard permission.",
+        "已复制操作诊断": "Copied the action diagnostic",
+        "配置操作失败": "Configuration action failed",
+        "已切换到“发现新版本”模拟状态。": "Switched to the simulated “update available” state.",
+        "已切换到“下载中”模拟状态，不会下载真实安装包。": "Switched to the simulated “downloading” state. No real installer will be downloaded.",
+        "更新模拟模式不会重启或安装应用。": "Simulated update mode will not restart or install the app.",
+        "更新模拟模式不会打开真实下载页。": "Simulated update mode will not open the real download page.",
+        "更新诊断已复制。": "Update diagnostic copied.",
+        "更新检查失败": "Update check failed",
+        "更新下载失败": "Update download failed",
+        "重启安装失败": "Restart and install failed",
+        "打开下载页失败": "Failed to open the download page",
+        "复制更新诊断失败": "Failed to copy the update diagnostic",
         "状态与更新": "Status and updates",
         "界面与资料库": "Interface and manifest",
         "授权和读取": "Authorization and refresh",
@@ -402,7 +472,20 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         "已解析": "Parsed",
         "条规则，确认后才会启用。": "rules. They will only be enabled after confirmation.",
         "通用": "General",
-        "未标注模式": "Mode not specified"
+        "未标注模式": "Mode not specified",
+        "这里区分事实数据来源、功能参考项目和运行时依赖，避免把社区推荐误认为官方结论。": "This page separates factual data sources, feature references, and runtime dependencies, so community recommendations are not mistaken for official conclusions.",
+        "来源边界": "Attribution boundary",
+        "账号事实和实时轮换来自 Bungie；社区来源只提供推荐或参考资料。本地用户导入内容暂不列入这里。": "Account facts and live rotations come from Bungie. Community sources only provide recommendations or reference material. User-imported local content is not listed here.",
+        "提供内容": "Provides",
+        "使用位置": "Used in",
+        "在线访问": "Open online",
+        "许可：{license}": "License: {license}",
+        "鸣谢与许可边界": "Credits & license boundary",
+        "感谢 Bungie、DIM、DIM Wish List Sources、D2ArmorPicker、d2-armor-solver、Roll Report、d2-additional-info、Starside 以及所有提供公开资料和项目维护的 Destiny 2 社区贡献者。": "Thanks to Bungie, DIM, DIM Wish List Sources, D2ArmorPicker, d2-armor-solver, Roll Report, d2-additional-info, Starside, and the Destiny 2 community maintainers whose public work informed this app.",
+        "参考项目不代表背书，也不等于运行时依赖；再分发遵循各来源的许可证和授权范围。本地用户导入内容暂不列入这里。": "A reference does not imply endorsement or a runtime dependency. Redistribution follows each source's license and permission; user-imported local content is not listed here.",
+        "查看项目许可证": "Project license",
+        "查看第三方许可证": "Third-party notices",
+        "Destiny 2 及相关名称、标识为 Bungie, Inc. 的商标。d2-tools 是非官方社区工具，与 Bungie 无从属关系。": "Destiny 2 and related names are trademarks of Bungie, Inc. d2-tools is an unofficial community tool and is not affiliated with Bungie."
       },
       menuAriaLabel: "Settings menu",
       menu: {
@@ -429,6 +512,84 @@ export const settingsCopy: Record<InterfaceLocale, LocaleCopy["settings"]> = {
         ai: "AI Assistant",
         appVersion: "App version",
         backgroundTasks: "Background tasks"
+      },
+      sourceCategoryLabels: {
+        official: "Official data sources",
+        community: "Community sources",
+        reference: "Reference projects & features"
+      },
+      sourceEntryCount: (count) => `${count} entr${count === 1 ? "y" : "ies"}`,
+      sourceEntryDetails: {
+        "bungie-api": {
+          role: "Official live data",
+          content: "Accounts, characters, gear, activities, vendors, and rotation states",
+          usedIn: "Home, Account, Vault, Manifest, Vendors",
+          relationship: "Source of truth",
+          license: "Subject to the Bungie API Terms of Use",
+          note: "The app does not send account tokens to third-party recommendation tools."
+        },
+        "destiny-2-manifest": {
+          role: "Official game definitions",
+          content: "Item, perk, activity, source, and version definitions",
+          usedIn: "Manifest, Vault, loadouts, Home",
+          relationship: "Source of truth",
+          license: "Subject to Bungie's terms",
+          note: "The local manifest updates in the background to the version Bungie reports."
+        },
+        "dim-wish-list-sources": {
+          role: "Community wishlist data",
+          content: "Recommended weapon rolls, author blocks, tags, and rule format",
+          usedIn: "Vault recommendations, weapon details",
+          relationship: "Community data source",
+          note: "Reflects wishlist authors' preferences only and is not an official Bungie conclusion. Users bring the text in through a link or file; the app does not pin an upstream address for them."
+        },
+        "starside": {
+          name: "Starside · Destiny 2 reference hub",
+          role: "Community Chinese-language reference",
+          content: "How weapon, armor, mechanics, damage, and guide material is organized",
+          usedIn: "Chinese copy and reference navigation",
+          relationship: "Content and information-organization reference",
+          license: "Follows the site's own terms; no unauthorized content is copied",
+          note: "A static reference page cannot prove the live rotation; the current rotation still follows Bungie sign-in data."
+        },
+        "destiny-item-manager": {
+          role: "Product and interaction reference",
+          content: "Vault filtering, loadouts, wishlists, cleanup suggestions, and write-action confirmation",
+          usedIn: "Vault, loadouts, item details",
+          relationship: "Feature and interaction reference, not a runtime dependency",
+          license: "MIT; no page code copied",
+          note: "d2-tools calls the Bungie API directly and never reads the account through DIM."
+        },
+        "d2armorpicker": {
+          role: "Armor loadout reference",
+          content: "Stat targets, exotic constraints, multi-build comparison, and the solving flow",
+          usedIn: "Loadout workbench",
+          relationship: "Feature-flow reference, not a runtime dependency",
+          license: "AGPL-3.0; flow reference only, no code copied",
+          note: "Armor results are computed by d2-tools from its own account snapshot and rules."
+        },
+        "d2-armor-solver": {
+          role: "Armor 3.0 solving-expression reference",
+          content: "+5 / +10 mod targets, reachability, gaps, and build expression",
+          usedIn: "Armor planning",
+          relationship: "Algorithm-expression reference, not a runtime dependency",
+          license: "MIT; no implementation copied",
+          note: "Only the problem framing and interaction ideas are borrowed; the concrete rules follow d2-tools' own implementation."
+        },
+        "roll-report": {
+          role: "Roll analysis reference",
+          content: "How to identify roll differences and unique perk combinations",
+          usedIn: "Vault duplicate grouping, weapon details",
+          relationship: "Algorithm-idea reference, not a runtime dependency",
+          note: "d2-tools does not call its online API directly."
+        },
+        "d2-additional-info": {
+          role: "Manifest supplemental-data reference",
+          content: "Supplemental flows for seasons, activities, sources, catalysts, and mod relations",
+          usedIn: "Manifest and source parsing",
+          relationship: "Data-generation reference, not a player account source",
+          note: "Does not replace the Bungie manifest or override live account facts."
+        }
       }
     }
 };

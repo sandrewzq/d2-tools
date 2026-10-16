@@ -10,6 +10,33 @@ import {
   ProductWorkspaceSplit
 } from "../workspace/ProductWorkspace.js";
 import { getVendorEquipmentKind } from "./vendorEquipment.js";
+import { vendorsTemplate, vendorsText } from "./vendorCopy.js";
+import type { VendorsCopy } from "../i18n/types.js";
+
+/**
+ * 文案 token：`key` 是中文原文模板（数字处写 `{count}`），`count` 是取值。
+ * app 只产出 key 与值，这里负责查表成句。
+ * `values` 放 `count` 之外的占位符取值；其中 `{class}` 会按界面语言查表，其余原样替换。
+ */
+export type VendorTextTokenView = {
+  key: string;
+  count?: number;
+  values?: Record<string, string | number>;
+};
+
+/** token 成句：带取值用模板查表，不带任何取值按整句查表；查不到都退回 key 本身。 */
+function vendorTextTokenText(copy: VendorsCopy, token: VendorTextTokenView): string {
+  if (token.count === undefined && !token.values) return vendorsText(copy, token.key);
+  return vendorsTemplate(copy, token.key, {
+    ...token.values,
+    ...(token.count === undefined ? {} : { count: token.count })
+  });
+}
+
+/** 多段 token 之间用跟着语言走的连接符拼。 */
+function vendorTextTokensText(copy: VendorsCopy, tokens: VendorTextTokenView[]): string {
+  return tokens.map((token) => vendorTextTokenText(copy, token)).join(vendorsText(copy, "；"));
+}
 
 export type VendorCostView = {
   label: string;
@@ -44,7 +71,7 @@ export type VendorInventoryItemView = {
     state: "owned" | "not_owned" | "partial" | "unknown";
     count: number | null;
     label: string;
-    locationLabels: string[];
+    locations: VendorTextTokenView[];
     asOf?: string;
   };
   canPurchase?: boolean;
@@ -85,7 +112,7 @@ export type VendorContentSectionView = {
   action?: "purchase" | "exchange" | "focus" | "decode" | "claim" | "acquire" | "inspect";
   condition?: string;
   name: string;
-  description?: string;
+  description?: VendorTextTokenView;
   layout: "featured" | "columns" | "list" | "rank";
   groups: VendorInventorySectionView[];
   progression?: VendorProgressionView;
@@ -120,7 +147,7 @@ export type VendorInventoryGroupView = {
   railStatusLabel?: string;
   detailToolbar?: VendorDetailToolbarView;
   detailState?: "pending" | "ready" | "partial" | "failed";
-  detailFailureMessage?: string;
+  detailFailureMessage?: VendorTextTokenView[];
   featured?: boolean;
   items: VendorInventoryItemView[];
   services?: VendorServiceView[];
@@ -159,7 +186,7 @@ export type VendorScopeOptionView = {
 
 export type VendorStatusBannerView = {
   tone: "neutral" | "error";
-  message: string;
+  message: VendorTextTokenView[];
   live: "polite";
   busy: boolean;
 } | null;
@@ -219,6 +246,8 @@ export type VendorsPageContentViewProps = {
 export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   const locale = props.interfaceLocale ?? "zh-CN";
   const copy = getLocaleCopy(locale).vendors;
+  const text = (key: string) => vendorsText(copy, key);
+  const template = (key: string, values: Record<string, string | number>) => vendorsTemplate(copy, key, values);
   const initialVendorId = props.model.defaultVendorId
     ?? props.model.vendors.find((vendor) => vendor.featured)?.id
     ?? props.model.vendors[0]?.id
@@ -229,10 +258,11 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     ?? props.model.vendors[0]
     ?? null;
   const refreshStatus = props.model.statusBanner;
+  const bannerMessage = refreshStatus ? vendorTextTokensText(copy, refreshStatus.message) : undefined;
   const [vendorSearchQuery, setVendorSearchQuery] = useState("");
   const [vendorFilters, setVendorFilters] = useState({ affordableOnly: false, unownedOnly: false });
   const accountOwnershipFilterAvailable = selectedVendor
-    ? getVendorContentSections(selectedVendor).some((section) => section.groups.some((group) => group.items.some((item) => (
+    ? getVendorContentSections(selectedVendor, copy).some((section) => section.groups.some((group) => group.items.some((item) => (
         Boolean(getVendorEquipmentKind(item))
         && item.ownership?.state !== undefined
         && item.ownership.state !== "unknown"
@@ -241,9 +271,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
   if (props.availability && (!props.availability.isBungieConfigured || !props.availability.isAccountLoggedIn)) {
     const isConfigured = props.availability.isBungieConfigured;
-    const text = (key: string) => copy.inline[key] ?? key;
     return (
-      <ProductWorkspaceEmptyState className="account-unavailable vendor-page-empty product-workspace-empty--page" ariaLabel="商人访问状态" role="status">
+      <ProductWorkspaceEmptyState className="account-unavailable vendor-page-empty product-workspace-empty--page" ariaLabel={text("商人访问状态")} role="status">
         <span className="ui-badge status-warning">{text("未连接 Bungie")}</span>
         <h2>{text(isConfigured ? "账号还没有登录" : "还没有配置 Bungie 应用")}</h2>
         <p>{text(isConfigured ? "先登录 Bungie；登录后会自动同步装备数据并加载角色商人库存。" : "先在设置里完成 Bungie 应用配置，再登录账号加载商人库存。")}</p>
@@ -262,21 +291,21 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
     return (
       <ProductWorkspaceEmptyState
         className="vendor-page-empty product-workspace-empty--page"
-        ariaLabel="商人刷新状态"
+        ariaLabel={text("商人刷新状态")}
         role="status"
         ariaLive={refreshStatus?.live ?? "polite"}
         ariaBusy={refreshStatus?.busy ?? false}
       >
         <strong>{refreshStatus?.busy ? copy.loadingTitle : copy.emptyTitle}</strong>
-        <span>{refreshStatus?.message ?? copy.emptyBody}</span>
-        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.actions.refreshVendors}>{copy.inline["重新加载商人库存"] ?? "重新加载商人库存"}</button> : null}
+        <span>{bannerMessage ?? copy.emptyBody}</span>
+        {!refreshStatus?.busy && props.actions.refreshVendors ? <button type="button" data-ui-kind="button" data-control-variant="primary" onClick={props.actions.refreshVendors}>{text("重新加载商人库存")}</button> : null}
       </ProductWorkspaceEmptyState>
     );
   }
 
   const normalizedVendorSearchQuery = vendorSearchQuery.trim().toLocaleLowerCase(locale);
-  const allContentSections = prioritizeVendorSections(getVendorContentSections(selectedVendor));
-  const normalizedContentSearchQuery = vendorHasItemMatch(selectedVendor, normalizedVendorSearchQuery)
+  const allContentSections = prioritizeVendorSections(getVendorContentSections(selectedVendor, copy));
+  const normalizedContentSearchQuery = vendorHasItemMatch(selectedVendor, normalizedVendorSearchQuery, copy)
     ? normalizedVendorSearchQuery
     : "";
   const activeVendorFilters = {
@@ -288,20 +317,20 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   const visibleItemCount = countSectionItemsFromSections(contentSections);
   const hasContentFilter = Boolean(normalizedContentSearchQuery || activeVendorFilters.affordableOnly || activeVendorFilters.unownedOnly);
   const vendorStatus = getVendorStatus(selectedVendor);
-  const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale);
-  const updatedLabel = formatFullDateTime(props.model.updatedAt, props.model.updatedLabel);
+  const selectedVendorResetLabel = formatVendorReset(selectedVendor, locale, copy);
+  const updatedLabel = formatFullDateTime(props.model.updatedAt, text(props.model.updatedLabel));
   const visibleRailSections = props.model.railSections.flatMap((section) => {
-    const vendors = section.vendors.filter((vendor) => vendorMatchesSearch(vendor, normalizedVendorSearchQuery));
+    const vendors = section.vendors.filter((vendor) => vendorMatchesSearch(vendor, normalizedVendorSearchQuery, copy));
     return vendors.length ? [{ ...section, vendors }] : [];
   });
   const visibleVendorIds = new Set(visibleRailSections.flatMap((section) => section.vendors.map((vendor) => vendor.id)));
   const firstVisibleVendorId = visibleRailSections[0]?.vendors[0]?.id;
   const railTabStopId = visibleVendorIds.has(selectedVendor.id) ? selectedVendor.id : firstVisibleVendorId;
-  const toolbarMessage = refreshStatus?.message
+  const toolbarMessage = bannerMessage
     ?? (selectedVendor.detailState === "pending"
-      ? "商人详情正在读取；不会回退到旧库存。"
+      ? text("商人详情正在读取；不会回退到旧库存。")
       : selectedVendor.detailState === "partial"
-        ? "商人详情部分可用；缺失范围已在下方标注。"
+        ? text("商人详情部分可用；缺失范围已在下方标注。")
         : updatedLabel);
 
   function selectVendor(vendorId: string) {
@@ -350,19 +379,19 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
 
   return (
     <ProductWorkspaceSplit className="vendor-workbench-layout vendor-workbench">
-      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel="商人地点目录" scrollRegion="pane">
-        <div className="vendor-column-head"><strong>地点目录</strong><span>{normalizedVendorSearchQuery ? `${visibleVendorIds.size} / ${props.model.vendors.length}` : props.model.vendors.length} 个商人</span></div>
+      <ProductWorkspaceSideRail className="vendor-rail" ariaLabel={text("商人地点目录")} scrollRegion="pane">
+        <div className="vendor-column-head"><strong>{text("地点目录")}</strong><span>{template("{count} 个商人", { count: normalizedVendorSearchQuery ? `${visibleVendorIds.size} / ${props.model.vendors.length}` : props.model.vendors.length })}</span></div>
         <label className="vendor-rail-search">
-          <span>搜索商人或库存</span>
+          <span>{text("搜索商人或库存")}</span>
           <input
             type="search"
             value={vendorSearchQuery}
-            placeholder="搜索商人、物品或分类"
+            placeholder={text("搜索商人、物品或分类")}
             onChange={(event) => setVendorSearchQuery(event.currentTarget.value)}
             onKeyDown={focusFirstVisibleVendor}
           />
         </label>
-        <nav aria-label="商人列表" className="vendor-rail-nav">
+        <nav aria-label={text("商人列表")} className="vendor-rail-nav">
           {visibleRailSections.map((section) => (
             <section className="vendor-location-group" key={section.id} aria-label={section.title}>
               <strong className="vendor-location-title">{section.title}</strong>
@@ -380,7 +409,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
                     onClick={() => selectVendor(vendor.id)}
                     onKeyDown={handleVendorKeyDown}
                   >
-                    <span><strong>{vendor.name}</strong><small>{getVendorRailSummary(vendor)}</small></span>
+                    <span><strong>{text(vendor.name)}</strong><small>{getVendorRailSummary(vendor, copy)}</small></span>
                   </button>
                 );
               })}
@@ -388,8 +417,8 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
           ))}
           {!visibleRailSections.length ? (
             <div className="vendor-rail-empty" role="status">
-              <strong>没有匹配的商人或库存</strong>
-              <span>换一个名称、物品或分类关键词试试。</span>
+              <strong>{text("没有匹配的商人或库存")}</strong>
+              <span>{text("换一个名称、物品或分类关键词试试。")}</span>
             </div>
           ) : null}
         </nav>
@@ -398,23 +427,25 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
       <section className="vendor-detail-main">
         <header className="vendor-hero">
           <div>
-            <span className="vendor-eyebrow">{selectedVendor.location || "地点待确认"}</span>
-            <div className="vendor-heading-line"><h2>{selectedVendor.name}</h2><VendorResourceStatus status={props.model.resourceStatus ?? "ready"} source={props.model.resourceSource ?? "merged"} /></div>
-            <p>{selectedVendor.description || "当前商人没有额外说明"}</p>
+            <span className="vendor-eyebrow">{selectedVendor.location || text("地点待确认")}</span>
+            <div className="vendor-heading-line"><h2>{text(selectedVendor.name)}</h2><VendorResourceStatus copy={copy} status={props.model.resourceStatus ?? "ready"} source={props.model.resourceSource ?? "merged"} /></div>
+            <p>{text(selectedVendor.description) || text("当前商人没有额外说明")}</p>
             <div className="vendor-hero-meta">
-              <span>{selectedVendor.source}</span>
+              <span>{text(selectedVendor.source)}</span>
               <span>{selectedVendorResetLabel}</span>
-              <span>{visibleItemCount}{visibleItemCount === allItemCount ? "" : ` / ${allItemCount}`} 个可见条目</span>
+              <span>{visibleItemCount === allItemCount
+                ? template("{visible} 个可见条目", { visible: visibleItemCount })
+                : template("{visible} / {total} 个可见条目", { visible: visibleItemCount, total: allItemCount })}</span>
               <span>{updatedLabel}</span>
             </div>
           </div>
-          <span className="vendor-status-chip" data-status={vendorStatus}>{getVendorDisplayStatusLabel(selectedVendor)}</span>
+          <span className="vendor-status-chip" data-status={vendorStatus}>{getVendorDisplayStatusLabel(selectedVendor, copy)}</span>
         </header>
 
-        <div className="vendor-toolbar" role="status" aria-label="商人刷新状态" aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
-          <span className="vendor-character-context"><strong>{props.model.selectedScope?.kind === "character" ? props.model.selectedScope.label : "当前角色"}</strong><small>{props.model.selectedCharacterContext?.label ?? "当前机灵：未检测到护甲师模组"}</small></span>
+        <div className="vendor-toolbar" role="status" aria-label={text("商人刷新状态")} aria-live={refreshStatus?.live ?? "polite"} aria-busy={refreshStatus?.busy ?? false}>
+          <span className="vendor-character-context"><strong>{props.model.selectedScope?.kind === "character" ? localizeVendorScopeLabel(props.model.selectedScope.label, copy) : text("当前角色")}</strong><small>{localizeVendorCharacterContext(props.model.selectedCharacterContext, copy)}</small></span>
           <span data-status={refreshStatus?.tone === "error" ? "error" : vendorStatus}>{toolbarMessage}</span>
-          <span className="vendor-toolbar-actions" aria-label="库存筛选">
+          <span className="vendor-toolbar-actions" aria-label={text("库存筛选")}>
             <button
               type="button"
               data-ui-kind="button"
@@ -422,7 +453,7 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               data-control-size="compact"
               aria-pressed={vendorFilters.affordableOnly}
               onClick={() => setVendorFilters((current) => ({ ...current, affordableOnly: !current.affordableOnly }))}
-            >只看可负担</button>
+            >{text("只看可负担")}</button>
             <button
               type="button"
               data-ui-kind="button"
@@ -430,22 +461,22 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
               data-control-size="compact"
               aria-pressed={activeVendorFilters.unownedOnly}
               disabled={!accountOwnershipFilterAvailable}
-              title={accountOwnershipFilterAvailable ? undefined : "账号拥有状态读取完成后可用"}
+              title={accountOwnershipFilterAvailable ? undefined : text("账号拥有状态读取完成后可用")}
               onClick={() => setVendorFilters((current) => ({ ...current, unownedOnly: !current.unownedOnly }))}
-            >账号无同身份实例</button>
+            >{text("账号无同身份实例")}</button>
           </span>
         </div>
 
-        <VendorSectionNavigation sections={contentSections} vendor={selectedVendor} />
+        <VendorSectionNavigation sections={contentSections} vendor={selectedVendor} copy={copy} />
 
         <div className="vendor-detail-flow">
-          {selectedVendor.detailFailureMessage ? (
-            <div className="vendor-detail-warning" data-ui-kind="callout" data-status="warning" role="status" aria-label="商人详情状态">
-              <strong>{getVendorDisplayStatusLabel(selectedVendor)}</strong>
-              <span>{selectedVendor.detailFailureMessage}。当前仍显示基础销售数据，属性与插槽可能不完整。</span>
+          {selectedVendor.detailFailureMessage?.length ? (
+            <div className="vendor-detail-warning" data-ui-kind="callout" data-status="warning" role="status" aria-label={text("商人详情状态")}>
+              <strong>{getVendorDisplayStatusLabel(selectedVendor, copy)}</strong>
+              <span>{template("{message}。当前仍显示基础销售数据，属性与插槽可能不完整。", { message: vendorTextTokensText(copy, selectedVendor.detailFailureMessage) })}</span>
             </div>
           ) : null}
-          <VendorContentSections sections={contentSections} vendor={selectedVendor} actions={props.actions} locale={locale} hasActiveFilters={hasContentFilter} hasSearchQuery={Boolean(normalizedContentSearchQuery)} onClearFilters={() => { setVendorFilters({ affordableOnly: false, unownedOnly: false }); setVendorSearchQuery(""); }} />
+          <VendorContentSections sections={contentSections} vendor={selectedVendor} actions={props.actions} locale={locale} copy={copy} hasActiveFilters={hasContentFilter} hasSearchQuery={Boolean(normalizedContentSearchQuery)} onClearFilters={() => { setVendorFilters({ affordableOnly: false, unownedOnly: false }); setVendorSearchQuery(""); }} />
         </div>
       </section>
 
@@ -453,10 +484,11 @@ export function VendorsPageContentView(props: VendorsPageContentViewProps) {
   );
 }
 
-function VendorResourceStatus(props: { status: NonNullable<VendorsPageModelView["resourceStatus"]>; source: NonNullable<VendorsPageModelView["resourceSource"]> }) {
-  const labels: Record<typeof props.status, string> = { unavailable: "暂无库存", loading: "首次读取", refreshing: "后台同步中", ready: "已同步", stale: "缓存已过期", error: "读取失败" };
-  const sourceLabels: Record<typeof props.source, string> = { local: "本地", remote: "远端", merged: "本地优先" };
-  return <span className="app-chip vendor-resource-status" data-ui-kind="status-chip" data-status={props.status} title={`来源：${sourceLabels[props.source]}`}>{labels[props.status]}</span>;
+function VendorResourceStatus(props: { copy: VendorsCopy; status: NonNullable<VendorsPageModelView["resourceStatus"]>; source: NonNullable<VendorsPageModelView["resourceSource"]> }) {
+  const text = (key: string) => vendorsText(props.copy, key);
+  const labels: Record<typeof props.status, string> = { unavailable: text("暂无库存"), loading: text("首次读取"), refreshing: text("后台同步中"), ready: text("已同步"), stale: text("缓存已过期"), error: text("读取失败") };
+  const sourceLabels: Record<typeof props.source, string> = { local: text("本地"), remote: text("远端"), merged: text("本地优先") };
+  return <span className="app-chip vendor-resource-status" data-ui-kind="status-chip" data-status={props.status} title={vendorsTemplate(props.copy, "来源：{source}", { source: sourceLabels[props.source] })}>{labels[props.status]}</span>;
 }
 
 function VendorContentSections(props: {
@@ -464,20 +496,23 @@ function VendorContentSections(props: {
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
   locale: InterfaceLocale;
+  copy: VendorsCopy;
   hasActiveFilters?: boolean;
   hasSearchQuery?: boolean;
   onClearFilters?: () => void;
 }) {
+  const text = (key: string) => vendorsText(props.copy, key);
+  const template = (key: string, values: Record<string, string | number>) => vendorsTemplate(props.copy, key, values);
   if (!props.sections.length) {
     return (
       <ProductWorkspaceEmptyState className="vendor-empty-section">
-        <strong>{props.hasActiveFilters ? "没有符合筛选条件的库存" : "当前没有可显示的库存"}</strong>
+        <strong>{props.hasActiveFilters ? text("没有符合筛选条件的库存") : text("当前没有可显示的库存")}</strong>
         <span>{props.hasActiveFilters
           ? props.hasSearchQuery
-            ? "尝试修改搜索词，或关闭“只看可负担 / 账号无同身份实例”。"
-            : "尝试关闭“只看可负担”或“账号无同身份实例”。"
-          : getVendorDisplayStatusLabel(props.vendor)}</span>
-        {props.hasActiveFilters && props.onClearFilters ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>清除筛选</button> : null}
+            ? text("尝试修改搜索词，或关闭“只看可负担 / 账号无同身份实例”。")
+            : text("尝试关闭“只看可负担”或“账号无同身份实例”。")
+          : getVendorDisplayStatusLabel(props.vendor, props.copy)}</span>
+        {props.hasActiveFilters && props.onClearFilters ? <button type="button" data-ui-kind="button" data-control-variant="secondary" onClick={props.onClearFilters}>{text("清除筛选")}</button> : null}
       </ProductWorkspaceEmptyState>
     );
   }
@@ -491,7 +526,7 @@ function VendorContentSections(props: {
         const itemCount = countSectionItems(section);
         const sectionAnchorId = getVendorSectionAnchorId(section);
         const headingId = `${sectionAnchorId}-heading`;
-        const sectionTitle = getVendorSectionTitle(section);
+        const sectionTitle = getVendorSectionTitle(section, props.copy);
         return (
           <section
             className="vendor-content-section"
@@ -503,24 +538,24 @@ function VendorContentSections(props: {
           >
             <header className="vendor-section-heading">
               <div>
-                {isSubinventory ? <small>{props.vendor.name} · 子库存 {String(currentSubinventoryIndex).padStart(2, "0")}</small> : null}
-                <h3 id={headingId}>{sectionTitle}{getVendorSectionContextLabel(section) ? <small className="vendor-section-context">{getVendorSectionContextLabel(section)}</small> : null}</h3>
+                {isSubinventory ? <small>{template("{vendor} · 子库存 {index}", { vendor: props.vendor.name, index: String(currentSubinventoryIndex).padStart(2, "0") })}</small> : null}
+                <h3 id={headingId}>{sectionTitle}{getVendorSectionContextLabel(section, props.copy) ? <small className="vendor-section-context">{getVendorSectionContextLabel(section, props.copy)}</small> : null}</h3>
               </div>
-              <span>{getVendorSectionMeta(section, itemCount)}</span>
+              <span>{getVendorSectionMeta(section, itemCount, props.copy)}</span>
             </header>
-            {isSubinventory && section.description ? <p className="vendor-section-description">{section.description}</p> : null}
+            {isSubinventory && section.description ? <p className="vendor-section-description">{vendorTextTokenText(props.copy, section.description)}</p> : null}
             {section.kind === "reputation" ? (
-              <VendorRankSummary section={section} vendor={props.vendor} />
+              <VendorRankSummary section={section} vendor={props.vendor} copy={props.copy} />
             ) : null}
             {section.groups.map((group) => {
               const compact = shouldUseCompactVendorRows(section, group);
               return (
-                <section className="vendor-offer-group" key={group.id} aria-label={group.name || sectionTitle}>
-                  {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name || sectionTitle}</strong><span>{group.items.length} 件</span></div> : null}
+                <section className="vendor-offer-group" key={group.id} aria-label={group.name ? vendorsText(props.copy, group.name) : sectionTitle}>
+                  {section.groups.length > 1 ? <div className="vendor-offer-group-head"><strong>{group.name ? vendorsText(props.copy, group.name) : sectionTitle}</strong><span>{template("{count} 件", { count: group.items.length })}</span></div> : null}
                   <div className={compact ? "vendor-service-list" : "vendor-offer-grid"} onKeyDown={compact ? undefined : handleOfferGridKeyDown}>
                     {group.items.map((item) => compact
-                      ? <VendorServiceRow key={item.id} item={item} section={section} />
-                      : <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} />)}
+                      ? <VendorServiceRow key={item.id} item={item} section={section} copy={props.copy} locale={props.locale} />
+                      : <VendorOfferButton key={item.id} item={item} vendor={props.vendor} actions={props.actions} locale={props.locale} copy={props.copy} />)}
                   </div>
                 </section>
               );
@@ -568,6 +603,7 @@ function handleOfferGridKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
 function VendorSectionNavigation(props: {
   sections: VendorContentSectionView[];
   vendor: VendorInventoryGroupView;
+  copy: VendorsCopy;
 }) {
   const navRef = useRef<HTMLElement>(null);
   const sectionKey = props.sections.map((section) => section.id).join("|");
@@ -653,7 +689,7 @@ function VendorSectionNavigation(props: {
   if (!props.sections.length) return null;
 
   return (
-    <nav ref={navRef} className="vendor-section-nav" aria-label={`${props.vendor.name}内容导航`}>
+    <nav ref={navRef} className="vendor-section-nav" aria-label={vendorsTemplate(props.copy, "{vendor}内容导航", { vendor: props.vendor.name })}>
       {props.sections.map((section, index) => {
         const itemCount = countSectionItems(section);
         const active = activeSectionId === section.id;
@@ -666,8 +702,8 @@ function VendorSectionNavigation(props: {
             onClick={() => activateSection(section)}
             onKeyDown={(event) => handleSectionKeyDown(event, index)}
           >
-            <span>{getVendorSectionTitle(section)}</span>
-            <small>{section.kind === "reputation" && section.progression ? `等级 ${section.progression.level}` : itemCount}</small>
+            <span>{getVendorSectionTitle(section, props.copy)}</span>
+            <small>{section.kind === "reputation" && section.progression ? vendorsTemplate(props.copy, "等级 {level}", { level: section.progression.level }) : itemCount}</small>
           </button>
         );
       })}
@@ -675,7 +711,9 @@ function VendorSectionNavigation(props: {
   );
 }
 
-function VendorRankSummary(props: { section: VendorContentSectionView; vendor: VendorInventoryGroupView }) {
+function VendorRankSummary(props: { section: VendorContentSectionView; vendor: VendorInventoryGroupView; copy: VendorsCopy }) {
+  const text = (key: string) => vendorsText(props.copy, key);
+  const template = (key: string, values: Record<string, string | number>) => vendorsTemplate(props.copy, key, values);
   const progression = props.section.progression;
   if (!progression) return null;
   const rewards = props.section.groups.flatMap((group) => group.items);
@@ -686,17 +724,17 @@ function VendorRankSummary(props: { section: VendorContentSectionView; vendor: V
   const atLevelCap = progression.levelCap > 0 && progression.level >= progression.levelCap;
   const claimReady = !atLevelCap && progression.progressToNextLevel <= 0;
   const rankState = atLevelCap
-    ? { label: "已达等级上限", status: "neutral" }
+    ? { label: text("已达等级上限"), status: "neutral" }
     : claimReady
-      ? { label: "可领取下一等级奖励", status: "success" }
-      : { label: `还需 ${progression.progressToNextLevel} 点声望`, status: "pending" };
+      ? { label: text("可领取下一等级奖励"), status: "success" }
+      : { label: template("还需 {points} 点声望", { points: progression.progressToNextLevel }), status: "pending" };
 
   return (
     <div className="vendor-rank-panel" data-rank-state={rankState.status}>
-      <div className="vendor-rank-number"><span>当前等级</span><strong>{progression.level}</strong><small>{props.vendor.name}声望</small></div>
+      <div className="vendor-rank-number"><span>{text("当前等级")}</span><strong>{progression.level}</strong><small>{template("{vendor}声望", { vendor: props.vendor.name })}</small></div>
       <dl className="vendor-rank-ledger">
-        <div><dt>本级进度</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><span className="vendor-rank-progress" role="progressbar" aria-label={`${props.vendor.name}本级声望进度`} aria-valuemin={0} aria-valuemax={progression.nextLevelAt} aria-valuenow={currentStepProgress}><span style={{ width: `${progressPercent}%` }} /></span><small>累计进度 {progression.currentProgress}</small></dd><span>{Math.round(progressPercent)}%</span></div>
-        <div><dt>下一等级奖励</dt><dd><strong data-status={rankState.status}>{rankState.label}</strong><small>{atLevelCap ? "当前声望已完成" : `达到等级 ${progression.level + 1} 后可领取`}</small></dd><span>{rewards.length} 个奖励节点</span></div>
+        <div><dt>{text("本级进度")}</dt><dd><strong>{currentStepProgress} / {progression.nextLevelAt}</strong><span className="vendor-rank-progress" role="progressbar" aria-label={template("{vendor}本级声望进度", { vendor: props.vendor.name })} aria-valuemin={0} aria-valuemax={progression.nextLevelAt} aria-valuenow={currentStepProgress}><span style={{ width: `${progressPercent}%` }} /></span><small>{template("累计进度 {progress}", { progress: progression.currentProgress })}</small></dd><span>{Math.round(progressPercent)}%</span></div>
+        <div><dt>{text("下一等级奖励")}</dt><dd><strong data-status={rankState.status}>{rankState.label}</strong><small>{atLevelCap ? text("当前声望已完成") : template("达到等级 {level} 后可领取", { level: progression.level + 1 })}</small></dd><span>{template("{count} 个奖励节点", { count: rewards.length })}</span></div>
       </dl>
     </div>
   );
@@ -705,22 +743,25 @@ function VendorRankSummary(props: { section: VendorContentSectionView; vendor: V
 function VendorServiceRow(props: {
   item: VendorInventoryItemView;
   section: VendorContentSectionView;
+  copy: VendorsCopy;
+  locale: InterfaceLocale;
 }) {
-  const status = getVendorServiceStatus(props.item, props.section);
+  const text = (key: string) => vendorsText(props.copy, key);
+  const status = getVendorServiceStatus(props.item, props.section, props.copy);
   const hasCost = Boolean(props.item.costs?.length || props.item.cost);
   return (
     <article className="vendor-service-row" data-status={status.status}>
-      <VendorItemArt item={props.item} />
+      <VendorItemArt item={props.item} copy={props.copy} />
       <span className="vendor-service-copy">
         <strong>{props.item.name}</strong>
-        <span>{props.item.itemType || (props.section.kind === "tasks" ? "任务" : "商人服务")}</span>
-        {props.item.summary ? <small>{props.item.summary}</small> : null}
+        <span>{props.item.itemType || (props.section.kind === "tasks" ? text("任务") : text("商人服务"))}</span>
+        {props.item.summary ? <small>{text(props.item.summary)}</small> : null}
       </span>
       <span className="vendor-service-facts">
-        {hasCost ? <VendorCosts item={props.item} fallback={getVendorCostLabel(props.item)} /> : <small>{props.section.kind === "tasks" ? "任务条目" : "服务入口"}</small>}
+        {hasCost ? <VendorCosts item={props.item} fallback={getVendorCostLabel(props.item, props.copy)} copy={props.copy} locale={props.locale} /> : <small>{props.section.kind === "tasks" ? text("任务条目") : text("服务入口")}</small>}
         {props.item.ownership ? (
           <span className="vendor-offer-account" data-status={props.item.ownership.state}>
-            {props.item.ownership.label}
+            {vendorsTemplate(props.copy, props.item.ownership.label, { count: props.item.ownership.count ?? 0 })}
           </span>
         ) : null}
         <strong data-status={status.status}>{status.label}</strong>
@@ -734,31 +775,34 @@ function VendorOfferButton(props: {
   vendor: VendorInventoryGroupView;
   actions: VendorsPageActions;
   locale: InterfaceLocale;
+  copy: VendorsCopy;
 }) {
-  const availability = getVendorOfferAvailability(props.item);
-  const costLabel = getVendorCostLabel(props.item);
+  const text = (key: string) => vendorsText(props.copy, key);
+  const template = (key: string, values: Record<string, string | number>) => vendorsTemplate(props.copy, key, values);
+  const availability = getVendorOfferAvailability(props.item, props.copy);
+  const costLabel = getVendorCostLabel(props.item, props.copy);
   const equipmentKind = getVendorEquipmentKind(props.item);
   const isInteractive = Boolean(equipmentKind && props.actions.onOpenItem && props.item.itemHash !== undefined);
   const rollLabel = props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean).slice(0, 2).join(" · ");
   const content = <>
     <span className="vendor-offer-header">
-      <VendorItemArt item={props.item} />
+      <VendorItemArt item={props.item} copy={props.copy} />
         <span className="vendor-offer-copy">
-          <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString("zh-CN")}</em> : null}</span>
-          <span className="vendor-offer-summary">{props.item.itemType || "类型待确认"}{props.item.summary ? ` · ${props.item.summary}` : ""}</span>
+          <span className="vendor-offer-title"><strong>{props.item.name}</strong>{props.item.quantity && props.item.quantity > 1 ? <em>× {props.item.quantity.toLocaleString(props.locale)}</em> : null}</span>
+          <span className="vendor-offer-summary">{props.item.itemType || text("类型待确认")}{props.item.summary ? ` · ${text(props.item.summary)}` : ""}</span>
           {props.item.ownership ? (
             <span className="vendor-offer-account" data-status={props.item.ownership.state}>
-              {props.item.ownership.label}
+              {vendorsTemplate(props.copy, props.item.ownership.label, { count: props.item.ownership.count ?? 0 })}
             </span>
           ) : null}
           {rollLabel ? <span className="vendor-offer-roll">{rollLabel}</span> : null}
         </span>
     </span>
     <span className="vendor-offer-footer">
-      <VendorCosts item={props.item} fallback={costLabel} />
+      <VendorCosts item={props.item} fallback={costLabel} copy={props.copy} locale={props.locale} />
       <span className="vendor-offer-state">
         <span className="vendor-offer-status" data-status={availability.status}>{availability.label}</span>
-        {isInteractive ? <small>查看详情</small> : null}
+        {isInteractive ? <small>{text("查看详情")}</small> : null}
       </span>
     </span>
   </>;
@@ -773,21 +817,25 @@ function VendorOfferButton(props: {
       className="vendor-offer-card"
       data-tone={props.item.tone}
       data-status={availability.status}
-      aria-label={`打开装备详情：${props.item.name}`}
+      aria-label={template("打开装备详情：{name}", { name: props.item.name })}
       onClick={() => props.actions.onOpenItem?.(props.item, {
         vendorName: props.vendor.name,
-        inventoryPath: props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / "),
+        inventoryPath: localizeVendorPath(props.copy, props.item.sourcePath ?? [props.vendor.name, props.item.categoryName].filter(Boolean).join(" / ")),
         costLabel,
         affordabilityLabel: availability.label,
-        characterLabel: formatVendorCharacterScope(props.item.characterIds),
-        refreshLabel: formatVendorReset(props.vendor, props.locale),
+        characterLabel: formatVendorCharacterScope(props.item.characterIds, props.copy),
+        refreshLabel: formatVendorReset(props.vendor, props.locale, props.copy),
         purchaseRequirements: props.item.failureMessages ?? [],
         rollLabels: props.item.socketPlugs?.map((plug) => plug.name).filter(Boolean),
         stats: props.item.stats,
-        ownershipLabel: props.item.ownership?.label,
-        ownershipLocationLabel: props.item.ownership?.locationLabels.join(" · ") || undefined,
+        ownershipLabel: props.item.ownership
+          ? vendorsTemplate(props.copy, props.item.ownership.label, { count: props.item.ownership.count ?? 0 })
+          : undefined,
+        ownershipLocationLabel: props.item.ownership?.locations.length
+          ? props.item.ownership.locations.map((token) => vendorTextTokenText(props.copy, token)).join(vendorsText(props.copy, " · "))
+          : undefined,
         ownershipAsOfLabel: props.item.ownership?.asOf
-          ? formatFullDateTime(props.item.ownership.asOf, "账号数据时间未读取")
+          ? formatFullDateTime(props.item.ownership.asOf, text("账号数据时间未读取"))
           : undefined
       })}
     >
@@ -796,7 +844,7 @@ function VendorOfferButton(props: {
   );
 }
 
-function VendorCosts(props: { item: VendorInventoryItemView; fallback: string }) {
+function VendorCosts(props: { item: VendorInventoryItemView; fallback: string; copy: VendorsCopy; locale: InterfaceLocale }) {
   if (!props.item.costs?.length) return <span className="vendor-offer-cost">{props.fallback}</span>;
   return (
     <span className="vendor-offer-costs">
@@ -805,31 +853,31 @@ function VendorCosts(props: { item: VendorInventoryItemView; fallback: string })
           <GameAssetImage src={cost.iconUrl} alt="" />
           <span>{cost.label}</span>
           <small>{cost.owned === null
-            ? `需要 ${cost.required.toLocaleString("zh-CN")}`
-            : `持有 ${cost.owned.toLocaleString("zh-CN")} · 需要 ${cost.required.toLocaleString("zh-CN")}`}</small>
+            ? vendorsTemplate(props.copy, "需要 {count}", { count: cost.required.toLocaleString(props.locale) })
+            : vendorsTemplate(props.copy, "持有 {owned} · 需要 {required}", { owned: cost.owned.toLocaleString(props.locale), required: cost.required.toLocaleString(props.locale) })}</small>
         </span>
       ))}
     </span>
   );
 }
 
-function VendorItemArt(props: { item: VendorInventoryItemView }) {
+function VendorItemArt(props: { item: VendorInventoryItemView; copy: VendorsCopy }) {
   return (
-    <span className={props.item.iconUrl ? "vendor-item-art" : "vendor-item-art vendor-item-art-missing"} role={props.item.iconUrl ? undefined : "img"} aria-label={props.item.iconUrl ? undefined : `${props.item.name}图标未读取`}>
+    <span className={props.item.iconUrl ? "vendor-item-art" : "vendor-item-art vendor-item-art-missing"} role={props.item.iconUrl ? undefined : "img"} aria-label={props.item.iconUrl ? undefined : vendorsTemplate(props.copy, "{name}图标未读取", { name: props.item.name })}>
       <span className="vendor-item-art-fallback" aria-hidden="true">{props.item.iconLabel.slice(0, 1)}</span>
       <GameAssetImage src={props.item.iconUrl} alt="" />
     </span>
   );
 }
 
-function getVendorContentSections(vendor: VendorInventoryGroupView): VendorContentSectionView[] {
+function getVendorContentSections(vendor: VendorInventoryGroupView, copy: VendorsCopy): VendorContentSectionView[] {
   if (vendor.contentSections?.length) return vendor.contentSections;
   const sections: VendorContentSectionView[] = [];
   if (vendor.rankRewards?.length || vendor.progression) sections.push({ id: `${vendor.id}-rank`, kind: "reputation", name: "声望与等级", layout: "rank", progression: vendor.progression, groups: [{ id: `${vendor.id}-rank-items`, name: "等级奖励", items: vendor.rankRewards ?? [] }] });
   if (vendor.items.length) sections.push({ id: `${vendor.id}-inventory`, kind: "inventory", name: "库存", layout: "featured", groups: [{ id: `${vendor.id}-inventory-items`, name: "", items: vendor.items }] });
   for (const service of vendor.services ?? []) {
     if (!service.items.length) continue;
-    sections.push({ id: service.id, kind: "subinventory", name: service.name, description: service.description || `${service.items.length} 件`, layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list", groups: service.sections?.length ? service.sections : [{ id: `${service.id}-items`, name: "", items: service.items }] });
+    sections.push({ id: service.id, kind: "subinventory", name: service.name, description: service.description ? { key: service.description } : { key: "{count} 件", count: service.items.length }, layout: (service.sections?.length ?? 0) > 1 ? "columns" : "list", groups: service.sections?.length ? service.sections : [{ id: `${service.id}-items`, name: "", items: service.items }] });
   }
   if (vendor.taskItems?.length) sections.push({ id: `${vendor.id}-tasks`, kind: "tasks", name: "任务", layout: "featured", groups: [{ id: `${vendor.id}-task-items`, name: "", items: vendor.taskItems }] });
   return sections;
@@ -846,23 +894,26 @@ function getVendorSectionAnchorId(section: VendorContentSectionView): string {
   return `vendor-section-${section.id.replace(/[^a-zA-Z0-9_-]+/g, "-")}`;
 }
 
-function getVendorSectionTitle(section: VendorContentSectionView): string {
-  if (section.name.trim() === "库存" && isVendorAuxiliaryInventory(section)) return "基础服务";
-  if (section.kind === "tasks" && section.name.trim() === "任务") return "任务与悬赏";
-  return section.name;
+function getVendorSectionTitle(section: VendorContentSectionView, copy: VendorsCopy): string {
+  const name = section.name.trim();
+  if (name === "库存" && isVendorAuxiliaryInventory(section)) return vendorsText(copy, "基础服务");
+  if (section.kind === "tasks" && name === "任务") return vendorsText(copy, "任务与悬赏");
+  return vendorsText(copy, section.name);
 }
 
-function getVendorSectionMeta(section: VendorContentSectionView, itemCount: number): string {
-  if (section.kind === "reputation") return section.description ?? `${itemCount} 个等级奖励`;
-  if (section.kind === "subinventory") return `${itemCount} 件 · ${section.groups.length} 个分类`;
-  if (section.kind === "tasks") return `${itemCount} 项 · 游戏内领取`;
-  if (isVendorAuxiliaryInventory(section)) return `${itemCount} 项 · 游戏内操作`;
-  return section.description ?? `${itemCount} 件`;
+function getVendorSectionMeta(section: VendorContentSectionView, itemCount: number, copy: VendorsCopy): string {
+  if (section.kind === "reputation") return section.progression
+    ? vendorsTemplate(copy, "等级上限 {cap} · {count} 个奖励", { cap: section.progression.levelCap, count: itemCount })
+    : vendorsTemplate(copy, "{count} 个等级奖励", { count: itemCount });
+  if (section.kind === "subinventory") return vendorsTemplate(copy, "{count} 件 · {groups} 个分类", { count: itemCount, groups: section.groups.length });
+  if (section.kind === "tasks") return vendorsTemplate(copy, "{count} 项 · 游戏内领取", { count: itemCount });
+  if (isVendorAuxiliaryInventory(section)) return vendorsTemplate(copy, "{count} 项 · 游戏内操作", { count: itemCount });
+  return vendorsTemplate(copy, "{count} 件", { count: itemCount });
 }
 
-function getVendorSectionContextLabel(section: VendorContentSectionView): string {
-  const scopeLabel = section.scope === "account" ? "账号" : section.scope === "clan" ? "公会" : section.scope === "character" ? "当前角色" : "";
-  const actionLabel = section.action === "purchase" ? "游戏内购买" : section.action === "focus" ? "聚焦" : section.action === "decode" ? "解码" : section.action === "claim" ? "领取" : section.action === "acquire" ? "获取" : section.action === "exchange" ? "兑换" : section.action === "inspect" ? "查看" : "";
+function getVendorSectionContextLabel(section: VendorContentSectionView, copy: VendorsCopy): string {
+  const scopeLabel = section.scope === "account" ? vendorsText(copy, "账号") : section.scope === "clan" ? vendorsText(copy, "公会") : section.scope === "character" ? vendorsText(copy, "当前角色") : "";
+  const actionLabel = section.action === "purchase" ? vendorsText(copy, "游戏内购买") : section.action === "focus" ? vendorsText(copy, "聚焦") : section.action === "decode" ? vendorsText(copy, "解码") : section.action === "claim" ? vendorsText(copy, "领取") : section.action === "acquire" ? vendorsText(copy, "获取") : section.action === "exchange" ? vendorsText(copy, "兑换") : section.action === "inspect" ? vendorsText(copy, "查看") : "";
   return [scopeLabel, actionLabel].filter(Boolean).join(" · ");
 }
 
@@ -880,8 +931,8 @@ function countSectionItems(section: VendorContentSectionView): number {
   return section.groups.reduce((count, group) => count + group.items.length, 0);
 }
 
-function countVendorItems(vendor: VendorInventoryGroupView): number {
-  return getVendorContentSections(vendor).reduce((count, section) => count + countSectionItems(section), 0);
+function countVendorItems(vendor: VendorInventoryGroupView, copy: VendorsCopy): number {
+  return getVendorContentSections(vendor, copy).reduce((count, section) => count + countSectionItems(section), 0);
 }
 
 function countSectionItemsFromSections(sections: VendorContentSectionView[]): number {
@@ -916,9 +967,9 @@ function isVendorItemAffordable(item: VendorInventoryItemView): boolean {
   return costs.length > 0 && costs.every((cost) => cost.affordable === true);
 }
 
-function vendorHasItemMatch(vendor: VendorInventoryGroupView, query: string): boolean {
+function vendorHasItemMatch(vendor: VendorInventoryGroupView, query: string, copy: VendorsCopy): boolean {
   if (!query) return false;
-  return getVendorContentSections(vendor).some((section) => section.groups.some((group) => group.items.some((item) => vendorItemMatchesQuery(item, query))));
+  return getVendorContentSections(vendor, copy).some((section) => section.groups.some((group) => group.items.some((item) => vendorItemMatchesQuery(item, query))));
 }
 
 function vendorItemMatchesQuery(item: VendorInventoryItemView, query: string): boolean {
@@ -929,28 +980,38 @@ function vendorItemMatchesQuery(item: VendorInventoryItemView, query: string): b
     .includes(query);
 }
 
-function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView): string {
-  return vendor.displayStatusLabel ?? vendor.statusLabel ?? vendor.badge;
+function getVendorDisplayStatusLabel(vendor: VendorInventoryGroupView, copy: VendorsCopy): string {
+  const label = vendor.displayStatusLabel ?? vendor.statusLabel ?? vendor.badge;
+  return label ? vendorsText(copy, label) : "";
 }
 
-function getVendorRailSummary(vendor: VendorInventoryGroupView): string {
-  if (vendor.railStatusLabel) return vendor.railStatusLabel;
-  const itemCount = countVendorItems(vendor);
-  if (vendor.detailState === "failed" || vendor.inventoryState === "unavailable") return `${itemCount} 件 · 读取失败`;
-  if (vendor.detailState === "partial") return `${itemCount} 件 · 部分可用`;
-  if (vendor.featured) return `${itemCount} 件 · 限时`;
-  return `${itemCount} 件`;
+function getVendorRailSummary(vendor: VendorInventoryGroupView, copy: VendorsCopy): string {
+  const statusLabel = getVendorDisplayStatusLabel(vendor, copy);
+  if (statusLabel) {
+    return `${statusLabel} · ${vendorsTemplate(copy, "{count} 件物品", { count: countVendorSaleItems(vendor) })}`;
+  }
+  const itemCount = countVendorItems(vendor, copy);
+  if (vendor.detailState === "failed" || vendor.inventoryState === "unavailable") return vendorsTemplate(copy, "{count} 件 · 读取失败", { count: itemCount });
+  if (vendor.detailState === "partial") return vendorsTemplate(copy, "{count} 件 · 部分可用", { count: itemCount });
+  if (vendor.featured) return vendorsTemplate(copy, "{count} 件 · 限时", { count: itemCount });
+  return vendorsTemplate(copy, "{count} 件", { count: itemCount });
 }
 
-function vendorMatchesSearch(vendor: VendorInventoryGroupView, query: string): boolean {
+function countVendorSaleItems(vendor: VendorInventoryGroupView): number {
+  return vendor.items.length
+    + (vendor.services ?? []).reduce((count, service) => count + service.items.length, 0)
+    + (vendor.taskItems?.length ?? 0);
+}
+
+function vendorMatchesSearch(vendor: VendorInventoryGroupView, query: string, copy: VendorsCopy): boolean {
   if (!query) return true;
   const searchableText = [
     vendor.name,
     vendor.location,
     vendor.description,
-    ...getVendorContentSections(vendor).flatMap((section) => [
+    ...getVendorContentSections(vendor, copy).flatMap((section) => [
       section.name,
-      section.description,
+      section.description ? vendorTextTokenText(copy, section.description) : undefined,
       ...section.groups.flatMap((group) => [
         group.name,
         group.description,
@@ -975,33 +1036,48 @@ function getVendorStatus(vendor: VendorInventoryGroupView): "neutral" | "pending
   return "neutral";
 }
 
-function getVendorOfferAvailability(item: VendorInventoryItemView): { label: string; status: "success" | "warning" | "neutral" } {
-  if (item.canPurchase === true) return { label: "游戏内可购买", status: "success" };
-  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || "当前不可购买", status: "warning" };
-  return { label: item.failureMessages?.[0] || "游戏内条件待确认", status: "neutral" };
+function getVendorOfferAvailability(item: VendorInventoryItemView, copy: VendorsCopy): { label: string; status: "success" | "warning" | "neutral" } {
+  if (item.canPurchase === true) return { label: vendorsText(copy, "游戏内可购买"), status: "success" };
+  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || vendorsText(copy, "当前不可购买"), status: "warning" };
+  return { label: item.failureMessages?.[0] || vendorsText(copy, "游戏内条件待确认"), status: "neutral" };
 }
 
 function getVendorServiceStatus(
   item: VendorInventoryItemView,
-  section: VendorContentSectionView
+  section: VendorContentSectionView,
+  copy: VendorsCopy
 ): { label: string; status: "success" | "warning" | "neutral" } {
-  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || "条件未满足", status: "warning" };
+  if (item.canPurchase === false) return { label: item.failureMessages?.[0] || vendorsText(copy, "条件未满足"), status: "warning" };
   if (item.canPurchase === true) {
-    return { label: section.kind === "tasks" ? "可在游戏内领取" : "可在游戏内使用", status: "success" };
+    return { label: section.kind === "tasks" ? vendorsText(copy, "可在游戏内领取") : vendorsText(copy, "可在游戏内使用"), status: "success" };
   }
-  return { label: item.failureMessages?.[0] || "游戏内状态待确认", status: "neutral" };
+  return { label: item.failureMessages?.[0] || vendorsText(copy, "游戏内状态待确认"), status: "neutral" };
 }
 
-function getVendorCostLabel(item: VendorInventoryItemView): string {
-  return item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ") ?? item.cost ?? "无费用信息";
+function getVendorCostLabel(item: VendorInventoryItemView, copy: VendorsCopy): string {
+  return item.costs?.map((cost) => `${cost.required} ${cost.label}`).join(" · ") ?? item.cost ?? vendorsText(copy, "无费用信息");
 }
 
-function formatVendorCharacterScope(characterIds: string[] | undefined): string {
+function formatVendorCharacterScope(characterIds: string[] | undefined, copy: VendorsCopy): string {
   const characterCount = new Set(characterIds ?? []).size;
-  if (characterCount > 1) return `${characterCount} 个角色库存`;
-  return characterCount === 1 ? "当前角色库存" : "角色范围待确认";
+  if (characterCount > 1) return vendorsTemplate(copy, "{count} 个角色库存", { count: characterCount });
+  return characterCount === 1 ? vendorsText(copy, "当前角色库存") : vendorsText(copy, "角色范围待确认");
 }
 
-function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale): string {
-  return formatScheduleDateTime(vendor.resetAt, locale, vendor.resetLabel);
+function formatVendorReset(vendor: VendorInventoryGroupView, locale: InterfaceLocale, copy: VendorsCopy): string {
+  return formatScheduleDateTime(vendor.resetAt, locale, vendorsText(copy, vendor.resetLabel));
+}
+
+function localizeVendorPath(copy: VendorsCopy, path: string): string {
+  return path.split(" → ").map((segment) => vendorsText(copy, segment.trim())).join(" → ");
+}
+
+function localizeVendorScopeLabel(label: string, copy: VendorsCopy): string {
+  const match = /^角色 (\d+)$/u.exec(label.trim());
+  return match ? vendorsTemplate(copy, "角色 {index}", { index: match[1] }) : vendorsText(copy, label);
+}
+
+function localizeVendorCharacterContext(context: VendorCharacterContextView | null | undefined, copy: VendorsCopy): string {
+  if (context?.armorerModName) return vendorsTemplate(copy, "当前机灵：{name}", { name: context.armorerModName });
+  return vendorsText(copy, context ? context.label : "当前机灵：未检测到护甲师模组");
 }

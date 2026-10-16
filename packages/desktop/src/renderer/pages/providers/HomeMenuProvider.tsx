@@ -22,7 +22,6 @@ export function HomeMenuProvider() {
       isLoggingIn={account.isLoggingIn}
       isInitializingManifest={account.isInitializingManifest}
       isRefreshingDiagnostics={diagnostics.isRefreshingDiagnostics}
-      diagnosticRows={session.home.diagnosticRows}
       diagnosticError={diagnostics.diagnosticError}
       accountError={account.accountError}
       hasAccountData={hasAccountData}

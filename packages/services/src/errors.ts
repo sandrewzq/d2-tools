@@ -54,7 +54,15 @@ export function createServiceError(input: Omit<ServiceError, "cause"> & { cause?
   return new D2ServiceError(input);
 }
 
-export function toServiceError(error: unknown, fallbackMessage = "操作失败"): ServiceError {
+/**
+ * 把任意抛出物归一化成 `ServiceError`。
+ *
+ * `fallbackMessage` 只在入参既不是 `Error` 也不是 `ServiceError` 时用到（例如 `throw null`）。
+ * 这一层不产出产品文案：调用方要么给准确的上游文本，要么传空字符串，
+ * 空 message 由渲染层按 copy 兜底（见 `formatAccountLoadFailure` 那一类）。
+ * 排查靠 `code` 和 `causeCategory`，它们不受语言影响。
+ */
+export function toServiceError(error: unknown, fallbackMessage: string): ServiceError {
   if (isServiceError(error)) {
     return error;
   }

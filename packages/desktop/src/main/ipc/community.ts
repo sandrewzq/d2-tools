@@ -46,6 +46,7 @@ import {
   setPersonalWeaponKnowledgeEnabled
 } from "@d2-tools/services/community/personalWeaponKnowledge";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { currentMainLocale, mainText } from "../i18n/mainCopy.js";
 import { getDefinitions, getGameDataCatalog } from "../runtime/gameDataRuntime.js";
 import { loadDimWishlist } from "@d2-tools/services/analysis/wishlistStore";
 import { loadManifestVersionCheckCache } from "@d2-tools/services/manifest/cache";
@@ -63,13 +64,15 @@ export function registerCommunityIpcHandlers(): void {
   ipcMain.handle("community:knowledge:template:export", async (_event, language: "zh" | "en" = "zh") => {
     const config = loadConfig();
     const isEnglish = language === "en";
+    const locale = config.features.interface_locale;
     const result = await dialog.showSaveDialog({
-      title: isEnglish ? "导出英文武器推荐模板" : "导出中文武器推荐模板",
+      // title 描述的是导出模板的语言（由 isEnglish 决定），整体再按界面语言翻译。
+      title: mainText(locale, isEnglish ? "导出英文武器推荐模板" : "导出中文武器推荐模板"),
       defaultPath: join(config.data.data_dir, isEnglish ? "weapon-recommendation-template-en.csv" : "武器推荐模板.csv"),
-      filters: [{ name: "CSV 文件", extensions: ["csv"] }]
+      filters: [{ name: mainText(locale, "CSV 文件"), extensions: ["csv"] }]
     });
     if (result.canceled || !result.filePath) {
-      return { canceled: true, message: "已取消导出推荐模板。" };
+      return { canceled: true, message: mainText(locale, "已取消导出推荐模板。") };
     }
     await writeFile(
       result.filePath,
@@ -79,21 +82,22 @@ export function registerCommunityIpcHandlers(): void {
     return {
       canceled: false,
       file_path: result.filePath,
-      message: isEnglish
+      message: mainText(locale, isEnglish
         ? "英文列名模板已导出。Perk、枪管、弹匣、大师和起源特性请按当前资料库语言填写官方名称；中文资料库请填中文。示例行导入时自动跳过。"
-        : "中文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把武器、Perk、评级等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。"
+        : "中文推荐模板已导出。表头自带填写说明，表头下面那行是示例数据（导入时自动跳过）：照它把武器、Perk、评级等列改成你自己的推荐，官方身份与资料库字段由应用自动补齐。")
     };
   });
 
   ipcMain.handle("community:knowledge:player:export", async () => {
     const config = loadConfig();
+    const locale = config.features.interface_locale;
     const result = await dialog.showSaveDialog({
-      title: "导出可编辑武器推荐",
+      title: mainText(locale, "导出可编辑武器推荐"),
       defaultPath: join(config.data.data_dir, "武器推荐-可编辑.csv"),
-      filters: [{ name: "CSV 文件", extensions: ["csv"] }]
+      filters: [{ name: mainText(locale, "CSV 文件"), extensions: ["csv"] }]
     });
     if (result.canceled || !result.filePath) {
-      return { canceled: true, message: "已取消导出可编辑武器推荐。" };
+      return { canceled: true, message: mainText(locale, "已取消导出可编辑武器推荐。") };
     }
     // 库里存的是 Hash，导出要写回官方名：先按规则声明的武器身份取定义池，
     // 再让导出函数反解名字（DD4）。不新开网络路径。
@@ -108,7 +112,7 @@ export function registerCommunityIpcHandlers(): void {
     return {
       canceled: false,
       file_path: result.filePath,
-      message: "可编辑武器推荐已导出。系统字段未包含在文件中，重新导入时会自动补齐。"
+      message: mainText(locale, "可编辑武器推荐已导出。系统字段未包含在文件中，重新导入时会自动补齐。")
     };
   });
 
@@ -245,10 +249,11 @@ export function registerCommunityIpcHandlers(): void {
     return encodeDesktopIpcFailure(() => {
       const result = matchVaultCommunityItems(items, options);
       if (options?.include_evidence === false) {
+        const locale = currentMainLocale();
         startBackgroundTask({
           type: "community-analysis",
-          title: "分析仓库推荐",
-          message: "正在匹配内置推荐知识库、DIM Wishlist 和自定义推荐规则。",
+          title: mainText(locale, "分析仓库推荐"),
+          message: mainText(locale, "正在匹配内置推荐知识库、DIM Wishlist 和自定义推荐规则。"),
           run: async () => {
             await result;
           }
@@ -272,6 +277,7 @@ async function matchVaultCommunityItems(
   options: VaultCommunityMatchOptions = {}
 ) {
   const config = loadConfig();
+  const locale = config.features.interface_locale;
   const manifestStatus = getDesktopManifestStatus();
   const versionCheck = loadManifestVersionCheckCache(config.data.data_dir);
   if (!manifestStatus.initialized || manifestStatus.missing_required_components?.length) {
@@ -280,7 +286,7 @@ async function matchVaultCommunityItems(
       issues: [{
         code: "manifest_unavailable",
         severity: "blocking",
-        message: "资料库尚未准备完成，暂时不能精确核对武器插槽。"
+        message: mainText(locale, "资料库尚未准备完成，暂时不能精确核对武器插槽。")
       }],
       ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
     };
@@ -295,7 +301,7 @@ async function matchVaultCommunityItems(
       issues: [{
         code: "manifest_outdated",
         severity: "blocking",
-        message: "资料库存在新版本；更新后才能按当前官方插槽精确核对。"
+        message: mainText(locale, "资料库存在新版本；更新后才能按当前官方插槽精确核对。")
       }],
       ...(manifestStatus.version ? { manifest_version: manifestStatus.version } : {})
     };
@@ -305,7 +311,7 @@ async function matchVaultCommunityItems(
   const issues = hasActiveRecommendationRules(config.data.data_dir) ? [] : [{
     code: "recommendation_unavailable" as const,
     severity: "warning" as const,
-    message: "尚未导入任何推荐来源；仍会继续核对本机愿望单与自定义推荐。"
+    message: mainText(locale, "尚未导入任何推荐来源；仍会继续核对本机愿望单与自定义推荐。")
   }];
   const result = await matchVaultRecommendationsInWorker({
     data_dir: config.data.data_dir,

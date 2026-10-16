@@ -4,10 +4,12 @@ import {
   getBungieLocaleForInterface,
   getNextInterfaceLocale
 } from "../i18n/preferences.js";
-import type { ProductPreferences } from "../i18n/types.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import type { ProductPreferences, ShellCopy } from "../i18n/types.js";
 import { NavigationGuardProvider, type NavigationGuard } from "../navigation/NavigationGuard.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { AppShell } from "../shell/AppShell.js";
+import { shellText } from "../shell/shellCopy.js";
 import type { ShellAssistantMode, ShellPageKey } from "../shell/types.js";
 import { ProductWorkspaceHeader, ProductWorkspacePage } from "../workspace/ProductWorkspace.js";
 import type { ProductShellHostProps } from "./types.js";
@@ -28,11 +30,12 @@ export function ProductShellHost(props: ProductShellHostProps) {
   const activePage = props.activePage ?? uncontrolledActivePage;
   const assistantMode = props.assistantMode ?? uncontrolledAssistantMode;
   const preferences = props.preferences ?? uncontrolledPreferences;
+  const shellCopy = getLocaleCopy(preferences.interfaceLocale).shell;
   const providedPageHeader = typeof props.pageHeader === "function"
     ? props.pageHeader(activePage, preferences)
     : props.pageHeader;
   const pageHeader = {
-    ...productPageHeaderMeta[activePage],
+    ...productPageHeaderMeta(shellCopy, activePage),
     actions: providedPageHeader?.actions
   };
 
@@ -184,8 +187,8 @@ export function ProductShellHost(props: ProductShellHostProps) {
           <ConfirmationDialog
             title={navigationGuard.title}
             description={navigationGuard.description}
-            confirmLabel={navigationGuard.confirmLabel ?? "确认离开"}
-            cancelLabel={navigationGuard.cancelLabel ?? "留在当前页面"}
+            confirmLabel={navigationGuard.confirmLabel ?? shellText(shellCopy, "确认离开")}
+            cancelLabel={navigationGuard.cancelLabel ?? shellText(shellCopy, "留在当前页面")}
             onCancel={cancelGuardedNavigation}
             onConfirm={confirmGuardedNavigation}
           />
@@ -195,7 +198,7 @@ export function ProductShellHost(props: ProductShellHostProps) {
   );
 }
 
-const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
+const productPageHeaderMetaKeys: Record<ShellPageKey, { eyebrow: string; title: string; subtitle: string }> = {
   home: { eyebrow: "公开游戏世界", title: "本周情报", subtitle: "只展示 Bungie 公开接口与经过校验的公开机器数据，不猜测缺失内容。" },
   account: { eyebrow: "账号", title: "角色与账号数据", subtitle: "角色装备与背包保持按槽位对照，其他配置、任务和物品分别查看。" },
   vault: { eyebrow: "装备管理", title: "仓库工作台", subtitle: "真实工作流分为浏览装备与推荐来源。" },
@@ -205,3 +208,12 @@ const productPageHeaderMeta: Record<ShellPageKey, { eyebrow: string; title: stri
   directory: { eyebrow: "社区工具", title: "工具导航", subtitle: "按用途分类的公开工具站清单，只收录地址和一句话用途，打开后在系统浏览器访问。" },
   settings: { eyebrow: "设置", title: "应用与数据", subtitle: "管理界面语言、账号读取、资料库、Bungie 接口、AI、备份和诊断。" }
 };
+
+function productPageHeaderMeta(copy: ShellCopy, page: ShellPageKey): { eyebrow: string; title: string; subtitle: string } {
+  const keys = productPageHeaderMetaKeys[page];
+  return {
+    eyebrow: shellText(copy, keys.eyebrow),
+    title: shellText(copy, keys.title),
+    subtitle: shellText(copy, keys.subtitle)
+  };
+}

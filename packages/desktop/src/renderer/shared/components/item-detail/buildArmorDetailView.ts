@@ -13,8 +13,15 @@ import type {
 } from "@d2-tools/core/targets/equipmentTargets";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
 import type { SameNameItemSummary, SelectedItemDetail } from "../../hooks/useItemDetail";
+import {
+  armorStatLabel,
+  itemDetailTemplate,
+  itemDetailText,
+  type ItemDetailCopy
+} from "@d2-tools/ui";
 
 export type BuildDesktopArmorDetailInput = {
+  copy: ItemDetailCopy;
   selectedItem: SelectedItemDetail;
   sameNameItems?: SameNameItemSummary[];
   context?: Partial<ArmorDetailObjectContext>;
@@ -37,8 +44,8 @@ export function buildArmorDetailView(input: BuildDesktopArmorDetailInput): Armor
     },
     sources: input.sources,
     recommendations: input.recommendations ?? (input.equipmentTargetStore
-      ? buildEquipmentArmorRecommendations(input.equipmentTargetStore, item, input.currentStats ?? item.armor_stats)
-      : buildArmorRecommendations(input.localTargetRules, input.currentStats ?? item.armor_stats)),
+      ? buildEquipmentArmorRecommendations(input.equipmentTargetStore, item, input.currentStats ?? item.armor_stats, input.copy)
+      : buildArmorRecommendations(input.localTargetRules, input.currentStats ?? item.armor_stats, input.copy)),
     current_stats: input.currentStats,
     same_hash_instances: input.sameNameItems
   });
@@ -47,7 +54,8 @@ export function buildArmorDetailView(input: BuildDesktopArmorDetailInput): Armor
 function buildEquipmentArmorRecommendations(
   store: EquipmentTargetStore | undefined,
   item: SelectedItemDetail,
-  stats: ArmorStatSummary | undefined
+  stats: ArmorStatSummary | undefined,
+  copy: ItemDetailCopy
 ): ArmorRecommendation[] {
   return (store?.targets ?? []).flatMap((target) => {
     if (!target.enabled || target.kind !== "armor_acquisition") return [];
@@ -68,12 +76,22 @@ function buildEquipmentArmorRecommendations(
       id: target.id,
       title: target.name,
       value: [
-        ...requirements.map(([stat, minimum]) => `${armorStatLabels[stat]} ${minimum}+`),
-        target.minimum_total !== undefined ? `总值 ${target.minimum_total}+` : ""
+        ...requirements.map(([stat, minimum]) => itemDetailTemplate(copy, "{stat} {value}+", {
+          stat: armorStatLabel(copy, stat),
+          value: minimum
+        })),
+        target.minimum_total !== undefined
+          ? itemDetailTemplate(copy, "总值 {value}+", { value: target.minimum_total })
+          : ""
       ].filter(Boolean).join(" · "),
       reason: target.planner_context
-        ? `${target.source.label}；这里仅核对基础属性门槛，${formatPlannerIdentity(target.planner_context)}仍需回到 Armor Planner 复核。`
-        : `${target.source.label}；只提供待刷目标证据，不会伪造装备 Hash 或自动修改装备。`,
+        ? itemDetailTemplate(copy, "{source}；这里仅核对基础属性门槛，{identity}仍需回到 Armor Planner 复核。", {
+          source: target.source.label,
+          identity: formatPlannerIdentity(target.planner_context, copy)
+        })
+        : itemDetailTemplate(copy, "{source}；只提供待刷目标证据，不会伪造装备 Hash 或自动修改装备。", {
+          source: target.source.label
+        }),
       source_label: target.source.label,
       match: !targetStats
         ? undefined
@@ -100,11 +118,12 @@ function buildBaseArmorStats(item: SelectedItemDetail): ArmorStatSummary | undef
 }
 
 function formatPlannerIdentity(
-  context: NonNullable<ArmorAcquisitionTarget["planner_context"]>
+  context: NonNullable<ArmorAcquisitionTarget["planner_context"]>,
+  copy: ItemDetailCopy
 ): string {
   return [
     context.archetype_name,
-    `${armorStatLabels[context.tertiary_stat]}第三属性`,
+    itemDetailTemplate(copy, "{stat}第三属性", { stat: armorStatLabel(copy, context.tertiary_stat) }),
     context.tuning_label,
     context.set_name
   ].filter(Boolean).join(" · ");
@@ -112,7 +131,8 @@ function formatPlannerIdentity(
 
 function buildArmorRecommendations(
   rules: LocalTargetRules | undefined,
-  stats: ArmorStatSummary | undefined
+  stats: ArmorStatSummary | undefined,
+  copy: ItemDetailCopy
 ): ArmorRecommendation[] {
   return (rules?.armor ?? []).map((rule) => {
     const matchedCount = stats
@@ -121,9 +141,12 @@ function buildArmorRecommendations(
     return {
       id: rule.id,
       title: rule.name,
-      value: rule.conditions.map((condition) => `${armorStatLabels[condition.stat]} ${condition.min}+`).join(" · "),
-      reason: "来自你保存的护甲属性目标，不会自动修改装备。",
-      source_label: "本地目标规则",
+      value: rule.conditions.map((condition) => itemDetailTemplate(copy, "{stat} {value}+", {
+        stat: armorStatLabel(copy, condition.stat),
+        value: condition.min
+      })).join(" · "),
+      reason: itemDetailText(copy, "来自你保存的护甲属性目标，不会自动修改装备。"),
+      source_label: itemDetailText(copy, "本地目标规则"),
       match: !stats
         ? undefined
         : matchedCount === rule.conditions.length
@@ -134,12 +157,3 @@ function buildArmorRecommendations(
     };
   });
 }
-
-const armorStatLabels: Record<ArmorStatKey, string> = {
-  health: "生命值",
-  melee: "近战",
-  grenade: "手雷",
-  super: "超能",
-  class: "职业",
-  weapon: "武器"
-};

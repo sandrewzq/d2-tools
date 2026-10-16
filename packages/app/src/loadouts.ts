@@ -2,90 +2,81 @@ export type { LoadoutTemplateLookup } from "./workspaces/loadoutTemplateLookup.j
 export type { LoadoutTemplate, LoadoutTemplateItem } from "@d2-tools/core/loadouts/templates";
 export { buildLoadoutTemplateLookup, matchesLoadoutTemplateItem } from "./workspaces/loadoutTemplateLookup.js";
 export type {
-  MissingLoadoutBlockedDescription,
   MissingLoadoutEquipSwapItem,
   MissingLoadoutTransferItem,
   MissingLoadoutTransferPlan,
   MissingLoadoutTransferReason,
   MissingLoadoutTransferStep
 } from "./workspaces/loadoutTransfer.js";
-export {
-  buildMissingLoadoutTransferPlan,
-  describeMissingLoadoutBlockedReason
-} from "./workspaces/loadoutTransfer.js";
-export type { LoadoutSourceItem } from "./workspaces/loadoutSources.js";
+export { buildMissingLoadoutTransferPlan } from "./workspaces/loadoutTransfer.js";
+export type { LoadoutSourceItem, LoadoutSourceKind } from "./workspaces/loadoutSources.js";
 export {
   findBestTemplateSourceItem,
   getAllKnownAccountItemsWithSource
 } from "./workspaces/loadoutSources.js";
-export type { LoadoutCompareCell, LoadoutCompareRow } from "./workspaces/loadoutViewModel.js";
 export {
-  buildLoadoutCompareRows,
   buildMissingLoadoutItemsText,
-  formatLoadoutComparePerks,
-  isMatchingTemplateItem,
-  isTemplateItemReady,
   isTemplateItemReadyFromPlan
 } from "./workspaces/loadoutViewModel.js";
-export type { LoadoutItemStatus, LoadoutStatusSourceItem } from "./workspaces/loadoutItemStatus.js";
-export {
-  buildLoadoutItemStatus,
-  summarizeLoadoutItemStatuses
-} from "./workspaces/loadoutItemStatus.js";
 export type {
+  InGameItemLocationView,
   InGameLoadoutItemRowView,
   InGameLoadoutItemView,
-  LoadoutCompareView,
   LoadoutEntry,
   LoadoutEntryView,
   LoadoutsPageInput,
-  LoadoutRiskSummaryView,
   LoadoutsPageModel,
   LoadoutsPageWorkspace,
-  LoadoutsSelectedDetailView,
-  LoadoutTemplateItemRowView
+  LoadoutsSelectedDetailView
 } from "./workspaces/loadoutsPage.js";
 export {
   createLoadoutsPageWorkspace,
-  getLoadoutItemBlockedDetails,
-  getLoadoutItemStatus,
   selectLoadoutsPageModel
 } from "./workspaces/loadoutsPage.js";
-export type {
-  LocalLoadoutPlanDirectoryEntry,
-  LocalLoadoutPlanItemRow,
-  LocalLoadoutPlanWorkbenchInput,
-  LocalLoadoutPlanWorkbenchModel
-} from "./workspaces/localLoadoutPlanWorkbench.js";
 export {
   createEmptyLocalLoadoutPlanDraft,
   createLocalLoadoutPlanDraftFromInGameLoadout,
   createLocalLoadoutPlanDraftFromCharacter,
   getLocalLoadoutPlanAccountItems,
   resolveLocalLoadoutPlanDraftSlots,
-  selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "./workspaces/localLoadoutPlanWorkbench.js";
 export type {
   ApplicationLoadoutCompareCell,
   ApplicationLoadoutCompareColumn,
+  ApplicationLoadoutCompareColumnSubtitle,
+  ApplicationLoadoutCompareColumnTitle,
+  ApplicationLoadoutCompareEmpty,
   ApplicationLoadoutCompareInput,
   ApplicationLoadoutCompareReference,
   ApplicationLoadoutCompareRow,
+  ApplicationLoadoutCompareRowLabel,
+  ApplicationLoadoutCompareValue,
   ApplicationLoadoutCompareViewModel,
+  ApplicationLoadoutCountUnit,
   ApplicationLoadoutDetailView,
   ApplicationLoadoutDirectoryEntryView,
   ApplicationLoadoutInGameReference,
   ApplicationLoadoutItemDetailView,
+  ApplicationLoadoutItemStatus,
   ApplicationLoadoutLibraryInput,
   ApplicationLoadoutLibraryViewModel,
   ApplicationLoadoutNavigationState,
   ApplicationLoadoutNavigationTransition,
+  ApplicationLoadoutPlugGroup,
+  ApplicationLoadoutPlugGroupKey,
   ApplicationLoadoutScreen,
   ApplicationLoadoutScreenFrame,
+  ApplicationLoadoutSelectionMessage,
+  ApplicationLoadoutWearBlockReason,
+  ApplicationLoadoutWearLabel,
   ApplicationLoadoutWearState
 } from "./workspaces/applicationLoadoutWorkspace.js";
-export type { CrossSourceLink } from "./workspaces/loadoutCrossSource.js";
+export type {
+  CrossSourceLink,
+  LoadoutCompareSlot,
+  LoadoutCompareSlotKey
+} from "./workspaces/loadoutCrossSource.js";
 export {
   consumeApplicationLoadoutFocusRequest,
   createApplicationLoadoutNavigationState,
@@ -97,11 +88,21 @@ export {
   selectApplicationLoadoutDetailView,
   selectApplicationLoadoutLibraryViewModel
 } from "./workspaces/applicationLoadoutWorkspace.js";
-export type { LoadoutActionResultCounts } from "./workspaces/loadoutActions.js";
+export type {
+  LoadoutActionMessageToken,
+  LoadoutActionResultCounts,
+  LoadoutActionResultPart,
+  LoadoutConfirmToken,
+  LoadoutSlotActionLabelToken,
+  LoadoutTemplateNameToken,
+  LoadoutTransferStepPhase
+} from "./workspaces/loadoutActions.js";
 export {
   buildCharacterLoadoutTemplateName,
   buildLoadoutItemActionFailureMessage,
+  buildLoadoutSlotActionCommandLabel,
   buildLoadoutSlotActionConfirmText,
+  buildLoadoutSlotActionFailedMessage,
   buildLoadoutSlotActionLabel,
   buildLoadoutSlotActionProgressMessage,
   buildLoadoutCopyMissingNoAccountMessage,

@@ -59,6 +59,7 @@ import {
 } from "../../contracts/errors.js";
 import { loadFreshOAuthToken, type FreshOAuthToken } from "./authSession.js";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { currentMainLocale, mainTemplate, mainText } from "../i18n/mainCopy.js";
 import {
   getAccountProfileComponents,
   getAccountItemDetailByInstanceId,
@@ -1068,13 +1069,15 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
     latestWriteVerificationByScope.get(verificationKey) === input.operation_id
   ));
 
+  const locale = currentMainLocale();
   return startBackgroundTask({
     type: "account-write-sync",
     dedupeKey: input.operation_id,
-    title: "同步游戏内物品状态",
-    message: `写入已完成，正在同步 ${input.expected_patches.length} 项变化。`,
+    title: mainText(locale, "同步游戏内物品状态"),
+    message: mainTemplate(locale, "写入已完成，正在同步 {count} 项变化。", { count: input.expected_patches.length }),
     run: async (context) => {
       const config = loadConfig();
+      const viewLocale = config.features.interface_locale;
       const startedAt = performance.now();
       const components = getAccountWriteVerificationComponents(input.expected_patches);
       const action = getAccountWriteVerificationAction(input.expected_patches);
@@ -1088,7 +1091,7 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
           context.update({
             status: "superseded",
             progress_percent: 100,
-            message: "该确认任务已被同范围的新写入操作替代。"
+            message: mainText(viewLocale, "该确认任务已被同范围的新写入操作替代。")
           });
           return;
         }
@@ -1198,8 +1201,8 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
               attempt,
               progress_percent: 100,
               message: input.failed_count > 0
-                ? `已同步 ${matchedCount}/${input.accepted_count} 项变化，另有 ${input.failed_count} 项提交失败。`
-                : `已同步 ${matchedCount} 项变化。`
+                ? mainTemplate(viewLocale, "已同步 {matched}/{accepted} 项变化，另有 {failed} 项提交失败。", { matched: matchedCount, accepted: input.accepted_count, failed: input.failed_count })
+                : mainTemplate(viewLocale, "已同步 {matched} 项变化。", { matched: matchedCount })
             });
             return;
           }
@@ -1209,8 +1212,8 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
             attempt,
             progress_percent: undefined,
             message: elapsedMs >= 30_000
-              ? "写入已完成，Bungie Profile 更新较慢；应用会继续同步。"
-              : `写入已完成，正在同步（已匹配 ${matchedCount}/${input.expected_patches.length}）。`
+              ? mainText(viewLocale, "写入已完成，Bungie Profile 更新较慢；应用会继续同步。")
+              : mainTemplate(viewLocale, "写入已完成，正在同步（已匹配 {matched}/{expected}）。", { matched: matchedCount, expected: input.expected_patches.length })
           });
         } catch (error) {
           if (error instanceof Error && (
@@ -1253,7 +1256,7 @@ function startAccountWriteVerification(input: AccountWriteVerificationInput) {
           context.update({
             status: "retrying",
             attempt,
-            message: `写入已完成，状态同步暂时不可用；应用会自动重试。${classified.message}`
+            message: mainTemplate(viewLocale, "写入已完成，状态同步暂时不可用；应用会自动重试。{error}", { error: classified.message })
           });
         }
       }

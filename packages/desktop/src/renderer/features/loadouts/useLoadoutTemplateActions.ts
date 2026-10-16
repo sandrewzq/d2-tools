@@ -1,4 +1,5 @@
 import type { analyzeLoadoutTemplate } from "@d2-tools/core/loadouts/analysis";
+import { loadoutActionMessageText, loadoutText, type LoadoutsCopy } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import type { AccountSummary, LoadoutTemplate } from "../../api/types";
 import {
@@ -14,15 +15,19 @@ import { buildMissingLoadoutItemsText, isTemplateItemReadyFromPlan } from "./loa
 
 export function useLoadoutTemplateActions(input: {
   accountSummary: AccountSummary | null;
+  /** 回执由 app 侧出结构、这里成句，所以钩子要拿到当前语言的配装文案。 */
+  copy: LoadoutsCopy;
   setLoadoutMessage: (message: string) => void;
 }) {
+  const copy = input.copy;
+
   async function createTemplateTransferPlan(template: LoadoutTemplate) {
     if (!input.accountSummary) return;
 
     const targetCharacter = input.accountSummary.characters.find((character) => character.character_id === template.character_id)
       ?? input.accountSummary.characters[0];
     if (!targetCharacter) {
-      input.setLoadoutMessage(buildLoadoutTemplateTransferNoTargetMessage());
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateTransferNoTargetMessage()));
       return;
     }
 
@@ -34,9 +39,12 @@ export function useLoadoutTemplateActions(input: {
         equipped_items: targetCharacter.equipped_items
       });
       await navigator.clipboard.writeText(buildLoadoutTemplateTransferClipboardText(plan));
-      input.setLoadoutMessage(buildLoadoutTemplateTransferCopiedMessage(plan.summary));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutTemplateTransferCopiedMessage({
+        template_name: template.name,
+        step_count: plan.steps.length
+      })));
     } catch (error) {
-      input.setLoadoutMessage(error instanceof Error ? error.message : "配装转移计划生成失败");
+      input.setLoadoutMessage(error instanceof Error ? error.message : loadoutText(copy, "配装转移计划生成失败"));
     }
   }
 
@@ -45,7 +53,7 @@ export function useLoadoutTemplateActions(input: {
     _analysis: ReturnType<typeof analyzeLoadoutTemplate> | null
   ) {
     if (!input.accountSummary) {
-      input.setLoadoutMessage(buildLoadoutCopyMissingNoAccountMessage());
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildLoadoutCopyMissingNoAccountMessage()));
       return;
     }
 
@@ -56,7 +64,7 @@ export function useLoadoutTemplateActions(input: {
     });
     const pendingItems = template.items.filter((item) => !isTemplateItemReadyFromPlan(item, transferPlan));
     if (!pendingItems.length) {
-      input.setLoadoutMessage(buildMissingLoadoutAllReadyMessage());
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildMissingLoadoutAllReadyMessage()));
       return;
     }
 
@@ -64,9 +72,9 @@ export function useLoadoutTemplateActions(input: {
       await navigator.clipboard.writeText(
         buildMissingLoadoutItemsText(template, pendingItems, input.accountSummary)
       );
-      input.setLoadoutMessage(buildMissingLoadoutItemsCopiedMessage(pendingItems.length));
+      input.setLoadoutMessage(loadoutActionMessageText(copy, buildMissingLoadoutItemsCopiedMessage(pendingItems.length)));
     } catch {
-      input.setLoadoutMessage("复制缺失清单失败，请检查系统剪贴板权限。");
+      input.setLoadoutMessage(loadoutText(copy, "复制缺失清单失败，请检查系统剪贴板权限。"));
     }
   }
 

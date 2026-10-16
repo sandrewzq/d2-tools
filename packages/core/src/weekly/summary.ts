@@ -1,3 +1,40 @@
+/**
+ * 周报里的一段展示文本。
+ *
+ * core 不认识界面语言，所以这里不写死译文，只产出 copy 表的 key 与取值，句子由渲染层
+ * 按当前语言现算。`literal` 为真表示 key 本身就是数据原文（活动名、里程碑名、目标名等），
+ * 渲染层原样输出、不进 copy 查表——否则「铁旗」这类会撞上 copy 里同名界面文本的键。
+ */
+export type WeeklyTextToken = {
+  key: string;
+  params?: Record<string, string | number>;
+  literal?: boolean;
+};
+
+/** 界面文案：`key` 是中文原文模板（取值处写 `{名字}`），取值放在 `params` 里。 */
+export function weeklyCopy(key: string, params?: Record<string, string | number>): WeeklyTextToken {
+  return params ? { key, params } : { key };
+}
+
+/** 数据原文：渲染层原样输出，不查表。空串返回 `undefined`，方便上层按「没这句」处理。 */
+export function weeklyLiteral(value: string | undefined | null): WeeklyTextToken | undefined {
+  const text = value?.trim();
+  return text ? { key: text, literal: true } : undefined;
+}
+
+/**
+ * 把 token 还原成不查表的中文原文（占位符用 `params` 填好），只给 core 内部做文本判定用
+ * （前缀剥离、类别正则、候选切分）。渲染层不要用它出屏。
+ */
+export function weeklyTokenSource(token: WeeklyTextToken | undefined | null): string {
+  if (!token) return "";
+  if (!token.params) return token.key;
+  return token.key.replace(/\{(\w+)\}/gu, (match, name: string) => {
+    const value = token.params?.[name];
+    return value === undefined ? match : String(value);
+  });
+}
+
 export type WeeklySourceStatus = "ready" | "pending";
 
 export type WeeklyPriorityKind =
@@ -9,9 +46,9 @@ export type WeeklyPriorityKind =
   | "special_event";
 
 export type WeeklySummaryItem = {
-  title: string;
-  subtitle?: string;
-  description?: string;
+  title: WeeklyTextToken;
+  subtitle?: WeeklyTextToken;
+  description?: WeeklyTextToken;
   source?: string;
   weeklyActivityKind?: WeeklyPriorityKind | "public_clue";
   /**
@@ -77,15 +114,15 @@ export type WeeklyIronBannerLootPool = {
 
 export type WeeklyIronBannerSummary = {
   status: "active" | "upcoming" | "inactive" | "unavailable";
-  title: string;
-  detail: string;
+  title: WeeklyTextToken;
+  detail: WeeklyTextToken[];
   starts_at?: string;
   ends_at?: string;
   next_refresh_at?: string;
   timing_source?: string;
-  activity_name?: string;
+  activity_name?: WeeklyTextToken;
   activity_icon?: string;
-  playlist_name?: string;
+  playlist_name?: WeeklyTextToken;
   evidence?: string;
   source?: string;
   related_hashes?: number[];
@@ -99,8 +136,8 @@ export type WeeklyIronBannerSummary = {
 };
 
 export type WeeklyActivityEntry = {
-  title: string;
-  detail?: string;
+  title: WeeklyTextToken;
+  detail?: WeeklyTextToken[];
   evidence?: string;
   source?: string;
   related_hashes?: number[];
@@ -118,8 +155,8 @@ export type WeeklyActivityEntry = {
 
 export type WeeklySummaryPriority = {
   status: WeeklySourceStatus;
-  title: string;
-  detail: string;
+  title: WeeklyTextToken;
+  detail: WeeklyTextToken[];
   evidence?: string;
   source?: string;
   entries?: WeeklyActivityEntry[];
@@ -201,7 +238,7 @@ export function buildWeeklySummary(
     },
     iron_banner: liveData.iron_banner ?? createUnavailableIronBanner(),
     public_clues: (liveData.public_clues ?? [])
-      .filter((item) => item.title.trim())
+      .filter((item) => weeklyTokenSource(item.title).trim())
       .slice(0, 4)
   };
 }
@@ -209,8 +246,8 @@ export function buildWeeklySummary(
 function createUnavailableIronBanner(): WeeklyIronBannerSummary {
   return {
     status: "unavailable",
-    title: "铁旗状态待确认",
-    detail: "登录 Bungie 并完成资料库初始化后读取当前铁旗轮换。",
+    title: weeklyCopy("铁旗状态待确认"),
+    detail: [weeklyCopy("登录 Bungie 并完成资料库初始化后读取当前铁旗轮换。")],
     characters: {
       available_count: 0,
       total_count: 0,
@@ -235,20 +272,20 @@ function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): We
     const pending = priorityLabels[kind];
     return {
       status: "pending",
-      title: pending.pendingTitle,
-      detail: pending.pendingDetail
+      title: weeklyCopy(pending.pendingTitle),
+      detail: [weeklyCopy(pending.pendingDetail)]
     };
   }
 
   return {
     status: "ready",
     title: extractPriorityTitle(kind, item),
-    detail: [item.subtitle, item.description].filter(Boolean).join(" · ") || "本周来源已确认。",
+    detail: detailTokens(item) ?? [weeklyCopy("本周来源已确认。")],
     evidence: item.source,
     source: item.source,
     entries: matchingItems.map((candidate) => ({
       title: extractPriorityTitle(kind, candidate),
-      detail: [candidate.subtitle, candidate.description].filter(Boolean).join(" · ") || undefined,
+      detail: detailTokens(candidate),
       evidence: candidate.source,
       source: candidate.source,
       related_hashes: candidate.related_hashes,
@@ -260,6 +297,13 @@ function buildPriority(kind: WeeklyPriorityKind, items: WeeklySummaryItem[]): We
   };
 }
 
+/** 行上的说明：副标题与描述各留一段，分隔符由渲染层按语言给。 */
+function detailTokens(item: WeeklySummaryItem): WeeklyTextToken[] | undefined {
+  const tokens = [item.subtitle, item.description]
+    .filter((token): token is WeeklyTextToken => Boolean(token));
+  return tokens.length ? tokens : undefined;
+}
+
 function isConfirmedPriorityItem(kind: WeeklyPriorityKind, item: WeeklySummaryItem): boolean {
   if (kind !== "rotating_raid" && kind !== "rotating_dungeon") {
     return true;
@@ -268,21 +312,32 @@ function isConfirmedPriorityItem(kind: WeeklyPriorityKind, item: WeeklySummaryIt
 }
 
 function weeklyItemText(item: WeeklySummaryItem): string {
-  return [item.title, item.subtitle, item.description, item.source].filter(Boolean).join(" ");
+  return [weeklyTokenSource(item.title), weeklyTokenSource(item.subtitle), weeklyTokenSource(item.description), item.source]
+    .filter(Boolean)
+    .join(" ");
 }
 
-function extractPriorityTitle(kind: WeeklyPriorityKind, item: WeeklySummaryItem): string {
+/**
+ * 行标题取活动名。剥离「Bungie 公共里程碑：」这类来源前缀后剩下的是数据原文，
+ * 所以一律按 `literal` 出，渲染层原样显示。
+ */
+function extractPriorityTitle(kind: WeeklyPriorityKind, item: WeeklySummaryItem): WeeklyTextToken {
   if (kind === "rotating_raid") {
-    return extractKnownActivityName(item, isKnownRaid) || sanitizeWeeklyText(item.title);
+    return titleToken(extractKnownActivityName(item, isKnownRaid) || sanitizeWeeklyText(weeklyTokenSource(item.title)));
   }
   if (kind === "rotating_dungeon") {
-    return extractKnownActivityName(item, isKnownDungeon) || sanitizeWeeklyText(item.title);
+    return titleToken(extractKnownActivityName(item, isKnownDungeon) || sanitizeWeeklyText(weeklyTokenSource(item.title)));
   }
-  return sanitizeWeeklyText(item.title);
+  return titleToken(sanitizeWeeklyText(weeklyTokenSource(item.title)));
+}
+
+/** 取不到名字就留空串：渲染层据此丢掉整行，不凭空补一句文案。 */
+function titleToken(value: string): WeeklyTextToken {
+  return weeklyLiteral(value) ?? { key: "", literal: true };
 }
 
 function extractKnownActivityName(item: WeeklySummaryItem, matcher: (value: string) => boolean): string {
-  const candidates = [item.subtitle, item.title, item.description, item.source]
+  const candidates = [weeklyTokenSource(item.subtitle), weeklyTokenSource(item.title), weeklyTokenSource(item.description), item.source]
     .filter((value): value is string => Boolean(value))
     .flatMap((value) => splitWeeklyActivityCandidates(value));
   return candidates.find((candidate) => matcher(candidate)) ?? "";
@@ -293,13 +348,13 @@ function splitWeeklyActivityCandidates(value: string): string[] {
     .split(/[；;，,、/]|\s+\/\s+/)
     .map((part) => part.trim())
     .map((part) => part.replace(/^非完整掉落地图[:：]?\s*/i, ""))
-    .map((part) => part.replace(/^Bungie\s*公共(?:里程碑|数据)[:：]?\s*/i, ""))
+    .map((part) => part.replace(/^Bungie\s*公共(?:里程碑|活动|数据)[:：]?\s*/i, ""))
     .filter(Boolean);
 }
 
 function sanitizeWeeklyText(value: string | undefined): string {
   return (value ?? "")
-    .replace(/^Bungie\s*公共(?:里程碑|数据)[:：]?\s*/i, "")
+    .replace(/^Bungie\s*公共(?:里程碑|活动|数据)[:：]?\s*/i, "")
     .replace(/^非完整掉落地图[:：]?\s*/i, "")
     .trim();
 }

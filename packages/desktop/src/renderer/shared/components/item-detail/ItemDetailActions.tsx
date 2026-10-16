@@ -154,7 +154,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                     sourceCharacterId,
                     sourceKind,
                     transferToVault: !isVaultItem
-                  }),
+                  }, copy),
                   item_id: selectedItem.instance_id ?? "",
                   item_reference_hash: selectedItem.hash,
                   item_name: selectedItem.name,
@@ -169,7 +169,7 @@ export function ItemDetailActions(props: ItemDetailActionsProps) {
                       sourceCharacterId,
                       sourceKind,
                       transferToVault: !isVaultItem
-                    }),
+                    }, copy),
                     target: isVaultItem ? "character-inventory" : "vault"
                   }
                 }

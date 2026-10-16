@@ -201,21 +201,22 @@ function ItemDetailReadyContent(
   // 推荐项只有一条来源路径：统一推荐模型产出的来源事实。
   // 装备目标不再挤进推荐区（它有「目标命中」这一处独立展示，也在装备目标库面板里管理）。
   const weaponRecommendations = useMemo(
-    () => isWeapon ? buildWeaponRecommendationViews(props.communityRecommendations, selectedItem) : [],
-    [isWeapon, props.communityRecommendations, selectedItem]
+    () => isWeapon ? buildWeaponRecommendationViews(props.communityRecommendations, selectedItem, props.copy) : [],
+    [isWeapon, props.communityRecommendations, props.copy, selectedItem]
   );
   const weaponSources = useMemo(
     () => buildWeaponSources(props.copy, selectedItem, props.itemAvailability),
     [props.copy, props.itemAvailability, selectedItem]
   );
   const weaponBaseModel = useMemo(() => buildWeaponDetailView({
+    copy: props.copy,
     selectedItem,
     pendingPerks,
     versions: props.itemVersions,
     versionsLoading: props.isItemVersionsLoading,
     sources: weaponSources,
     context: selectedItemLocationLabel ? { location_label: selectedItemLocationLabel } : undefined
-  }), [pendingPerks, props.isItemVersionsLoading, props.itemVersions, selectedItem, selectedItemLocationLabel, weaponSources]);
+  }), [pendingPerks, props.copy, props.isItemVersionsLoading, props.itemVersions, selectedItem, selectedItemLocationLabel, weaponSources]);
   const weaponModel = useMemo(() => weaponBaseModel ? {
     ...weaponBaseModel,
     recommendations: weaponRecommendations,
@@ -226,12 +227,13 @@ function ItemDetailReadyContent(
     [props.copy, props.itemAvailability, selectedItem]
   );
   const armorModel = useMemo(() => buildArmorDetailView({
+    copy: props.copy,
     selectedItem,
     sameNameItems: props.sameNameItems,
     localTargetRules: props.localTargetRules,
     equipmentTargetStore: props.equipmentTargetStore,
     sources: armorSources
-  }), [armorSources, props.equipmentTargetStore, props.localTargetRules, props.sameNameItems, selectedItem]);
+  }), [armorSources, props.copy, props.equipmentTargetStore, props.localTargetRules, props.sameNameItems, selectedItem]);
   // 所有来源同级：不再排除 DIM 来源，详情与仓库卡片使用同一份来源事实。
   const recommendationSourceMatches = useMemo(() => isWeapon ? mergeRecommendationSourceDetails(
     props.communityInstanceMatch?.source_matches ?? [],
@@ -697,7 +699,7 @@ function ItemDetailInstanceActions(input: {
       sourceCharacterId,
       sourceKind,
       transferToVault
-    }),
+    }, props.copy),
     item_id: selectedItem.instance_id ?? "",
     item_reference_hash: selectedItem.hash,
     item_name: selectedItem.name,
@@ -813,7 +815,7 @@ function ItemDetailInstanceActions(input: {
       return;
     }
     void api.createLoadoutTemplate({
-      name: `${selectedItem.name} 配装草稿`,
+      name: itemDetailTemplate(props.copy, "{name} 配装草稿", { name: selectedItem.name }),
       character_id: props.selectedActionCharacterId,
       class_name: character.class_name,
       equipped_items: [accountItem]

@@ -1,4 +1,6 @@
-import type { InterfaceLocale } from "../i18n/types.js";
+import { getLocaleCopy } from "../i18n/copy.js";
+import { shellTemplate, shellText } from "../shell/shellCopy.js";
+import type { InterfaceLocale, ShellCopy } from "../i18n/types.js";
 
 export type SystemUpdateTone = "neutral" | "pending" | "success" | "warning" | "error";
 export type SystemUpdateProgressVariant = "dock" | "inline" | "detail";
@@ -23,19 +25,18 @@ export type SystemUpdateProgressProps = {
 export function SystemUpdateProgress(props: SystemUpdateProgressProps) {
   const variant = props.variant ?? "inline";
   const tone = props.tone ?? "pending";
+  const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").shell;
   const progress = clampProgress(props.progressPercent);
   const isIndeterminate = Boolean(props.indeterminate && progress === undefined);
-  const metrics = formatProgressMetrics(props);
+  const metrics = formatProgressMetrics(props, copy);
   const compactMessage = variant === "dock"
     ? [props.message, metrics].filter(Boolean).join(" · ")
     : props.message;
   const progressLabel = progress === undefined
-    ? props.interfaceLocale === "en-US" ? "Update in progress" : "更新处理中"
-    : props.interfaceLocale === "en-US" ? `Update progress: ${progress}%` : `更新进度：${progress}%`;
+    ? shellText(copy, "更新处理中")
+    : shellTemplate(copy, "更新进度：{progress}%", { progress });
   const additionalTaskLabel = props.additionalTaskCount
-    ? props.interfaceLocale === "en-US"
-      ? `${props.additionalTaskCount} more`
-      : `另有 ${props.additionalTaskCount} 项`
+    ? shellTemplate(copy, "另有 {count} 项", { count: props.additionalTaskCount })
     : "";
 
   return (
@@ -87,7 +88,7 @@ function clampProgress(value: number | undefined): number | undefined {
   return Math.max(0, Math.min(100, Math.round(value)));
 }
 
-function formatProgressMetrics(props: SystemUpdateProgressProps): string {
+function formatProgressMetrics(props: SystemUpdateProgressProps, copy: ShellCopy): string {
   const locale = props.interfaceLocale ?? "zh-CN";
   const current = props.progressCurrentBytes;
   const total = props.progressTotalBytes;
@@ -96,9 +97,7 @@ function formatProgressMetrics(props: SystemUpdateProgressProps): string {
     ? ""
     : total && total > 0
       ? `${formatBytes(current, locale)} / ${formatBytes(total, locale)}`
-      : locale === "en-US"
-        ? `${formatBytes(current, locale)} downloaded`
-        : `已下载 ${formatBytes(current, locale)}`;
+      : shellTemplate(copy, "已下载 {bytes}", { bytes: formatBytes(current, locale) });
   const speedLabel = speed && speed > 0 ? `${formatBytes(speed, locale)}/s` : "";
   return [transferred, speedLabel].filter(Boolean).join(" · ");
 }

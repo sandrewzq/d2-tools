@@ -1,7 +1,9 @@
 export {
   buildCharacterLoadoutTemplateName,
   buildLoadoutItemActionFailureMessage,
+  buildLoadoutSlotActionCommandLabel,
   buildLoadoutSlotActionConfirmText,
+  buildLoadoutSlotActionFailedMessage,
   buildLoadoutSlotActionLabel,
   buildLoadoutSlotActionProgressMessage,
   buildLoadoutCopyMissingNoAccountMessage,

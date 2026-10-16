@@ -23,7 +23,6 @@ export function HomeDashboard(props: HomePageModelInput & {
     props.selectedCharacterId,
     props.selectedCharacterLabel,
     props.briefingFetchedAt,
-    props.diagnosticRows,
     props.diagnosticError,
     props.accountError,
     props.hasAccountData,

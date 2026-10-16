@@ -1964,7 +1964,7 @@ export function expandWeaponFamilyHashes(
   if (!base.length) return [];
   const index = indexWeaponIdentityRelations(identityRelations);
   const constraint = options?.variantConstraint ?? null;
-  const declaredSet = new Set(options?.declaredItemHashes ?? []);
+  const declaredSet = declaredItemHashSet(options?.declaredItemHashes);
   const expanded = new Set(base);
   const baseAmmoTypes = ammoTypesOf(base, options?.definitions);
   for (const itemHash of base) {
@@ -1984,6 +1984,25 @@ export function expandWeaponFamilyHashes(
     }
   }
   return [...expanded];
+}
+
+/**
+ * 「声明版本」集合的缓存。键取数组身份——一次导入里这个数组是同一个，换一份导入就换一个数组，
+ * 缓存自然失效，与 `indexWeaponIdentityRelations` 同一套做法。
+ *
+ * 不缓存的话每条规则的展开都要重建一遍这个 Set，总代价是「保留规则数 × 武器数」：
+ * 8000 把枪、每把两条规则的实测里，带这行 1808ms、不带 3ms。
+ */
+const declaredItemHashSets = new WeakMap<readonly number[], ReadonlySet<number>>();
+const emptyDeclaredItemHashes: ReadonlySet<number> = new Set();
+
+function declaredItemHashSet(declaredItemHashes: readonly number[] | undefined): ReadonlySet<number> {
+  if (!declaredItemHashes?.length) return emptyDeclaredItemHashes;
+  const cached = declaredItemHashSets.get(declaredItemHashes);
+  if (cached) return cached;
+  const set = new Set(declaredItemHashes);
+  declaredItemHashSets.set(declaredItemHashes, set);
+  return set;
 }
 
 /** 单版本插件池缓存。键是武器 hash；**一次导入配一个缓存**（换定义池就要换缓存）。 */

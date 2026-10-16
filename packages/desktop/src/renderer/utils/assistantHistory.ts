@@ -15,6 +15,11 @@ export type AssistantChatMessage = {
 export type AssistantHistoryEntry = {
   id: string;
   title: string;
+  /**
+   * 新记录写入页面 key（如 `vault`），渲染前再用 `shell.navigation` 出文案，这样切换界面语言后旧会话也会跟着变。
+   * 但历史记录是已落盘数据：老记录里这里可能还是中文页名字面量。读取时只能原样显示，
+   * 绝不能拿它当 key 去查表（查不到会渲染成空白或错误页名）。
+   */
   page_label: string;
   messages: AssistantChatMessage[];
   context_snapshots: AssistantContextSnapshot[];
@@ -110,6 +115,7 @@ function normalizeHistoryEntry(entry: Partial<AssistantHistoryEntryInput> | null
   return {
     id: String(entry.id),
     title: String(entry.title),
+    // 只做非空兜底：老记录里的中文页名与新记录里的页面 key 都原样保留，交给渲染层判断能不能查表。
     page_label: entry.page_label ? String(entry.page_label) : "未知页面",
     messages: entry.messages
       .filter((message) => message?.role === "user" || message?.role === "assistant")

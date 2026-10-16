@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildWeeklyLiveDataFromBungie, fetchWeeklyLiveData } from "../src/weekly/liveData";
-import { buildWeeklySummary } from "../src/weekly/summary";
+import { buildWeeklySummary, weeklyCopy, weeklyLiteral, weeklyTokenSource } from "../src/weekly/summary";
 
 describe("weekly summary", () => {
   it("does not treat persistent Iron Banner focusing vendors as an active event", () => {
@@ -47,7 +47,7 @@ describe("weekly summary", () => {
 
     expect(liveData.iron_banner).toMatchObject({
       status: "inactive",
-      title: "铁旗当前未开放",
+      title: { key: "铁旗当前未开放" },
       characters: { available_count: 0, total_count: 1 },
       loot_pool: { status: "ready" }
     });
@@ -105,7 +105,7 @@ describe("weekly summary", () => {
 
     expect(liveData.items?.map((item) => item.weeklyActivityKind)).not.toContain("rotating_raid");
     expect(liveData.public_clues?.map((item) => item.weeklyActivityKind)).toEqual(["public_clue"]);
-    expect(liveData.public_clues?.[0]?.subtitle).toContain("King's Fall: Standard");
+    expect(weeklyTokenSource(liveData.public_clues?.[0]?.subtitle)).toContain("King's Fall: Standard");
   });
 
   it("classifies Bungie milestone definitions into weekly priority data", () => {
@@ -132,16 +132,16 @@ describe("weekly summary", () => {
 
     expect(liveData.items?.map((item) => item.weeklyActivityKind)).toEqual(["nightfall"]);
     expect(liveData.public_clues?.map((item) => item.weeklyActivityKind)).toEqual(["public_clue"]);
-    expect(liveData.public_clues?.[0]?.title).toBe("Bungie 公共里程碑：国王的陨落");
+    expect(weeklyTokenSource(liveData.public_clues?.[0]?.title)).toBe("Bungie 公共里程碑：国王的陨落");
   });
 
   it("keeps unconfirmed public weekly activity items out of confirmed priorities", () => {
     const summary = buildWeeklySummary(new Date("2026-07-09T09:00:00.000Z"), {
       items: [
         {
-          title: "Bungie 公共里程碑：国王的陨落",
-          subtitle: "非完整掉落地图；国王的陨落: 标准",
-          description: "国王万岁",
+          title: weeklyCopy("Bungie 公共里程碑：{name}", { name: "国王的陨落" }),
+          subtitle: weeklyCopy("非完整掉落地图；{names}", { names: "国王的陨落: 标准" }),
+          description: weeklyLiteral("国王万岁"),
           source: "Bungie",
           weeklyActivityKind: "rotating_raid"
         }
@@ -150,11 +150,11 @@ describe("weekly summary", () => {
 
     expect(summary.priorities.rotating_raid).toMatchObject({
       status: "pending",
-      title: "轮换突袭待确认"
+      title: { key: "轮换突袭待确认" }
     });
     expect(summary.priorities.nightfall).toMatchObject({
       status: "pending",
-      title: "日落挑战待确认"
+      title: { key: "日落挑战待确认" }
     });
     expect(summary.weekly_reset.time_remaining_label).toContain("距离每周重置还有");
   });
@@ -235,12 +235,12 @@ describe("weekly summary", () => {
     });
     const summary = buildWeeklySummary(new Date("2026-07-09T09:00:00.000Z"), liveData, { timeZone: "Asia/Shanghai" });
 
-    expect(summary.priorities.nightfall.title).toBe("移民号的坠毁");
-    expect(summary.priorities.nightfall.detail).toBe("日落挑战");
+    expect(weeklyTokenSource(summary.priorities.nightfall.title)).toBe("移民号的坠毁");
+    expect(summary.priorities.nightfall.detail.map(weeklyTokenSource)).toEqual(["日落挑战"]);
     expect(summary.priorities.nightfall.entries?.[0]?.loot_pool?.map((reward) => reward.name)).toEqual(["崇拜"]);
-    expect(summary.priorities.rotating_raid.entries?.map((entry) => entry.title)).toEqual(["门徒誓约", "救赎的边缘"]);
-    expect(summary.priorities.rotating_dungeon.entries?.map((entry) => entry.title)).toEqual(["晚星之主", "二象性"]);
-    expect(summary.priorities.rotating_dungeon.entries?.map((entry) => entry.title)).not.toContain("平衡");
+    expect(summary.priorities.rotating_raid.entries?.map((entry) => weeklyTokenSource(entry.title))).toEqual(["门徒誓约", "救赎的边缘"]);
+    expect(summary.priorities.rotating_dungeon.entries?.map((entry) => weeklyTokenSource(entry.title))).toEqual(["晚星之主", "二象性"]);
+    expect(summary.priorities.rotating_dungeon.entries?.map((entry) => weeklyTokenSource(entry.title))).not.toContain("平衡");
   });
 
   it("merges character activity challenges before de-duplicating a dungeon", () => {
@@ -277,8 +277,8 @@ describe("weekly summary", () => {
 
     expect(liveData.items).toEqual([
       expect.objectContaining({
-        title: "守望者尖塔",
-        subtitle: "地牢挑战",
+        title: { key: "守望者尖塔", literal: true },
+        subtitle: { key: "地牢挑战" },
         weeklyActivityKind: "rotating_dungeon"
       })
     ]);
@@ -341,6 +341,6 @@ describe("weekly summary", () => {
       path: "/Destiny2/3/Profile/destiny-membership/?components=200,204",
       accessToken: "access-token"
     });
-    expect(liveData.items?.map((item) => item.title)).toEqual(["移民号的坠毁"]);
+    expect(liveData.items?.map((item) => weeklyTokenSource(item.title))).toEqual(["移民号的坠毁"]);
   });
 });

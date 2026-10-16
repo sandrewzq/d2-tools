@@ -6,6 +6,7 @@ import type {
   LibraryEquipmentResultView,
   LibraryManifestAlertModel,
   LibraryOwnershipEntry,
+  LibraryOwnershipLocationWorkspace,
   LibraryPageModel,
   LibraryPerkFilter,
   LibraryPerkRelatedFacet,
@@ -26,6 +27,7 @@ import {
 } from "@d2-tools/app/items";
 import { getLocaleCopy } from "../i18n/copy.js";
 import type { InterfaceLocale, ItemDetailCopy, LibraryCopy } from "../i18n/types.js";
+import { libraryTemplate, libraryText } from "./libraryCopy.js";
 import { weaponSocketColumnLabelText } from "../item-detail/itemDetailLabels.js";
 import type { VendorOfferContext } from "../item-detail/SharedItemDetailDialog.js";
 import { ItemDetailVendorContext } from "../item-detail/ItemDetailVendorContext.js";
@@ -81,15 +83,6 @@ export type LibraryPageContentViewProps = {
   model: LibraryPageModel;
   actions: LibraryPageActions;
 };
-
-function libraryText(copy: LibraryCopy, key: string): string {
-  return copy.inline[key] ?? key;
-}
-
-function libraryTemplate(copy: LibraryCopy, key: string, values: Record<string, string | number>): string {
-  return libraryText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
-    name in values ? String(values[name]) : match);
-}
 
 export function LibraryPageContentView(props: LibraryPageContentViewProps) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").library;
@@ -280,7 +273,7 @@ export function LibraryPageContentView(props: LibraryPageContentViewProps) {
                     setOpenFacetGroups((current) => ({ ...current, [facet.key]: nextOpen }));
                   }}
                 >
-                  <summary><strong>{libraryText(copy, facet.label)}</strong><small>{formatRelatedFacetHead(facet, selected)}</small></summary>
+                  <summary><strong>{libraryText(copy, facet.label)}</strong><small>{formatRelatedFacetHead(facet, selected, copy)}</small></summary>
                   {options}
                 </details>;
               }) : <p className="library-related-filter-hint">{expandedPerkRow
@@ -434,13 +427,15 @@ function buildManifestAlert(
     return null;
   }
   if (alert.kind === "error") {
+    // 上游错误原文也过一遍表：登记过的中文按当前语言出句，未登记的原文（例如 Bungie 的英文错误）原样透出。
+    const errorText = alert.error ? libraryText(copy, alert.error) : libraryText(copy, "未知错误");
     return {
       title: alert.hasUsableManifest
         ? libraryText(copy, "资料库后台更新失败")
         : libraryText(copy, "资料库状态读取失败"),
       message: alert.hasUsableManifest
-        ? `${alert.error ?? libraryText(copy, "未知错误")} ${libraryText(copy, "旧资料库仍可继续使用。")}`
-        : alert.error ?? libraryText(copy, "未知错误"),
+        ? `${errorText} ${libraryText(copy, "旧资料库仍可继续使用。")}`
+        : errorText,
       primaryAction: alert.hasUsableManifest ? "update" : "repair",
       statusLabel: libraryText(copy, "失败"),
       tone: "error",
@@ -885,8 +880,8 @@ function relatedFacetTone(facetKey: LibraryPerkRelatedFacetKey, value: string): 
 /** 取值超过这个数就默认收起——四个维度全摊开会把侧栏首屏全占满。 */
 const relatedFacetCollapseThreshold = 6;
 
-function formatRelatedFacetHead(facet: LibraryPerkRelatedFacet, selected: string): string {
-  if (selected === "all") return `${facet.options.length} 项`;
+function formatRelatedFacetHead(facet: LibraryPerkRelatedFacet, selected: string, copy: LibraryCopy): string {
+  if (selected === "all") return libraryTemplate(copy, "{count} 项", { count: facet.options.length });
   return facet.options.find((option) => option.value === selected)?.label ?? selected;
 }
 
@@ -1090,15 +1085,15 @@ export function LibraryDefinitionDialog(props: {
                   )}
                 </section>
                 {vendorArmorStats.length ? (
-                  <section className="library-definition-vendor-armor-stats" aria-label="当前售卖属性">
+                  <section className="library-definition-vendor-armor-stats" aria-label={libraryText(copy, "当前售卖属性")}>
                     <div className="library-definition-section-heading">
-                      <strong>当前售卖属性</strong>
-                      <span>总计 {vendorArmorStatTotal}</span>
+                      <strong>{libraryText(copy, "当前售卖属性")}</strong>
+                      <span>{libraryTemplate(copy, "总计 {count}", { count: vendorArmorStatTotal })}</span>
                     </div>
                     <div className="library-definition-vendor-armor-stat-list">
                       {vendorArmorStats.map((stat) => (
                         <div className="library-definition-vendor-armor-stat" key={stat.hash}>
-                          <span>{stat.label}</span>
+                          <span>{libraryText(copy, stat.label)}</span>
                           <b>{stat.value}</b>
                           <i style={{ width: `${Math.max(4, Math.min(100, stat.value / 30 * 100))}%` }} aria-hidden="true" />
                         </div>
@@ -1369,11 +1364,22 @@ function formatAcquisitionStatus(
   return libraryText(copy, "来源未知");
 }
 
+function formatOwnershipLocation(location: LibraryOwnershipLocationWorkspace, copy: LibraryCopy): string {
+  // 职业名是应用内规范化的文案（与首页 copy 表同一口径），不是上游原文，因此同样过表。
+  const label = location.characterClassName
+    ? libraryTemplate(copy, location.labelKey, { name: libraryText(copy, location.characterClassName) })
+    : libraryText(copy, location.labelKey);
+  return `${label} ${location.count} ${libraryText(copy, "件")}`;
+}
+
 function formatOwnership(ownership: LibraryOwnershipEntry | undefined, copy: LibraryCopy): string {
   if (!ownership || ownership.status === "unavailable") return libraryText(copy, "账号数据未读取");
   if (ownership.status === "not_owned") return libraryText(copy, "未拥有");
-  const locations = ownership.locations.map((location) => `${location.label} ${location.count} 件`).join(" / ");
-  return `${libraryText(copy, "已拥有")} ${ownership.totalCount} 件${locations ? ` · ${locations}` : ""}`;
+  const locations = ownership.locations
+    .map((location) => formatOwnershipLocation(location, copy))
+    .join(libraryText(copy, " / "));
+  const total = libraryTemplate(copy, "已拥有 {count} 件", { count: ownership.totalCount });
+  return `${total}${locations ? `${libraryText(copy, " · ")}${locations}` : ""}`;
 }
 
 function getLibrarySourceStatusClass(status: ItemSearchResult["source"]["status"]): string {

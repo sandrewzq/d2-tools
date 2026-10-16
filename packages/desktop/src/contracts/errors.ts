@@ -34,7 +34,8 @@ export const classifyWriteActionIpcError = createDomainClassifier("WRITE_ACTION"
 
 function createDomainClassifier(domain: string, fallback: string): DesktopIpcErrorClassifier {
   return (error) => {
-    const source = toServiceError(error, `${domain} 操作失败`);
+    // 兜底文案留空：这一层不知道界面语言，渲染层会按 `code` 或 copy 出文案。
+    const source = toServiceError(error, "");
     const suffix = suffixFor(source, fallback);
     return {
       code: `${domain}_${suffix}`,

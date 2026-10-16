@@ -9,6 +9,7 @@ import {
   type AccountPowerSlotKey
 } from "@d2-tools/core/account/power";
 import type { AccountItemSummary } from "@d2-tools/core/account/summary";
+import type { AccountTextToken } from "./accountTextToken.js";
 
 export type CharacterPowerSourceKind =
   | "equipped"
@@ -42,11 +43,13 @@ export type CharacterPowerValueView = {
   whole?: number;
   remainder?: number;
   denominator: 8;
-  label: string;
+  /** 光等分数或「数据不完整」的展示 token，由 UI 查表成句。 */
+  label: AccountTextToken;
   rows: CharacterPowerRowView[];
 };
 
 export type CharacterPowerView = {
+  /** 当前装备光等：恒为数字或 `-`（数据不完整时直接退回角色光等），不进 copy 表。 */
   currentLabel: string;
   maxEquippable: CharacterPowerValueView;
   executablePower: CharacterPowerValueView;
@@ -103,8 +106,9 @@ export function buildCharacterPowerView(
   const equippedPower = toPowerValueView(equippedSelection, character.class_name);
 
   return {
+    // 完整时 label 一定是数字原文（literal），直接取 key；不完整时退回角色光等或 `-`。
     currentLabel: equippedPower.complete
-      ? equippedPower.label
+      ? equippedPower.label.key
       : typeof character.light === "number"
         ? String(character.light)
         : "-",
@@ -203,9 +207,12 @@ function getAvailability(candidate: Candidate, characterClassName: string): Char
   return "transferable";
 }
 
-function formatPowerFraction(fraction: AccountPowerFraction): string {
-  if (!fraction.complete || typeof fraction.whole !== "number") return "数据不完整";
-  return fraction.remainder
-    ? `${fraction.whole} ${fraction.remainder}/8`
-    : String(fraction.whole);
+function formatPowerFraction(fraction: AccountPowerFraction): AccountTextToken {
+  if (!fraction.complete || typeof fraction.whole !== "number") return { key: "数据不完整" };
+  return {
+    key: fraction.remainder
+      ? `${fraction.whole} ${fraction.remainder}/8`
+      : String(fraction.whole),
+    literal: true
+  };
 }

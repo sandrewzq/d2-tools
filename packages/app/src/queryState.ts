@@ -12,6 +12,10 @@ export const idleQuery = <TData>(): QueryState<TData> => ({
   error: null
 });
 
+/**
+ * 归一化查询失败。兜底文案留空：这一层不知道界面语言，
+ * 空 message 由渲染层按 copy 兜底，不让中文从领域层漏到英文界面。
+ */
 export async function runQuery<TData>(loader: () => Promise<TData>): Promise<QueryState<TData>> {
   try {
     return {
@@ -23,7 +27,7 @@ export async function runQuery<TData>(loader: () => Promise<TData>): Promise<Que
     return {
       status: "error",
       data: null,
-      error: toServiceError(error)
+      error: toServiceError(error, "")
     };
   }
 }

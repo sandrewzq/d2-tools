@@ -1,7 +1,8 @@
 import type {
   WeeklyActivityCharacterState,
   WeeklyIronBannerSummary,
-  WeeklyPriorityKind as CoreWeeklyPriorityKind
+  WeeklyPriorityKind as CoreWeeklyPriorityKind,
+  WeeklyTextToken
 } from "@d2-tools/core/weekly/summary";
 
 export type WeeklyApi = {
@@ -18,17 +19,17 @@ export type WeeklyPriorityKind = CoreWeeklyPriorityKind;
 
 export type WeeklySummaryPriority = {
   status: WeeklySourceStatus;
-  title: string;
-  detail: string;
+  title: WeeklyTextToken;
+  detail: WeeklyTextToken[];
   evidence?: string;
   source?: string;
   entries?: WeeklyActivityEntry[];
 };
 
 export type WeeklySummaryItem = {
-  title: string;
-  subtitle?: string;
-  description?: string;
+  title: WeeklyTextToken;
+  subtitle?: WeeklyTextToken;
+  description?: WeeklyTextToken;
   source?: string;
   weeklyActivityKind?: WeeklyPriorityKind | "public_clue";
   related_hashes?: number[];
@@ -44,8 +45,8 @@ export type WeeklyActivityReward = {
 };
 
 export type WeeklyActivityEntry = {
-  title: string;
-  detail?: string;
+  title: WeeklyTextToken;
+  detail?: WeeklyTextToken[];
   evidence?: string;
   source?: string;
   related_hashes?: number[];

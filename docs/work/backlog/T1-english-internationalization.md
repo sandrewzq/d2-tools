@@ -376,11 +376,656 @@ D1 `ItemDetailCopy` 类型与 copy 骨架 → D2 对话框外壳（`SharedItemDe
 - 让配装页真正消费已有 `loadoutsCopy`，补齐编辑器、比较、迁移和执行状态。
 - 迁移 AI 助手面板及 Desktop 传入的状态文本，确保配置缺失、上下文载入和服务失败可理解。
 
+#### 阶段 C 实施记录：配装页外壳与游戏内配装栏 + AI 助手面板（2026-10-13）
+
+已迁移：
+
+- 配装页页面外壳：导航离开确认、顶层操作状态条、角色/视图分段控件、新建配装菜单、应用配装与游戏内配装两个模式的入口说明。
+- 装备数据条 `InGameAccountFreshness`：同步中、可能过期、用上次数据、已同步、待确认、来源与更新时间。
+- 游戏内配装栏：左栏列表、槽位详情头、官方槽位操作组、配装辅助操作组、分组列表、槽位为空、页脚边界说明。
+- 游戏内配装行与核对摘要：定位状态、装备标识/定义回退、配置摘要、展开后的「当前位置/配置类型/已确认配置/核对结果/装备操作」，以及右栏「应用前核对」三条计数与引导句。
+- 装备选择抽屉：标题、搜索、位置筛选、结果计数、整行操作、空态与配置摘要。
+- 官方标识编辑器与槽位选择器：配装槽/图标/颜色编号、覆盖确认、保存到槽位。
+- AI 助手面板 `AiAssistantPanelView` 的全部静态文案：未配置引导、工具条、上下文 chip、空态、快捷问题、输入框、会话列表与上下文抽屉。
+- Desktop 侧的助手状态文本：快照时间标签、会话标题、上下文 chip、能力结果引用、聊天失败与快照时间格式。
+- `AI 助手` 常用问题从 Desktop 组件常量搬进 `shellCopy.assistant.quickPrompts`，中英各一份。
+
+新增的 copy 契约：
+
+- `LoadoutsCopy.labels` 增加 `armorStats` / `armorSlots`，作为护甲属性与部位名的唯一来源；本切片先给装备选择抽屉的配置摘要使用。
+- `ShellCopy.assistant` 增加 `inline`、`quickPrompts`、`formatDateTime`；`inline` 沿用 zh-CN 留空、key 即中文原文的兜底表口径。
+- 新增 `packages/ui/src/assistant/assistantCopy.ts`，导出 `assistantText` / `assistantTemplate`，已从 `@d2-tools/ui` 导出。
+- 新增 `interfaceLocale` 接线：`useDesktopProductShell` → `GlobalAssistantSidebar` → `AiPage` → `AiAnalysisPanel` → `AiAssistantPanelView`；Web 预览在 `main.tsx` 直接传 copy。
+
+本切片未动，留给后续：
+
+- 护甲规划器整片（`LocalPlanEditor` 的规划面板、属性模组规则、优先属性、碎片调整、套装与库存约束、候选列表与比较、决策摘要）。`armorStatLabel` / `armorSlotLabel` 仍是中文 helper，转成 `copy.labels` 查表要同时改约 20 处调用点。
+- 应用配装的方案库、详情、编辑器、比较页，以及槽位名当身份用的 `standardLoadoutSlots` / `standardSlotKey`。
+- app 侧产出的展示串（`status_label`、`wear_label`、`source.label`、`wear_block_reasons`、`selection_message`、`column.title/subtitle`）仍是中文，UI 只是原样渲染。
+- `join("、")` 这类列举分隔符仍按中文习惯拼接；这次没有为它新开 copy 字段，留在阶段 D 一起定。
+- 两个孤儿组件（`VaultDuplicateGroups.tsx`、`VaultTargetRulesPanel.tsx`）的去留仍未定。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 C 实施记录：应用配装与对比表的 app 侧文案 token 化（2026-10-14）
+
+这一刀切掉的是上一节最后一条遗留：app 直接把中文展示串塞进视图模型，UI 只负责原样渲染。改法是前面几个切片已经用熟的 `VaultFilterFactToken` 那套——**不透明值通过参数带走，枚举改成判别联合由 UI 查表**；回退逻辑跟着搬到 UI，保证 zh-CN 渲染逐字节不变。
+
+app 侧改动：
+
+- `loadoutCrossSource.ts`：`CrossSourceLink` 从 `{ tone, label }` 改成只报事实的 `{ tone, kind }` 四态（`no-matching-slot` / `in-game-slot` 带 `slot_index` / `equipped-now` / `equippable-for` 带 `class_name`）。顺带把槽位归一化从「中文串当 key」换成 `normalizeCompareSlot` 返回 `{ key, slot }`，其中 `slot` 是 `{ kind: "known", slot: LoadoutCompareSlotKey }` 或 `{ kind: "custom", key, label }`；认槽位的正则仍按中英双语匹配，因为 `bucketLabels` 给子职业 bucket 起的中文名「职业分支」还得能认出来。
+- `applicationLoadoutWorkspace.ts`：新增 11 个 token 类型——`ApplicationLoadoutWearLabel`、`ApplicationLoadoutItemStatus`、`ApplicationLoadoutWearBlockReason`（九态，计数走字段）、`ApplicationLoadoutSelectionMessage`（三态）、`ApplicationLoadoutCompareEmpty`、`ApplicationLoadoutCountUnit`、`ApplicationLoadoutPlugGroupKey` / `PlugGroup`、`ApplicationLoadoutCompareValue`（十四个变体，含嵌套的 `series` / `plug-groups`）、`ApplicationLoadoutCompareRowLabel`、`ApplicationLoadoutCompareColumnTitle` / `Subtitle`。视图模型的 `source_label`、`status_label`、`wear_label`、`wear_block_reasons`、`selection_message`、`cell.value` / `cell.detail`、`column.title` / `subtitle` 全部换成 token。
+- 删掉 `armorStatLabel`、`armorSlotLabel`、`applicationLoadoutSourceLabel`、`formatArmorSetConstraint`、`formatSubclassPlugHashGroups`、`formatApplicationSubclassConfiguration`（及两个 detail 变体），换成 `applicationSubclassConfigurationCounts` / `applicationSubclassConfigurationDetail` / `inGameSubclassConfigurationDetail` / `armorSetConstraintValue` 这些只产出 token 的函数。
+- 对比表的 `fingerprint` 保持字符串，和取值 token 分开：差异检测比的是 `state:fingerprint` 组合，不能被展示文案带偏。哨兵值从 `未设置` / `未返回` / `无` 换成 `unset` / `unavailable` / `none`。
+- `loadouts.ts` 补齐上面全部类型的重导出。
+
+UI 侧改动：
+
+- `LoadoutsPageContentView.tsx` 新增 11 个查表函数（来源、穿戴标签、装备状态、阻断原因、选择提示、跨来源标记、槽位名、列标题、列副标题、行标签、单元格取值）和两张记录表 `compareCountTemplates`、`comparePlugGroupLabels`；渲染点逐个改成调函数。
+- 计数单位逐单位一条模板，不拼 `{count} {单位}`：中文量词贴数字、英文要复数形式，拼出来的固定词头两边都不对。
+- 单元格 `detail` 复现 app 原来的 falsy 判断，展开后文本为空就不渲染 `<small>`。
+- `packages/ui/src/i18n/copy/loadouts.ts` 补 78 个 en-US `inline` 键，现在共 756 键、无重复。
+
+两处有意的 zh-CN 文案变更（不是等价迁移，需要单独验收）：
+
+1. `armor:mode` 对比单元格原先直接渲染 `owned` / `theoretical` 原始枚举值，现在走 `armorPlannerModeLabel` 查表，中文从 `owned` 变成「当前库存」。这是修泄漏，中英界面都受影响。
+2. 对比表的属性名统一取 `copy.labels.armorStats`，中文 `生命` → `生命值`、`职业技能` → `职业`。同一个 `& 装备` 位置上原来有三处写法不一致，这一刀统一成同一份。
+
+顺带统一：游戏内行的 `+5 属性模组数量` 标签确认不可达（对比需至少 2 个方案，应用侧投影总是先捕获），合并成单个 `armor-mod-count` token。
+
+本切片未动，留给后续：
+
+- app 侧其余配装文案：`loadoutItemStatus.ts`（约 34 处）、`localsLoadoutPlanWorkbench.ts`（约 36 处）、`loadoutTransfer.ts`（约 8 处）、`loadoutViewModel.ts`（约 17 处）、`loadoutsPage.ts`（约 26 处）。其中 `loadoutViewModel.ts` 里的 `LoadoutCompareRow` 和 `loadoutsPage.ts` 的 `subtitle` / `statusLabel` / `preview` / `formatInGameLoadoutSlotPreview` 目前没有 UI 消费者，但 `packages/app/test/loadouts-page-workspace.test.ts` 会断言后四个，动之前先确认取舍。`loadoutActions.ts` 已由下一节处理。
+- `loadoutActionFeedback.ts` 的 `actionLabels` 记录和 `getLoadoutActionButtonLabel` 无消费者，属死代码，留着没影响。
+- 护甲规划器整片（`LocalPlanEditor` 的规划面板本体）。
+- `join("、")` 这类列举分隔符，仍按中文习惯拼。
+- 两个孤儿组件（`VaultDuplicateGroups.tsx`、`VaultTargetRulesPanel.tsx`）的去留仍未定。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 C 实施记录：配装写操作回执链 token 化（2026-10-14）
+
+上一节把视图模型里的展示串换成了 token，写操作的回执那时还留在 app 侧。这一刀把配装写操作接进同一条链：app 出 token，UI 查表成句，Desktop 钩子只负责取 copy。
+
+app 侧改动：
+
+- `loadoutActions.ts` 的文案函数全部改成返回 token。`LoadoutActionMessageToken` 24 态：模板保存 / 删除 / 重命名、转移计划已复制、无目标角色、账号缺失、全部就绪、缺失件已复制、槽位动作进行中与失败、无可用动作、补齐准备、补齐步骤进度、补齐结果、单件补齐的通知 / 开始 / 取消 / 无目标 / 步骤进度 / 结果、单件装备的两类受阻与进行中、单个物品动作失败。`LoadoutConfirmToken` 4 态（槽位动作、批量补齐、单件转移、单件装备）；`LoadoutActionResultPart` 4 态（已转移 / 已自动装备 / 已准备 / 已阻断），`loadoutResultParts` 只保留非零计数。槽位动作名单独抽成 `LoadoutSlotActionLabelToken`，进度句和失败句都要复用它。角色默认模板名改由 `buildCharacterLoadoutTemplateName` 返回 `LoadoutTemplateNameToken`。
+- `highestPower.ts` 的 4 个 builder 返回 `HighestPowerMessageToken`。`plan.summary`、`buildHighestPowerConfirmText`、`formatHighestPowerSource` 保持中文未动——这三个已经没有产品消费者。
+- 两条「没有可用角色」的文案没有合并：`buildLoadoutTemplateTransferNoTargetMessage`（无法生成转移计划）和 `buildSingleLoadoutTransferNoTargetMessage`（无法补齐这件装备）措辞不同，中文回退要逐字一致，所以拆成 `no-target-character` 与 `single-transfer-no-target` 两个 token。
+- 剪贴板文本保持中文未动：`buildLoadoutTemplateTransferClipboardText`、`buildMissingLoadoutItemsText`，理由与仓库侧的分享文本一致。
+
+UI 侧改动：
+
+- 新增 `packages/ui/src/loadouts/loadoutActionCopy.ts`，导出 `loadoutSlotActionLabelText`、`loadoutTemplateNameText`、`loadoutActionMessageText`、`loadoutConfirmText`、`highestPowerMessageText`。同一处补上 `loadoutText` / `loadoutTemplate` 的包入口导出：这两个函数 UI 内部一直在用，`packages/ui/src/index.ts` 却没导出，而 Desktop 已经在 import。
+- 结果片段的连接符走 `loadoutText(copy, "，")`，不在渲染器里写死中文标点。步骤进度按阶段分成五条模板，用「有没有 `count` 字段」区分整段进度和单件进度。
+- `packages/ui/src/i18n/copy/loadouts.ts` 的 en-US `inline` 从 756 键增到 859 键、无重复。另外补了两条纯占位骨架键 `{mode} · {stat}`、`{group} {hashes}`：key 和译文都是占位符，缺了照样渲染，但留空会让「哪些串已经入表」这件事说不清。
+
+Desktop 侧改动：
+
+- `useLoadoutTemplateActions.ts`、`useLoadoutWriteActions.ts` 的入参增加 `copy: LoadoutsCopy`，由 `useDesktopProductWriteActions` 传 `getLocaleCopy(interfaceLocale).loadouts`；两处内联中文和全部回执文案改成查表。
+- 写操作状态条原先靠 `props.message.includes("失败")` 反推色调，英文回执里没有「失败」两个字，一换语言错误色就失灵。改成产出方直接给色调：`setLoadoutMessage(message, tone)` 多带一个参数，`useDesktopProductWriteActions` 多返回 `loadoutMessageTone`，经 provider、`LoadoutsPage` 透传到 `LoadoutsPageContentView`，Web 预览 fixture 补 `messageTone="info"`。
+
+配套改动：
+
+- `packages/app/test/highest-power-workspace.test.ts` 的两组断言从比对中文串改成比对 token 结构。这是更新既有断言，不是新增测试。
+
+本切片未动，留给后续：
+
+- `localLoadoutPlanWorkbench.ts` 的展示串目前**没有 UI 消费者**：`selectLocalLoadoutPlanWorkbench` 的结果经 `localPlanWorkspace` 传进 `LoadoutsPageContentView` 后从未被读取，`entries` / `item_rows` / `status_label` / `source_label` 都不出屏。同一文件的 `createEmptyLocalLoadoutPlanDraft` 等函数产出的方案名和 `source.label` 是写进本地存储的数据，不是临时回执。
+- `未限定职业` 是 `packages/core/src/loadouts/dimImport.ts` 产出的哨兵，跟着 `class_name` 字段参与比较（`useLocalLoadoutPlans.ts` 三处）。它和「泰坦 / 猎人 / 术士」同族，而职业名本身取自游戏数据；换哨兵会动到已存方案的 `class_name`。
+- **需要产品决定的一类**：方案名、装备目标名与 `note`、`guidance.warnings` / `evidence`、`source.label`，以及写进操作日志的 `verificationMessage`，都是产出入库的串。让它们跟随界面语言，等于让落盘数据带语言；不跟随，英文界面里这些位置就仍是中文。剪贴板文本已经选了「不跟随」，这一类需要同一个口径。
+- `LoadoutsPageContentView` 还有两处按 `includes("失败")` 判色的地方——护甲待刷反馈和装备选择抽屉的回执。它们属于还没迁的护甲规划器那一刀，色调问题跟语言迁移一起解决。
+- `loadoutItemStatus.ts`（约 34 处）、`loadoutsPage.ts`、`loadoutViewModel.ts` 的 `LoadoutCompareRow`、`loadoutTransfer.ts` 的 `describeMissingLoadoutBlockedReason`、`loadoutActionFeedback.ts` 的 `actionLabels` 都确认没有产品消费者。
+- 护甲规划器整片（`LocalPlanEditor` 的规划面板本体仍在 Desktop 侧拼中文标签写进装备目标）。
+- 两个孤儿组件（`VaultDuplicateGroups.tsx`、`VaultTargetRulesPanel.tsx`）的去留仍未定。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 C 实施记录：本地方案编辑器的临时回执跟随界面语言（2026-10-14）
+
+这一刀只动「出屏即弃」的回执，落盘数据一律不碰。
+
+- `useLocalLoadoutPlans.ts` 的入参增加 `copy: LoadoutsCopy`，由 `useDesktopProductShell` 传 `getLocaleCopy(diagnostics.languagePreferences.interfaceLocale).loadouts`；用到 `copy` 的 8 个 `useCallback` 一并补依赖（`getLocaleCopy` 返回按 locale 缓存的对象，引用稳定，不会把回调刷成每次新建）。
+- 改成查表的文案：读取失败、DIM 完整链接导入失败、攻略源没有正文、攻略分析失败、未保存就执行、目标角色不在快照里、方案职业与目标角色不符、无可执行步骤与缺口列表、穿戴确认框（含缺口提示行）、执行前账号刷新与复核、执行后逐步失败与未通过核对、保存到游戏内槽位的确认框与复核、保存 / 另存 / 删除的失败兜底、DIM 预览里「有几件不属于配装槽位」的说明。
+- 列表分隔符 `；` 也进表。中文用全角分号，英文用 `; `。
+- `packages/ui/src/i18n/copy/loadouts.ts` 的 en-US `inline` 从 859 键增到 890 键、无重复。
+
+这一刀划定的边界，未动并留下记录：
+
+- 方案名（`攻略配装`、`AI 装备目标`、另存时的 `${name} 副本`）、`source.label`、`guidance.warnings` / `evidence`、`buildExecutionVerificationMessage` 与游戏内槽位保存验证文案、`未限定职业` 哨兵，全部保持中文。它们会写进本地方案或操作日志，跟随界面语言等于让落盘数据带语言；剪贴板文本已经选了「不跟随」，同类文本要同一个口径。确定口径后这批可以按同一套 token 方式再迁一遍。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 C 实施记录：护甲反馈色调与武器占位判据（2026-10-14）
+
+护甲规划器这一刀的实际残留比预估少。`useArmorPlannerWorkspace.ts`、`armorPlannerViewModel.ts`、`armorPlannerContracts.ts` 各 0 处中文，`armorPlannerWorkspace.ts` 只有 1 处；`LocalPlanEditor` 面板文案大多早已走 `loadoutText(editorCopy, ...)`。真正要处理的只剩三处「靠中文字面判判据」的嗅探，加上一处键写错。
+
+- `LoadoutsPage.tsx` 的 DIM 导出反馈和护甲待刷反馈原先按 `message.includes("失败")` 反推色调，英文文案里没有「失败」两个字。改成产出方直接给：状态拆成 `dimExportFeedback` / `dimExportTone`、`armorTargetFeedback` / `armorTargetTone`，两个 setter 多带一个 `tone: "info" | "error" = "info"` 参数，失败路径显式传 `"error"`。两个 `useEffect` 依赖补上 setter。
+- `LoadoutsPageContentView.tsx` 新增 `localPlanDimExportTone`（必填）与 `armorTargetTone?`（可选）两个 props，`DimExportPanel` 也加 `tone` prop，两处调用点传入；`data-status` 由 props 决定，不再嗅探文案。
+- 装备图标缺失时的占位字母靠 `bucketName.includes("武器")` 判断是武器还是护甲。`bucket_name` 是接口给的显示名，跟着接口语言变，只认中文的话英文账号下所有武器都会显示成 A。改为 `isWeaponBucketName()`，中英两套词都认（武器 / weapon、动能 / kinetic、能量 / energy、威能 / power、重型 / heavy）。
+- `packages/ui/src/i18n/copy/loadouts.ts` 里 xiaoheihe 占位串的 key 被写成了双反斜杠 `\\n\\n`，调用点是真换行 `\n\n`，运行时永远匹配不上，英文界面这一段静默退回中文。已改回单反斜杠。扫描其余 copy 表，没有同类的双写转义。
+- `packages/web/src/main.tsx` 的预览 fixture 补 `localPlanDimExportTone="info"`。
+
+仍在护甲这一片、但这次不动的：
+
+- `armorSlotLabel` / `armorStatLabel` 产出的装备目标数据（`name` / `bucket_name` / `tuning_label` / `note`）属于落盘写入，按上一节划的边界保持中文。
+- `packages/services/src/errors.ts:57` 的 `toServiceError(error, fallbackMessage = "操作失败")` 是全应用共用的中文兜底，护甲规划处传 `"护甲规划失败"`。它属共享层、影响面覆盖所有菜单，只记录不改，留给阶段 D 统一处理。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 C 勘察记录：app 侧无消费者文案盘点（2026-10-15）
+
+前几节多次提到「这批串没有产品消费者」，这一节是逐个符号的核对结果。结论：**确认无消费者，但本次不删**——删除属于清理动作，与语言迁移是两件事，等去留定了再单独做。核对方式是对每个符号全仓 grep（排除 `dist/`）看引用点。
+
+确认无消费者：
+
+- `getLoadoutActionButtonLabel`（UI 与 Desktop 各一份拷贝）。两份都只被自己引用；`useLoadoutActionFeedback.ts` 只用到同文件的 `LOADOUT_ACTION_FEEDBACK_TIMEOUT_MS` 和 `LoadoutActionFeedbackState` 类型。中文串是 `只补这一件 / 补齐中... / 已补齐 / 只装备这一件 / 装备中... / 已装备`。
+- `loadoutItemStatus.ts` 的产出字段。`badge_label` / `summary_label` / `location_label` / `guidance_label` / `guidance_hint` 只有测试和 Web fixture 在引用，而 fixture 是自己另造一份 mock 对象，不是调用这个函数。共享页面 `LoadoutsPageContentView` 只从 `model.entries` 读 `source` / `characterId` / `id` 三个字段，标签类字段一个都没出屏。
+- `LoadoutCompareRow`（`loadoutViewModel.ts`）与它喂的两条 `loadoutsPage.ts` 产物 `visibleCompareRows` / `visibleRows`。共享页面读的 `model` 字段是 `entries` / `selectedDetail` / `selectedEntryId`，`visibleCompareRows` / `visibleRows` 一次都没被读。桌面侧 `loadoutViewModel.ts` 只是转出口。
+- `describeMissingLoadoutBlockedReason` 经 `getLoadoutItemBlockedDetails` 进模型，但该结果在 `loadoutsPage.ts:414` 取出后同样没有下游读者。
+- `selectLocalLoadoutPlanWorkbench` 的整个视图模型：函数本身活着（`useLocalLoadoutPlans.ts:155`、`web/src/main.tsx:180` 都在调），但结果从 `LoadoutsMenuProvider` 一路当 `localPlanWorkspace` prop 传到 `LoadoutsPageContentView:165`，页面里除了这一行声明再无第二处引用。
+- `VaultDuplicateGroups.tsx`、`VaultTargetRulesPanel.tsx`：除了自身定义和 `dist/` 产物，没有任何引用点，`packages/ui/src/index.ts` 也没导出。
+- `renderer/components/DiagnosticsPanel.tsx`：组件本身没有消费者；导出的 `buildDiagnosticRows` 被 `useHomePageDerivedState.ts` 调用，但它产出的 `diagnosticRows` 在 `HomePageContentView.tsx:152` 只有类型声明、没有读取，Web fixture 也只传了 `[{ tone: "warning" }]`。整条链不出屏。
+
+**要更正的一点**：`loadoutsPage.ts` 这个文件整体并不死。它的主选择器 `selectLoadoutsPageModel` 被 `LoadoutsPage.tsx:201` 和 Web fixture 真实使用，`LoadoutsItemStatus` 之外的模型字段（`entries` / `selectedDetail` / `selectedEntryId`）也确实出屏。此前把它整个列进「死代码」不准确，死的只是上面点名的那几个字段和辅助函数。
+
+需要说明的另一处：`packages/services/src/errors.ts:57` 的 `toServiceError(error, fallbackMessage = "操作失败")` 是活代码，只是兜底文案是中文。它被所有菜单共用，改它属于共享层改动，不在菜单切片范围内。
+
+另外记一笔本次勘察中发现的同类问题：`actionLogResultLabel` 有两份（`packages/core/src/actions/log.ts:156`、`diagnosticsModel.ts:268`），UI 侧 `SettingsPageContentView.tsx:682` 的 `actionLogStatusLabel` 是第三份。三份都靠 `/请求已受理|正在确认/.test(entry.message)` 判「已受理」。这条消息由主进程写进操作日志、属于落盘数据，按现口径固定中文，所以嗅探暂时稳定，**不是当前的语言 bug**。但它把日志文案和状态判定绑在一起：主进程文案一改，「已受理」就静默失灵。真要修，应该在日志条目上补一个持久化状态字段，让判定不再读文案——这属于数据模型改动，不在本次范围。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 勘察记录：平台壳与主进程残留规模（2026-10-15）
+
+阶段 D 原先写的是「清理 Desktop/Web adapter 中残留的产品中文文案」，实测下来这块比一句话大得多，需要单独拆阶段。
+
+按「非注释行里出现中日韩字符」粗筛（排除 `node_modules` / `dist`），`packages/desktop/src` 与 `packages/web/src` 合计 **1356 行、91 个文件**。最多的几个文件：Web 预览 fixture（202 行）、`ItemDetailModal.tsx`（76）、`useLocalLoadoutPlans.ts`（63，大部分是已划定的落盘数据）、`main/ipc/actions.ts`（54）、`useItemDetailWorkspace.ts`（51）、`diagnosticsModel.ts`（49，本次已处理）、`useDesktopProductShell.tsx`（46）、`useAccountWorkspace.ts`（42）。
+
+拆开看，这 1356 行至少分四类，不能一起迁：
+
+1. **主进程文案**（`packages/desktop/src/main/**`）。这部分经 `toServiceError` 或 IPC 返回值上屏，但主进程并不持有 `@d2-tools/ui` 的 copy 表。要让它们跟着界面语言走，得先把 locale 传进主进程，或改成主进程只回 `kind`、渲染层查表——是架构改动，不是文案替换。
+2. **剪贴板与落盘文本**。`buildDataBackupGuide`、`buildActionDiagnosticText`、`buildAppUpdateDiagnosticText`、`itemShare` / `dailyShare` 一类，已按前几节的口径定为固定中文。
+3. **fixture 与模拟数据**。`createVisualAppUpdateSnapshot` 的模拟状态文案、Web 预览 fixture 的示例内容，阶段 D 的约定允许它们保留。
+4. **真正该迁的渲染层临时回执**。本次设置切片处理的就是这一类。
+
+设置切片已迁（详见下一节）。剩下的第 4 类散落在 items 详情、账号、商人、资料库、主页快捷键等 Desktop 私有组件里，需要按菜单逐个做。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：设置菜单的渲染层临时回执（2026-10-15）
+
+这一刀只动设置菜单渲染层里「出屏即弃」的回执，口径与前面几节一致。
+
+- 新增 `packages/ui/src/settings/settingsCopy.ts`，导出 `settingsText` / `settingsTemplate`，并从 `packages/ui/src/index.ts` 导出。`SettingsPageContentView.tsx` 原本私有一份 `settingsText`，改为 import 同一个实现，不留第二份定义。
+- `diagnosticsModel.ts` 入参增加 `copy: SettingsCopy`；模块级函数 `loadActionLog` / `copyDiagnosticsExport` / `copyDataBackupGuide` / `copyActionDiagnostic` 也都加上 `copy` 参数。迁走 11 条：状态诊断失败、颜色模式保存失败、信息密度保存失败、语言设置已保存、语言设置保存失败、操作日志读取失败、已复制脱敏诊断导出、诊断导出失败、已复制备份/迁移说明、已复制操作诊断、复制失败请检查剪贴板权限。
+- `useAppUpdateFlow.ts` 入参增加 `copy`，迁走 10 条更新流程回执与失败兜底。
+- `useDiagnosticsSettings.ts` 入参增加 `copy`，透传给上面两处，并迁走 `runConfigBackupAction` 的「配置操作失败」。
+- `useDesktopProductShell.tsx` 接线时有个坑：`diagnostics.languagePreferences` 要等 `useDiagnosticsSettings` 返回才有，而 copy 得在调用它之前算出来，所以这里只能取启动状态里的 `props.state.languagePreferences.interfaceLocale`。文件里原有的「copy 必须在使用点之前声明」注释就是提醒同类问题。
+- `packages/ui/src/i18n/copy/settings.ts` 的 en-US `inline` 从 372 键增到 394 键、无重复。
+
+有意留在中文的：
+
+- `buildDataBackupGuide`、`buildActionDiagnosticText`、`buildAppUpdateDiagnosticText`：复制到剪贴板的文本，按前面的口径不跟随界面语言。
+- `createVisualAppUpdateSnapshot`：视觉测试模式的模拟快照，只在 `VITE_D2_VISUAL_UPDATE_STATUS` 下生效，属于允许保留中文的 fixture。
+- `actionLogResultLabel`：只服务于剪贴板诊断文本，且判定要读主进程写的日志消息，理由见上一节。
+
+顺带发现：`renderer/components/DiagnosticsPanel.tsx` 整个组件没有消费者，只有它导出的 `buildDiagnosticRows` 被 `useHomePageDerivedState.ts` 调用；而 `buildDiagnosticRows` 产出的 `diagnosticRows` 在 `HomePageContentView.tsx:152` 只有声明、没有任何读取，Web fixture 还只传了 `[{ tone: "warning" }]`。也就是说这个面板以及它喂给首页的那批标签同样不出屏，归入上一节的死代码盘点。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：配装页死代码清理（2026-10-15）
+
+上一节的盘点里，配装页那条链最长，这一刀把它清掉。核实手段是全仓 grep 逐个符号、排除 `dist/`，并区分只撞到子串的误命中——比如 `LoadoutItemStatus` 会命中 `ApplicationLoadoutItemStatus`，那是另一套还活着的类型。
+
+清掉的内容：
+
+- `packages/app/src/workspaces/loadoutItemStatus.ts` 整文件（`LoadoutItemStatus` / `LoadoutStatusSourceItem` / `buildLoadoutItemStatus` / `summarizeLoadoutItemStatuses`）。它产出的 `badge_label` / `summary_key` / `summary_label` / `location_label` / `guidance_label` / `guidance_hint` 都没有界面读取点。
+- `loadoutsPage.ts` 里的产出字段：workspace 侧的 `statusSummary` / `visibleCompareRows` / `readyCount` / `actionableCount`，model 侧的 `riskSummary` / `compare`，以及 `LoadoutTemplateItemRowView` / `LoadoutRiskSummaryView` / `LoadoutCompareView` 三个类型。`itemRows` 只服务本地模板分支，而界面读的是游戏内槽位分支的 `InGameLoadoutItemRowView`，后者保留。
+- 连带函数：`getLoadoutItemStatus`、`getLoadoutItemBlockedDetails`、`buildLoadoutTemplateItemRows`、`buildLoadoutActionFeedbackKey`。
+- `loadoutViewModel.ts` 的对比行系列：`LoadoutCompareRow` / `LoadoutCompareCell` / `buildLoadoutCompareRows` / `isTemplateItemReady`，以及只服务它们的 `loadoutCompareSlotKey` / `formatLoadoutCompareItem`。界面上那张对比表用的是 `applicationLoadoutWorkspace.ts` 的 `ApplicationLoadoutCompareRow` 和 `ApplicationLoadoutCompareViewModel`，与这套同名但不相关，保留。
+- `loadoutTransfer.ts` 的 `describeMissingLoadoutBlockedReason` / `MissingLoadoutBlockedDescription`，以及 `loadouts.ts`、Desktop `renderer/utils/loadoutTransfer.ts`、Desktop `features/loadouts/loadoutViewModel.ts` 里对应的转出口。
+- 测试：删 `packages/desktop/test/loadout-item-status.test.ts`（整个文件只测被删的两个函数）；`packages/app/test/loadouts-page-workspace.test.ts` 删掉 `getLoadoutItemStatus` / `getLoadoutItemBlockedDetails` 的断言和 workspace 死字段断言；两个 `loadout-transfer-*.test.ts` 删掉「maps blocked reasons into player-facing guidance」用例。
+
+要更正的一点：`formatLoadoutComparePerks` 名字里带 compare，实际是 `buildMissingLoadoutItemsText` 用它拼缺失清单里的 `Perk：` 那一行，所以函数保留，只是不再对外导出。
+
+`loadoutsPage.ts` 从 533 行降到 380 行。
+
+这一刀没动、只做记录的：
+
+- `LoadoutsPageInput` 的 `showDiffOnly` / `compareTemplateId` 现在只喂 workspace 里已经没有消费者的字段，属于死入参。删它们要连着改 Desktop `LoadoutsPage.tsx`、Web `useWebFixtureRuntime.ts` 和 `useLoadoutTemplates.ts` 三处调用点，不在这一刀范围。
+- `LoadoutEntryView` 的 `subtitle` / `statusLabel` / `statusTone` / `preview`，以及只服务 `preview` 的 `formatInGameLoadoutSlotPreview`。界面读 `LoadoutEntryView` 只取 `id` / `source` / `title` / `slotIndex` / `characterId` / `slot.item_count` / `sourceLink`。留着的原因是 app 层测试还在断言这四个字段，删法要连测试口径一起定。
+- `LoadoutsSelectedDetailView` 里 `local-template` 分支除 `template` 外的 `analysis` / `transferPlan` 同样没人读，但 `kind` 判别本身仍在用。
+- 首页的 `diagnosticError`：`HomePageContentView.tsx` 和 `HomePageDashboard.tsx` 里声明了却没有读取点。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
 ### 阶段 D：平台收口与门禁
 
 - 清理 Desktop/Web adapter 中残留的产品中文文案。
 - 增加静态检查或质量门禁：允许游戏数据、外部引用和明确标记的 fixture 保留中文；未标记的产品可见文案不得新增中文硬编码。
 - 在明暗主题和窄屏下分别验收语言切换，重点检查英文文本变长后的溢出、截断和按钮布局。
+
+#### 阶段 D 勘察记录：渲染层残留分布（2026-10-15）
+
+`packages/desktop/src/renderer` 下（不含测试）仍有 1048 行含中文，按文件排下来：
+
+| 区域 | 主要文件 | 约计 |
+|---|---|---|
+| 装备详情 | `shared/components/ItemDetailModal.tsx` 94、`shared/hooks/useItemDetailWorkspace.ts` 93、`shared/components/item-detail/buildWeaponDetailView.ts` 73、`shared/hooks/useItemDetail.ts` 35、`ItemDetailStats.tsx` 27、`HomePageItemDetailModal.tsx` 27 | 约 300 |
+| 配装 | `features/loadouts/useLocalLoadoutPlans.ts` 84、`useLoadoutWriteActions.ts` 46、`LoadoutsPage.tsx` 22 | 约 150 |
+| 账号 | `features/account/useAccountWorkspace.ts` 62、`accountLoadError.ts` 15 | 约 80 |
+| 主页外壳 | `pages/useDesktopProductShell.tsx` 57 | 约 60 |
+| 设置 | `features/settings/diagnosticsModel.ts` 50、`useAppUpdateFlow.ts` 35 | 约 85（多为剪贴板、落盘和 fixture，已判不迁） |
+| 资料库 / 商人 / 仓库 | `useLibraryWorkspace.ts` 19、`useVendorsWorkspace.ts` 15、`useVaultWriteActions.ts` 15 | 约 50 |
+
+下一步按这块切（括号里是 2026-10-15 的状态）：
+
+1. **装备详情**（已完成）：`shared/` 下的整套，改动面最大，且 `shared/` 是共享层，要单独立一轮。
+2. **账号 + 主页外壳**（已完成）：`useAccountWorkspace.ts` 的错误与回执、`useDesktopProductShell.tsx` 的状态说明。
+3. **配装剩余**（核对后确认无需再做）：`useLocalLoadoutPlans.ts` 与 `useLoadoutWriteActions.ts` 里还没 token 化的部分。实测两个文件剩下的中文是 `未限定职业` 哨兵、`source.label`、`guidance` 证据与警告、方案名 fallback 这些落盘文本，按「落盘文本固定中文」的口径不迁；`useLoadoutWriteActions.ts` 的展示串已全部走 `loadout*` 查表。
+4. **资料库 / 商人 / 仓库**（已完成）：仓库核对后无需再动，资料库与商人见下一节。
+5. **主进程**（未动）：先把 locale 传进主进程，或让主进程只回 `kind`，再谈文案。
+
+前四步只动渲染层，第 5 步是架构改动，要单独评估。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：装备详情切片（2026-10-15）
+
+装备详情这一片迁完，剩下的是设计上不该迁的部分。
+
+护甲那一份（`shared/components/item-detail/buildArmorDetailView.ts`）8 处展示串改查表，入参和三个内部函数改成接收 `copy`，文件本地那份护甲属性名表删掉——`packages/ui/src/item-detail/itemDetailLabels.ts` 里已有一张逐字相同的 `armorStatLabel`，两处重复合成一处。两个调用点（`ItemDetailModal.tsx`、`HomePageItemDetailModal.tsx`）补 `copy`。
+
+武器那一份（`buildWeaponDetailView.ts`）改动更大，因为它把三张措辞表直接写死在文件里：
+
+- 元素名（动能 / 电弧 / 烈日 / 虚空 / 冰影 / 缚丝）、勇士名（反屏障 / 反过载 / 反势不可挡）和勇士效果名（贯穿护盾 / 干扰 / 眩晕）迁进 `itemDetailLabels.ts`，新增 `weaponDamageLabel` / `weaponChampionLabel` / `weaponChampionEffectLabel` 三个查表函数，`WeaponDetailContent` 改读它们。
+- 为此 `packages/app` 的 `WeaponDetailChampionEffect` 不再带 `label` / `effect_label` 两个成品串，改成 `key` + `effect_key`；`WeaponEnhancementSummary` 新增 `empty` 布尔，空强化槽的「未强化」由 UI 现查；`WeaponDetailDamage.label` 变成可选，元素名认得出时由 UI 查表，认不出时退回数据自带的名字。
+- 版本列表的 `版本 N`、`专家`、`当前版本`，推荐卡的 `{purpose} Perk 池` / `{purpose} 武器推荐`，属性浮层的 `当前配置` 全部改查表；`buildWeaponDetailView` / `buildWeaponRecommendationViews` 增加 `copy` 入参。
+- `instance.damage_type` 枚举值到元素 key 的映射提成 `damageTypeKeyByEnumValue` 一张表，元素名不再在这里拼。
+
+`通用`、`未强化`、`当前配置` 三个 key 表里早有，直接复用；en-US 表本次新增 23 键。`packages/desktop/test/weapon-detail-view.test.ts` 的 5 个调用补 `copy`。
+
+这一片没动的：
+
+- `damageKey()`、`plugHasSemanticType()`、`extractDisplayedLevel()`、`normalizePerkVariantName()` 里的中文正则读的是游戏数据原文，只做判定、不产出展示串。
+- `ItemDetailModal.tsx` 的「手动重读没有返回详情」写进 `write-action-debug.json`；`HomePageItemDetailModal.tsx` 的商人属性、武器数值两张表是游戏数据标签到字段 id 的反查，都不跟随界面语言。
+- `features/loadouts/LoadoutsPage.tsx:531` 还有第三份私有 `armorStatLabel`，属于配装菜单，留给那一切片。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：账号菜单的状态条回执（2026-10-15）
+
+账号这一片迁完，动的是三个文件。
+
+`packages/ui` 侧得先有个 desktop 能用的查表入口：`accountText` 原先只是 `AccountPageContentView.tsx` 里的模块私有函数，落到新文件 `packages/ui/src/account/accountCopy.ts` 并导出（同时补了 `accountTemplate`），`AccountPageContentView.tsx` 改成 import。
+
+`features/account/useAccountWorkspace.ts` 里约 30 处展示串接上 `copy`，`copy` 取自 `input.state.languagePreferences.interfaceLocale`。`formatCachedTime`、`formatAccountWorkspaceWarnings`、`formatAccountWarningSource`、`formatAccountRefreshFailurePrefix`、`formatAccountSyncMessage` 五个模块级函数改成接收 `copy`；`formatCachedTime` 另外接收 `locale`，时间格式不再写死 `zh-CN`。同目录的 `accountLoadError.ts`（`formatAccountLoadFailure`、`accountErrorText`）和 `loginErrors.ts`（`formatBungieLoginError`）也补了 `copy` 参数。
+
+没动的：`workspace.error`、`derived.error?.message`、`blockingIssue.message` 和 Bungie 返回的原文都是上游透传，这里只做拼接、不翻译。
+
+en-US 表新增 48 键。zh-CN 表按现有风格同步填了 key=值：查不到会回落 key 本身，填与不填结果相同，填是为了两张表的 key 集合对得上。这 48 键里包含 `；` 和 `，` 两个分隔符——`formatAccountWorkspaceWarnings` 的 join 和 `formatAccountSyncMessage` 的 `changes.join` 之前写死中文标点。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：主页外壳的状态条文案（2026-10-15）
+
+这一片只动 `pages/useDesktopProductShell.tsx`，外加 `packages/ui` 侧的查表入口。
+
+`ShellCopy` 原来是结构化字段加函数（`update.available(version?)` 那一套），这次在顶层补一张 `inline: Record<string, string>`，跟 `account` / `settings` 的范式对齐。选表不选字段，是因为这批文案基本是零散的状态短语和按钮名，逐条设计字段只会把类型撑大。新建 `packages/ui/src/shell/shellCopy.ts` 导出 `shellText` / `shellTemplate`，`packages/ui/src/index.ts` 一并导出——`assistantText` 那套仍在 `assistant` 子对象里，没跟着挪。
+
+文件里接的 copy 是 `getLocaleCopy(productPreferences.interfaceLocale).shell`，跟已有的 `homeCopy` / `vaultCopy` 并排。改的地方：5 个页面头部按钮（重新登录 Bungie、同步账号数据、重新检查资料库、修复资料库、刷新商人库存）、`buildShellStatus` 里账号 / 资料库 / AI 三项的 `label` 和 `value`，以及 `formatAccountShellStatus`、`formatAccountAge`、`formatManifestShellStatus`、`formatManifestTaskPhase` 四个模块级函数改成收 `copy`。
+
+三处 `interfaceLocale === "en-US" ? ... : ...` 全部收掉：`formatManifestShellStatus` 两处（重试、更新 / 准备中），`formatManifestTaskPhase` 那张 9 项双表。后者现在只留 phase → key 的映射，查表交给 `shellText`；phase 认不出时仍返回 `undefined`，跟上一条调用链「拿不到 phase 就退回按 availability 判断」的行为一致。
+
+en-US 表新增 47 键，zh-CN 侧同步填 key=值——这 47 键含 5 个按钮名、状态值（已配置 / 未配置 / 可同步 / 未登录 / 增强数据异常等）、`formatAccountShellStatus` 的全部返回串、manifest 状态（等待重试 / 后台更新 / 准备中 / 读取中 / 未准备 / 需修复 / 可更新 / 可用）、`{count} 秒 / 分钟 / 小时` 三个模板和 9 个 phase 标签。品牌名（Bungie、AI）和版本号没进表。
+
+改完这个文件里剩下的中文只有 `formatManifestTaskPhase` 里 phase → key 映射表的 9 个键，不是展示串。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：资料库与商人菜单（2026-10-15）
+
+两块都是给菜单目录做同样三件事：在 `packages/ui` 建查表入口、给 Desktop 的 hook 收入参、把展示串换成查表。
+
+资料库新建 `packages/ui/src/library/libraryCopy.ts`（`libraryText` / `libraryTemplate`），`useLibraryWorkspace` 的入参加必填 `copy`，13 处展示串改查表：实时状态查看与搜索失败、关联装备读取失败、别名保存与失败、收藏与取消收藏失败、两处「运行时合同过旧」提示，以及 `buildVendorPathAvailability` 的 `label` / `description` 和 `paths.join` 的分隔符 `；`。这个文件里只剩 `console.warn("资料库社区推荐匹配失败：", error)` 是中文，属日志不迁。
+
+商人新建 `packages/ui/src/vendors/vendorCopy.ts`。`useVendorsWorkspace` 加必填 `copy`，连同 `resolveVendorRefreshState` 合计 13 处展示串改查表，`resolveVendorRefreshState` 跟着加第 4 参 `copy`，`error` 从可选改成必填（调用点显式写 `undefined`）。原先两处把「继续显示上次库存。」和 `error.message` 拼成一句的写法，合成一个 `继续显示上次库存。{message}` 模板——前一处还带「有没有缓存快照」的条件分支，改成两条完整句子后分支仍在，只是不再拼前缀。`useVendorDefinitionDetail` 也加了 `copy`，5 处改查表（`异域`、`商人售卖`、`资料库定义读取失败`、两个 AI 分析失败）。`异域` 在 `account` 表里已有一份 `Exotic`，这里按各菜单各自的表再放一份：两张表互不引用，跨表复用会把两个菜单的文案耦在一起。
+
+测试文件跟着改签名，没有新增用例：`vendors-page-ui.test.tsx` 的 8 个 `useVendorsWorkspace` 调用和 2 个 `useVendorDefinitionDetail` 调用补 `copy: getLocaleCopy("zh-CN").vendors`，`vendors-ipc.test.ts` 的 2 个 `resolveVendorRefreshState` 调用补第 4 参。取 zh-CN 是为了让原有的中文断言继续成立。
+
+仓库这块核对后不需要再动：`useVaultWriteActions.ts` 的展示串已全部走 `vaultText` / `vaultTemplate`，目录里剩下的中文是注释。
+
+en-US 表新增 30 键（资料库 13、商人 17），zh-CN 侧同步填 key=值。两个 hook 的 `copy` 都在 `useDesktopProductShell.tsx` 里就近声明（`libraryCopy`、`vendorsCopy`）。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：查表 key 缺口（2026-10-15）
+
+这一片是拿脚本扫出来的，不是靠人眼读文件。做法是把渲染层、Desktop 和 Web 里所有 `xxxText(copy, "字面量")` / `xxxTemplate(copy, "字面量", ...)` 的 key 抽出来，跟对应 copy 表的 key 集合做差。查出 66 条：资料库 44、装备详情 6、主页 12、设置 8、仓库 2。
+
+这类缺口的症状是静默的。查表函数是 `copy.inline[key] ?? key`，zh-CN 侧 key 就是中文原文，查不到也看不出问题；只有切到英文界面才回落成中文。所以缺口攒到多少都不会有报错提示。
+
+补齐方式按各表本来的风格走：zh 侧留空的（主页、装备详情、设置、仓库）只补 en-US；资料库那 6 条护甲属性（机动、韧性、恢复、纪律、智慧、力量）走 `libraryText`，跟其余 44 条一起补 en-US。
+
+资料库的护甲属性标签另有接线问题：`LibraryPageContentView.tsx` 里护甲属性名直接渲染 `vendorArmorStatDefinitions` 带来的 `stat.label`，没进查表。改成 `<span>{libraryText(copy, stat.label)}</span>`，那 6 条 key 就是这么来的。
+
+缺口归零后复查一次，确认没有新的字面量查表 key 落在表外。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：Web 预览壳的页面头部与 DIM 回执（2026-10-15）
+
+`packages/web/src/main.tsx` 里还有两处产品文案，都在 `getWebPageHeader` 和 DIM 导出回执上。
+
+页面头部的 6 个按钮（账号两项：重新授权、刷新账号；仓库：刷新账号装备；资料库两项：重新检查资料库、修复资料库；商人：刷新商人库存）改成走 `shellText`。这批 key 里三个是这次新加的：`shell.ts` 的 zh-CN 与 en-US 两侧各补 3 键（重新授权、刷新账号、刷新账号装备），另外三键两侧本来就有。两侧都填是因为这张表本来就是 key=值风格。
+
+DIM 导出回执两条（复制成功带件数、复制失败带错误原文）改走 `loadoutTemplate`，key 取 `loadouts` 表里现成的 `已复制包含 {count} 个真实实例的 DIM 链接。` 和 `DIM 链接复制失败：{error}`。取 locale 时用 `preferences.interfaceLocale`，不能用局部变量名顶替。
+
+文件里剩下没迁的中文属 Web 预览的模拟数据：`喂食狂热`、`Web fixture 模型列表。`、`预览数据`、`副本`、`Web mock 会话`、`${entryLabel}中的账号装备实例。`、`异域`、`商人售卖`。这些是 fixture 或 mock 会话内容，按下面的边界保留。
+
+#### 阶段 D 实施记录：硬编码中文静态门禁（2026-10-15）
+
+新增 `scripts/check-i18n-hardcoded.mjs`，挂进 `package.json` 的 `i18n:hardcoded:check`，并由 `test:quality` 调用，跟 `check-ui-contract.mjs` 并列。
+
+门禁只认两种形状，因为只有这两种能确定是渲染出来的可见文案：
+
+1. JSX 文本节点里直接写的中文，`<button>刷新账号</button>` 这种；
+2. `aria-label` / `aria-description` / `title` / `placeholder` / `alt` 五个展示属性上直接写的中文。
+
+改法也只有一种：套 `{xxxText(copy, "中文原文")}`。形状单一，报出来就是真问题。
+
+前面试过两版更宽的扫描，都作废了。第一版按行剥注释再剥查表 key，误报 912 条——单行 `/** ... */` 块注释没剥掉，别名 `text(` / `template(` 也认不出。第二版改成「字面量必须在某张 copy 表里出现过才放过」，误报 493 条——模板串里嵌的 `libraryText(copy, "...")` 被整体当成一个候选，fixture 目录、正则字面量、`data-*` 和 `kind:` 赋值也跟着报。误报堆在 CI 里只会变成噪音，最后收窄到上面两种形状。
+
+扫描范围是 `packages/ui/src`、`packages/desktop/src/renderer`、`packages/web/src`，只扫 `.tsx`，跳过 `dist`、`node_modules`、`test`、`__tests__`、`fixtures` 目录，另跳过路径含 `/fixtures/` 的文件。脚本里有跨行块注释的状态机，拼装型文案（模板串带 `${}`）留给 review，不做模糊匹配。
+
+实测两份数据：全仓跑一遍 0 命中；植入 `<div aria-label="临时探测属性">临时探测文本</div>` 后准确报 2 条。探测代码没留在仓库里。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：Desktop 渲染层剩余展示串与助手页面上下文（2026-10-15）
+
+**一、渲染层剩余硬编码**
+
+- 日报摘要钩子 `useDailySummary` 改收 `{ copy: HomeCopy }`，7 处展示串（情报读取失败、已复制本周重点、复制失败提示、每日 / 每周重置标签、两条倒计时模板）改查表。新建 `packages/ui/src/home/homeCopy.ts`（`homeText` / `homeTemplate`），`HomePageContentView` 本地那份同名函数改成 import 同一实现，`HomeCopy` 与查表函数从 `@d2-tools/ui` 导出。
+- `packages/desktop/src/renderer/utils/itemActions.ts` 的 `resolveItemTransferCharacterId` 加 `ItemDetailCopy` 入参，两条移仓失败提示改查表，两个调用文件补实参；`ItemDetailModal` 的配装草稿名走 `itemDetailTemplate`。
+- en-US 表：home 7 键、itemDetail 3 键。zh 侧不动。
+- `packages/desktop/test/item-actions.test.ts` 的 4 个调用补 zh-CN 的 `copy`，只改签名。
+
+**二、助手页面名与页面分析重点**
+
+原先上下文里的 `page_label` 和 `focus` 是 `packages/app` 产出的中文原文，经 `assistantContext` 直接上屏。改法：
+
+- `shell.ts` 的 `assistant.inline` en 侧补 8 键，key 就是 `homePageFocus` 的 8 句中文原文（必须逐字一致，含「仄商人库存」这类原文用词），值是英文。zh 侧留空。
+- `assistantContext.ts` 新增 `resolveAssistantPageLabel(shell, value)`：用 `shell.navigation[key]` 出页面名，值不是 8 个页面 key 时（旧会话记录里存的中文页名）原样返回，绝不拿去查表。页面名不在 `shell.inline` 里而在 `shell.navigation`，所以走后者。
+- `AiAnalysisPanel.tsx` 的上下文条与 `pageLabel` 改用 `page_key` 出文案，`focus` 走 `assistantText`；会话历史在传给视图前逐条把 `page_label` 解析成文案；保存会话时改存 `page_key`。`AiPage.tsx` 的未配置分支同样处理。
+- 上下文类型没改：`page_label` / `focus` 还要喂给 AI 提示词并写进落盘快照，属数据不算界面文案；`page_key` 本来就已产出，删字段还会连带破坏 `architecture-maintenance.test.ts` 对 `homePageLabels` 的断言。`assistantHistory.ts` 的字段名不动，只加注释说明新记录写页面 key、旧记录里的中文是已落盘数据只能原样显示。
+
+这个改法有个已知代价：查表 key 是 app 侧那 8 句中文原文，谁改了那句中文，en 键就静默失效、英文界面退回中文。同类风险已由 `scripts/check-i18n-hardcoded.mjs` 之外的另一套扫描（字面量 key 与表比对）覆盖不到，因为这里是变量查表。留作已知项。
+
+**三、报告未处理**
+
+`homePageMetaMap` / `resolvePageMeta` 有真实调用链（`homePage.ts` → `useHomePageDerivedState.ts` → `useDesktopProductShell.tsx` 的 `pageHeader.title/subtitle`），但 `ProductShellHost.tsx` 会用自己的 `productPageHeaderMeta(shellCopy, activePage)` 覆盖标题与副标题、只取外部传来的 actions，这张中文表实际不出屏。按「本轮只记录不删除」处理。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：商人菜单的 app 侧文案缺口（2026-10-15）
+
+商人菜单的漏译不在渲染层——`VendorsPageContentView.tsx` 早就按「原文当 key」查表，缺的是表里没有这些 key。补法分两半：
+
+- 表侧：`vendors.ts` zh 侧 +62 键、en 侧 +59 键（`属性读取中` / `部分详情失败` / `详情失败` 三条 en 侧本来就有）。渲染处接查表的点包括分节标题与分组名、来源、重置时间回落、刷新标签、状态标签、账号范围标签、当前机灵、库存摘要、单条摘要、账号拥有状态、来源路径、状态横幅。
+- app 侧只动一处：`createVendorOfferOwnership` 里 4 条带计数的 `ownership.label`，由模板串拼计数改成 `{count}` 模板（`账号有 {count} 件同身份装备` 这一类），计数语义在渲染层拿不到，拼完就无法整串查表。
+- `getVendorSectionTitle` 的 4 条硬编码分支加 `return section.name` 收敛成一个 `vendorsText(copy, section.name)`。`vendorStructure.ts` 的 `sections[].name` / `groupRules[].name` 不用动，加 key 即可命中。
+- 地点名（`高塔` / `月球` 等）保留：它们参与 Manifest 地点名匹配。
+
+**当时留了尾巴**：三处带计数的复合句（`N 个角色的属性与插槽详情读取失败`、状态横幅里两条 `N 个角色商人列表读取失败` / `N 个商人详情读取失败`、子库存描述的 `N 个入口` / `N 件`）由 app 拼成整串，渲染层拿不到计数，英文界面下仍显示中文。这三处由下一节处理。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：商人复合句改成 token（2026-10-15）
+
+上面留的三处尾巴有同一个毛病：app 侧把计数拼进整句，渲染层只拿到成品串，查表查的是「3 个角色商人列表读取失败」这种一次性字符串，表里不可能有。改法是让 app 只产出 `key` 和计数，成句交给渲染层，和仓库、配装那几片用的是同一个范式。
+
+- `vendorsPage.ts` 新增 `VendorTextTokenWorkspace = { key: string; count?: number }`。三处字段换成它：`VendorContentSectionWorkspace.description` 由 `string` 变单个 token，`VendorInventoryGroupWorkspace.detailFailureMessage` 与 `VendorStatusBannerWorkspace.message` 由 `string` 变 token 数组。
+- `getVendorDetailFailureMessage()`：只有一条失败时把上游的错误文案原样包成 `[{ key: failures[0].message }]`；多条时给 `{ key: "{count} 个角色的属性与插槽详情读取失败", count: N }`。上游文案仍然透传，不翻译。
+- `createStatusBanner()` 所有分支统一返回数组，原来用 `；` 拼两条汇总的写法去掉。子库存描述同样改成 `{count} 个入口` / `{count} 件`。
+- `vendorStructure.ts` 新增 `mergeVendorDetailFailureMessages()`，替掉两处 `map(...).filter(...).join("；")`。它只摊平 token，不再拼串。
+- `vendors.ts` 里与这处相关的键共 6 条：三条带计数的失败汇总（`{count} 个角色商人列表读取失败` / `{count} 个商人详情读取失败` / `{count} 个角色的属性与插槽详情读取失败`）、分隔符 `；`（en 侧是 `"; "`）、`{count} 个入口`、`{count} 项`。分隔符进表是因为它跟界面语言走。
+- 渲染层：`VendorsPageContentView.tsx` 新增 `VendorTextTokenView`，以及模块级 helper `vendorTextTokenText()`（有 count 走 `vendorsTemplate`，否则 `vendorsText`）和 `vendorTextTokensText()`（用 `vendorsText(copy, "；")` 拼数组）。状态横幅、详情失败提示、子库存描述和列表搜索都改走它们。
+
+测试跟着契约改，没新增用例：`packages/app/test/vendorsPage.test.ts` 与 `packages/ui/test/vendors-page.test.tsx` 的断言改成比对 token 结构，`packages/desktop/test/vendors-page-ui.test.tsx` 那条状态横幅断言也从字符串改成 `[{ key: "新账号商人数据读取失败" }]`。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：Web 预览壳的降级快照本地化（2026-10-15）
+
+Web 壳在后端 `/api/home-snapshot` 拿不到数据时会自己造一份兜底快照。这份快照原来是模块级 const，串写死中文，切英文也照样出中文。
+
+- 改成工厂 `createUnavailableHomeSnapshot(copy)`。入参类型 `WebSnapshotCopy = { home: HomeCopy; shell: ShellCopy }` 是结构类型，`webAdapter.ts` 对 `@d2-tools/ui` 只做 `import type`，不引入运行时依赖——`webApi.ts` 跑在 Node 侧，value-import 会连带拉进 React。这与主进程另起 `mainCopy.ts` 是同一个约束，但这次不用重复维护表，只借类型。
+- `createWebSnapshotProvider` / `createWebShellAdapter` 的入参新增必填 `copy`，两处兜底改调工厂。跑在 Node 侧的 `webApi.ts` 同样把 copy 放在第一位：`createWebApiRouter(copy, provider = {})`。
+- `main.tsx` 用 `useMemo` 按 `preferences.interfaceLocale` 重建 `localeCopy` 和 `unavailableSnapshot`，adapter 的 `useMemo` 依赖跟着加上这两项。
+- `home.ts` en 侧新增 11 键：`Web 服务未连接。` / `Web 服务未连接` / `资料库服务未连接` / `日落数据不可用` / `轮换突袭不可用` / `轮换地牢不可用` / `本周活动挑战不可用` / `活动激涌不可用` / `限时活动不可用` / `铁旗状态不可用` / `无法读取`。快照顶部状态条的 `服务未连接` / `不可用` 两条在 `shell.ts` 两侧各补一版。zh 侧 `inline` 仍留空，key 就是中文原文。
+
+顺带两处修正：一是这份快照原先用的 `读取失败` 与首页其它兜底串的 `无法读取` 不是同一个 key，迁移时被统一成了前者，这会悄悄改掉 zh-CN 下的措辞，已改回 `无法读取` 并补键；二是 Web 壳没跟上 `packages/ui` 早先给 `ShellSidebarAccountSummary` / `ShellSidebarActions` 加的必填 `copy`，`main.tsx` 两处补上。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：更新进度组件的内联双语（2026-10-15）
+
+`packages/ui/src/update/SystemUpdateProgress.tsx` 一直拿着 `interfaceLocale` 自己写双语：进度条的 `aria-label`（更新处理中 / 更新进度：N%）、后台任务 Dock 的「另有 N 项」、字节进度的「已下载 X」。四处调用点（资料库、设置两处、AppShell）都传了 `interfaceLocale`，所以切英文时这几句还是中文。
+
+改法是往 `shell` 表的 `inline` 补 4 键（更新处理中、更新进度：{progress}%、另有 {count} 项、已下载 {bytes}），组件内部取 `getLocaleCopy(props.interfaceLocale ?? "zh-CN").shell`，`formatProgressMetrics` 多收一个 `copy`。四处 `interfaceLocale === "en-US" ? ... : ...` 收掉。
+
+这几句之前没进过 copy 表，静态门禁也抓不到——它们不是 JSX 文本节点，是三元里的字符串字面量。测试里没有断言过这几句，所以改动对现有用例无影响。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：主进程用户可见文案（2026-10-15）
+
+主进程原来有一批不管界面语言是什么都显示中文的文案：原生文件对话框标题与筛选项、后台任务标题与进度、更新卡片的用户提示。它们不像错误文本那样有「要不要改成 code」的问题，纯属没翻译。
+
+**为什么不用「把 locale 传进主进程」**：不需要走 IPC 传。界面语言是持久化配置 `features.interface_locale`，主进程本来就每次都 `loadConfig()`，直接读即可，没有跨进程契约改动。
+
+**为什么另起一张表**：`packages/ui` 的 exports 只有 `.` / `./fixtures` / `./styles.css`，根入口带 React peerDependency，而 `typecheck:desktop` 只构建 core / http / services / app、不构建 ui。主进程 value-import 它会连带拉进 React，所以 `packages/desktop/src/main/i18n/mainCopy.ts` 自己带一张 en 覆盖表，**key 就是中文原文**（zh-CN 侧不维护表），查不到退回 key。译法优先照抄 `packages/ui/src/i18n/copy/` 里已经出现的同义句，避免同一句话两种英文。这是有意的重复，代价是两边可能漂移。
+
+**`currentMainLocale()` 的代价**：它每次调用同步读一次 config.json（`loadConfig` 无缓存）。所以取值策略是——调用点已经拿到 `config` 就直接用 `config.features.interface_locale`；一个函数里多处用先取一次存局部变量；下载进度这类高频回调在任务开始时取一次并缓存在模块级变量，回调里不再读 config。
+
+**接线范围**：8 处 dialog 调用（19 条字符串，含 `main.ts` 启动失败的错误框）、10 处 `startBackgroundTask` 的 title / message、8 处任务 `update({message})`、`updates.ts` 的 `user_message` 与 `update_source_label`、`community.ts` / `config.ts` 返回给界面显示的 `message`、`heavyTaskWorker.ts` 里会进任务快照的 13 条进度文案（语言取 `workerData.config.features.interface_locale`，不额外读 config）。en 表 86 键。
+
+**顺带修掉一个回归风险**：`restorePersistedUpdateSnapshot` 原先用 `state.update_source_label?.includes("镜像")` 判断持久化的镜像源；标签翻译后英文不再含「镜像」，恢复逻辑会失效。改成中英两种标签等值比较。
+
+**没迁**：`throw new Error("中文…")` 与 `createServiceError` 的 message（见下节口径问题）、`console.*` 与 worker 日志、`defaultPath` 文件名与 CSV 内容、`phase` / `type` / `status` 等参与比较或查表的值、`packages/desktop/src/shared/updateError.ts` 的 `normalizeUpdateError`（不在主进程目录内）。`wishlist.ts` 没有返回给界面显示的 `message` 字段，未改。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 登记：本轮不迁的剩余项（2026-10-15）
+
+这些是核对后判定保留的，不是忘掉，写在这里以免后面重复排查。
+
+- `packages/services/src/errors.ts:57` 的 `toServiceError` 中文兜底：4 个调用点全部传 `""`，`packages/desktop/src/contracts/errors.ts:37` 的注释写明「兜底文案留空：这一层不知道界面语言，渲染层会按 `code` 或 copy 出文案。」主进程与契约层的架构已经就位，这行兜底不会出屏。
+- AI 能力层的 `descriptor.title` / `descriptor.description`：全仓没有读取点，属死元数据。同层的 capability `failedResult` 消息与 `assistantPrelude` 的 warnings 也不在 `AiAssistantPanelView.tsx`、`AiAnalysisPanel.tsx`、`AiPage.tsx` 渲染。不上屏就不迁。
+- `packages/web/src/webAdapter.ts` 的降级快照原先按「模块级 const 不好本地化」登记为不迁，本轮已改成工厂迁完（见上一节）；`预览数据` 这个 fixture 状态值原先也在这条里，实跑后判定过于显眼，已收进 `shell` 表迁完。Web 壳剩下保留的是 fixture 与 mock 串（`Web mock 会话`、`Web fixture 模型列表。` 等）和 `main.tsx` 里按 `name.endsWith("副本")` 判重的落盘哨兵——`packages/web` 是预览壳，这些串不出真实产品界面。
+- `packages/ui/src/media/GameCombatIcon.tsx` 的中文表（中文反查表，不是展示串）、`packages/ui/src/time/formatTime.ts` 的 `defaultFallback`（该分支不可达）同样保留。
+- `packages/app/src/workspaces/accountPage.ts:537` 的 `|| \`位置 ${bucketHash}\``：`bucketLabels`（`packages/core/src/items/classification.ts:42-75`）的键已经涵盖 `accountEquipmentBucketHashes` 的全部 8 个哈希，`limit?.bucket_name` 再兜一层，这条分支不可达，与 `formatTime.ts` 的 `defaultFallback` 同类。
+- `accountPage.ts` 里只被测试断言、界面不读的两个字段：`selectedCharacterSummary`（`:377`，合成串 `光等 2015 / 已装备 1 件 / 背包 1 件`，只有 `account-page-workspace.test.ts:131` 读）与 `AccountCharacterDetailView.lightLabel`（`:443`）。UI 侧读 `selectedCharacter` 只取 `characterId` / `className` / `power`（`lightLabel` 与它同级的 `summary` 都没有读取点）。
+
+**还差一步、需要先定口径的一类：**
+
+- **主进程抛出的中文错误文本**：`packages/desktop/src/main`、`packages/services`、`packages/core` 里共 143 处 `throw new Error("中文…")` / `createServiceError({ message })`。它们经 `toServiceError(error, "")` 归一化后以 `message` 字段透传给渲染层，渲染层在拿不到 `code` 映射时会把这段中文当错误说明显示出来。这跟主进程弹窗、后台任务文案不是一回事：后两者是「框架已经知道该显示什么，只是没翻译」，前者是「要不要把错误文本从自然语言改成 code + 参数」的产品与架构决定。**口径已定（2026-10-16）：只收敛会出屏的高频错误**——不新建 code 表，改成让上游原文过一次 copy 查表，登记过的按当前语言出句，未登记的原文原样透出，其余 100 余处维持现状，不逐条改写成 code，也不丢上游排查细节。收敛清单与实施记录见下。
+- **`ownership.locationLabels`**：渲染点是装备详情弹窗里的商人持有条。原登记为「需要先定口径」，同日按 token 套路迁完，口径与商人菜单的 `ownership.label` 一致（见 §6「阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）」）。
+
+**已知脆弱点（不是漏翻，是机制脆弱）：**
+
+- 助手「页面分析重点」的 en 键是 app 侧 8 句中文原文，改原文就会静默失去译文；普通字面量 key 扫描覆盖不到变量查表。已在实施记录里写明。
+
+验证状态：未运行本地自动化验证，由后续本地测试、CI 或 Release 负责。
+
+#### 阶段 D 实施记录：职业名占位符与 Web 壳预览状态值（2026-10-15）
+
+英文界面实跑（见下节验收记录）扫出来的真漏译集中在职业名上：`Switch to 猎人`、`Application loadout · 猎人`、`猎人 has wearable matching slots`。
+
+**职业名算文案，不算数据**。`class_name` 是应用对 Bungie `classType` 的映射结果（`packages/core/src/account/summary.ts:2702`、`packages/core/src/items/search.ts:386`、`packages/core/src/loadouts/dimImport.ts:456` 都写了「猎人」这类字面量），不是上游返回的原文，所以和其它界面文本一样要过 copy 表。
+
+**占位符层统一处理**。新增 `packages/ui/src/i18n/placeholders.ts` 的 `replacePlaceholders(template, values, text)`，10 个 `xxxTemplate`（shell / home / vault / itemDetail / loadouts / library / vendors / account / settings / assistant）都改走它。只有 `{class}` 和 `{className}` 两个占位符的值会过表，其余占位符原样替换——**不能统一查表**：仓库表里有 `"武器": "Weapon"`，而 `item_type` 字段的值正好也可能是「武器」，统一查表会把数据译错。
+
+**copy 表新增键**：account / vault / loadouts / itemDetail 四张表的 en 侧各补「泰坦 / 猎人 / 术士 / 全职业」四条（library 上一节已加，home 本来就有）。zh 侧不加，`xxxText` 查不到就退回 key 本身。
+
+**不走模板的地方单独接线**：account 的 `ContextSwitcher` 传值（`className` 字段）、`战斗装备` 与 `邮政官` 两处相邻拼接、最高光等确认框的 `{name}` 占位符；vault 的 `ContextSwitcher` 传值、整理面板 `<option>` 里的角色名；loadouts 的角色 tab（含首字缩写）、目录行的角色名；护甲详情的 4 处 `identity.class_name`。
+
+**`{class}{label}` 这个键解决中英空格差异**：`猎人邮政官` 在中文里不留空格，英文要写 `Hunter Postmaster`。原先的两处相邻拼接改成查这条模板，zh 值是 `"{class}{label}"`、en 值是 `"{class} {label}"`。
+
+**Web 壳的 `预览数据` 一并迁完**：它是 fixture 预览模式的状态条取值，8 个菜单的顶栏都显示，原先按「Web 壳 fixture 串」登记为不迁，实跑后判定过于显眼，收进 `shell` 表的 `inline`（zh / en 各一条），`packages/web/src/main.tsx` 的 `shellStatus` 改成从 `localeCopy.shell.inline` 取。
+
+**没迁的 app 侧拼接串**：`loadoutsPage.ts:334` 的 `${class_name} / ${n} 件装备`、`:351` 的 `${class_name} / 槽位 ${i} / ${n} 件装备`、`preview` 的 `更新于 {time}` 都挂在 `LoadoutEntryView.subtitle` / `.preview` 上，而 UI 侧渲染 `props.entries` 时只读 `title`、`slotIndex`、`slot`、`sourceLink`（`LoadoutsPageContentView.tsx:513-522`），这两个字段没有读取点，和 app 侧其它无消费者文案同类。
+
+#### 阶段 D 实施记录：账号进度条的 progressLabel（2026-10-15）
+
+职业名那节收口时漏了一处：`packages/app/src/workspaces/accountPage.ts` 的 `buildReadonlyItemProgress` 产出的 `progressLabel`，多目标分支拼的是 `${count}/${total} 项目标`（`:753-768`），而 `AccountPageContentView.tsx:921-922` 把它同时交给 `<progress>` 的 `aria-label` 和 `<small>` 直接渲染，英文界面下会露中文。当时按「静态门禁没扫到」判为不出屏，是判错了——它不在 JSX 文本节点上，也不在五个展示属性上（`aria-label` 的值是表达式，表达式里套的是变量），扫描器抓不到不代表没人读。
+
+**改法**：按仓库既有的 `AccountTextToken` 套路迁。app 侧 `progressLabel` 的类型从 `string` 改成 `AccountTextToken[]`，单目标时整句都是数据（上游 `progress_description` 加 `0/3` 这种计数），用 `filterTextTokens([literalText(...), literalText(...)])` 原样带出；多目标时「项目标」是界面文案、计数是数据，出一个 `{ key: "{count}/{total} 项目标", values: { count, total } }`。UI 侧两处改成 `accountTokensText(props.copy, props.item.progressLabel ?? [], accountText(props.copy, " · "))`，单目标那条会把分隔符 ` · ` 插在两段之间，和改前的 `" · "` 拼接逐字一致。
+
+**copy 表新增**：account 两侧各加 `" · "`（zh / en 同值）与 `"{count}/{total} 项目标"`（en 为 `"{count}/{total} objectives"`）。
+
+验证状态：改完重跑了 `pnpm typecheck`（8 个包）、`pnpm test`（153 文件 / 691 用例 + 架构 15 文件 / 92 用例）、`node scripts/check-i18n-hardcoded.mjs`（零命中），均通过；又按同一方法重扫了一遍英文界面的四个场景，横向溢出仍为 0；账号页剩下的 41 处残留逐条核过，仍是装备名、桶名、`item_type` 和 tier 这些数据，没有新增漏译。
+
+#### 阶段 D 验收记录：英文界面实跑（2026-10-15）
+
+**方法**：起 Web 预览壳（`127.0.0.1:53171`），用 Playwright 切英文，逐个点开 8 个菜单，在 1280 暗色 / 1280 亮色 / 980 暗色 / 760 暗色四个场景下扫全页：文本节点（`TreeWalker`，跳过 `display:none`、`visibility:hidden` 和零尺寸元素）加 `placeholder`、`title`、`aria-label`、`aria-description`、`alt` 五个展示属性，匹配含中日韩统一表意文字（`[一-鿿]`）的取值；同时量 `main` 下每个元素是否越过视口左右边界，并逐页截图。
+
+**结果**：1280 暗色 / 1280 亮色 / 980 暗色各剩 133 处中文，760 暗色 115 处；四个场景的横向溢出为 0，明暗共用同一套语义 token。
+
+**133 处全是数据或壳，逐类核过**：
+
+- Manifest 数据：装备名（`快速命中脉冲`、`铁血意志头盔`）、桶名（`动能武器`、`头盔`）、tier（`传说`）、类型（`脉冲步枪`）、弹药与框架（`轻质框架`）、赛季与版本（`第6年 · 第21赛季 · 深渊赛季`）、来源描述（`深渊赛季活动奖励记录。`）。资料库状态条显示 `Language: zh-chs`，说明 manifest 语言没跟着界面语言切——这是数据源配置，不是界面漏翻。
+- 账户数据的派生值：`武器 · 传说 · Power 2023` 里的 `武器` 是 `item_type`。
+- Web 壳 fixture：`Web mock：…` 两条提示、`Web 预览中的完整应用配装…` 描述、`应用内创建`、配装名（`宗师夜幕 · 生存控场`）、工具站名（`命运之小日向 Bot` 等）。
+
+**修掉的真漏译**（改动见上一节）：职业名相关的那几处、Web 壳的 `预览数据`。第一遍扫完后另外揪出账号进度条的 `progressLabel`——它的取值是表达式、不在扫描面上，属静态扫描和这份实跑都抓不到的那类，改动见上一节。
+
+**英文长文本暴露的布局瑕疵，本轮只记录不动共享样式**：760 宽度下配装页标签 `Character` 断词成 `Chara cter`；设置概览 `Characters 2 , Vault 485 items` 有孤立逗号；账号页 `猎人 Combat gear` 缺空格——这条在 `{class}{label}` 模板改完后已变成 `Hunter Combat gear`，另外两条属 §8 已预判的英文长度风险，留给布局专项。
+
+**术语观察**：资料库菜单的页头 eyebrow 是 `Manifest`，侧栏导航是 `Library`。同一个中文 key「资料库」被页头元数据和状态条共用，按「页面名 vs 数据源名」有意区分，不改。
+
+**质量验收（实跑）**：
+
+- `pnpm test` → 153 文件 / 691 用例通过，架构测试 15 文件 / 92 用例通过，退出码 0
+- `pnpm typecheck` → 8 个包全过，退出码 0
+- `node scripts/check-i18n-hardcoded.mjs` → 零命中
+
+#### 阶段 D 验收记录：Desktop 实窗英文验收（2026-10-16）
+
+**方法**：把本机真实数据目录（`~/Library/Application Support/d2-tools`，含已登录的 `oauth-token.json` 与 9 MB 账号快照缓存、zh-chs 资料库）用 `cp -Rc` 克隆到 `.local-data/tmp/desktop-en`，Playwright 的 `_electron.launch` 直接起 `packages/desktop/dist/main/main.js`，渲染层走 dev server（`D2_RENDERER_URL=http://127.0.0.1:53172`，vite 把 `@d2-tools/ui` / `@d2-tools/app` 别名到源码，所以跑的是当前工作区的代码）。界面语言用 `D2_INTERFACE_LOCALE=en-US` 强制（见下面「环境变量这条路的坑」），`D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE=0` 让资料库保持已缓存的 zh-chs，避免为了验收去下整份英文 Manifest。亮色 / 暗色各起一次，逐个点开 8 个菜单，扫文本节点与 `placeholder` / `title` / `aria-label` / `aria-description` / `alt`，匹配含 `[一-鿿]` 的取值，并量 `main` 下的横向溢出。
+
+整条链路用的是真实账号数据、真实资料库和真实 IPC。
+
+**结果**：8 个菜单在两个主题下横向溢出都是 0，非网络类的 console 错误 0 条（只有 `bungie.net` 图片在 dev origin 下的 CORS 报错，与本次改动无关）。残留中文逐类核对过：Manifest 数据（装备名、桶名、tier、类型、弹药框架、赛季、活动名）、账号派生值（`脉冲步枪 · 传说 · Power 531` 里的 `脉冲步枪` 是 `item_type`）、平台数据（工具站名、Aegis 心愿单文件名），以及上游 API 直接返回的本地化文本（商人页 `需要等级7` 来自 `failureMessages`，属数据不是界面文案）。
+
+**验收抓出两个真漏译，都已修**：
+
+- **资料库整页在 Desktop 下不跟界面语言**。`LibraryPageContentView` 靠 `interfaceLocale` prop 取 copy，而 Desktop 的 `LibraryPage` 既没有这个 prop 也没往下传，`LibraryMenuProvider` 同样没传，于是 ContentView 一直落回 `zh-CN`。修法是补齐这条链：`LibraryPage` 加 `interfaceLocale?: InterfaceLocale` 并转给 ContentView，`LibraryMenuProvider` 传 `session.diagnostics.languagePreferences.interfaceLocale`。其余 7 个菜单的 provider 本来就传了，只有资料库漏。修完资料库页的中文从 45 处降到 5 处（剩下的全是装备名）。
+- **商人页持有状态条渲染原始模板**。`VendorsPageContentView` 的 `VendorOfferButton` 分支直接渲染 `props.item.ownership.label`，而 app 侧产出的已经是 `账号有 {count} 件同身份装备` 这种带占位符的模板，于是英文界面下既露中文又原样打出 `{count}`。改成 `vendorsTemplate(props.copy, label, { count })`，与服务条目那条路径（`:760`）对齐。商人页中文从 566 处降到 563 处，`账号` 开头的那三条彻底消失。
+
+**环境变量这条路的坑（记录备查，不是本次改动引起）**：`packages/services/src/config/store.ts:39` 的 `selectDataDir` 判的是 `options.env?.D2_DATA_DIR`，而主进程一律裸调 `loadConfig()`（`options` 是空对象），所以 **`D2_DATA_DIR` 实际不影响读哪个 config.json**——读的仍是 `defaultDataDir()`，只有 `applyEnvOverrides` 把 `config.data.data_dir` 覆盖成了新值，写盘又按覆盖后的值走。表现出来就是「读真实目录的配置、写克隆目录」。本次靠 `D2_INTERFACE_LOCALE` 这个走 `applyEnvOverrides` 的开关绕过；`scripts/visual-all-check.mjs` 也踩在同一个坑上，它写进 `desktop-data/config.json` 的配置同样没被读到。这条要单独修，不属于 T1。
+
+**首页周报的 core 文案已按方案 A 迁完（2026-10-16）**：这三句出自 `packages/core/src/weekly/liveData.ts`，是 core 直接产出的界面文案，渲染层原样打印。方案 A 是让 core 产出 key + 参数、渲染层成句，与商人（`VendorTextTokenWorkspace`）、账号（`AccountTextToken`）已经用过的 token 套路一致；方案 B（渲染层按中文原文查表）盖不住 `限时熔炉竞技场` 拼进 detail、`Bungie 公共里程碑：{name}` 这类混合串。实施记录见下方「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」。
+
+**其它已登记不迁的**：`document.documentElement.lang` 在英文界面下仍是 `zh-CN`（`index.html` 写死，属可访问性细节不是界面文案）；商人页 93 处装备图标占位字母是中文装备名的首字（数据派生）。
+
+**质量验收（实跑）**：`pnpm typecheck` 8 个包、`pnpm test` 153 文件 / 691 用例 + 架构 15 文件 / 92 用例、`node scripts/check-i18n-hardcoded.mjs` 零命中，都在上面两处修复之后重跑通过。
+
+#### 阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）
+
+背景：首页周报区块的界面文案由 `packages/core` 直接产出成品中文串，渲染层原样打印。上一轮实窗验收看到三句（`铁旗当前未开放`、`固定保留此区域；当前角色活动列表没有返回铁旗玩法。`、`仅对活动详情中列出对应修饰词的 PvE 内容生效；不作用于全部 PvE 或 PvP。`），同一个文件里还有一批同类文案只是当前账号数据下没渲染出来（`铁旗已开放`、`铁旗即将开放`、`限时熔炉竞技场`、`日落挑战` 等）。按方案 A 让 core 产出 key + 参数、渲染层成句，与商人 / 账号的 token 套路一致。
+
+- **新增 token 类型**（`packages/core/src/weekly/summary.ts`）：`WeeklyTextToken = { key, params?, literal? }`，配 `weeklyCopy`（界面文案，key 是中文原文模板）、`weeklyLiteral`（数据原文，渲染层原样输出、不查表）、`weeklyTokenSource`（把 token 还原成不查表的中文原文，只给 core 内部的文本判定用）。`literal` 是必须的：core 产出的 `铁旗` 这类数据名会撞上 copy 表里同名的界面文本，统一查表会译错。
+- **改哪些字段**：`WeeklySummaryItem.title / subtitle / description`、`WeeklySummaryPriority.title / detail`、`WeeklyActivityEntry.title / detail`、`WeeklyIronBannerSummary.title / detail / activity_name / playlist_name`。范围只到这些字段的**渲染点**：首页实际读的是优先级卡片的标题与说明、活动行的标题与说明、铁旗卡片的标题 / 说明 / 活动名 / 玩法名。同一个结构里的 `source` / `evidence` / `activity_kind` / `reward_groups[].label` / `loot_pool.source` 仍是中文串，但首页没有读取点，本轮不动、只登记。
+- **core 内部判定改用 `.key`**：`weeklyItemText`、`extractKnownActivityName`、`splitWeeklyActivityCandidates`、`sanitizeWeeklyText`、`uniqueByTitle` 这些前缀剥离与类别正则都吃 `weeklyTokenSource(item.xxx)`。`sanitizeWeeklyText` 和 `splitWeeklyActivityCandidates` 的前缀正则补了 `公共活动`：原先只剥 `公共里程碑` / `公共数据`，`Bungie 公共活动：X` 会原样进标题。这一处会改变 zh-CN 输出（标题不再带该前缀），是刻意的。
+- **渲染层**：`packages/ui/src/home/homeCopy.ts` 新增 `homeToken` / `homeTokenList`，后者用 `" · "` 这个 copy 键拼多段说明。首页 `HomePageContentView.tsx` 的五个渲染点（活动行标题/说明、优先级卡片、铁旗卡片、铁旗活动名与玩法名）改走它们，`homePriorityEntries` 也改成查表后再判空。
+- **类型透传**：`packages/app/src/workspaces/homeDashboard.ts`、`packages/desktop/src/renderer/api/weeklyApi.ts` 各自那份重抄的周报类型换成 core 的 token，避免类型说 `string`、运行时是对象。
+- **缓存版本**：`packages/services/src/home/briefingStore.ts` 的 `CachedHomeBriefing.version` 从 11 提到 12，旧缓存里是成品中文串，留着会让英文界面继续显示中文；主进程写入处 `packages/desktop/src/main/runtime/homeBriefing.ts` 同步。
+- **Web 降级快照**：`packages/web/src/webAdapter.ts` 的 `createUnavailableHomeSnapshot` 产出 token，文案已按当前语言查好，标 `literal` 让渲染层原样输出。
+- **文案表**：`packages/ui/src/i18n/copy/home.ts` 的 en 段补 41 键（铁旗四态、里程碑与掉落地图模板、六类优先级的待确认标题与说明、`{label}挑战` 一组、`" · "` 分隔符）。核过一遍：这批中文原文在 en 段原本有 7 条是「差一个句号」的近似键（如 `确认后展示可刷奖励状态` vs `确认后展示可刷奖励状态。`），补齐的是带句号的原样键，不改 zh-CN 输出。
+- **测试**：`packages/core/test/weekly.summary.test.ts` 的断言改成比对 token 结构与 `weeklyTokenSource` 输出，没新增用例。
+- **实窗复核（英文 + 真实账号克隆）**：铁旗卡片渲染 `Iron Banner is not open` / `This area stays in the layout; the current character activities did not return an Iron Banner mode.`；活动激涌卡片渲染 `Only applies to PvE activities that explicitly list the modifier; it is not active across all PvE or PvP.`；活动行渲染 `Nightfall challenge` / `Dungeon challenge` / `Raid challenge`（这三条来自 `classification.subtitle`，原本也会露中文）。首页 144 处残留中文按关键词（铁旗 / 里程碑 / 挑战 / 待确认 / 轮换 / 日落等）过滤后为 0，剩下的全是 Manifest 数据（武器名、活动名、`item_type`）。亮暗两轮横向溢出 0、console 错误 0；`pnpm typecheck` 8 个包、`pnpm test` 153 文件 / 691 用例 + 架构 15 文件 / 92 用例、`node scripts/check-i18n-hardcoded.mjs` 零命中全部通过。
+
+#### 阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）
+
+背景：上一节把 `ownership.locationLabels` 登记为「需要先定口径」。它的渲染点是装备详情弹窗里的商人持有条（`Instance location` / `实例位置`），值是 app 拼好的成品中文串（`术士 · 背包 1 件 · 仓库 5 件`、`仓库 9 件`），英文界面下会整条露中文加 `{count}` 模板。定下来的口径与商人菜单 `ownership.label` 一致：app 出 key + 参数，渲染层成句。
+
+- **core 侧拆开成品标签**（`packages/core/src/vendors/inventory.ts`）：`VendorOwnedLocation.characterLabel`（值是 `猎人 2` 这种拼好的标签）换成 `className` + `duplicateIndex`。`buildVendorCharacterLabels` 相应换成 `buildVendorDuplicateIndexes`，只给同职业的第 2 个及以后角色编号，职业唯一时不编号。职业名是应用对 `classType` 的映射结果，算文案，所以留作 `className` 交给渲染层按 `{class}` 查表。
+- **app 侧产 token**（`packages/app/src/workspaces/vendorsPage.ts`）：`VendorTextTokenWorkspace` 加 `values`，`VendorOfferOwnershipWorkspace.locationLabels: string[]` 换成 `locations: VendorTextTokenWorkspace[]`。`formatVendorOwnedLocations` 产出 4 条 key：`仓库 {count} 件`、`{class}{suffix} · 已装备 {count} 件`、`{class}{suffix} · 背包 {count} 件`、`{class}{suffix} · 邮政官 {count} 件`。职业名走 `{class}` 占位符（`replacePlaceholders` 会把它过 copy 表），同职业序号拼进取值里的 `suffix`——中英都是空格加数字，不用进表。
+- **UI 侧成句**（`packages/ui/src/vendors/VendorsPageContentView.tsx`）：`VendorTextTokenView` 加 `values`，`vendorTextTokenText` 把 `count` 与 `values` 合并后走 `vendorsTemplate`；合成处用 `vendorsText(copy, " · ")` 连接多段，不再用字面量 ` · `。
+- **放 vendors 表而不是 itemDetail 表**：上一节按渲染位置（装备详情弹窗）判成 `item-detail` 的表。实施时按产出方归到 vendors 表——token 由 `workspaces/vendorsPage.ts` 产出、消费点是 `VendorsPageContentView.tsx` 的合成处，跟 `VendorTextTokenWorkspace` 同一张表，同表改动不用跨包对表。
+- **文案表**（`packages/ui/src/i18n/copy/vendors.ts`）：zh / en 各补 9 键——4 条模板、` · ` 分隔符、`泰坦` / `猎人` / `术士` / `角色`（en 侧措辞与 `itemDetail` 表一致，`角色` 是 `className` 缺失时的兜底）。
+- **测试**：`packages/core/test/vendors.inventory.test.ts` 与 `packages/ui/test/vendors-page.test.tsx` 的 fixture 跟着改成 token 形态，没新增用例。`vendors-page.test.tsx:36` 那条 `ownershipLocationLabel: "猎人 · 已装备 1 件 · 仓库 1 件"` 逐字没动，它是 zh-CN 输出不变的证据。
+
+#### 阶段 D 验收记录：实例位置的英文实窗 A/B（2026-10-16）
+
+- **方法**：真实数据目录的克隆 + `packages/desktop` 的 dev server（53172）+ Playwright `_electron`，走真实账号快照与 zh-chs 资料库。
+- **界面语言怎么切**：`D2_DATA_DIR` 只改写入路径、不改读取路径（主进程裸调 `loadConfig()`），所以壳内的语言按钮点了会被真实目录的 config 读回中文，`D2_INTERFACE_LOCALE` 也只作用于写入。改成临时把真实 `config.json` 的 `features.interface_locale` 设成 `en-US`，验收后还原（sha256 与备份一致，`7669bea…`）。
+- **A/B 结果**（同一条物品「光耀万钧手套」，账号有 6 件同身份装备）：
+  - zh-CN：`实例位置：术士 · 背包 1 件 · 仓库 5 件`
+  - en-US：`Instance location: Warlock · Inventory 1 · Vault 5`
+  - 另一条只有仓库的：zh-CN `实例位置：仓库 9 件` / en-US `Instance location: Vault 9`
+- **残留中文逐条归属**：商人名 `指挥官萨瓦拉`、物品名 `光耀万钧手套` 和物品描述 `需要本周等级7或12的军械库配给。` 都来自 Manifest。该轮 `D2_MANIFEST_LANGUAGE_FOLLOWS_INTERFACE=0`，资料库语言固定 zh-chs，属设计内。
+- **验证**：`pnpm typecheck` 8 个包通过；`npx vitest run packages/core/test/vendors.inventory.test.ts packages/ui/test/vendors-page.test.tsx packages/ui/test/shared-item-detail.test.tsx` 3 文件 / 14 用例通过。未跑全量 `pnpm test` 与 `pnpm test:quality`。
+- **顺带一条环境坑**：`packages/web` 与 `packages/desktop` 的 dev server 默认端口都是 53172，同时只能起一个。web 的 dev server 占着这个端口时起实窗，加载到的是 Web 预览壳（账号显示 `Web Guardian`、状态条 `Preview data`、商人页 `No vendor inventory loaded`），不是 desktop renderer——排查时会误判成「实窗没数据」。
+
+#### 阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）
+
+口径见上方「阶段 D 登记：本轮不迁的剩余项」里的抛错文本那条。勘察结果与做法：
+
+- **渲染层没有 `code` → 句子的映射表**。全仓 `error instanceof Error ? error.message` 形态的消费点 82 处，`code` 只在一处被读（`packages/desktop/src/renderer/features/account/accountLoadError.ts` 的 `isAuthenticationFailure`，判断认证失败与否，不出句）。所以「按 code 出句」实际要先建一张 code 表，改动面比收益大。
+- **改用上游原文查表**：`packages/ui` 按域加 5 个 helper，`xxxErrorText(copy, error, fallbackKey)` —— 取 `error.message` 交给同一张 `xxxText` 表，登记过的原文按当前语言出句，未登记的原文（典型是 Bungie 返回的英文 HTTP 错误）原样透出，拿不到 message 时退回 `fallbackKey`。因为 `xxxText` 是 `copy.inline[key] ?? key`，zh 侧不写键，**中文输出逐字不变**，只在 en 表补译文。
+- **新增导出**（均在 `packages/ui/src/index.ts`）：`vendorsErrorText`、`accountErrorText`、`homeErrorText`、`itemDetailErrorText`、`loadoutErrorText`。
+- **本批收口的六个域**：
+  - 商人 —— `packages/desktop/src/renderer/features/vendors/useVendorsWorkspace.ts:36`、`:142`、`:234`、`:236`（`:293` 的 `resolved.refreshError` 已本地化，未动）。
+  - 账号读取 —— `packages/desktop/src/renderer/features/account/accountLoadError.ts:17`，同时删掉该文件里同名的本地函数。
+  - 每日情报 —— `packages/desktop/src/renderer/features/daily/useDailySummary.ts:38`。
+  - 资料库 —— `packages/ui/src/library/LibraryPageContentView.tsx` 的 `manifestAlert.kind === "error"` 单元。
+  - 装备详情 —— `packages/desktop/src/renderer/shared/hooks/useItemDetail.ts:666` 的本地 `errorMessage` 改为委托，5 处调用点跟着走。
+  - 配装写操作 —— `packages/desktop/src/renderer/features/loadouts/useLoadoutWriteActions.ts:177`、`:204`、`:408`、`:475`、`:570`、`:583`、`:744`、`:944`、`:1008`。
+- **一处中文外观有意变化**：`packages/services/src/bungie/client.ts:106` 的 `bungie_timeout` 消息由 `` `Bungie 请求在 ${timeoutMs} ms 后超时` `` 改成固定原文 `Bungie 请求超时`，毫秒数移进 `details.timeout_ms`。查询串里插值会让 key 无限多，翻译表盖不住。
+- **文案表新增键**（只在 en 侧补，zh 侧 `inline` 留空是既有约定）：`packages/ui/src/i18n/copy/vendors.ts` 与 `account.ts` 各 6 键，`home.ts` 7 键，`library.ts` 4 键，`itemDetail.ts` 12 键（含 `bungieGameStateRejections` 的 1634 / 1640 两条长原文），`loadouts.ts` 9 键。
+- **有意不改**：`useLoadoutWriteActions.ts:1103` 的 `error.message` 参与 `/1623|not in.*inventory|不在.*背包/i` 判据，是判断逻辑不是界面文案。
+- **本批未做（另开一片）**：`packages/ui/src/loadouts/LoadoutsPageContentView.tsx:2674` 的 DIM 导出 blocker、`:3764` 的护甲规划 issues（20 余条）、vault 批量写操作、设置菜单与 AI 面板的表单校验。
+- **验证**：`pnpm typecheck` 8 个包通过；`pnpm test:ci`（docs:check + build + test:behavior + test:quality + test:architecture）通过，行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例。未新增用例。
+
+#### 阶段 D 修复记录：设置页回执跟随语言切换（2026-10-16，Bug #117）
+
+- **现象**：在设置页切界面语言后，成功回执留在旧语言里，看起来「中英文反了」——中文页面上挂英文回执，英文页面上挂中文回执。
+- **原因**：上一节（设置菜单的渲染层临时回执）把**成句结果**存进了 `settingsMessage` 状态，`diagnosticsModel.ts` 在写入时用当时的 `input.copy` 成句。`saveLanguagePreferences` 拿到的 copy 是保存**前**的那份，而保存成功后 `setLanguagePreferences` 已经把界面语言换掉、页面按新语言重渲染，回执字符串却还是旧语言。
+- **修法**：状态改存文案 key，成句交给消费点。`packages/ui/src/settings/SettingsPageContentView.tsx` 两处渲染点从 `{props.message}` 改成 `{settingsText(copy, props.message)}`；`diagnosticsModel.ts` 的 4 处、`useAppUpdateFlow.ts` 的 5 处成功回执不再在写入时成句。zh 侧 key 就是原文，输出逐字不变，en 侧按切换后的语言出句。
+- **没跟着改的**：失败分支仍在写入时成句——保存失败时语言没切，没有这层错位。上游回执（`useDiagnosticsSettings.ts` 里 `result.message`，主进程给的配置备份结果）过表查不到就原样透出。
+- **实窗验证**（Desktop，真实数据目录）：`界面语言` 从 zh-CN 切到 en-US 后回执是 `Language settings saved. Checking manifest language data in the background.`，切回 zh-CN 后是 `语言设置已保存，正在后台检查资料库语言数据。`——两个方向都对上当前语言。验证前临时改过真实 `config.json` 的 `features.interface_locale`，验完已还原，sha256 与备份一致（`9333875…`）。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
+
+#### 阶段 D 修复记录：本地化名字的缓存身份带上语言（2026-10-16，Bug #118）
+
+- **现象**：界面是中文，首页「本周轮换地牢 / 突袭」的掉落池却列英文武器名（`Ice Breaker`、`Forbearance`、`Nation of Beasts`），配装页背包候选是英文装备名，装备详情里的 Perk 名也是英文。
+- **原因**：中英文资料库共用同一个 Manifest 版本号（`244213.26.06.29.2000-1-bnet.65864`），语言却不在缓存身份里，所以按版本号失效的缓存看不见语言切换。三处缓存都中：
+  - 首页简报的 `context_key` 取的是 `getManifestStatus()` 那份**元数据缓存**的语言（`packages/desktop/src/main/runtime/homeBriefing.ts:56`）。那份记的是「上次抓 Manifest 元数据时用的语言」，切回中文后仍是 `en`，上一语言建出来的英文简报因此被当成命中，`briefingFromCache` 原样返回里面的英文装备名。
+  - 账号快照缓存只校验账号与 Manifest 版本（`packages/services/src/account/snapshotStore.ts`），而快照里的装备名是本地化文本。配装页背包候选直接来自快照（`collectItemPickerCandidates(props.accountSummary, …)`），于是跟着显示旧语言的装备名。
+  - 装备详情缓存的主键是 `membership_type + destiny_membership_id + manifest_revision + instance_id`（`packages/services/src/account/itemDetailStore.ts`），详情里的 `socket_plugs` / `sockets` 带 Perk 名，同样不随语言失效。
+- **修法**：语言进缓存身份。
+  - 首页简报的 `context_key` 改用 `config.data.manifest_language`：简报里的名字由本地资料库决定，资料库语言就是这份语言。
+  - 账号快照缓存新增可选 `manifestLanguage` 选项与 `manifest_language` 字段，给了就参与校验，比较前统一转小写。桌面侧四处调用点（`accountSession.ts` 的会话键、保存、读取，`ipc/account.ts` 的缓存读取）都传 `config.data.manifest_language`。
+  - 装备详情缓存把 `manifest_language` 加进 `AccountItemDetailCacheKey`、SQL 主键与 `createAccountItemDetailCacheKey`；账号会话新增 `manifestLanguage` 选项，桌面侧从配置传入。旧库由 `validateSchema` 认出主键不匹配后重建，不需要手写迁移。
+- **实窗验证**（Desktop，真实数据目录，`interface_locale: zh-CN`、`manifest_language: zh-chs`）：修复前首页掉落池是 `Ice Breaker` / `VS Velocity Baton` / `Forbearance` / `Nation of Beasts`；修复后同一位置是 `破冰者` / `VS速度指挥` / `自制` / `野兽国度`。zh-chs 资料库里这几个 hash 本来就有中文名，所以先前显示英文是取错了缓存，不是资料库缺名字。
+- **缓存层核对**（临时脚本，跑在 `packages/services/dist` 上）：快照用 `en` 写入后，`zh-chs` 读不到、`EN` 仍读得到；详情同一个实例的 `en` 与 `zh-chs` 两条并存、互不串。真实 `cache/account-cache.sqlite` 的副本上确认旧表被重建成带 `manifest_language` 主键的新表，11 条无语言标记的旧行随重建一起清掉。
+- **没跟着改的**：`manifest_language` 与 `manifestRevision` 一样保持可选，缓存层不替调用方编造语言；未传语言的调用点行为不变。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
+
+#### 阶段 D 修复记录：切语言后页面自动重载（2026-10-16，Bug #119）
+
+- **现象**：在设置页把语言从中文切到 English（含资料库语言），界面文案跟着换了，但页面上的装备名、Perk 名和掉落池名字还是旧语言。这批残留只在切到另一种语言后冒出来，当前语言的页面上看不到。
+- **原因**：保存配置这条路只落盘，不触发任何重取。`packages/desktop/src/main/ipc/config.ts` 的 `config:save` 只做 `saveConfig` 加回读；设置页的 `saveLanguagePreferences`（`packages/desktop/src/renderer/features/settings/diagnosticsModel.ts:128`）保存完只调 `input.onConfigChanged()` 和 `api.getManifestStatus()`，而 `onConfigChanged` → `App.refresh()` 只重读启动状态、换界面语言，不重取装备名。渲染层的账号快照等数据装在模块级 store 里（`packages/desktop/src/renderer/shared/stores/accountEntityStore.ts`），只靠组件重挂载清不掉；`useDailySummary` 的取数时机也只有挂载、下一个重置点和 15 分钟错误重试。
+- **修法**：`config:save` 发现 `manifest_language` 变了就整窗重载一次（`event.sender.reload()`，排在 IPC 回复之后）。渲染层的模块级 store 随重载重建；主进程那边账号会话、资料库 worker 运行时、首页简报和几处缓存都按语言做键，换语言自然不命中（见上一节）。只改界面语言不重载：那条路 `App.refresh()` 已经能当场换掉文案。
+- **实窗验证**（Desktop 实窗，真实数据目录；探针用配置副本加符号链接拼出的数据目录，真实 `config.json` 全程没动，sha256 前后一致 `7669bea…`）：
+  - 首页本周轮换掉落池：起始 zh-chs 是 `破冰者` / `速度指挥` / `自制` / `野兽国度`；切到 en 后重载，变成 `Ice Breaker` / `Velocity Baton` / `Chill Inhibitor` / `Adjudicator` / `Prosecutor` / `Forbearance` / `Nation of Beasts`；切回 zh-chs 后重载，又是中文。
+  - 仓库列表 80 条装备名：起始含中文 80/80，切到 en 后 0/80，切回后 80/80。
+  - 同一件装备的账号快照 Perk 名与装备详情插槽名：起始中文占比 100% 与 77%，切到 en 后两处都是 0%，切回后回到 100% 与 77%。
+- **已知代价**：换语言会整窗重载，重载后回到首页，当前菜单不保留。菜单是 `useDesktopProductShell` 里的 React 状态，既不在启动状态里也不在 URL 里，没有可以还原的落点。换语言本来就要把页面上按语言取的数据全部重取，这个代价按现状接受。
+- **验证**：`pnpm typecheck` 通过，`pnpm test:ci` 通过（行为集 153 文件 / 691 用例、架构集 15 文件 / 92 用例）。未新增用例。
 
 ## 7. 验收标准
 
@@ -403,7 +1048,10 @@ D1 `ItemDetailCopy` 类型与 copy 骨架 → D2 对话框外壳（`SharedItemDe
 
 - 组件不再直接散落 `locale === ... ? ... : ...`；新增产品文案进入 i18n copy。
 - 通过现有 UI 合同、质量门禁和类型检查；不新增仅匹配中文源码的普通功能测试。
+- `pnpm i18n:hardcoded:check` 保持零命中：JSX 文本节点与五个展示属性上不得再出现中文硬编码。
 - 发布说明明确英文支持范围；在全部核心工作流完成前，不标记为“完整英文支持”。
+
+本轮实跑结果见 §6「阶段 D 验收记录：英文界面实跑（2026-10-15）」与「阶段 D 验收记录：Desktop 实窗英文验收（2026-10-16）」：Web 预览壳下 8 个菜单在 1280 暗色 / 1280 亮色 / 980 暗色 / 760 暗色横向溢出为 0；Desktop 实窗下 8 个菜单在亮色 / 暗色横向溢出为 0，残留中文逐条归属到 Manifest 数据、账号派生值与上游 API 文本。`pnpm test`、`pnpm typecheck`、`node scripts/check-i18n-hardcoded.mjs` 均通过。首页周报那批 core 直接产出的文案已按方案 A 迁完（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），英文实窗复核后残留中文为 0。商人持有条的实例位置（`Instance location` / `实例位置`）也已按同一套路迁完，英文实窗 A/B 对照见 §6「阶段 D 验收记录：实例位置的英文实窗 A/B（2026-10-16）」。抛错文本这一类已按「只收敛会出屏的高频错误」收口六个域（账号 / 商人 / 每日情报 / 资料库 / 装备详情 / 配装写操作，见 §6「阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）」），其余保留上游中文原文。反方向也修了一处：中文界面上显示的装备名与 Perk 名先前仍可能是英文，根因是语言没进缓存身份，见 §6「阶段 D 修复记录：本地化名字的缓存身份带上语言（2026-10-16，Bug #118）」；切语言后页面不自动重取这件事也一并修了，见 §6「阶段 D 修复记录：切语言后页面自动重载（2026-10-16，Bug #119）」。
 
 ## 8. 依赖与风险
 
@@ -415,6 +1063,6 @@ D1 `ItemDetailCopy` 类型与 copy 骨架 → D2 对话框外壳（`SharedItemDe
 
 ## 9. 完成定义
 
-只有当仓库、配装、装备详情、AI 助手、页面标题/状态和平台 adapter 均完成英文接入，并通过英文主流程、窄屏、明暗主题和质量门禁验收后，T1 才能标记完成。
+只有当仓库、配装、装备详情、AI 助手、页面标题/状态和平台 adapter 均完成英文接入，并通过英文主流程、窄屏、明暗主题和质量门禁验收之后，T1 才能标记完成。首页周报 core 文案这一条已解决（见 §6「阶段 D 实施记录：首页周报 core 文案 token 化（2026-10-16）」），商人持有条的实例位置已解决（见 §6「阶段 D 实施记录：商人持有条的实例位置 token 化（2026-10-16）」），Web 与 Desktop 两侧的实窗验收也都跑过（见 §6）。剩下未收口的是主进程 / services / core 的抛错文本：会出屏的六个域已收（见 §6「阶段 D 实施记录：抛错文本按口径收敛（2026-10-16）」），配装页 DIM 导出与护甲规划、vault 批量写、设置与 AI 表单这几片仍会把上游中文当错误说明显示。
 
-在此之前，T1 保持“候选方案，待排期”，对外只能描述为“英文界面部分可用”。
+在此之前，T1 保持「部分完成」，对外只能描述为「英文界面部分可用」。

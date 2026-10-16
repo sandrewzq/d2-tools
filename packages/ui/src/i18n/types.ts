@@ -1,5 +1,6 @@
 import type { ShellPageKey } from "../shell/types.js";
 import type { ToolAccess, ToolCategory } from "../directory/toolDirectory.js";
+import type { SettingsSourceCategory } from "../settings/settingsSources.js";
 import type {
   VaultAmmoFilter,
   VaultChampionFilter,
@@ -16,6 +17,7 @@ import type {
   VaultTagFilter
 } from "@d2-tools/app/vault";
 import type { ArmorStatKey } from "@d2-tools/core/loadouts/analysis";
+import type { ArmorSlot } from "@d2-tools/core/armor";
 
 export type InterfaceLocale = "zh-CN" | "en-US";
 export type BungieManifestLocale = "zh-chs" | "en";
@@ -29,6 +31,12 @@ export type ProductPreferences = {
 };
 
 export type ShellCopy = {
+  /**
+   * 外壳状态条与页面头部按钮的短语：zh-CN 侧 key 就是最终展示的中文原文；
+   * en-US 侧以同一段中文原文为 key 写英文。消费侧统一用 `shellText / shellTemplate`。
+   * 品牌名（Bungie、AI）和版本号不进这张表。
+   */
+  inline: Record<string, string>;
   brandSubtitle: string;
   statusAriaLabel: string;
   statusMenuLabel: string;
@@ -53,9 +61,18 @@ export type ShellCopy = {
     close: string;
   };
   assistant: {
+    /**
+     * AI 助手面板的模板串与一次性文案：zh-CN 侧留空，key 就是最终展示的中文原文；
+     * en-US 侧以同一段中文原文为 key 写英文。消费侧统一用 `assistantText / assistantTemplate`。
+     * 面板里的页面名、上下文摘要和 AI 回答本身是数据，不在这里改。
+     */
+    inline: Record<string, string>;
     title: string;
     currentPage: (page: string) => string;
     close: string;
+    quickPrompts: string[];
+    /** 快照时间按界面语言格式化；日期写法本身也是语言的一部分，不各处硬编码 locale。 */
+    formatDateTime: (value: string) => string;
   };
   backgroundTasks: {
     ariaLabel: string;
@@ -126,6 +143,8 @@ export type DirectoryCopy = {
   developerTitle: string;
   developerHint: string;
   boundaryNotice: string;
+  /** 工具站用途与说明按站点 key 覆盖；zh-CN 留空，直接用 toolDirectory.ts 里的原文。 */
+  entryDetails: Record<string, { purpose?: string; note?: string }>;
 };
 
 export type HomeCopy = {
@@ -275,7 +294,19 @@ export type VaultCopy = {
 };
 
 export type LoadoutsCopy = {
+  /**
+   * 模板串与一次性文案的兜底表：zh-CN 侧留空，key 就是最终展示的中文原文；
+   * en-US 侧以同一段中文原文为 key 写英文。消费侧统一用 `copy.inline[key] ?? key`。
+   */
   inline: Record<string, string>;
+  /**
+   * 枚举标签的唯一来源，UI 按 key 查表，app 不需要知道 locale。
+   * 护甲属性与部位名在护甲规划器、装备选择抽屉和摘要里共用同一份。
+   */
+  labels: {
+    armorStats: Record<ArmorStatKey, string>;
+    armorSlots: Record<ArmorSlot, string>;
+  };
   title: string;
   subtitle: string;
   riskTitle: string;
@@ -383,4 +414,18 @@ export type SettingsCopy = {
     appVersion: string;
     backgroundTasks: string;
   };
+  /** 「数据来源与鸣谢」分类标题按 category 覆盖；zh-CN 留空，直接用 settingsSources.ts 里的中文原文。 */
+  sourceCategoryLabels: Partial<Record<SettingsSourceCategory, string>>;
+  /** 「数据来源与鸣谢」条目按 id 覆盖展示文案；zh-CN 留空，直接用源文件里的中文原文。 */
+  sourceEntryDetails: Record<string, {
+    name?: string;
+    role?: string;
+    content?: string;
+    usedIn?: string;
+    relationship?: string;
+    license?: string;
+    note?: string;
+  }>;
+  /** 「数据来源与鸣谢」每个分类的条目计数。 */
+  sourceEntryCount: (count: number) => string;
 };

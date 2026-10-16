@@ -110,7 +110,7 @@ export function VaultOrganizePanel(props: {
               <label className="compact-field vault-organize-field">
                 <span>{vaultText(copy, "接收角色")}</span>
                 <select aria-label={vaultText(copy, "接收角色")} value={props.cleanupTargetCharacterId} onChange={(event) => props.onCleanupTargetCharacterChange(event.target.value)}>
-                  {props.cleanupCharacters.map((character) => <option key={character.character_id} value={character.character_id}>{character.class_name} / {vaultTemplate(copy, "光等 {power}", { power: character.light ?? "-" })}</option>)}
+                  {props.cleanupCharacters.map((character) => <option key={character.character_id} value={character.character_id}>{vaultText(copy, character.class_name)} / {vaultTemplate(copy, "光等 {power}", { power: character.light ?? "-" })}</option>)}
                 </select>
               </label>
             ) : null}
@@ -132,7 +132,7 @@ export function VaultOrganizePanel(props: {
               <label className="compact-field vault-organize-field">
                 <span>{vaultText(copy, "接收角色")}</span>
                 <select aria-label={vaultText(copy, "清理装备接收角色")} value={props.cleanupTargetCharacterId} onChange={(event) => props.onCleanupTargetCharacterChange(event.target.value)}>
-                  {props.cleanupCharacters.map((character) => <option key={character.character_id} value={character.character_id}>{character.class_name} / {vaultTemplate(copy, "光等 {power}", { power: character.light ?? "-" })}</option>)}
+                  {props.cleanupCharacters.map((character) => <option key={character.character_id} value={character.character_id}>{vaultText(copy, character.class_name)} / {vaultTemplate(copy, "光等 {power}", { power: character.light ?? "-" })}</option>)}
                 </select>
               </label>
               <button type="button" data-ui-kind="button" data-control-variant="primary" aria-busy={props.isBatchSaving} disabled={!canWrite || props.isBatchSaving} onClick={() => setPendingWrite("cleanup-transfer")}>{vaultTemplate(copy, "转移清理装备 {count}", { count: cleanupTransferCount })}</button>

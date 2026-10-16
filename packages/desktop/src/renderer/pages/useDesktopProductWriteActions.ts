@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type { AccountOperationFeedbackView } from "@d2-tools/app/account";
 import { getLocaleCopy, type InterfaceLocale } from "@d2-tools/ui";
 import type {
@@ -49,11 +49,21 @@ export function useDesktopProductWriteActions(input: {
   setVaultTags: (tags: VaultTags) => void;
   vaultTags: VaultTags;
 }) {
-  const [loadoutMessage, setLoadoutMessage] = useState("");
+  const [loadoutMessage, setLoadoutMessageState] = useState("");
+  const [loadoutMessageTone, setLoadoutMessageTone] = useState<"info" | "error">("info");
   const [isRunningItemAction, setIsRunningItemAction] = useState(false);
   const [itemActionMessage, setItemActionMessage] = useState("");
   const [accountOperationFeedback, setAccountOperationFeedback] = useState<AccountOperationFeedbackView>();
   const loadoutActionFeedback = useLoadoutActionFeedback();
+
+  /**
+   * 回执色调由产出方直接给：界面原先靠 `message.includes("失败")` 反推，
+   * 英文回执里没有这两个字，那种判法一换语言就失灵。
+   */
+  const setLoadoutMessage = useCallback((message: string, tone: "info" | "error" = "info") => {
+    setLoadoutMessageState(message);
+    setLoadoutMessageTone(message ? tone : "info");
+  }, []);
 
   function clearCompletedWriteFeedback(): void {
     setAccountOperationFeedback((current) => {
@@ -74,6 +84,7 @@ export function useDesktopProductWriteActions(input: {
 
   const loadoutTemplateActions = useLoadoutTemplateActions({
     accountSummary: input.accountSummary,
+    copy: getLocaleCopy(input.interfaceLocale).loadouts,
     setLoadoutMessage
   });
 
@@ -82,6 +93,7 @@ export function useDesktopProductWriteActions(input: {
     loadoutLibrary: input.loadoutLibrary,
     diagnostics: input.diagnostics,
     loadoutActionFeedback,
+    copy: getLocaleCopy(input.interfaceLocale).loadouts,
     setLoadoutMessage,
     setItemActionMessage,
     setAccountOperationFeedback,
@@ -105,6 +117,7 @@ export function useDesktopProductWriteActions(input: {
     isRunningItemAction,
     loadoutActionFeedback,
     loadoutMessage,
+    loadoutMessageTone,
     loadoutTemplateActions,
     loadoutWriteActions,
     vaultWriteActions,

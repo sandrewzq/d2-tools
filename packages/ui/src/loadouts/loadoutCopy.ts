@@ -1,4 +1,5 @@
 import type { LoadoutsCopy } from "../i18n/types.js";
+import { replacePlaceholders } from "../i18n/placeholders.js";
 
 /**
  * 配装文案兜底查表。zh-CN 侧 `inline` 留空，key 本身就是最终展示的中文原文；
@@ -13,6 +14,19 @@ export function loadoutText(copy: LoadoutsCopy, key: string): string {
  * en-US 侧以同一段原文为 key 查英文。查不到就退回原文，不会渲染成空白。
  */
 export function loadoutTemplate(copy: LoadoutsCopy, key: string, values: Record<string, string | number>): string {
-  return loadoutText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
-    name in values ? String(values[name]) : match);
+  return replacePlaceholders(loadoutText(copy, key), values, (value) => loadoutText(copy, value));
+}
+
+/**
+ * 上游抛出的错误文本也过一遍查表。
+ *
+ * IPC 带上来的 `message` 是上游原文（`core` / `services` / 主进程里抛的中文），英文界面下会整条露出中文。
+ * 把已经登记过的原文交给同一张表查译文，未登记的（例如 Bungie 自己返回的英文错误）原样透出。
+ */
+export function loadoutErrorText(copy: LoadoutsCopy, error: unknown, fallbackKey: string): string {
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return loadoutText(copy, message);
+  }
+  return loadoutText(copy, fallbackKey);
 }

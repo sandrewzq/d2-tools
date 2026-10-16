@@ -9,6 +9,7 @@ import { MemoizedVaultListItem as VaultListItem } from "./VaultListItem.js";
 import { getVaultItemKey } from "@d2-tools/app/vault";
 import {
   selectVaultRecommendationSourceSummaries,
+  type RecommendationMatchCopy,
   type VaultRecommendationSummaryIndex
 } from "../recommendationMatchView.js";
 import { VaultVirtualWeaponGrid } from "./VaultVirtualWeaponGrid.js";
@@ -23,6 +24,7 @@ const VAULT_RENDER_INCREMENT = 200;
 
 export function VaultItemSections(props: {
   copy: VaultCopy;
+  recommendationMatchCopy: RecommendationMatchCopy;
   sections: VaultSection[];
   itemCollectionStore: VaultItemCollectionStore;
   highlightedItemKeys?: LoadoutTemplateLookup | null;
@@ -91,6 +93,7 @@ export function VaultItemSections(props: {
     return (
       <VaultItemCard
         copy={props.copy}
+        recommendationMatchCopy={props.recommendationMatchCopy}
         itemKey={itemKey}
         itemCollectionStore={props.itemCollectionStore}
         fallbackItem={fallbackItem}
@@ -112,7 +115,7 @@ export function VaultItemSections(props: {
         onQuickAction={handleQuickAction}
       />
     );
-  }, [handleQuickAction, handleSelectItem, handleToggleSelected, props.copy, props.currentCharacterId, props.currentCharacterLabel, props.highlightedItemKeys, props.isOrganizing, props.itemCollectionStore, props.openingItemKey, props.preferredRecommendationSourceId, props.quickActionStore, props.quickActionsDisabled, props.recommendationSummaryByInstance, props.selectedKeys, props.tags]);
+  }, [handleQuickAction, handleSelectItem, handleToggleSelected, props.copy, props.recommendationMatchCopy, props.currentCharacterId, props.currentCharacterLabel, props.highlightedItemKeys, props.isOrganizing, props.itemCollectionStore, props.openingItemKey, props.preferredRecommendationSourceId, props.quickActionStore, props.quickActionsDisabled, props.recommendationSummaryByInstance, props.selectedKeys, props.tags]);
   const renderStoredCard = useCallback(
     (itemKey: string, index: number) => renderCard(itemKey, index),
     [renderCard]
@@ -178,6 +181,7 @@ export function VaultItemSections(props: {
 
 const VaultItemCard = memo(function VaultItemCard(props: {
   copy: VaultCopy;
+  recommendationMatchCopy: RecommendationMatchCopy;
   itemKey: string;
   itemCollectionStore: VaultItemCollectionStore;
   fallbackItem?: AccountItemSummary;
@@ -203,7 +207,7 @@ const VaultItemCard = memo(function VaultItemCard(props: {
   const sourceRuleSummaries = item.group_key === "weapons"
     ? props.recommendationSummaryByInstance?.get(item.instance_id ?? `hash:${item.hash}`) ?? []
     : [];
-  const allSourceSummaries = selectVaultRecommendationSourceSummaries(sourceRuleSummaries);
+  const allSourceSummaries = selectVaultRecommendationSourceSummaries(props.recommendationMatchCopy, sourceRuleSummaries);
   const orderedSourceSummaries = props.preferredRecommendationSourceId
     ? [...allSourceSummaries].sort((left, right) => (
         Number(right.sourceId === props.preferredRecommendationSourceId)

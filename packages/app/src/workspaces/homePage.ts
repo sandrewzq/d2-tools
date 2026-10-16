@@ -2,7 +2,6 @@ import type { AccountSummary } from "@d2-tools/core/account/summary";
 import type { LoadoutTemplate } from "@d2-tools/core/loadouts/templates";
 import type {
   HomeDashboardDailySummary,
-  HomeDashboardDiagnosticRow,
   HomeDashboardStartupState,
   HomeDashboardWeeklySummary,
   HomeDashboardWorkspace
@@ -29,7 +28,6 @@ export type HomePageModelInput = {
   selectedCharacterId?: string;
   selectedCharacterLabel?: string;
   briefingFetchedAt?: string;
-  diagnosticRows?: HomeDashboardDiagnosticRow[];
   diagnosticError?: string;
   accountError?: string;
   hasAccountData?: boolean;
@@ -62,7 +60,6 @@ export type HomePageDerivedState = {
   equipmentSearchTouched: boolean;
   perkSearchTouched: boolean;
   isAiConfigured: boolean;
-  diagnosticRows: HomeDashboardDiagnosticRow[];
   pageMeta: { title: string; subtitle: string };
   assistantPageContext: AssistantPageContext;
   loadoutFacts: string[];
@@ -75,7 +72,6 @@ export function selectHomePageModel(input: HomePageModelInput): HomePageModel {
     selectedCharacterId: input.selectedCharacterId,
     selectedCharacterLabel: input.selectedCharacterLabel,
     briefingFetchedAt: input.briefingFetchedAt,
-    diagnosticRows: input.diagnosticRows ?? [],
     diagnosticError: input.diagnosticError ?? "",
     accountError: input.accountError ?? "",
     hasAccountData: input.hasAccountData ?? false,

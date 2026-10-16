@@ -4,8 +4,11 @@ import React from "react";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AccountSummary } from "../src/renderer/api/types.js";
+import { getLocaleCopy } from "@d2-tools/ui";
 import { useVendorDefinitionDetail } from "../src/renderer/features/vendors/useVendorDefinitionDetail.js";
 import { useVendorsWorkspace } from "../src/renderer/features/vendors/useVendorsWorkspace.js";
+
+const vendorsCopy = getLocaleCopy("zh-CN").vendors;
 
 vi.mock("../src/renderer/api/client.js", () => ({
   api: {
@@ -45,7 +48,7 @@ describe("vendor item detail wiring", () => {
   });
 
   it("opens a vendor offer as a library definition with its sale context", async () => {
-    const { result } = renderHook(() => useVendorDefinitionDetail());
+    const { result } = renderHook(() => useVendorDefinitionDetail({ copy: vendorsCopy }));
 
     await act(async () => {
       await result.current.open({
@@ -84,7 +87,7 @@ describe("vendor item detail wiring", () => {
   });
 
   it("clears the vendor definition detail when it closes", async () => {
-    const { result } = renderHook(() => useVendorDefinitionDetail());
+    const { result } = renderHook(() => useVendorDefinitionDetail({ copy: vendorsCopy }));
 
     await act(async () => {
       await result.current.open({
@@ -120,7 +123,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { active: false } }
     );
@@ -145,7 +149,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { active: true } }
     );
@@ -184,7 +189,8 @@ describe("vendor workspace loading", () => {
       selectedCharacterId: "hunter",
       active: true,
       now: activeXurNow,
-      loadInventory
+      loadInventory,
+      copy: vendorsCopy
     }));
 
     await waitFor(() => expect(loadInventory).toHaveBeenCalledTimes(2));
@@ -207,7 +213,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId,
         active: true,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { selectedCharacterId: "warlock" } }
     );
@@ -229,7 +236,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active: true,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
     );
@@ -251,7 +259,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active: true,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
     );
@@ -259,7 +268,9 @@ describe("vendor workspace loading", () => {
     await waitFor(() => expect(result.current.model.updatedAt).toBe("2026-07-12T12:00:00.000Z"));
     rerender({ account: createAccountSummary("membership-b") });
 
-    await waitFor(() => expect(result.current.model.statusBanner?.message).toBe("新账号商人数据读取失败"));
+    await waitFor(() => expect(result.current.model.statusBanner?.message).toEqual([
+      { key: "新账号商人数据读取失败" }
+    ]));
     expect(result.current.model.updatedLabel).toBe("等待商人数据");
     expect(result.current.model.selectedCharacterContext).toBeNull();
   });
@@ -276,7 +287,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active: true,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { account: createAccountSummary("membership-a") } }
     );
@@ -301,7 +313,8 @@ describe("vendor workspace loading", () => {
         selectedCharacterId: "hunter",
         active: true,
         now: activeXurNow,
-        loadInventory
+        loadInventory,
+        copy: vendorsCopy
       }),
       { initialProps: { account: createAccountSummary("membership-a") as AccountSummary | null } }
     );

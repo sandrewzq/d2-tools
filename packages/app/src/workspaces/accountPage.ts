@@ -2,6 +2,7 @@ import type { AccountItemSummary, AccountMaterialSummary, AccountSummary } from 
 import type { ActivityHistorySummary } from "@d2-tools/core/activities/history";
 import { accountEquipmentBucketHashes, bucketLabels } from "@d2-tools/core/items/classification";
 import { buildCharacterPowerView, type CharacterPowerView } from "./accountPower.js";
+import { filterTextTokens, literalText, type AccountTextToken } from "./accountTextToken.js";
 import { buildAccountCharacterTabs, type AccountCharacterTab } from "./characterTabs.js";
 
 export type AccountOpenItemPayload = {
@@ -15,8 +16,8 @@ export type AccountItemView = {
   key: string;
   name: string;
   icon?: string;
-  primaryFacts: string[];
-  stateFacts: string[];
+  primaryFacts: AccountTextToken[];
+  stateFacts: AccountTextToken[];
   canOpenDetail: boolean;
   isPending: boolean;
   isSyncing: boolean;
@@ -31,7 +32,7 @@ export type AccountReadonlyItemView = {
   typeLabel: string;
   sourceLabel: string;
   characterLabel?: string;
-  progressLabel?: string;
+  progressLabel?: AccountTextToken[];
   progressPercent?: number;
   isComplete?: boolean;
   statusLabel?: string;
@@ -89,7 +90,7 @@ export type AccountFeedbackView = {
 export type AccountProfileView = {
   accountName: string;
   profileLine: string;
-  inventoryLine: string;
+  inventoryLine: AccountTextToken;
   snapshotAt?: string | number | Date | null;
 };
 
@@ -221,7 +222,7 @@ export type AccountPageModelInput = {
 
 export type AccountPageWorkspace = {
   accountProfileLine: string;
-  accountInventoryLine: string;
+  accountInventoryLine: AccountTextToken | null;
   characterTabs: AccountCharacterTab[];
   materialRows: AccountMaterialRow[];
   loadoutSlotRows: AccountLoadoutSlotRow[];
@@ -238,13 +239,13 @@ export type AccountPageWorkspace = {
 export type AccountMaterialRow = {
   key: string;
   material: AccountMaterialSummary;
-  meta: string;
+  meta: AccountTextToken[];
 };
 
 export type AccountPostmasterPreviewItem = {
   key: string;
   item: AccountItemSummary;
-  meta: string;
+  meta: AccountTextToken[];
   isPending: boolean;
   isLoadoutMatch: boolean;
 };
@@ -252,9 +253,9 @@ export type AccountPostmasterPreviewItem = {
 export type AccountLoadoutSlotRow = {
   key: string;
   slot: AccountSummary["characters"][number]["loadout_slots"][number];
-  title: string;
-  subtitle: string;
-  preview: string;
+  title: AccountTextToken;
+  subtitle: AccountTextToken;
+  preview: AccountTextToken[];
 };
 
 export type AccountSlotCategoryKey = "weapons" | "armor" | "equipment" | "other";
@@ -350,9 +351,9 @@ export function createAccountPageWorkspace(input: {
     accountProfileLine: account ? `Membership ${account.membership_type} / ${account.destiny_membership_id}` : "",
     accountInventoryLine: account
       ? account.vault.capacity
-        ? `仓库 ${account.vault.item_count}/${account.vault.capacity}`
-        : `仓库 ${account.vault.item_count} 件`
-      : "",
+        ? { key: "仓库 {count}/{capacity}", values: { count: account.vault.item_count, capacity: account.vault.capacity } }
+        : { key: "仓库 {count} 件", values: { count: account.vault.item_count } }
+      : null,
     characterTabs: account ? buildAccountCharacterTabs(account, selectedCharacter?.character_id ?? "") : [],
     materialRows: account ? buildAccountMaterialRows(account.materials.items) : [],
     loadoutSlotRows: selectedCharacter ? buildAccountLoadoutSlotRows(selectedCharacter) : [],
@@ -430,7 +431,7 @@ export function selectAccountPageModel(input: AccountPageModelInput): AccountPag
       ? {
         accountName: cache.accountSummary.account_name,
         profileLine: workspace.accountProfileLine,
-        inventoryLine: workspace.accountInventoryLine,
+        inventoryLine: workspace.accountInventoryLine!,
         snapshotAt: pageState.lastAccountLoadedAt
       }
       : null,
@@ -750,12 +751,20 @@ function buildReadonlyItemProgress(item: AccountItemSummary): Pick<AccountReadon
     return total + Math.min(1, Math.max(0, (objective.progress ?? 0) / objective.completion_value));
   }, 0) / objectives.length * 100);
   const firstObjective = objectives[0];
-  const progressLabel = objectives.length === 1
-    ? [
-        firstObjective.progress_description,
-        `${firstObjective.progress ?? 0}/${firstObjective.completion_value}`
-      ].filter(Boolean).join(" · ")
-    : `${objectives.filter((objective) => objective.complete).length}/${objectives.length} 项目标`;
+  // 单目标时整句都是数据（上游的描述原文加 `0/3` 这种计数），多目标时的「项目标」是界面文案，
+  // 所以统一交 token，成句交给渲染层按界面语言拼。
+  const progressLabel: AccountTextToken[] = objectives.length === 1
+    ? filterTextTokens([
+        literalText(firstObjective.progress_description),
+        literalText(`${firstObjective.progress ?? 0}/${firstObjective.completion_value}`)
+      ])
+    : [{
+        key: "{count}/{total} 项目标",
+        values: {
+          count: objectives.filter((objective) => objective.complete).length,
+          total: objectives.length
+        }
+      }];
 
   return { progressLabel, progressPercent, isComplete };
 }
@@ -802,30 +811,32 @@ export function getAccountPageItemKey(item: AccountItemSummary): string {
   return item.instance_id ? item.instance_id : `hash:${item.hash}`;
 }
 
-export function formatAccountItemMeta(item: AccountItemSummary): string {
-  return [
-    item.equipment_bucket_name ?? item.bucket_name,
-    item.tier,
-    item.power ? `光等 ${item.power}` : undefined,
-    formatArmorStatsSummary(item),
-    item.locked ? "已锁定" : undefined
-  ].filter(Boolean).join(" / ");
+export function formatAccountItemMeta(item: AccountItemSummary): AccountTextToken[] {
+  return filterTextTokens([
+    literalText(item.equipment_bucket_name ?? item.bucket_name),
+    literalText(item.tier),
+    item.power ? { key: "光等 {power}", values: { power: item.power } } : undefined,
+    ...formatArmorStatsSummary(item),
+    item.locked ? { key: "已锁定" } : undefined
+  ]);
 }
 
 export function formatAccountItemFacts(item: AccountItemSummary): {
-  primary: string[];
-  state: string[];
+  primary: AccountTextToken[];
+  state: AccountTextToken[];
 } {
   return {
-    primary: [
-      item.group_key === "weapons" ? item.item_type : undefined,
-      item.tier,
-      typeof item.power === "number" ? `光等 ${item.power}` : undefined
-    ].filter((value): value is string => Boolean(value)),
-    state: [
-      item.group_key === "armor" && item.armor_stats ? `总值 ${item.armor_stats.total}` : undefined,
-      item.locked ? "锁定" : undefined
-    ].filter((value): value is string => Boolean(value))
+    primary: filterTextTokens([
+      item.group_key === "weapons" ? literalText(item.item_type) : undefined,
+      literalText(item.tier),
+      typeof item.power === "number" ? { key: "光等 {power}", values: { power: item.power } } : undefined
+    ]),
+    state: filterTextTokens([
+      item.group_key === "armor" && item.armor_stats
+        ? { key: "总值 {total}", values: { total: item.armor_stats.total } }
+        : undefined,
+      item.locked ? { key: "锁定" } : undefined
+    ])
   };
 }
 
@@ -837,8 +848,9 @@ export function buildAccountMaterialRows(materials: AccountMaterialSummary[]): A
   }));
 }
 
-export function formatAccountMaterialMeta(material: AccountMaterialSummary): string {
-  return [material.tier, material.item_type].filter(Boolean).join(" / ") || "材料";
+export function formatAccountMaterialMeta(material: AccountMaterialSummary): AccountTextToken[] {
+  const parts = filterTextTokens([literalText(material.tier), literalText(material.item_type)]);
+  return parts.length ? parts : [{ key: "材料" }];
 }
 
 export function buildPostmasterPreviewItems(input: {
@@ -864,23 +876,25 @@ export function buildAccountLoadoutSlotRows(
   return character.loadout_slots.map((slot) => ({
     key: `${character.character_id}-loadout-${slot.index}`,
     slot,
-    title: slot.name || `配装栏 ${slot.index + 1}`,
-    subtitle: `槽位 ${slot.index + 1} / ${slot.item_count} 件装备`,
-    preview: slot.items.slice(0, 4).map((item) => item.name).join(" / ") || "当前槽位为空"
+    title: literalText(slot.name) ?? { key: "配装栏 {index}", values: { index: slot.index + 1 } },
+    subtitle: { key: "槽位 {index} / {count} 件装备", values: { index: slot.index + 1, count: slot.item_count } },
+    preview: slot.items.length
+      ? slot.items.slice(0, 4).map((item) => ({ key: item.name, literal: true }))
+      : [{ key: "当前槽位为空" }]
   }));
 }
 
-export function formatArmorStatsSummary(item: Pick<AccountItemSummary, "armor_stats">): string | undefined {
+export function formatArmorStatsSummary(item: Pick<AccountItemSummary, "armor_stats">): AccountTextToken[] {
   if (!item.armor_stats) {
-    return undefined;
+    return [];
   }
 
   return [
-    `总值 ${item.armor_stats.total}`,
-    `生命值 ${item.armor_stats.health}`,
-    `职业 ${item.armor_stats.class}`,
-    `手雷 ${item.armor_stats.grenade}`
-  ].join(" / ");
+    { key: "总值 {total}", values: { total: item.armor_stats.total } },
+    { key: "生命值 {health}", values: { health: item.armor_stats.health } },
+    { key: "职业 {class}", values: { class: item.armor_stats.class } },
+    { key: "手雷 {grenade}", values: { grenade: item.armor_stats.grenade } }
+  ];
 }
 
 export function groupAccountItemsBySlot(items: AccountItemSummary[]): AccountSlotCategory[] {

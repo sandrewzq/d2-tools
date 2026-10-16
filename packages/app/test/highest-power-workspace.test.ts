@@ -276,10 +276,10 @@ describe("highest power workspace", () => {
     ].join("\n"));
   });
 
-  it("builds progress and result messages for highest-power write actions", () => {
-    expect(buildHighestPowerAlreadyOptimalMessage("术士")).toBe("术士 当前已经是最高光等组合。");
-    expect(buildHighestPowerTransferProgressMessage(2)).toBe("正在从仓库取出 2 件最高光等装备...");
-    expect(buildHighestPowerEquipProgressMessage(3)).toBe("正在装备最高光等 3 件装备...");
+  it("builds progress and result tokens for highest-power write actions", () => {
+    expect(buildHighestPowerAlreadyOptimalMessage("术士")).toEqual({ kind: "already-optimal", class_name: "术士" });
+    expect(buildHighestPowerTransferProgressMessage(2)).toEqual({ kind: "transfer-progress", item_count: 2 });
+    expect(buildHighestPowerEquipProgressMessage(3)).toEqual({ kind: "equip-progress", item_count: 3 });
     expect(buildHighestPowerResultMessage({
       characterClassName: "术士",
       transferSuccessCount: 0,
@@ -287,7 +287,7 @@ describe("highest power workspace", () => {
       equipSuccessCount: 3,
       equipTotalCount: 3,
       failedCount: 0
-    })).toBe("已提交给 术士 装备 3 件最高光等装备，正在确认游戏内状态。");
+    })).toEqual({ kind: "result-submitted", class_name: "术士", equip_count: 3 });
     expect(buildHighestPowerResultMessage({
       characterClassName: "术士",
       transferSuccessCount: 1,
@@ -296,7 +296,16 @@ describe("highest power workspace", () => {
       equipTotalCount: 3,
       failedCount: 2,
       failureReason: "当前角色所在位置不允许更换装备。"
-    })).toBe("最高光等部分提交：转移受理 1/2，装备受理 2/3，失败步骤 2。首个失败原因：当前角色所在位置不允许更换装备。");
+    })).toEqual({
+      kind: "result-with-failures",
+      partial: true,
+      transfer_success_count: 1,
+      transfer_total_count: 2,
+      equip_success_count: 2,
+      equip_total_count: 3,
+      failed_count: 2,
+      failure_reason: "当前角色所在位置不允许更换装备。"
+    });
   });
 });
 

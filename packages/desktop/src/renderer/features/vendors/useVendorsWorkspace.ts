@@ -5,6 +5,7 @@ import {
 } from "@d2-tools/app/vendors";
 import { isXurActiveAt, nextXurBoundaryAt, xurVendorHash } from "@d2-tools/core/daily/xurSchedule";
 import type { VendorCharacterScope } from "@d2-tools/core/vendors/inventory";
+import { vendorsErrorText, vendorsTemplate, vendorsText, type VendorsCopy } from "@d2-tools/ui";
 import type { AccountSummary } from "../../api/types";
 import type {
   VendorInventoryRequest,
@@ -25,13 +26,14 @@ export type VendorRefreshState = {
 export function resolveVendorRefreshState(
   cached: VendorInventorySnapshot,
   refreshed: VendorInventorySnapshot | null,
-  error?: unknown
+  error: unknown,
+  copy: VendorsCopy
 ): VendorRefreshState {
   if (error || !refreshed) {
     return {
       snapshot: cached,
       refreshState: "failed",
-      refreshError: error instanceof Error ? error.message : "商人数据刷新失败"
+      refreshError: vendorsErrorText(copy, error, "商人数据刷新失败")
     };
   }
   const armorerChanged = Object.keys(refreshed.characterContexts).some((characterId) =>
@@ -41,7 +43,7 @@ export function resolveVendorRefreshState(
   return {
     snapshot: refreshed,
     refreshState: "idle",
-    statusMessage: armorerChanged ? "已按当前机灵模组更新商人属性" : undefined
+    statusMessage: armorerChanged ? vendorsText(copy, "已按当前机灵模组更新商人属性") : undefined
   };
 }
 
@@ -49,6 +51,7 @@ export function useVendorsWorkspace(input: {
   accountSummary: AccountSummary | null;
   selectedCharacterId: string;
   active: boolean;
+  copy: VendorsCopy;
   now?: Date;
   loadCachedInventory?: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot | null>;
   loadInventory: (input: VendorInventoryRequest) => Promise<VendorInventorySnapshot>;
@@ -109,17 +112,17 @@ export function useVendorsWorkspace(input: {
     );
     setRefreshState("refreshing");
     setRefreshError("");
-    if (source === "vendor-select") setStatusMessage("正在更新当前商人库存");
+    if (source === "vendor-select") setStatusMessage(vendorsText(input.copy, "正在更新当前商人库存"));
     try {
       const next = hideInactiveXur(await input.loadInventory(request), input.now);
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
         if (hasSameVendorInventoryContent(currentSnapshot, next)) {
-          setStatusMessage("已检查，商人库存无变化");
+          setStatusMessage(vendorsText(input.copy, "已检查，商人库存无变化"));
           setRefreshState("idle");
           return;
         }
-        const resolved = resolveVendorRefreshState(currentSnapshot, next);
+        const resolved = resolveVendorRefreshState(currentSnapshot, next, undefined, input.copy);
         setSnapshot(resolved.snapshot);
         setStatusMessage(resolved.statusMessage ?? "");
       } else {
@@ -130,13 +133,13 @@ export function useVendorsWorkspace(input: {
     } catch (error) {
       if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
       if (currentSnapshot) {
-        const resolved = resolveVendorRefreshState(currentSnapshot, null, error);
+        const resolved = resolveVendorRefreshState(currentSnapshot, null, error, input.copy);
         setSnapshot(resolved.snapshot);
         setRefreshState(resolved.refreshState);
         setRefreshError(resolved.refreshError ?? "");
       } else {
         setRefreshState("failed");
-        setRefreshError(error instanceof Error ? error.message : "商人数据读取失败");
+        setRefreshError(vendorsErrorText(input.copy, error, "商人数据读取失败"));
       }
     } finally {
       if (manualRequestSequenceRef.current === requestSequence) {
@@ -211,24 +214,26 @@ export function useVendorsWorkspace(input: {
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
-          setStatusMessage("正在显示上次商人库存，后台检查更新");
+          setStatusMessage(vendorsText(input.copy, "正在显示上次商人库存，后台检查更新"));
         }
         const next = hideInactiveXur(await input.loadInventory(request), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (availableSnapshot && hasSameVendorInventoryContent(availableSnapshot, next)) {
-          setStatusMessage("已检查，商人库存无变化");
+          setStatusMessage(vendorsText(input.copy, "已检查，商人库存无变化"));
         } else {
           setSnapshot(next);
-          setStatusMessage(availableSnapshot ? "商人库存已在后台更新" : "");
+          setStatusMessage(availableSnapshot ? vendorsText(input.copy, "商人库存已在后台更新") : "");
         }
         setRefreshState("idle");
       } catch (error) {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (availableSnapshot) setSnapshot(availableSnapshot);
         setRefreshState("failed");
-        setRefreshError(error instanceof Error
-          ? `${availableSnapshot ? "继续显示上次库存。" : ""}${error.message}`
-          : "商人数据读取失败");
+        setRefreshError(availableSnapshot
+          ? vendorsTemplate(input.copy, "继续显示上次库存。{message}", {
+            message: vendorsErrorText(input.copy, error, "商人数据读取失败")
+          })
+          : vendorsErrorText(input.copy, error, "商人数据读取失败"));
       } finally {
         if (requestSequence === requestSequenceRef.current && requestContextKey === requestContextKeyRef.current) {
           contextLoadPendingRef.current = false;
@@ -267,24 +272,26 @@ export function useVendorsWorkspace(input: {
         if (cached) {
           availableSnapshot = cached;
           setSnapshot(cached);
-          setStatusMessage("正在显示上次商人详情，后台检查更新");
+          setStatusMessage(vendorsText(input.copy, "正在显示上次商人详情，后台检查更新"));
         }
         const next = hideInactiveXur(await input.loadInventory(request), input.now);
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
         if (hasSameVendorInventoryContent(availableSnapshot, next)) {
-          setStatusMessage("已检查，当前商人库存无变化");
+          setStatusMessage(vendorsText(input.copy, "已检查，当前商人库存无变化"));
         } else {
-          const resolved = resolveVendorRefreshState(availableSnapshot, next);
+          const resolved = resolveVendorRefreshState(availableSnapshot, next, undefined, input.copy);
           setSnapshot(resolved.snapshot);
-          setStatusMessage(resolved.statusMessage ?? "当前商人库存已在后台更新");
+          setStatusMessage(resolved.statusMessage ?? vendorsText(input.copy, "当前商人库存已在后台更新"));
         }
         setRefreshState("idle");
       } catch (error) {
         if (requestSequence !== requestSequenceRef.current || requestContextKey !== requestContextKeyRef.current) return;
-        const resolved = resolveVendorRefreshState(availableSnapshot, null, error);
+        const resolved = resolveVendorRefreshState(availableSnapshot, null, error, input.copy);
         setSnapshot(resolved.snapshot);
         setRefreshState(resolved.refreshState);
-        setRefreshError(`继续显示上次库存。${resolved.refreshError ?? "商人详情刷新失败"}`);
+        setRefreshError(vendorsTemplate(input.copy, "继续显示上次库存。{message}", {
+          message: resolved.refreshError ?? vendorsText(input.copy, "商人详情刷新失败")
+        }));
       }
     })();
   }, [input.accountSummary, input.active, input.loadCachedInventory, input.loadInventory, input.now, requestCharacterIds, requestContextKey, selectedDetailVendorHashes, snapshot]);

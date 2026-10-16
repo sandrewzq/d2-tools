@@ -589,7 +589,6 @@ export function createWebHomePageModel(snapshot: WebHomeSnapshot) {
     accountError: "",
     hasAccountData: true,
     briefingFetchedAt: new Date().toISOString(),
-    diagnosticRows: [{ tone: "warning" }],
     dailySummary: snapshot.homeDailySummary,
     weeklySummary: snapshot.homeWeeklySummary
   });

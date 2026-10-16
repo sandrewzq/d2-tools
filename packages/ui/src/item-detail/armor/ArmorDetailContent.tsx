@@ -282,11 +282,11 @@ function ArmorIdentity({ model, copy }: { model: ArmorDetailViewModel; copy: Ite
         <GameAssetImage src={identity.icon} alt="" loading="eager" fallback={<span className="armor-detail-icon-placeholder" aria-hidden="true" />} />
         <div>
           <h2 data-ui-part="value" data-text-tone="primary" data-info-priority="display">{identity.name}</h2>
-          <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.tier, identity.item_type, identity.class_name].filter(Boolean).join(" · ")}</p>
+          <p data-ui-part="detail" data-text-tone="body" data-info-priority="reading">{[identity.tier, identity.item_type, identity.class_name ? itemDetailText(copy, identity.class_name) : undefined].filter(Boolean).join(" · ")}</p>
           <div className="armor-detail-facts" aria-label={itemDetailText(copy, "护甲摘要")}>
             {identity.tier ? <Fact label={identity.tier} tone={/异域|exotic/i.test(identity.tier) ? "exotic" : "legendary"} /> : null}
             {identity.item_type ? <Fact label={identity.item_type} /> : null}
-            {identity.class_name ? <Fact label={identity.class_name} /> : null}
+            {identity.class_name ? <Fact label={itemDetailText(copy, identity.class_name)} /> : null}
             {feature
               ? <Fact label={feature.label} tone={feature.tone} title={feature.title} />
               : <Fact label={model.loading_state.definition ? itemDetailText(copy, "套装与能力读取中") : itemDetailText(copy, "没有可确认的套装或固有能力")} tone="incomplete" />}
@@ -314,7 +314,7 @@ function ArmorIdentity({ model, copy }: { model: ArmorDetailViewModel; copy: Ite
             <dl><dt>{itemDetailText(copy, "定义版本")}</dt><dd>{identity.definition_version?.label ?? itemDetailText(copy, "资料未返回")}</dd></dl>
             <dl><dt>{itemDetailText(copy, "光等上限 Hash")}</dt><dd>{identity.definition_version?.power_cap_hash ?? itemDetailText(copy, "资料未返回")}</dd></dl>
             <dl><dt>{itemDetailText(copy, "版本水印")}</dt><dd>{watermarks.length ? <span className="armor-detail-definition-watermarks">{watermarks.map((icon, index) => <GameAssetImage key={`${icon}:${index}`} src={icon} alt={itemDetailTemplate(copy, "官方版本水印 {index}", { index: index + 1 })} title={itemDetailText(copy, "官方定义版本水印")} loading="eager" />)}</span> : itemDetailText(copy, "资料未返回")}</dd></dl>
-            <dl><dt>{itemDetailText(copy, "职业限制")}</dt><dd>{identity.class_name ?? itemDetailText(copy, "所有职业")}</dd></dl>
+            <dl><dt>{itemDetailText(copy, "职业限制")}</dt><dd>{identity.class_name ? itemDetailText(copy, identity.class_name) : itemDetailText(copy, "所有职业")}</dd></dl>
             <dl><dt>{itemDetailText(copy, "护甲部位")}</dt><dd>{identity.bucket_name ?? identity.item_type ?? itemDetailText(copy, "护甲")}</dd></dl>
               <dl><dt>{itemDetailText(copy, "套装或固有能力")}</dt><dd>{identity.armor_set?.name ?? ([...model.abilities.map((ability) => ability.name), ...model.ability_groups.map((group) => `${group.name}（${group.options.map((option) => option.name).join(" / ")}）`)].join(" / ") || itemDetailText(copy, "资料未返回"))}</dd></dl>
             <dl><dt>{itemDetailText(copy, "套装 Hash")}</dt><dd>{identity.armor_set?.hash ?? itemDetailText(copy, "资料未返回")}</dd></dl>
@@ -677,7 +677,7 @@ function ConfigurationSection({ model, copy }: { model: ArmorDetailViewModel; co
               : null}
           </div>
           <div className="armor-detail-capability-table">
-            <CapabilityRow label={itemDetailText(copy, "适用职业")} value={model.identity.class_name ?? itemDetailText(copy, "所有职业")} status={itemDetailText(copy, "装备要求")} />
+            <CapabilityRow label={itemDetailText(copy, "适用职业")} value={model.identity.class_name ? itemDetailText(copy, model.identity.class_name) : itemDetailText(copy, "所有职业")} status={itemDetailText(copy, "装备要求")} />
             <CapabilityRow label={itemDetailText(copy, "护甲部位")} value={model.identity.bucket_name ?? model.identity.item_type ?? itemDetailText(copy, "护甲")} status={itemDetailText(copy, "部位规则")} />
             <CapabilityRow label={itemDetailText(copy, "随机属性")} value={itemDetailText(copy, "每件商人售卖品或账号中的具体护甲可能拥有不同属性分布")} status={itemDetailText(copy, "每件可能不同")} />
             <CapabilityRow label={itemDetailText(copy, "当前查看")} value={armorObjectLabel(copy, model.context.kind)} status={armorConfigurationStatus(copy, model.context.kind)} />

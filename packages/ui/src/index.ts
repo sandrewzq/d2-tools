@@ -25,6 +25,7 @@ export type { ContextSwitcherItem, ContextSwitcherProps } from "./control/Contex
 export { AccountPageContentView } from "./account/AccountPageContentView.js";
 export type { AccountPageContentViewProps } from "./account/AccountPageContentView.js";
 export { AiAssistantPanelView } from "./assistant/AiAssistantPanelView.js";
+export { assistantTemplate, assistantText } from "./assistant/assistantCopy.js";
 export type {
   AiAssistantContextView,
   AiAssistantHistoryEntryView,
@@ -59,8 +60,11 @@ export {
 export type {
   AccountCopy,
   BungieManifestLocale,
+  HomeCopy,
   InterfaceLocale,
   ItemDetailCopy,
+  LibraryCopy,
+  LoadoutsCopy,
   LocaleCopy,
   ProductPreferences,
   SettingsCopy,
@@ -81,16 +85,33 @@ export type {
 } from "./library/libraryFilters.js";
 export { LoadoutsPageContentView } from "./loadouts/LoadoutsPageContentView.js";
 export type { LoadoutsPageActions } from "./loadouts/LoadoutsPageContentView.js";
+export { loadoutErrorText, loadoutTemplate, loadoutText } from "./loadouts/loadoutCopy.js";
+export { settingsTemplate, settingsText } from "./settings/settingsCopy.js";
+export {
+  highestPowerMessageText,
+  loadoutActionMessageText,
+  loadoutConfirmText,
+  loadoutSlotActionLabelText,
+  loadoutTemplateNameText
+} from "./loadouts/loadoutActionCopy.js";
 export type { LoadoutActionFeedbackState } from "./loadouts/loadoutActionFeedback.js";
 export { SharedItemDetailDialog, SharedItemDetailLoading } from "./item-detail/SharedItemDetailDialog.js";
-export { itemDetailTemplate, itemDetailText } from "./item-detail/itemDetailCopy.js";
+export { itemDetailErrorText, itemDetailTemplate, itemDetailText } from "./item-detail/itemDetailCopy.js";
+export { accountErrorText, accountTemplate, accountText, accountTokenText, accountTokensText } from "./account/accountCopy.js";
+export { shellTemplate, shellText } from "./shell/shellCopy.js";
+export { libraryTemplate, libraryText } from "./library/libraryCopy.js";
+export { homeErrorText, homeTemplate, homeText } from "./home/homeCopy.js";
+export { vendorsErrorText, vendorsTemplate, vendorsText } from "./vendors/vendorCopy.js";
 export {
   armorSocketLabelText,
   armorStatLabel,
   itemDetailEntryLabel,
   itemDetailSourceLocationLabel,
   weaponAmmoLabel,
+  weaponChampionEffectLabel,
+  weaponChampionLabel,
   weaponCraftingLabel,
+  weaponDamageLabel,
   weaponSocketColumnLabelText,
   weaponStatLabel
 } from "./item-detail/itemDetailLabels.js";
@@ -183,6 +204,7 @@ export {
   getVaultCommunityInstanceKey
 } from "./recommendationMatchView.js";
 export type {
+  RecommendationMatchCopy,
   VaultRecommendationCompleteFilter,
   VaultRecommendationFilterFact,
   VaultRecommendationFilterFactIndex,

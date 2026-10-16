@@ -4,7 +4,6 @@ import {
   createLocalLoadoutPlanDraftFromInGameLoadout,
   createLocalLoadoutPlanDraftFromCharacter,
   resolveLocalLoadoutPlanDraftSlots,
-  selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft
 } from "@d2-tools/app/loadouts";
 import type { AccountSummary, CharacterSummary } from "@d2-tools/core/account/summary";
@@ -27,6 +26,7 @@ import type {
   AssistantEquipmentTargetCandidatesArtifact
 } from "@d2-tools/app/capabilities";
 import type { ActionVerificationStatus } from "@d2-tools/core/actions/log";
+import { loadoutTemplate, loadoutText, type LoadoutsCopy } from "@d2-tools/ui";
 import { api } from "../../api/client";
 import { useAccountSummaryStore } from "../../shared/stores/accountEntityStore";
 import { hydratePlanAccount } from "../../shared/loadouts/hydratePlanAccount";
@@ -57,8 +57,11 @@ export type LocalPlanPublishReport = {
 };
 
 export function useLocalLoadoutPlans(input: {
+  /** 临时回执跟着界面语言走；写进方案或操作日志的文本这次不动（见 T1 backlog 的取舍记录）。 */
+  copy: LoadoutsCopy;
   refreshAccount: () => Promise<ReturnType<typeof useAccountSummaryStore> | null>;
 }) {
+  const copy = input.copy;
   const accountSummary = useAccountSummaryStore();
   const [plans, setPlans] = useState<LocalLoadoutPlan[]>([]);
   const [selectedPlanId, setSelectedPlanId] = useState("");
@@ -140,19 +143,13 @@ export function useLocalLoadoutPlans(input: {
       setError("");
     } catch {
       applyPlans([]);
-      setError("应用配装读取失败，请检查本地数据目录后重试。");
+      setError(loadoutText(copy, "应用配装读取失败，请检查本地数据目录后重试。"));
     }
-  }, [applyPlans]);
+  }, [applyPlans, copy]);
 
   useEffect(() => {
     void reload();
   }, [reload]);
-
-  const workspace = useMemo(() => selectLocalLoadoutPlanWorkbench({
-    accountSummary,
-    plans,
-    selectedPlanId
-  }), [accountSummary, plans, selectedPlanId]);
 
   const isDraftDirty = useMemo(() => {
     if (!draft) return false;
@@ -240,15 +237,15 @@ export function useLocalLoadoutPlans(input: {
     setError("");
     try {
       const preview = await api.previewDimLoadoutImport(url);
-      setDimPreview(resolveDimPreviewSlots(preview, accountSummary));
+      setDimPreview(resolveDimPreviewSlots(preview, accountSummary, copy));
     } catch (previewError) {
       const message = previewError instanceof Error ? previewError.message : String(previewError);
       setDimPreview(null);
-      setError(`DIM 完整链接导入失败：${message}`);
+      setError(loadoutTemplate(copy, "DIM 完整链接导入失败：{error}", { error: message }));
     } finally {
       setIsPreviewingDim(false);
     }
-  }, [isPreviewingDim, accountSummary]);
+  }, [copy, isPreviewingDim, accountSummary]);
 
   const acceptDimImport = useCallback((character: CharacterSummary | null) => {
     if (!dimPreview || !character) return;
@@ -342,7 +339,7 @@ export function useLocalLoadoutPlans(input: {
         ? await api.readGuideSource(normalizedInput)
         : undefined;
       const rawText = sourcePreview?.body.trim() || normalizedInput;
-      if (!rawText) throw new Error("来源中没有可分析的攻略正文");
+      if (!rawText) throw new Error(loadoutText(copy, "来源中没有可分析的攻略正文"));
       const parsed = await api.parseBuildGuide({ rawText });
       const match = await api.matchBuildGuide({ requirement: parsed.requirement, characterId: character.character_id });
       const guide = await api.createGuideLoadoutDraft({
@@ -362,12 +359,12 @@ export function useLocalLoadoutPlans(input: {
       return true;
     } catch (guideError) {
       const message = guideError instanceof Error ? guideError.message : String(guideError);
-      setError(`攻略分析失败：${message}`);
+      setError(loadoutTemplate(copy, "攻略分析失败：{error}", { error: message }));
       return false;
     } finally {
       setIsImportingGuide(false);
     }
-  }, [assistantPrefill, isImportingGuide, startFromGuideDraft]);
+  }, [assistantPrefill, copy, isImportingGuide, startFromGuideDraft]);
 
   const acceptAssistantEquipmentTargets = useCallback((
     artifact: AssistantEquipmentTargetCandidatesArtifact,
@@ -432,16 +429,19 @@ export function useLocalLoadoutPlans(input: {
   const executeDraft = useCallback(async () => {
     if (!draft || !accountSummary || !draft.target_character_id || isExecuting) return;
     if (!editingPlanId) {
-      setError("请先保存应用配装，再生成并执行穿戴计划。");
+      setError(loadoutText(copy, "请先保存应用配装，再生成并执行穿戴计划。"));
       return;
     }
     const target = accountSummary.characters.find((character) => character.character_id === draft.target_character_id);
     if (!target) {
-      setError("目标角色不在当前账号快照中，请刷新账号后重试。");
+      setError(loadoutText(copy, "目标角色不在当前账号快照中，请刷新账号后重试。"));
       return;
     }
     if (draft.class_name && draft.class_name !== "未限定职业" && draft.class_name !== target.class_name) {
-      setError(`方案职业为 ${draft.class_name}，当前目标角色为 ${target.class_name}，不能直接应用。`);
+      setError(loadoutTemplate(copy, "方案职业为 {plan}，当前目标角色为 {target}，不能直接应用。", {
+        plan: draft.class_name,
+        target: target.class_name
+      }));
       return;
     }
     // 插槽详情可能还没落地（首帧），退回快照只会少判、不会误判：缺口会照常提示。
@@ -449,10 +449,19 @@ export function useLocalLoadoutPlans(input: {
     const plan = createLocalLoadoutPlanExecutionPlan({ plan: draft, account: wearAccount, target_character_id: target.character_id });
     if (!plan.executable_steps.length) {
       setExecutionReport({ plan, completed_steps: [], preflight_verified: false, refresh_verified: false });
-      setError(plan.gaps.length ? `没有可执行步骤：${plan.gaps.join("；")}` : "方案没有已确认的可执行实例。");
+      setError(plan.gaps.length
+        ? loadoutTemplate(copy, "没有可执行步骤：{reasons}", { reasons: plan.gaps.join(loadoutText(copy, "；")) })
+        : loadoutText(copy, "方案没有已确认的可执行实例。"));
       return;
     }
-    if (!window.confirm(`计划 ${plan.plan_id}\n将按顺序执行 ${plan.executable_steps.length} 个步骤。${plan.gaps.length ? `\n仍有 ${plan.gaps.length} 项缺口不会执行。` : ""}\n确认后先刷新账号复核；计划变化时不会执行任何写操作。任一步失败会停止后续操作并再次刷新账号。继续吗？`)) {
+    const gapNotice = plan.gaps.length
+      ? loadoutTemplate(copy, "\n仍有 {count} 项缺口不会执行。", { count: plan.gaps.length })
+      : "";
+    if (!window.confirm(loadoutTemplate(
+      copy,
+      "计划 {id}\n将按顺序执行 {count} 个步骤。{gaps}\n确认后先刷新账号复核；计划变化时不会执行任何写操作。任一步失败会停止后续操作并再次刷新账号。继续吗？",
+      { id: plan.plan_id, count: plan.executable_steps.length, gaps: gapNotice }
+    ))) {
       return;
     }
 
@@ -464,7 +473,7 @@ export function useLocalLoadoutPlans(input: {
     let executionAccount = wearAccount;
     try {
       const latestAccount = await refreshHydratedAccount();
-      if (!latestAccount) throw new Error("执行前账号刷新没有返回可用快照");
+      if (!latestAccount) throw new Error(loadoutText(copy, "执行前账号刷新没有返回可用快照"));
       const observedPlan = createLocalLoadoutPlanExecutionPlan({
         plan: draft,
         account: latestAccount,
@@ -472,7 +481,9 @@ export function useLocalLoadoutPlans(input: {
       });
       const validation = validateLocalLoadoutPlanExecutionPlan(plan, observedPlan);
       if (validation.status === "stale") {
-        const message = `方案在确认后已失效：${validation.reasons.join("；")}。请检查最新账号状态并重新确认。`;
+        const message = loadoutTemplate(copy, "方案在确认后已失效：{reasons}。请检查最新账号状态并重新确认。", {
+          reasons: validation.reasons.join(loadoutText(copy, "；"))
+        });
         setExecutionReport({
           plan,
           completed_steps: [],
@@ -488,7 +499,9 @@ export function useLocalLoadoutPlans(input: {
       }
       executionAccount = latestAccount;
     } catch (preflightError) {
-      const message = `执行前账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
+      const message = loadoutTemplate(copy, "执行前账号复核失败：{error}", {
+        error: preflightError instanceof Error ? preflightError.message : String(preflightError)
+      });
       setExecutionReport({
         plan,
         completed_steps: [],
@@ -535,7 +548,9 @@ export function useLocalLoadoutPlans(input: {
       try {
         refreshedAccount = await refreshHydratedAccount();
       } catch (refreshError) {
-        failure = failure ?? `装备数据同步失败：${refreshError instanceof Error ? refreshError.message : String(refreshError)}`;
+        failure = failure ?? loadoutTemplate(copy, "装备数据同步失败：{error}", {
+          error: refreshError instanceof Error ? refreshError.message : String(refreshError)
+        });
       }
       const targetAfterRefresh = refreshedAccount?.characters.find((character) => character.character_id === target.character_id);
       const selectedInstanceIds = draft.item_targets
@@ -571,19 +586,28 @@ export function useLocalLoadoutPlans(input: {
         });
       } catch (verificationLogError) {
         verificationLogged = false;
-        const logMessage = `执行验证记录写入失败：${verificationLogError instanceof Error ? verificationLogError.message : String(verificationLogError)}`;
+        const logMessage = loadoutTemplate(copy, "执行验证记录写入失败：{error}", {
+          error: verificationLogError instanceof Error ? verificationLogError.message : String(verificationLogError)
+        });
         failure = failure ? `${failure}；${logMessage}` : logMessage;
       }
       const report = { plan, completed_steps: completedSteps, ...(failedStep ? { failed_step: failedStep } : {}), ...(failure ? { error: failure } : {}), confirmation_id: confirmationId, execution_id: executionId, verification_status: verificationStatus, verification_logged: verificationLogged, preflight_verified: true, refresh_verified: verified };
       setExecutionReport(report);
       if (failedStep) {
-        setError(`已完成 ${completedSteps.length} 步；${failedStep} 失败，后续 ${plan.executable_steps.length - completedSteps.length - 1} 步未执行。${failure ?? ""}`);
+        setError(loadoutTemplate(copy, "已完成 {done} 步；{step} 失败，后续 {remaining} 步未执行。{error}", {
+          done: completedSteps.length,
+          step: failedStep,
+          remaining: plan.executable_steps.length - completedSteps.length - 1,
+          error: failure ?? ""
+        }));
       } else if (!verified) {
-        setError(`已执行 ${completedSteps.length} 步，但刷新后的账号状态未完整核对通过。请检查缺口后再保存到 Bungie 槽位。`);
+        setError(loadoutTemplate(copy, "已执行 {done} 步，但刷新后的账号状态未完整核对通过。请检查缺口后再保存到 Bungie 槽位。", {
+          done: completedSteps.length
+        }));
       }
       setIsExecuting(false);
     }
-  }, [accountSummary, draft, editingPlanId, isExecuting, planAccount, refreshHydratedAccount, input]);
+  }, [accountSummary, copy, draft, editingPlanId, isExecuting, planAccount, refreshHydratedAccount, input]);
 
   const publishAppliedPlan = useCallback(async (loadoutIndex: number) => {
     if (!draft || !accountSummary || !editingPlanId || !executionReport?.refresh_verified || isPublishing || isExecuting) return;
@@ -600,10 +624,12 @@ export function useLocalLoadoutPlans(input: {
     }
 
     if (!window.confirm([
-      `保存到游戏内槽位 ${plan.plan_id}`,
-      `目标：${plan.loadout_name || `槽位 ${plan.loadout_index + 1}`}`,
-      plan.overwrites_existing_slot ? "该槽位已有内容，将被当前角色状态覆盖。" : "该槽位当前为空。",
-      "确认后会再次刷新账号；装备状态或槽位内容变化时不会执行写入。继续吗？"
+      loadoutTemplate(copy, "保存到游戏内槽位 {id}", { id: plan.plan_id }),
+      loadoutTemplate(copy, "目标：{name}", {
+        name: plan.loadout_name || loadoutTemplate(copy, "槽位 {index}", { index: plan.loadout_index + 1 })
+      }),
+      loadoutText(copy, plan.overwrites_existing_slot ? "该槽位已有内容，将被当前角色状态覆盖。" : "该槽位当前为空。"),
+      loadoutText(copy, "确认后会再次刷新账号；装备状态或槽位内容变化时不会执行写入。继续吗？")
     ].join("\n"))) return;
 
     const confirmationId = createTraceId("local-loadout-publish-confirmation");
@@ -615,9 +641,11 @@ export function useLocalLoadoutPlans(input: {
     let latestAccount: typeof accountSummary | null = null;
     try {
       latestAccount = await refreshHydratedAccount();
-      if (!latestAccount) throw new Error("保存到游戏内槽位前，账号刷新没有返回可用快照");
+      if (!latestAccount) throw new Error(loadoutText(copy, "保存到游戏内槽位前，账号刷新没有返回可用快照"));
     } catch (preflightError) {
-      const message = `保存到游戏内槽位前，账号复核失败：${preflightError instanceof Error ? preflightError.message : String(preflightError)}`;
+      const message = loadoutTemplate(copy, "保存到游戏内槽位前，账号复核失败：{error}", {
+        error: preflightError instanceof Error ? preflightError.message : String(preflightError)
+      });
       setPublishReport({
         plan,
         confirmation_id: confirmationId,
@@ -632,7 +660,9 @@ export function useLocalLoadoutPlans(input: {
 
     const validation = validateLocalLoadoutPlanPublishPlan(plan, latestAccount);
     if (validation.status === "stale") {
-      const message = `保存计划在确认后已失效：${validation.reasons.join("；")}。请重新选择游戏内槽位并确认。`;
+      const message = loadoutTemplate(copy, "保存计划在确认后已失效：{reasons}。请重新选择游戏内槽位并确认。", {
+        reasons: validation.reasons.join(loadoutText(copy, "；"))
+      });
       setPublishReport({
         plan,
         confirmation_id: confirmationId,
@@ -692,7 +722,9 @@ export function useLocalLoadoutPlans(input: {
       });
     } catch (verificationError) {
       verificationLogged = false;
-      const logMessage = `保存到游戏内槽位的验证记录写入失败：${verificationError instanceof Error ? verificationError.message : String(verificationError)}`;
+      const logMessage = loadoutTemplate(copy, "保存到游戏内槽位的验证记录写入失败：{error}", {
+        error: verificationError instanceof Error ? verificationError.message : String(verificationError)
+      });
       failure = failure ? `${failure}；${logMessage}` : logMessage;
     }
 
@@ -710,7 +742,7 @@ export function useLocalLoadoutPlans(input: {
     });
     setError(errorMessage ?? "");
     setIsPublishing(false);
-  }, [accountSummary, draft, editingPlanId, executionReport, isExecuting, isPublishing, planAccount, refreshHydratedAccount, input]);
+  }, [accountSummary, copy, draft, editingPlanId, executionReport, isExecuting, isPublishing, planAccount, refreshHydratedAccount, input]);
 
   const saveDraft = useCallback(async () => {
     if (!draft || isSaving) return null;
@@ -732,12 +764,12 @@ export function useLocalLoadoutPlans(input: {
       return saved;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : String(saveError);
-      setError(`保存应用配装失败：${message}`);
+      setError(loadoutTemplate(copy, "保存应用配装失败：{error}", { error: message }));
       return null;
     } finally {
       setIsSaving(false);
     }
-  }, [applyPlans, draft, editingPlanId, isSaving, plans]);
+  }, [applyPlans, copy, draft, editingPlanId, isSaving, plans]);
 
   /** 正在编辑的那条已保存方案的名字，用来在「存回哪里」里点名覆盖目标。 */
   const savedPlanName = useMemo(
@@ -766,12 +798,12 @@ export function useLocalLoadoutPlans(input: {
       return saved;
     } catch (saveError) {
       const message = saveError instanceof Error ? saveError.message : String(saveError);
-      setError(`另存应用配装失败：${message}`);
+      setError(loadoutTemplate(copy, "另存应用配装失败：{error}", { error: message }));
       return null;
     } finally {
       setIsSaving(false);
     }
-  }, [applyPlans, draft, isSaving, plans]);
+  }, [applyPlans, copy, draft, isSaving, plans]);
 
   const deletePlan = useCallback(async (id: string) => {
     if (isSaving) return;
@@ -783,16 +815,15 @@ export function useLocalLoadoutPlans(input: {
       setError("");
     } catch (deleteError) {
       const message = deleteError instanceof Error ? deleteError.message : String(deleteError);
-      setError(`删除应用配装失败：${message}`);
+      setError(loadoutTemplate(copy, "删除应用配装失败：{error}", { error: message }));
     } finally {
       setIsSaving(false);
     }
-  }, [applyPlans, closeEditor, editingPlanId, isSaving, selectedPlanId]);
+  }, [applyPlans, closeEditor, copy, editingPlanId, isSaving, selectedPlanId]);
 
   return {
     plans,
     selectedPlanId,
-    workspace,
     draft,
     planAccount,
     isDraftDirty,
@@ -846,10 +877,13 @@ function isHttpUrl(value: string): boolean {
  * DIM 链接里没有槽位字段，装备目标按 item hash 反查账号实例补真实 Bucket，装饰槽和神器
  * 在这一步挡掉（见 `resolveLocalLoadoutPlanDraftSlots`）。预览上写几个装备目标，编辑器里
  * 就得有几个，所以件数跟着一起改，挡掉多少条也在这里说明白——不静默少。
+ *
+ * 这条说明只在预览面板上出现，不写进方案，所以跟着界面语言走。
  */
 function resolveDimPreviewSlots(
   preview: DimLoadoutImportPreview,
-  accountSummary: AccountSummary | null
+  accountSummary: AccountSummary | null,
+  copy: LoadoutsCopy
 ): DimLoadoutImportPreview {
   const draft = resolveLocalLoadoutPlanDraftSlots(preview.draft, accountSummary);
   if (draft === preview.draft) return preview;
@@ -859,7 +893,7 @@ function resolveDimPreviewSlots(
     draft,
     item_count: draft.item_targets.length,
     warnings: skipped
-      ? [...preview.warnings, `已在账号内确认其中 ${skipped} 件不属于配装槽位（机灵、载具、徽标等），未计入装备目标。`]
+      ? [...preview.warnings, loadoutTemplate(copy, "已在账号内确认其中 {count} 件不属于配装槽位（机灵、载具、徽标等），未计入装备目标。", { count: skipped })]
       : preview.warnings
   };
 }

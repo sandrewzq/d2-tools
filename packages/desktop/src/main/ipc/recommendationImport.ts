@@ -4,6 +4,7 @@ import { dialog, ipcMain } from "electron";
 import { loadConfig } from "@d2-tools/services/config/store";
 import type { RecommendationImportTarget } from "@d2-tools/services/community/recommendationDocumentStore";
 import { RecommendationImportSession } from "../runtime/recommendationImportRuntime.js";
+import { mainText } from "../i18n/mainCopy.js";
 import { getDesktopManifestStatus } from "./manifest.js";
 
 export function registerRecommendationImportIpcHandlers(): void {
@@ -33,8 +34,8 @@ export function registerRecommendationImportIpcHandlers(): void {
     try {
       const config = loadConfig();
       const result = await dialog.showOpenDialog({
-        title: "选择人工推荐表格", defaultPath: join(config.data.data_dir, "imports"),
-        properties: ["openFile"], filters: [{ name: "推荐表格", extensions: ["csv", "xlsx", "xlsm", "xls"] }]
+        title: mainText(config.features.interface_locale, "选择人工推荐表格"), defaultPath: join(config.data.data_dir, "imports"),
+        properties: ["openFile"], filters: [{ name: mainText(config.features.interface_locale, "推荐表格"), extensions: ["csv", "xlsx", "xlsm", "xls"] }]
       });
       const path = result.filePaths[0];
       if (result.canceled || !path || sender.isDestroyed()) return null;

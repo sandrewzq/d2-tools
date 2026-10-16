@@ -8,6 +8,7 @@ export type {
   CharacterPowerView
 } from "./workspaces/accountPower.js";
 export { buildCharacterPowerView } from "./workspaces/accountPower.js";
+export type { AccountTextToken } from "./workspaces/accountTextToken.js";
 export type {
   AccountDerivedWorkspace,
   FullAccountWorkspace,

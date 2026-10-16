@@ -24,6 +24,8 @@ import {
   itemDetailEntryLabel,
   itemDetailTemplate,
   itemDetailText,
+  loadoutTemplate,
+  shellText,
   type HomeWeeklyActivityReward,
   type LibraryEquipmentFilter,
   type LibraryPerkFilter,
@@ -59,7 +61,6 @@ import {
   replaceApplicationLoadoutScreen,
   selectApplicationLoadoutCompareViewModel,
   selectApplicationLoadoutLibraryViewModel,
-  selectLocalLoadoutPlanWorkbench,
   toLocalLoadoutPlanDraft,
   type ApplicationLoadoutNavigationState,
   type ApplicationLoadoutInGameReference,
@@ -69,8 +70,8 @@ import type { CreateLocalLoadoutPlanInput, LocalLoadoutPlan } from "@d2-tools/co
 import { createDimLoadoutExport } from "@d2-tools/core/loadouts/dimImport";
 import "@d2-tools/ui/styles.css";
 import {
+  createUnavailableHomeSnapshot,
   createWebShellAdapter,
-  unavailableHomeSnapshot,
   type WebHomeSnapshot
 } from "./webAdapter";
 import { useWebFixtureRuntime } from "./fixtures/useWebFixtureRuntime";
@@ -80,16 +81,21 @@ function WebApp() {
   const env = ((import.meta as ImportMeta & { env?: Record<string, string | boolean | undefined> }).env) ?? {};
   const initialTheme = env.VITE_D2_VISUAL_THEME === "light" ? "light" : "dark";
   const isFixturePreview = env.DEV === true;
-  const adapter = useMemo(() => createWebShellAdapter(isFixturePreview ? {
-    fetchHomeSnapshot: async () => unavailableHomeSnapshot
-  } : {}), [isFixturePreview]);
-  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableHomeSnapshot);
-  const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
-  const [activePage, setActivePage] = useState<ShellPageKey>("home");
   const [preferences, setPreferences] = useState<ProductPreferences>({
     ...defaultProductPreferences,
     colorMode: initialTheme
   });
+  // 降级快照的文案随界面语言重建：copy 切片跟着 interfaceLocale 换，
+  // adapter 与快照一起更新，adapter 变化会触发下面的加载 effect 重取一次。
+  const localeCopy = useMemo(() => getLocaleCopy(preferences.interfaceLocale), [preferences.interfaceLocale]);
+  const unavailableSnapshot = useMemo(() => createUnavailableHomeSnapshot(localeCopy), [localeCopy]);
+  const adapter = useMemo(() => createWebShellAdapter(isFixturePreview ? {
+    copy: localeCopy,
+    fetchHomeSnapshot: async () => unavailableSnapshot
+  } : { copy: localeCopy }), [isFixturePreview, localeCopy, unavailableSnapshot]);
+  const [snapshot, setSnapshot] = useState<WebHomeSnapshot>(unavailableSnapshot);
+  const [assistantMode, setAssistantMode] = useState<ShellAssistantMode>(null);
+  const [activePage, setActivePage] = useState<ShellPageKey>("home");
   const [settingsSection, setSettingsSection] = useState<"overview" | "account">("overview");
   const [selectedAccountCharacterId, setSelectedAccountCharacterId] = useState(fixture.accountSummary.characters[0]?.character_id ?? "");
   const [selectedTemplateId, setSelectedTemplateId] = useState(fixture.loadoutTemplates[0]?.id ?? "");
@@ -141,17 +147,19 @@ function WebApp() {
   }), []);
   const hasAccountData = Boolean(fixture.accountSummary);
   const shellStatus = useMemo(() => {
-    const libraryVersion = formatLibraryVersion(fixture.manifestStatus.version) ?? "预览数据";
+    // fixture 预览状态值。Web 壳是唯一产出它的地方，所以文案在这里查表，跟着界面语言走。
+    const previewValue = localeCopy.shell.inline["预览数据"] ?? "预览数据";
+    const libraryVersion = formatLibraryVersion(fixture.manifestStatus.version) ?? previewValue;
     return snapshot.shellStatus.map((item) => {
       if (item.key === "account" && hasAccountData) {
-        return { ...item, value: "预览数据", tone: "ready" as const };
+        return { ...item, value: previewValue, tone: "ready" as const };
       }
       if (item.key === "library") {
         return { ...item, value: libraryVersion, tone: "ready" as const };
       }
       return item;
     });
-  }, [fixture.manifestStatus.version, hasAccountData, snapshot.shellStatus]);
+  }, [fixture.manifestStatus.version, hasAccountData, snapshot.shellStatus, localeCopy]);
   const accountViewModel = useMemo(
     () => fixture.createAccountPageModel({
       selectedCharacterId: selectedAccountCharacterId,
@@ -177,11 +185,6 @@ function WebApp() {
     }),
     [fixture, compareTemplateId, selectedLoadoutEntryId, selectedTemplateId, showDiffOnly, localPlans]
   );
-  const localPlanWorkspace = useMemo(() => selectLocalLoadoutPlanWorkbench({
-    accountSummary: fixture.accountSummary,
-    plans: localPlans,
-    selectedPlanId: selectedLocalPlanId
-  }), [fixture.accountSummary, localPlans, selectedLocalPlanId]);
   const applicationLoadoutLibrary = useMemo(() => selectApplicationLoadoutLibraryViewModel({
     account_summary: fixture.accountSummary,
     plans: localPlans,
@@ -225,9 +228,9 @@ function WebApp() {
     if (!localPlanDimExport || localPlanDimExport.status !== "ready") return;
     try {
       await navigator.clipboard.writeText(localPlanDimExport.url);
-      setLocalPlanDimExportFeedback(`已复制包含 ${localPlanDimExport.item_count} 个真实实例的 DIM 链接。`);
+      setLocalPlanDimExportFeedback(loadoutTemplate(getLocaleCopy(preferences.interfaceLocale).loadouts, "已复制包含 {count} 个真实实例的 DIM 链接。", { count: localPlanDimExport.item_count }));
     } catch (error) {
-      setLocalPlanDimExportFeedback(`DIM 链接复制失败：${error instanceof Error ? error.message : String(error)}`);
+      setLocalPlanDimExportFeedback(loadoutTemplate(getLocaleCopy(preferences.interfaceLocale).loadouts, "DIM 链接复制失败：{error}", { error: error instanceof Error ? error.message : String(error) }));
     }
   }
 
@@ -427,16 +430,18 @@ function WebApp() {
       shellStatus={shellStatus}
       sidebarHeader={(
         <ShellSidebarAccountSummary
+          copy={getLocaleCopy(preferences.interfaceLocale).shell}
           accountName={fixture.accountSummary.account_name}
           characterCount={fixture.accountSummary.characters.length}
           vaultItemCount={vaultModel.vaultItemCount}
           vaultCapacity={fixture.accountSummary.vault.capacity}
         />
       )}
-      sidebarFooter={<ShellSidebarActions isAiOpen={assistantMode !== null} onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)} />}
+      sidebarFooter={<ShellSidebarActions copy={getLocaleCopy(preferences.interfaceLocale).shell} isAiOpen={assistantMode !== null} onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)} />}
       pageHeader={(page) => getWebPageHeader(page, preferences.interfaceLocale)}
       assistantPanel={(
         <AiAssistantPanelView
+          copy={getLocaleCopy(preferences.interfaceLocale).shell.assistant}
           isConfigured
           sessionTitle="Web mock 会话"
           messages={assistantMessages}
@@ -674,9 +679,9 @@ function WebApp() {
               renameDraft={renameDraft}
               showDiffOnly={showDiffOnly}
               message="Web mock：共享配装页已接入，真实 provider 后续替换数据源。"
+              messageTone="info"
               isRunningItemAction={false}
               actionFeedback={{}}
-              localPlanWorkspace={localPlanWorkspace}
               applicationLoadoutNavigation={applicationLoadoutNavigation}
               applicationLoadoutLibrary={applicationLoadoutLibrary}
               applicationLoadoutCompare={applicationLoadoutCompare}
@@ -690,6 +695,7 @@ function WebApp() {
               localPlanIsPreviewingDim={false}
               localPlanDimExport={localPlanDimExport}
               localPlanDimExportFeedback={localPlanDimExportFeedback}
+              localPlanDimExportTone="info"
               localPlanExecutionPlan={null}
               localPlanExecutionReport={null}
               localPlanIsExecuting={false}
@@ -890,13 +896,13 @@ function createVendorDetailTarget(item: VendorInventoryItemView, context: Vendor
 }
 
 function getWebPageHeader(page: ShellPageKey, interfaceLocale: ProductPreferences["interfaceLocale"]) {
-  const homeCopy = getLocaleCopy(interfaceLocale).home;
+  const copy = getLocaleCopy(interfaceLocale);
   const actions: Partial<Record<ShellPageKey, ReactNode>> = {
-    home: <RefreshControlButton variant="secondary">{homeCopy.actions.refreshHomeIntel}</RefreshControlButton>,
-    account: <><ControlButton variant="secondary">重新授权</ControlButton><ControlButton variant="primary">刷新账号</ControlButton></>,
-    vault: <ControlButton variant="primary">刷新账号装备</ControlButton>,
-    library: <><ControlButton>重新检查资料库</ControlButton><ControlButton variant="primary">修复资料库</ControlButton></>,
-    vendors: <ControlButton variant="secondary">刷新商人库存</ControlButton>
+    home: <RefreshControlButton variant="secondary">{copy.home.actions.refreshHomeIntel}</RefreshControlButton>,
+    account: <><ControlButton variant="secondary">{shellText(copy.shell, "重新授权")}</ControlButton><ControlButton variant="primary">{shellText(copy.shell, "刷新账号")}</ControlButton></>,
+    vault: <ControlButton variant="primary">{shellText(copy.shell, "刷新账号装备")}</ControlButton>,
+    library: <><ControlButton>{shellText(copy.shell, "重新检查资料库")}</ControlButton><ControlButton variant="primary">{shellText(copy.shell, "修复资料库")}</ControlButton></>,
+    vendors: <ControlButton variant="secondary">{shellText(copy.shell, "刷新商人库存")}</ControlButton>
   };
 
   return {

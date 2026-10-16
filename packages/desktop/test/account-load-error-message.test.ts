@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { getLocaleCopy } from "@d2-tools/ui";
 import type { StartupState } from "../src/renderer/api/types";
 import {
   formatAccountLoadFailure,
   isAuthenticationFailure
 } from "../src/renderer/features/account/accountLoadError";
+
+const accountCopy = getLocaleCopy("zh-CN").account;
 
 /**
  * 「登录可能已失效」只能用在真的认证失败上（Bug #88）。
@@ -42,7 +45,7 @@ describe("账号读取失败文案", () => {
     });
 
     expect(isAuthenticationFailure(error)).toBe(true);
-    expect(formatAccountLoadFailure(readyState(), error)).toContain("登录可能已失效");
+    expect(formatAccountLoadFailure(readyState(), error, accountCopy)).toContain("登录可能已失效");
   });
 
   it("内部竞态不冒充登录失效", () => {
@@ -53,7 +56,7 @@ describe("账号读取失败文案", () => {
     });
 
     expect(isAuthenticationFailure(error)).toBe(false);
-    const message = formatAccountLoadFailure(readyState(), error);
+    const message = formatAccountLoadFailure(readyState(), error, accountCopy);
     expect(message).not.toContain("登录可能已失效");
     expect(message).toContain("稍后会自动重新同步");
   });
@@ -65,14 +68,14 @@ describe("账号读取失败文案", () => {
       causeCategory: "network"
     });
 
-    expect(formatAccountLoadFailure(readyState(), error)).not.toContain("登录可能已失效");
+    expect(formatAccountLoadFailure(readyState(), error, accountCopy)).not.toContain("登录可能已失效");
   });
 
   it("没登录 / 没配置 Bungie 时维持原有提示（与「登录失效」区分开）", () => {
     const state = readyState();
     state.cards.account = { status: "missing" } as StartupState["cards"]["account"];
 
-    expect(formatAccountLoadFailure(state, new Error("读取失败"))).toContain("账号还没有登录");
+    expect(formatAccountLoadFailure(state, new Error("读取失败"), accountCopy)).toContain("账号还没有登录");
   });
 
   it("纯 message 的旧式错误不误判成认证失败", () => {

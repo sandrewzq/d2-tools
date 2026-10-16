@@ -35,13 +35,23 @@ export function DirectoryPageContentView({
 
   const normalizedQuery = query.trim().toLocaleLowerCase();
 
-  const matched = useMemo(() => toolDirectoryEntries.filter((entry) => {
+  // 站名保持原文，用途和说明按当前语言查表，查不到就回落到 toolDirectory.ts 里的中文原文。
+  const localizedEntries = useMemo(() => toolDirectoryEntries.map((entry) => {
+    const details = copy.entryDetails[entry.key];
+    return {
+      ...entry,
+      purpose: details?.purpose ?? entry.purpose,
+      note: details?.note ?? entry.note
+    };
+  }), [copy]);
+
+  const matched = useMemo(() => localizedEntries.filter((entry) => {
     if (category !== "all" && entry.category !== category) return false;
     if (!normalizedQuery) return true;
     return [entry.name, entry.purpose, entry.note ?? ""].some(
       (value) => value.toLocaleLowerCase().includes(normalizedQuery)
     );
-  }), [category, normalizedQuery]);
+  }), [category, localizedEntries, normalizedQuery]);
 
   // 首层只放「推荐」和「可选」；「仅参考」「已归档」收进下面的折叠区。
   const featured = matched.filter((entry) => entry.level === "recommended" || entry.level === "optional");

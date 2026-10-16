@@ -133,7 +133,7 @@ export function createArmorPlannerWorkspace(
           revision: requestRevision,
           mode: job.mode,
           viewModel: previousViewModel,
-          error: toServiceError(error, "护甲规划失败"),
+          error: toServiceError(error, ""),
           result: null
         });
       }

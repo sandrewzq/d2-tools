@@ -4,6 +4,7 @@ import {
   normalizeLibraryPerkSearchPayload,
   type LibraryPerkRelatedEquipmentState
 } from "@d2-tools/app/library";
+import { libraryText, type LibraryCopy } from "@d2-tools/ui";
 import {
   api } from "../../api/client";
 import type {
@@ -31,7 +32,11 @@ const relatedEquipmentPageLimit = 100;
 
 export function useLibraryWorkspace(input: {
   vendorSourcePaths?: Map<number, string[]>;
-} = {}) {
+  copy: LibraryCopy;
+}) {
+  // `searchItems` 的入参也叫 `input`，会把上面的 hook 入参遮住；这里先取出来，
+  // 里面的展示串一律用 `copy`，不要再写 `input.copy`。
+  const copy = input.copy;
   const [libraryViewMode, setLibraryViewMode] = useState<LibraryViewMode>("equipment");
   const [items, setItems] = useState<ItemSearchResult[]>([]);
   const [perks, setPerks] = useState<PerkSearchResult[]>([]);
@@ -110,8 +115,8 @@ export function useLibraryWorkspace(input: {
       })
       .catch((error) => {
         if (cancelled) return;
-        setLiveAvailability(buildVendorPathAvailability(uniqueHashes, input.vendorSourcePaths));
-        setLiveAvailabilityError(error instanceof Error ? error.message : "实时状态查询失败");
+        setLiveAvailability(buildVendorPathAvailability(uniqueHashes, input.vendorSourcePaths, copy));
+        setLiveAvailabilityError(error instanceof Error ? error.message : libraryText(copy, "实时状态查询失败"));
       })
       .finally(() => {
         if (!cancelled) {
@@ -176,7 +181,7 @@ export function useLibraryWorkspace(input: {
               hasMore: false,
               isLoading: false,
               isLoaded: true,
-              error: "Desktop 运行时合同过旧，已停止展示缺少图标和版本的关联摘要。请重新构建并重启应用。",
+              error: libraryText(copy, "Desktop 运行时合同过旧，已停止展示缺少图标和版本的关联摘要。请重新构建并重启应用。"),
               isBlocked: true
             }])
         ));
@@ -186,7 +191,7 @@ export function useLibraryWorkspace(input: {
         setPerks([]);
       }
     } catch (error) {
-      setSearchError(error instanceof Error ? error.message : "搜索失败");
+      setSearchError(error instanceof Error ? error.message : libraryText(copy, "搜索失败"));
       setItems([]);
       setPerks([]);
     } finally {
@@ -223,7 +228,7 @@ export function useLibraryWorkspace(input: {
           hasMore: false,
           isLoading: false,
           isLoaded: Boolean(states[perk.key]?.items.length),
-          error: "Desktop 运行时合同过旧，请重新构建并重启应用后再加载完整关联装备。",
+          error: libraryText(copy, "Desktop 运行时合同过旧，请重新构建并重启应用后再加载完整关联装备。"),
           isBlocked: true
         }
       }));
@@ -295,7 +300,7 @@ export function useLibraryWorkspace(input: {
           hasMore: states[perk.key]?.hasMore ?? false,
           isLoading: false,
           isLoaded: false,
-          error: error instanceof Error ? error.message : "关联装备读取失败"
+          error: error instanceof Error ? error.message : libraryText(copy, "关联装备读取失败")
         }
       }));
     }
@@ -312,9 +317,9 @@ export function useLibraryWorkspace(input: {
       });
       setAliasDraft("");
       setAliasTargetDraft("");
-      setAliasMessage("别名已保存，下次搜索会自动命中。");
+      setAliasMessage(libraryText(copy, "别名已保存，下次搜索会自动命中。"));
     } catch (error) {
-      setAliasError(error instanceof Error ? error.message : "别名保存失败");
+      setAliasError(error instanceof Error ? error.message : libraryText(copy, "别名保存失败"));
     }
   }
 
@@ -323,7 +328,7 @@ export function useLibraryWorkspace(input: {
     try {
       setLibraryHistory(await api.addFavoriteItem({ hash: item.hash, name: item.name, icon: item.icon }));
     } catch (error) {
-      setFavoriteError(error instanceof Error ? error.message : "收藏失败");
+      setFavoriteError(error instanceof Error ? error.message : libraryText(copy, "收藏失败"));
     }
   }
 
@@ -332,7 +337,7 @@ export function useLibraryWorkspace(input: {
     try {
       setLibraryHistory(await api.removeFavoriteItem(hash));
     } catch (error) {
-      setFavoriteError(error instanceof Error ? error.message : "取消收藏失败");
+      setFavoriteError(error instanceof Error ? error.message : libraryText(copy, "取消收藏失败"));
     }
   }
 
@@ -403,7 +408,8 @@ export function useLibraryWorkspace(input: {
 
 function buildVendorPathAvailability(
   itemHashes: number[],
-  sourcePaths: Map<number, string[]> | undefined
+  sourcePaths: Map<number, string[]> | undefined,
+  copy: LibraryCopy
 ): LiveItemAvailability | null {
   if (!sourcePaths?.size) return null;
   const items = Object.fromEntries(itemHashes.map((hash) => {
@@ -411,14 +417,14 @@ function buildVendorPathAvailability(
     return [String(hash), paths.length ? {
       hash,
       status: "character_vendor" as const,
-      label: "当前商人售卖",
-      description: paths.join("；"),
+      label: libraryText(copy, "当前商人售卖"),
+      description: paths.join(libraryText(copy, "；")),
       sources: paths.map((label) => ({ kind: "character_vendor" as const, label }))
     } : {
       hash,
       status: "manifest_only" as const,
-      label: "未发现当前公开入口",
-      description: "当前只保留资料库来源线索。",
+      label: libraryText(copy, "未发现当前公开入口"),
+      description: libraryText(copy, "当前只保留资料库来源线索。"),
       sources: []
     }];
   }));

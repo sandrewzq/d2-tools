@@ -48,7 +48,7 @@ describe("vendor inventory domain", () => {
       count: 2,
       instanceIds: ["hawkmoon-equipped", "hawkmoon-vault"],
       locations: [
-        { kind: "equipped", characterId: "hunter", characterLabel: "猎人", count: 1 },
+        { kind: "equipped", characterId: "hunter", className: "猎人", count: 1 },
         { kind: "vault", count: 1 }
       ],
       dataState: "ready"

@@ -16,6 +16,7 @@ export type {
   LibraryHistory,
   LibraryManifestAlertModel,
   LibraryOwnershipEntry,
+  LibraryOwnershipLocationWorkspace,
   LibraryPageCache,
   LibraryPageModel,
   LibraryPageState,

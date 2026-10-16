@@ -4,6 +4,7 @@ import { createRequire } from "node:module";
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { currentMainLocale, mainTemplate, mainText, type MainLocale } from "../i18n/mainCopy.js";
 import type { BackgroundTaskSnapshot } from "../../shared/backgroundTasks.js";
 import type { AppUpdateSnapshot } from "../../shared/updateTypes.js";
 import { normalizeUpdateError } from "../../shared/updateError.js";
@@ -29,6 +30,8 @@ let operationSequence = 0;
 let activeOperation: { kind: "check" | "download"; operationId: string } | null = null;
 let updateInstallRequested = false;
 let activeDownloadTaskUpdate: ((patch: Partial<BackgroundTaskSnapshot>) => BackgroundTaskSnapshot) | null = null;
+// 下载进度事件触发频繁，语言在任务开始时取一次，进度回调里不再反复读 config.json。
+let activeDownloadTaskLocale: MainLocale = "zh-CN";
 
 export function registerUpdateIpcHandlers(): void {
   configureUpdater();
@@ -85,6 +88,7 @@ async function checkAppUpdates(options: { restartIfRetrying?: boolean } = {}): P
 
   const operationId = createOperationId("check");
   activeOperation = { kind: "check", operationId };
+  const locale = currentMainLocale();
   setAppUpdateSnapshot({
     ...appUpdateSnapshot,
     status: "checking",
@@ -93,14 +97,14 @@ async function checkAppUpdates(options: { restartIfRetrying?: boolean } = {}): P
     next_retry_at: undefined,
     error: undefined,
     technical_error: undefined,
-    user_message: "正在连接更新服务。",
+    user_message: mainText(locale, "正在连接更新服务。"),
     last_checked_at: new Date().toISOString()
   });
   startBackgroundTask({
     type: "app-update-check",
     dedupeKey: "app",
-    title: "检查应用更新",
-    message: "正在连接更新服务。",
+    title: mainText(locale, "检查应用更新"),
+    message: mainText(locale, "正在连接更新服务。"),
     retryDelaysMs: getUpdateRetryDelaysMs(),
     restartIfRetrying: options.restartIfRetrying ?? true,
     run: async () => {
@@ -122,7 +126,7 @@ async function runAppUpdateCheck(operationId: string): Promise<AppUpdateSnapshot
       ...createBaseAppUpdateSnapshot("not_available"),
       operation_id: operationId,
       error: "开发环境不会检查线上更新",
-      user_message: "开发环境不会检查线上更新。打包安装后会使用正式更新通道。"
+      user_message: mainText(currentMainLocale(), "开发环境不会检查线上更新。打包安装后会使用正式更新通道。")
     });
   }
 
@@ -166,6 +170,8 @@ async function downloadAppUpdate(): Promise<AppUpdateSnapshot> {
 
   const operationId = createOperationId("download");
   activeOperation = { kind: "download", operationId };
+  const locale = currentMainLocale();
+  activeDownloadTaskLocale = locale;
   setAppUpdateSnapshot({
     ...appUpdateSnapshot,
     status: "downloading",
@@ -176,13 +182,13 @@ async function downloadAppUpdate(): Promise<AppUpdateSnapshot> {
     error: undefined,
     technical_error: undefined,
     restart_required: false,
-    user_message: "正在下载更新，下载完成后可以手动重启安装。"
+    user_message: mainText(locale, "正在下载更新，下载完成后可以手动重启安装。")
   });
   startBackgroundTask({
     type: "app-update-download",
     dedupeKey: "app",
-    title: "下载应用更新",
-    message: "正在下载应用更新。",
+    title: mainText(locale, "下载应用更新"),
+    message: mainText(locale, "正在下载应用更新。"),
     run: async ({ update }) => {
       activeDownloadTaskUpdate = update;
       update({ phase: "download", progress_percent: appUpdateSnapshot.progress_percent ?? 0 });
@@ -207,7 +213,7 @@ async function runAppUpdateDownload(operationId: string): Promise<AppUpdateSnaps
       ...createBaseAppUpdateSnapshot("not_available"),
       operation_id: operationId,
       error: "开发环境不会下载线上更新",
-      user_message: "开发环境不会下载线上更新。打包安装后会使用正式更新通道。"
+      user_message: mainText(currentMainLocale(), "开发环境不会下载线上更新。打包安装后会使用正式更新通道。")
     });
   }
 
@@ -269,7 +275,7 @@ function configureUpdater(): void {
       available_version: info.version,
       last_checked_at: new Date().toISOString(),
       retrying: false,
-      user_message: `发现新版本 ${info.version}，可先下载，下载完成后再重启安装。`
+      user_message: mainTemplate(currentMainLocale(), "发现新版本 {version}，可先下载，下载完成后再重启安装。", { version: info.version })
     });
   });
   autoUpdater.on("update-not-available", () => {
@@ -281,7 +287,7 @@ function configureUpdater(): void {
       operation_id: operationId,
       last_checked_at: new Date().toISOString(),
       retrying: false,
-      user_message: "当前已是最新版本。"
+      user_message: mainText(currentMainLocale(), "当前已是最新版本。")
     });
   });
   autoUpdater.on("download-progress", (progress) => {
@@ -293,13 +299,13 @@ function configureUpdater(): void {
       progress_current_bytes: progress.transferred,
       progress_total_bytes: progress.total,
       progress_bytes_per_second: progress.bytesPerSecond,
-      message: "正在下载应用更新。"
+      message: mainText(activeDownloadTaskLocale, "正在下载应用更新。")
     });
     setAppUpdateSnapshot({
       ...appUpdateSnapshot,
       status: "downloading",
       retrying: false,
-      user_message: "正在下载更新，下载完成后可以手动重启安装。",
+      user_message: mainText(activeDownloadTaskLocale, "正在下载更新，下载完成后可以手动重启安装。"),
       progress_percent: progressPercent
     });
   });
@@ -316,7 +322,7 @@ function configureUpdater(): void {
       retrying: false,
       restart_required: true,
       progress_percent: 100,
-      user_message: `更新 ${info.version} 已下载，重启后安装。`
+      user_message: mainTemplate(activeDownloadTaskLocale, "更新 {version} 已下载，重启后安装。", { version: info.version })
     });
     activeDownloadTaskUpdate?.({
       phase: "complete",
@@ -324,7 +330,7 @@ function configureUpdater(): void {
       progress_current_bytes: undefined,
       progress_total_bytes: undefined,
       progress_bytes_per_second: undefined,
-      message: `更新 ${info.version} 已下载，等待重启安装。`
+      message: mainTemplate(activeDownloadTaskLocale, "更新 {version} 已下载，等待重启安装。", { version: info.version })
     });
   });
   autoUpdater.on("error", (error) => {
@@ -373,7 +379,7 @@ async function trySwitchToMirrorAndCheck(): Promise<boolean> {
     status: "checking",
     release_page_url: getReleasePageUrl(),
     update_source_label: getUpdateSourceLabel(),
-    user_message: "官方更新源连接失败，正在切换国内镜像。"
+    user_message: mainText(currentMainLocale(), "官方更新源连接失败，正在切换国内镜像。")
   });
 
   try {
@@ -391,7 +397,7 @@ function getReleasePageUrl(): string {
 }
 
 function getUpdateSourceLabel(): string {
-  return updateSource === "mirror" ? "国内镜像更新源" : "GitHub Releases";
+  return mainText(currentMainLocale(), updateSource === "mirror" ? "国内镜像更新源" : "GitHub Releases");
 }
 
 function createOperationId(kind: "check" | "download"): string {
@@ -436,7 +442,11 @@ async function restorePersistedUpdateSnapshot(): Promise<void> {
       return;
     }
 
-    if (mirrorFeedUrl && state.update_source_label?.includes("镜像")) {
+    // update_source_label 现在按界面语言翻译，历史持久值可能是中文或英文镜像标签，两种都要认。
+    const mirrorLabel = "国内镜像更新源";
+    const isMirrorLabel = state.update_source_label === mainText("zh-CN", mirrorLabel)
+      || state.update_source_label === mainText("en-US", mirrorLabel);
+    if (mirrorFeedUrl && isMirrorLabel) {
       updateSource = "mirror";
     }
 

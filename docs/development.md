@@ -87,6 +87,8 @@ docs/        正式文档
 - `packages/desktop/src/renderer/api/types.ts` 是 renderer 侧 `AppApi` 聚合入口；大型 DTO 不得重新塞回该文件或 `api/client.ts`。后续 Mac / 移动端适配优先复用 core/services 的领域和服务接口，不直接复用 Electron transport 契约。
 - `packages/desktop/src/renderer/api/client.ts` 只做 Electron renderer 运行时绑定：声明 `window.d2` 并导出 `api`；renderer / test 类型应从 `api/types.ts`、分域 API 文件或对应 transport contract 导入。
 - 新增用户可见文案优先进入 `packages/ui/src/i18n/` 或对应领域 copy，并遵循 [玩家文案字典](player-facing-language.md)；界面语言使用 `zh-CN` / `en-US`，Bungie 资料库语言使用 `zh-chs` / `en`，不要在组件里分散写 `locale === ... ? ... : ...`。共享 UI 的 Web 预览数据也必须接收 `interfaceLocale`，不能只给 Desktop 正式内容页做 i18n。
+- `scripts/check-i18n-hardcoded.mjs`（`pnpm i18n:hardcoded:check`，由 `test:quality` 调用）只守两种形状：JSX 文本节点里直接写的中文，`aria-label` / `aria-description` / `title` / `placeholder` / `alt` 五个展示属性上直接写的中文。扫描范围是 `packages/ui/src`、`packages/desktop/src/renderer`、`packages/web/src` 的 `.tsx`。改法是套一层 `{xxxText(copy, "中文原文")}`；拼装型文案（模板串带 `${}`）留给 review，静态门禁不做模糊匹配。
+- 主进程的界面文案走 `packages/desktop/src/main/i18n/mainCopy.ts`，**不读 `packages/ui` 的 copy 表**：`@d2-tools/ui` 根入口带 React peerDependency，而 `typecheck:desktop` 不构建 ui，主进程 value-import 会连带拉进 React。这张表因此是有意重复，key 就是中文原文、只维护 en 覆盖，代价是两边可能漂移。界面语言取持久化配置 `features.interface_locale`（主进程直接 `loadConfig()` 读，不经过 IPC）；`currentMainLocale()` 每次调用都同步读一次 config.json，高频回调要在任务开始时取一次存局部变量。
 - 默认数据目录由 `packages/services/src/config/dataDir.ts` 的平台 adapter 统一计算：Windows 使用 `%APPDATA%\d2-tools`，macOS 使用 `~/Library/Application Support/d2-tools`，Linux / 其他平台使用 `$XDG_DATA_HOME/d2-tools` 或 `~/.local/share/d2-tools`；Core 的默认配置函数只接收明确的数据目录。
 - `packages/desktop/test/renderer-boundaries.test.ts` 会拦截 feature 互相 import 和 shared 反向依赖 feature。
 - `packages/desktop/test/renderer-api-boundaries.test.ts` 会拦截把大型 DTO 类型重新塞回 `api/client.ts`、renderer / test 从 `api/client.ts` 导类型，或重新塞回一个巨型 `api/types.ts`。
@@ -540,6 +542,9 @@ packages/desktop/release/
 - Release workflow 接受两类 tag：正式版 `vX.Y.Z`，或与当前包版本一致的预发布 tag（例如 `vX.Y.Z-beta.1`、`vX.Y.Z-rc.1`）
 - Release Assets 当前包含 `d2-tools-setup-<version>.exe`、`latest.yml` 和安装器 blockmap
 - Windows 代码签名不是发布前置条件；没有证书时仍可发布、自动下载并在下载完成后提示用户手动重启安装。若未来配置签名证书，electron-builder 可通过 `CSC_LINK` / `CSC_KEY_PASSWORD` 自动签名；workflow 始终校验 `latest.yml` 版本、安装器文件名和 blockmap 对应关系。
+
+- 版本号只在 `release` 分支推进：发布脚本读当前分支的 `package.json` 加一，提交成 `release: prepare vX.Y.Z` 并推到 `release`，不回写开发分支。`dev` 停在最后一次发布过的号（`release` 到 0.0.30 时 `dev` 仍是 0.0.29）是预期结果，不要手动去 `dev` 改版本号
+- 从 `dev` 跑发布脚本不会误发：目标 tag 已存在于远端时脚本直接报「远程 tag vX.Y.Z 已存在」并停止，但会先白跑一遍安装、测试和类型检查
 
 ### 6.3 发布前检查
 

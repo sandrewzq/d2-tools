@@ -1,4 +1,4 @@
-import { AccountPageContentView, buildVaultRecommendationSummaryIndex, type InterfaceLocale } from "@d2-tools/ui";
+import { AccountPageContentView, buildVaultRecommendationSummaryIndex, getLocaleCopy, type InterfaceLocale } from "@d2-tools/ui";
 import type {
   AccountItemSummary,
   AccountSummary,
@@ -104,7 +104,16 @@ export function AccountPage(props: {
     props.isRunningItemAction,
     props.activeLoadoutTemplate?.name
   ]);
+  // 账号页的推荐摘要与仓库页同源，同样按界面语言出句；这里用仓库表，折叠语言跟界面走。
+  const recommendationMatchCopy = useMemo(
+    () => ({
+      inline: getLocaleCopy(props.interfaceLocale ?? "zh-CN").vault.inline,
+      locale: props.interfaceLocale ?? "zh-CN"
+    }),
+    [props.interfaceLocale]
+  );
   const recommendationSummaryByInstance = useMemo(() => buildVaultRecommendationSummaryIndex(
+    recommendationMatchCopy,
     props.accountSummary
       ? [
           ...props.accountSummary.vault.items,
@@ -117,7 +126,7 @@ export function AccountPage(props: {
       : [],
     undefined,
     props.recommendationCardSummary
-  ), [props.accountSummary, props.recommendationCardSummary]);
+  ), [recommendationMatchCopy, props.accountSummary, props.recommendationCardSummary]);
 
   function findCharacter(characterId: string): AccountSummary["characters"][number] | null {
     return props.accountSummary?.characters.find((character) => character.character_id === characterId) ?? null;

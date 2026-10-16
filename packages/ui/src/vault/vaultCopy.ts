@@ -2,6 +2,7 @@ import type { AccountItemSummary } from "@d2-tools/core/account/summary";
 import type { VaultTagValue } from "@d2-tools/core/vault/tags";
 import { isVaultLocatedItem, type VaultActionMessageToken, type VaultFilterFactToken, type VaultGroupFilter, type VaultKnownSlotKey, type VaultSelectionSummary, type VaultTagFilter } from "@d2-tools/app/vault";
 import type { VaultCopy } from "../i18n/types.js";
+import { replacePlaceholders } from "../i18n/placeholders.js";
 
 /**
  * 仓库文案兜底查表。zh-CN 侧 `inline` 留空，key 本身就是最终展示的中文原文；
@@ -16,8 +17,7 @@ export function vaultText(copy: VaultCopy, key: string): string {
  * en-US 侧以同一段原文为 key 查英文。查不到就退回原文，不会渲染成空白。
  */
 export function vaultTemplate(copy: VaultCopy, key: string, values: Record<string, string | number>): string {
-  return vaultText(copy, key).replace(/\{(\w+)\}/gu, (match, name: string) =>
-    name in values ? String(values[name]) : match);
+  return replacePlaceholders(vaultText(copy, key), values, (value) => vaultText(copy, value));
 }
 
 /**

@@ -16,8 +16,10 @@ export type CachedHomeBriefing = {
    * 而同一周的缓存不会被周期检查换掉，键缺失会一直带到渲染层。
    * 11：日落类的行改为要求活动确实带本周挑战目标。同一周的旧缓存里混着不带挑战的
    * 「行动」变体，不换缓存就会继续显示。
+   * 12：周报展示文本改成 token（key + 取值，渲染层按界面语言成句）。旧缓存里是成品
+   * 中文串，留着会让英文界面继续显示中文。
    */
-  version: 11;
+  version: 12;
   context_key: string;
   saved_at: string;
   fetched_at: string;
@@ -56,7 +58,7 @@ export async function loadCachedHomeBriefing(
 ): Promise<CachedHomeBriefing | null> {
   try {
     const parsed = JSON.parse(await readFile(cachePath(dataDir), "utf8")) as Partial<CachedHomeBriefing>;
-    if (parsed.version !== 11
+    if (parsed.version !== 12
       || parsed.context_key !== contextKey
       || !parsed.saved_at
       || !parsed.fetched_at

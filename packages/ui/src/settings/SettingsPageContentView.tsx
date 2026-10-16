@@ -7,6 +7,7 @@ import { isAiAssistantVisible } from "../shell/featureVisibility.js";
 import { formatFullDateTime } from "../time/formatTime.js";
 import { SettingsAiConfigPanel, type SettingsAiAdapter } from "./SettingsAiConfigPanel.js";
 import { SettingsButton } from "./SettingsButton.js";
+import { settingsText } from "./settingsCopy.js";
 import { SettingsSourcesSection } from "./SettingsSourcesSection.js";
 import { ConfirmationDialog } from "../overlay/ConfirmationDialog.js";
 import { SystemUpdateProgress, systemUpdateToneForStatus } from "../update/SystemUpdateProgress.js";
@@ -115,10 +116,6 @@ function getSettingsMenu(copy: SettingsCopy): Array<{ key: SettingsSectionKey; l
     { key: "sources", ...copy.menu.sources },
     { key: "diagnostics", ...copy.menu.diagnostics }
   ];
-}
-
-function settingsText(copy: SettingsCopy, key: string): string {
-  return copy.inline[key] ?? key;
 }
 
 export function SettingsPageContentView(props: SettingsPageContentViewProps) {
@@ -264,7 +261,7 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           </nav>
         </aside>
         <main className="settings-content" data-reference-id="settings.content" data-surface="content-stack">
-          {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{props.message}</p> : null}
+          {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{settingsText(copy, props.message)}</p> : null}
           {props.error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{props.error}</p> : null}
           {activeSection === "overview" ? (
             <OverviewSection
@@ -289,9 +286,9 @@ export function SettingsPageContentView(props: SettingsPageContentViewProps) {
           {activeSection === "account" ? <AccountSection {...sectionProps} lastAccountLoadedAt={props.lastAccountLoadedAt} accountSummary={props.accountSummary} onRefreshAccount={props.onRefreshAccount} onReauthorizeAccount={props.onReauthorizeAccount} isLoadingAccount={props.isLoadingAccount} /> : null}
           {activeSection === "library" ? <LibrarySection {...sectionProps} manifestStatus={props.manifestStatus} isInitializing={props.isInitializingManifest} onRefresh={props.onRefreshManifestStatus} onInitialize={props.onInitializeManifest} onRepair={props.onRepairManifest} /> : null}
           {activeSection === "bungie" ? <BungieSection copy={copy} bungieUi={bungieUi} dataDir={props.diagnosticDataDir} apiKey={bungieApiKey} clientId={bungieClientId} clientSecret={bungieClientSecret} redirectUri={bungieRedirectUri} isLoading={isLoadingBungieConfig} isSaving={isSavingBungieConfig} isPreparingManifest={isAutoPreparingManifest || props.isInitializingManifest} hasAutoManifestFailure={hasAutoManifestFailure} manifestError={props.manifestStatusError} manifestReady={manifestIsReady} isAccountReady={Boolean(props.accountSummary)} error={bungieError} message={bungieMessage} onApiKeyChange={setBungieApiKey} onClientIdChange={setBungieClientId} onClientSecretChange={setBungieClientSecret} onSave={() => void saveBungieConfig()} onOpenDataDir={props.onOpenDataDir} onOpenBungiePortal={props.onOpenBungiePortal} onLoginBungie={props.onReauthorizeAccount} onRetryManifest={() => { setBungieError(""); setBungieMessage(""); setIsAutoPreparingManifest(true); setHasAutoManifestFailure(false); props.onInitializeManifest(); }} /> : null}
-          {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} /></SettingsSection> : null}
+          {activeSection === "ai" ? <SettingsSection id="ai" copy={copy} title={settingsText(copy, "AI 助手")} subtitle={settingsText(copy, "可选能力，不阻断账号、仓库、资料库等本地功能。")} badge={aiUi.statusLabel} tone={aiUi.tone}><SettingsAiConfigPanel adapter={props.aiSettingsAdapter} copy={copy} /></SettingsSection> : null}
           {activeSection === "backup" ? <BackupSection copy={copy} dataDir={props.diagnosticDataDir} onOpenDataDir={props.onOpenDataDir} onExport={props.onExportConfig} onImport={props.onImportConfig} onClearCache={props.onClearCache} onCopyGuide={props.onCopyDataBackupGuide} /> : null}
-          {activeSection === "sources" ? <SettingsSourcesSection interfaceLocale={interfaceLocale} onOpenLegalDocument={props.onOpenLegalDocument} onOpenExternal={props.onOpenExternal} /> : null}
+          {activeSection === "sources" ? <SettingsSourcesSection copy={copy} onOpenLegalDocument={props.onOpenLegalDocument} onOpenExternal={props.onOpenExternal} /> : null}
           {activeSection === "diagnostics" ? <DiagnosticsSection copy={copy} interfaceLocale={interfaceLocale} entries={filteredActionLog(props.actionLog, props.actionLogResultFilter, props.actionLogTypeFilter).slice(0, 8)} resultFilter={props.actionLogResultFilter} typeFilter={props.actionLogTypeFilter} onResultFilterChange={props.onActionLogResultFilterChange} onTypeFilterChange={props.onActionLogTypeFilterChange} onRefreshDiagnostics={props.onRefreshDiagnostics} onRefreshLog={props.onRefreshActionLog} onCopyExport={props.onCopyDiagnosticsExport} onCopyEntry={props.onCopyActionDiagnostic} /> : null}
         </main>
       </div>
@@ -565,7 +562,7 @@ function BungieSection(props: any) {
     {!props.isPreparingManifest && props.hasAutoManifestFailure && props.manifestError ? <div className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert"><strong>{settingsText(copy, "资料库自动准备失败")}</strong><p>{settingsText(copy, "配置已经保存，不需要重新填写。请检查网络后重试。")}</p><small>{settingsText(copy, "失败原因：")} {props.manifestError}</small><SettingsButton data-control-variant="primary" onClick={props.onRetryManifest}>{settingsText(copy, "重试准备资料库")}</SettingsButton></div> : null}
     {props.bungieUi.tone === "ready" && !props.isAccountReady ? <div className="settings-feedback" data-ui-kind="callout" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite"><strong>{settingsText(copy, "Bungie 配置已完成，现在可以登录")}</strong><p>{settingsText(copy, "登录不依赖资料库。登录后会先读取账号，资料库继续在后台准备，名称和图标会在准备完成后补齐。")}</p><SettingsButton data-control-variant="primary" onClick={props.onLoginBungie}>{settingsText(copy, "登录 Bungie")}</SettingsButton></div> : null}
     {props.error ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="error" role="alert">{props.error}</p> : null}
-    {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{props.message}</p> : null}
+    {props.message ? <p className="settings-feedback" data-ui-kind="callout" data-ui-part="state" data-info-priority="decision" data-text-tone="status" data-status="success" role="status" aria-live="polite">{settingsText(copy, props.message)}</p> : null}
   </SettingsSection>;
 }
 

@@ -5,12 +5,15 @@ import {
   isAiAssistantVisible,
   isLoadoutsVisible,
   RefreshControlButton,
+  shellTemplate,
+  shellText,
   ShellSidebarAccountSummary,
   ShellSidebarActions,
   StartupGate,
   type ProductPreferences,
   type ShellAssistantMode,
   type ShellBackgroundTaskItem,
+  type ShellCopy,
   type ShellPageKey,
   type ShellStatusItem
 } from "@d2-tools/ui";
@@ -80,8 +83,14 @@ export function useDesktopProductShell(props: {
     requestId: number;
   } | null>(null);
   const isVisualCapture = visualEnv?.VITE_D2_VISUAL_CAPTURE === "1";
-  const daily = useDailySummary();
+  const daily = useDailySummary({
+    // 与 diagnostics 同理：copy 只能取启动状态里的语言，`productPreferences` 还没算出来。
+    copy: getLocaleCopy(props.state.languagePreferences.interfaceLocale).home
+  });
   const diagnostics = useDiagnosticsSettings({
+    // 这里的 copy 只能用启动状态里的语言：`diagnostics.languagePreferences` 要等这个钩子返回才有，
+    // 在它之前引用会踩 const 的暂时性死区。
+    copy: getLocaleCopy(props.state.languagePreferences.interfaceLocale).settings,
     onConfigChanged: props.onConfigChanged,
     initialColorMode: visualColorMode ?? props.state.colorMode,
     initialDensity: props.state.density ?? "standard",
@@ -96,6 +105,9 @@ export function useDesktopProductShell(props: {
   };
   const homeCopy = getLocaleCopy(productPreferences.interfaceLocale).home;
   const vaultCopy = getLocaleCopy(productPreferences.interfaceLocale).vault;
+  const libraryCopy = getLocaleCopy(productPreferences.interfaceLocale).library;
+  const vendorsCopy = getLocaleCopy(productPreferences.interfaceLocale).vendors;
+  const shellCopy = getLocaleCopy(productPreferences.interfaceLocale).shell;
   const desktopPlatformActions = useMemo(() => ({
     openExternal: (url: string) => window.d2.openExternal(url),
     setColorMode: (mode: "light" | "dark") => window.d2?.setWindowColorMode?.(mode),
@@ -135,6 +147,7 @@ export function useDesktopProductShell(props: {
     accountSummary,
     selectedCharacterId,
     active: activePage === "vendors",
+    copy: vendorsCopy,
     loadCachedInventory: api.getCachedVendorInventory,
     loadInventory: api.refreshVendorInventory
   });
@@ -155,7 +168,8 @@ export function useDesktopProductShell(props: {
     diagnostics.manifestStatus?.version
   ]);
   const library = useLibraryWorkspace({
-    vendorSourcePaths
+    vendorSourcePaths,
+    copy: libraryCopy
   });
   const loadoutLibrary = useLoadoutTemplates();
   const cleanupProtectedItemKeys = useMemo(() => ({
@@ -189,7 +203,10 @@ export function useDesktopProductShell(props: {
       vaultCopy,
       vaultTags
     ]);
-  const localLoadoutPlans = useLocalLoadoutPlans({ refreshAccount: refreshAccountAfterWrite });
+  const localLoadoutPlans = useLocalLoadoutPlans({
+    copy: getLocaleCopy(diagnostics.languagePreferences.interfaceLocale).loadouts,
+    refreshAccount: refreshAccountAfterWrite
+  });
   const writeActions = useDesktopProductWriteActions({
     accountSummary,
     applyAcceptedAccountActionPatches,
@@ -211,7 +228,7 @@ export function useDesktopProductShell(props: {
     void daily.loadDailySummary(true);
     return refreshAccountSnapshot("manual");
   };
-  const vendorDefinitionDetail = useVendorDefinitionDetail({ vendorSourcePaths, vaultTags });
+  const vendorDefinitionDetail = useVendorDefinitionDetail({ copy: vendorsCopy, vendorSourcePaths, vaultTags });
   const isRunningItemAction = writeActions.isRunningItemAction;
 
   function handlePageChange(page: ShellPageKey) {
@@ -352,7 +369,6 @@ export function useDesktopProductShell(props: {
   const activeLoadoutTemplate = loadoutLibrary.activeTemplate;
   const homeDerivedState = useHomePageDerivedState({
     activePage,
-    state: props.state,
     accountSummary,
     selectedCharacterId,
     activeLoadoutTemplate,
@@ -452,6 +468,7 @@ export function useDesktopProductShell(props: {
     <GlobalAssistantSidebar
       assistantMode={assistantMode}
       isConfigured={isAiConfigured}
+      interfaceLocale={diagnostics.languagePreferences.interfaceLocale}
       account={accountSummary}
       daily={daily.dailySummary}
       activity={activitySummary}
@@ -504,6 +521,7 @@ export function useDesktopProductShell(props: {
     menuSession,
     startupGate: startupStep !== "home" && activePage !== "settings" ? (
       <StartupGate
+        copy={shellCopy}
         step={startupStep}
         isManifestReady={isManifestReady}
         isManifestBusy={diagnostics.isInitializingManifest}
@@ -532,25 +550,26 @@ export function useDesktopProductShell(props: {
       ) : activePage === "account" ? (
         accountSummary ? (
           <>
-            <ControlButton variant="secondary" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>重新登录 Bungie</ControlButton>
-            <RefreshControlButton variant="primary" refreshing={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步账号数据</RefreshControlButton>
+            <ControlButton variant="secondary" disabled={accountWorkspace.isLoggingIn} onClick={() => void accountWorkspace.loginBungie()}>{shellText(shellCopy, "重新登录 Bungie")}</ControlButton>
+            <RefreshControlButton variant="primary" refreshing={isLoadingAccount} onClick={() => void refreshAccountManually()}>{shellText(shellCopy, "同步账号数据")}</RefreshControlButton>
           </>
         ) : null
       ) : activePage === "vault" ? (
-        accountSummary ? <RefreshControlButton variant="primary" refreshing={isLoadingAccount} onClick={() => void refreshAccountManually()}>同步账号数据</RefreshControlButton> : null
+        accountSummary ? <RefreshControlButton variant="primary" refreshing={isLoadingAccount} onClick={() => void refreshAccountManually()}>{shellText(shellCopy, "同步账号数据")}</RefreshControlButton> : null
       ) : activePage === "library" ? (
         <>
-          <ControlButton onClick={() => void diagnostics.refreshManifestStatus()}>重新检查资料库</ControlButton>
-          <ControlButton variant="primary" disabled={diagnostics.isInitializingManifest} onClick={() => void diagnostics.repairManifest()}>修复资料库</ControlButton>
+          <ControlButton onClick={() => void diagnostics.refreshManifestStatus()}>{shellText(shellCopy, "重新检查资料库")}</ControlButton>
+          <ControlButton variant="primary" disabled={diagnostics.isInitializingManifest} onClick={() => void diagnostics.repairManifest()}>{shellText(shellCopy, "修复资料库")}</ControlButton>
         </>
       ) : activePage === "vendors" ? (
-        accountSummary && vendorsWorkspace.model.vendors.length ? <RefreshControlButton variant={vendorsWorkspace.model.statusBanner?.tone === "error" ? "primary" : "secondary"} refreshing={vendorsWorkspace.isManualRefreshing} onClick={() => void vendorsWorkspace.refresh()}>刷新商人库存</RefreshControlButton> : null
+        accountSummary && vendorsWorkspace.model.vendors.length ? <RefreshControlButton variant={vendorsWorkspace.model.statusBanner?.tone === "error" ? "primary" : "secondary"} refreshing={vendorsWorkspace.isManualRefreshing} onClick={() => void vendorsWorkspace.refresh()}>{shellText(shellCopy, "刷新商人库存")}</RefreshControlButton> : null
       ) : null
     },
     platformActions: desktopPlatformActions,
     productPreferences,
     sidebarHeader: (
       <ShellSidebarAccountSummary
+        copy={shellCopy}
         accountName={accountSummary?.account_name}
         characterCount={accountSummary?.characters.length}
         vaultItemCount={accountSummary?.vault.item_count}
@@ -559,6 +578,7 @@ export function useDesktopProductShell(props: {
     ),
     sidebarFooter: (
       <ShellSidebarActions
+        copy={shellCopy}
         isAiOpen={assistantMode !== null}
         onToggleAi={() => setAssistantMode((current) => current === null ? "ai" : null)}
       />
@@ -596,14 +616,14 @@ function buildShellStatus(input: {
     {
       key: "bungie",
       label: "Bungie",
-      value: input.isBungieConfigured ? "已配置" : "未配置",
+      value: input.isBungieConfigured ? shellText(shellCopy, "已配置") : shellText(shellCopy, "未配置"),
       tone: input.isBungieConfigured ? "ready" : "warning",
       priority: input.isBungieConfigured ? "quiet" : "attention"
     },
     {
       key: "account",
-      label: "账号",
-      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountWriteSyncActivity, input.isShowingCachedAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
+      label: shellText(shellCopy, "账号"),
+      value: formatAccountShellStatus(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountWriteSyncActivity, input.isShowingCachedAccount, input.accountError, input.accountWarning, input.canRefreshAccount, shellCopy),
       tone: getAccountStatusTone(input.accountSummary, input.lastAccountLoadedAt, input.isLoadingAccount, input.accountWriteSyncActivity, input.isShowingCachedAccount, input.accountError, input.accountWarning, input.canRefreshAccount),
       priority: input.accountError || input.accountWarning || accountSnapshotStale || input.isLoadingAccount || input.accountWriteSyncActivity.active ? "attention" : "standard",
       kind: "task",
@@ -611,21 +631,21 @@ function buildShellStatus(input: {
     },
     {
       key: "library",
-      label: "资料库",
+      label: shellText(shellCopy, "资料库"),
       value: waitingForBungieConfig
-        ? "等待配置"
+        ? shellText(shellCopy, "等待配置")
         : input.manifestStatusError
-        ? "检查失败"
-        : (needsLibraryRepair ? "修复资料库" : formatManifestShellStatus(input.manifestStatus, input.manifestTask, input.interfaceLocale)),
+        ? shellText(shellCopy, "检查失败")
+        : (needsLibraryRepair ? shellText(shellCopy, "修复资料库") : formatManifestShellStatus(input.manifestStatus, input.manifestTask, shellCopy)),
       tone: waitingForBungieConfig ? "neutral" : input.manifestStatusError ? "error" : input.manifestTask && ["queued", "running", "retrying"].includes(input.manifestTask.status) ? "pending" : getManifestStatusTone(input.manifestStatus),
       priority: waitingForBungieConfig ? "standard" : input.manifestStatusError || needsLibraryRepair || input.manifestTask?.availability === "blocked" ? "attention" : "standard",
-      actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : "修复资料库",
+      actionLabel: waitingForBungieConfig || !needsLibraryRepair ? undefined : shellText(shellCopy, "修复资料库"),
       onAction: waitingForBungieConfig || !needsLibraryRepair ? undefined : input.onRepairManifest
     },
     ...(isAiAssistantVisible ? [{
       key: "ai" as const,
       label: "AI",
-      value: input.isAiConfigured ? "已配置" : "未配置",
+      value: input.isAiConfigured ? shellText(shellCopy, "已配置") : shellText(shellCopy, "未配置"),
       tone: input.isAiConfigured ? "ready" as const : "warning" as const,
       priority: input.isAiConfigured ? "quiet" as const : "standard" as const
     }] : [] as ShellStatusItem[]),
@@ -647,29 +667,34 @@ function formatAccountShellStatus(
   isShowingCachedAccount: boolean,
   accountError: string,
   accountWarning: string,
-  canRefreshAccount: boolean
+  canRefreshAccount: boolean,
+  copy: ShellCopy
 ): string {
-  if (accountError && accountSummary) return "同步失败 · 显示上次装备数据";
-  if (accountError) return "读取失败";
+  if (accountError && accountSummary) return shellText(copy, "同步失败 · 显示上次装备数据");
+  if (accountError) return shellText(copy, "读取失败");
   if (accountWriteSyncActivity.active) {
-    if (accountWriteSyncActivity.phase === "finalizing") return "正在完成同步";
-    if (accountWriteSyncActivity.delayed) return "游戏数据延迟";
+    if (accountWriteSyncActivity.phase === "finalizing") return shellText(copy, "正在完成同步");
+    if (accountWriteSyncActivity.delayed) return shellText(copy, "游戏数据延迟");
     return accountWriteSyncActivity.pendingCount > 0
-      ? `同步中 · ${accountWriteSyncActivity.pendingCount}`
-      : "同步中";
+      ? shellTemplate(copy, "同步中 · {count}", { count: accountWriteSyncActivity.pendingCount })
+      : shellText(copy, "同步中");
   }
-  if (isLoadingAccount) return accountSummary ? "正在同步账号数据" : "正在读取账号数据";
-  if (accountWarning && accountSummary) return "增强数据异常";
+  if (isLoadingAccount) {
+    return accountSummary ? shellText(copy, "正在同步账号数据") : shellText(copy, "正在读取账号数据");
+  }
+  if (accountWarning && accountSummary) return shellText(copy, "增强数据异常");
   if (accountSummary) {
     const loadedAt = formatTime(lastAccountLoadedAt);
-    if (isShowingCachedAccount) return loadedAt ? `本地缓存 · ${loadedAt}` : "本地缓存";
+    if (isShowingCachedAccount) {
+      return loadedAt ? shellTemplate(copy, "本地缓存 · {time}", { time: loadedAt }) : shellText(copy, "本地缓存");
+    }
     const snapshotAge = getAccountSnapshotAge(lastAccountLoadedAt);
     if (snapshotAge !== undefined && snapshotAge > ACCOUNT_STATUS_STALE_THRESHOLD_MS) {
-      return `待同步 · ${formatAccountAge(snapshotAge)}`;
+      return shellTemplate(copy, "待同步 · {age}", { age: formatAccountAge(snapshotAge, copy) });
     }
-    return loadedAt ? `已核对 · ${loadedAt}` : "已核对";
+    return loadedAt ? shellTemplate(copy, "已核对 · {time}", { time: loadedAt }) : shellText(copy, "已核对");
   }
-  return canRefreshAccount ? "可同步" : "未登录";
+  return canRefreshAccount ? shellText(copy, "可同步") : shellText(copy, "未登录");
 }
 
 function getAccountStatusTone(
@@ -701,64 +726,53 @@ function getAccountSnapshotAge(lastAccountLoadedAt: Date | null): number | undef
   return lastAccountLoadedAt ? Math.max(0, Date.now() - lastAccountLoadedAt.getTime()) : undefined;
 }
 
-function formatAccountAge(ageMs: number): string {
+function formatAccountAge(ageMs: number, copy: ShellCopy): string {
   const seconds = Math.max(1, Math.round(ageMs / 1000));
-  if (seconds < 60) return `${seconds} 秒`;
+  if (seconds < 60) return shellTemplate(copy, "{count} 秒", { count: seconds });
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} 分钟`;
-  return `${Math.round(minutes / 60)} 小时`;
+  if (minutes < 60) return shellTemplate(copy, "{count} 分钟", { count: minutes });
+  return shellTemplate(copy, "{count} 小时", { count: Math.round(minutes / 60) });
 }
 
 function formatManifestShellStatus(
   status: ManifestStatus | null,
   task: BackgroundTaskSnapshot | null,
-  interfaceLocale: ProductPreferences["interfaceLocale"]
+  copy: ShellCopy
 ): string {
   if (task && ["queued", "running", "retrying"].includes(task.status)) {
-    if (task.status === "retrying") return interfaceLocale === "en-US" ? "Waiting to retry" : "等待重试";
-    const phase = formatManifestTaskPhase(task.phase, interfaceLocale);
+    if (task.status === "retrying") return shellText(copy, "等待重试");
+    const phase = formatManifestTaskPhase(task.phase, copy);
     const progress = task.progress_percent === undefined ? "" : ` ${Math.round(task.progress_percent)}%`;
     if (phase) return `${phase}${progress}`;
     return task.availability === "usable"
-      ? interfaceLocale === "en-US" ? "Updating" : "后台更新"
-      : interfaceLocale === "en-US" ? "Preparing" : "准备中";
+      ? shellText(copy, "后台更新")
+      : shellText(copy, "准备中");
   }
-  if (!status) return "读取中";
-  if (!status.initialized) return "未准备";
-  if (status.missing_required_components?.length) return "需修复";
-  if (status.needs_update) return "可更新";
-  return formatLibraryVersion(status.version) ?? "可用";
+  if (!status) return shellText(copy, "读取中");
+  if (!status.initialized) return shellText(copy, "未准备");
+  if (status.missing_required_components?.length) return shellText(copy, "需修复");
+  if (status.needs_update) return shellText(copy, "可更新");
+  return formatLibraryVersion(status.version) ?? shellText(copy, "可用");
 }
 
 function formatManifestTaskPhase(
   phase: string | undefined,
-  interfaceLocale: ProductPreferences["interfaceLocale"]
+  copy: ShellCopy
 ): string | undefined {
   if (!phase) return undefined;
-  const labels: Record<string, string> = interfaceLocale === "en-US"
-    ? {
-        metadata: "Checking",
-        download: "Downloading",
-        extract: "Extracting",
-        validate: "Verifying",
-        index: "Indexing",
-        "download-secondary": "Downloading helper data",
-        "index-secondary": "Indexing helper data",
-        "reuse-local": "Rebuilding index",
-        activate: "Switching"
-      }
-    : {
-        metadata: "检查版本",
-        download: "下载中",
-        extract: "解压中",
-        validate: "校验中",
-        index: "建立索引",
-        "download-secondary": "下载辅助数据",
-        "index-secondary": "建立辅助索引",
-        "reuse-local": "重建索引",
-        activate: "切换中"
-      };
-  return labels[phase];
+  const labelKeys: Record<string, string> = {
+    metadata: "检查版本",
+    download: "下载中",
+    extract: "解压中",
+    validate: "校验中",
+    index: "建立索引",
+    "download-secondary": "下载辅助数据",
+    "index-secondary": "建立辅助索引",
+    "reuse-local": "重建索引",
+    activate: "切换中"
+  };
+  const key = labelKeys[phase];
+  return key ? shellText(copy, key) : undefined;
 }
 
 function getAppUpdateShellStatus(

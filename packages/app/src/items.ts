@@ -40,6 +40,7 @@ export { buildArmorDetailViewModel } from "./workspaces/armorDetail.js";
 export type {
   BuildWeaponDetailViewModelInput,
   WeaponCatalystSummary,
+  WeaponChampionEffectKey,
   WeaponConfigurationClassification,
   WeaponConfigurationKind,
   WeaponDetailAmmo,

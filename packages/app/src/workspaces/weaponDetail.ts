@@ -9,6 +9,7 @@ import type {
   WeaponStatSummary
 } from "@d2-tools/core/account/summary";
 import type { ItemPerkGroup, ItemPlugSourceKind, ItemPlugSummary } from "@d2-tools/core/items/perks";
+import type { ChampionTypeKey } from "@d2-tools/core/items/breakerTypes";
 import type {
   ItemDefinitionVersionSummary,
   ItemReleaseSummary
@@ -68,22 +69,29 @@ export type WeaponDetailAmmo = {
   icon?: string;
 };
 
+/** 元素的 `key` 与措辞都由 UI 按 `copy` 现查；`label` 只有数据自带名字时才填。 */
 export type WeaponDetailDamage = {
   hash?: number;
   key: string;
-  label: string;
+  label?: string;
   description?: string;
   icon?: string;
 };
 
+/**
+ * 勇士类型只给 `key` 与 `effect_key`，两个名字的措辞都由 UI 按 `copy` 现查。
+ * `effect_key` 是「这一种勇士靠什么打断」，与 `key` 一一对应但不合并：将来出现
+ * 同名勇士换效果的情况，两栏仍能各自表达。
+ */
 export type WeaponDetailChampionEffect = {
-  key: "barrier" | "overload" | "unstoppable";
-  label: string;
-  effect_label: "贯穿护盾" | "干扰" | "眩晕";
+  key: ChampionTypeKey;
+  effect_key: WeaponChampionEffectKey;
   description?: string;
   icon?: string;
   source: "weapon" | "plug" | "frame_perk";
 };
+
+export type WeaponChampionEffectKey = "pierce" | "disrupt" | "stagger";
 
 export type WeaponDetailVersion = {
   hash: number;
@@ -274,6 +282,8 @@ export type WeaponCatalystSummary = {
 
 export type WeaponEnhancementSummary = {
   name: string;
+  /** 空强化槽（游戏原文是「空」/`empty`）。是不是空由 app 判，措辞由 UI 按 `copy` 现查。 */
+  empty: boolean;
   level?: number;
 };
 

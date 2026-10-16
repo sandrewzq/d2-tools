@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountSummary, LoadoutTemplate } from "../src/renderer/api/types";
-import {
-  buildMissingLoadoutTransferPlan,
-  describeMissingLoadoutBlockedReason
-} from "../src/renderer/utils/loadoutTransfer";
+import { buildMissingLoadoutTransferPlan } from "../src/renderer/utils/loadoutTransfer";
 
 const template: LoadoutTemplate = {
   id: "loadout-1",
@@ -141,16 +138,6 @@ describe("loadout transfer plan", () => {
         reason: "other-character-equipped"
       })
     ]);
-  });
-  it("maps blocked reasons into player-facing guidance", () => {
-    expect(describeMissingLoadoutBlockedReason("other-character-equipped")).toEqual({
-      label: "其他角色已装备",
-      hint: "先去对应角色卸下这件装备，再回来补齐。"
-    });
-    expect(describeMissingLoadoutBlockedReason("postmaster")).toEqual({
-      label: "还在邮政官",
-      hint: "先把物品取回角色背包，再执行补齐。"
-    });
   });
 
   it("recovers equipped items from another character when a same-slot replacement exists", () => {

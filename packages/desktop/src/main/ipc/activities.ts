@@ -7,6 +7,7 @@ import { ACTIVITY_HISTORY_SUMMARY_MODES } from "@d2-tools/core/activities/modes"
 import { fetchCharacterActivityHistory } from "@d2-tools/services/bungie/activityHistory";
 import { loadConfig } from "@d2-tools/services/config/store";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { currentMainLocale, mainText } from "../i18n/mainCopy.js";
 import { getDefinitions } from "../runtime/gameDataRuntime.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 
@@ -19,10 +20,11 @@ type ActivitySummaryInput = {
 export function registerActivitiesIpcHandlers(): void {
   ipcMain.handle("activities:summary", async (_event, input: ActivitySummaryInput) => {
     const result = loadActivitySummary(input);
+    const locale = currentMainLocale();
     startBackgroundTask({
       type: "account-activity",
-      title: "读取最近活动",
-      message: "正在同步角色最近活动。",
+      title: mainText(locale, "读取最近活动"),
+      message: mainText(locale, "正在同步角色最近活动。"),
       run: async () => {
         await result;
       }

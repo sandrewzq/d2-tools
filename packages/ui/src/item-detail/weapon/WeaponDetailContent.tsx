@@ -9,7 +9,10 @@ import { itemDetailTemplate, itemDetailText } from "../itemDetailCopy.js";
 import {
   itemDetailEntryLabel,
   weaponAmmoLabel,
+  weaponChampionEffectLabel,
+  weaponChampionLabel,
   weaponCraftingLabel,
+  weaponDamageLabel,
   weaponSocketColumnLabelText,
   weaponStatLabel
 } from "../itemDetailLabels.js";
@@ -429,16 +432,16 @@ function WeaponIdentity(props: {
             {identity.tier ? <Fact label={identity.tier} tone={identity.is_exotic ? "rarity-exotic" : "rarity"} /> : null}
             {identity.slot ? <Fact label={identity.slot} tone="slot" /> : null}
             {identity.ammo ? <Fact label={weaponAmmoLabel(props.copy, identity.ammo.key)} iconKind="ammo" iconType={identity.ammo.key} tone={`ammo-${identity.ammo.key}`} /> : null}
-            {identity.damage ? <Fact label={identity.damage.label} icon={identity.damage.icon} iconKind="damage" iconType={identity.damage.key} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
+            {identity.damage ? <Fact label={weaponDamageLabel(props.copy, identity.damage.key) ?? identity.damage.label ?? ""} icon={identity.damage.icon} iconKind="damage" iconType={identity.damage.key} title={identity.damage.description} tone={`damage-${identity.damage.key}`} /> : null}
             {identity.champion ? (
               <Fact
-                label={identity.champion.label}
+                label={weaponChampionLabel(props.copy, identity.champion.key)}
                 icon={identity.champion.icon}
                 iconKind="champion"
                 iconType={identity.champion.key}
                 title={itemDetailTemplate(props.copy, "{label}：{effect}。{description}", {
-                  label: identity.champion.label,
-                  effect: identity.champion.effect_label,
+                  label: weaponChampionLabel(props.copy, identity.champion.key),
+                  effect: weaponChampionEffectLabel(props.copy, identity.champion.effect_key),
                   description: identity.champion.description ?? ""
                 })}
                 tone={`champion-${identity.champion.key}`}
@@ -1421,7 +1424,7 @@ function RecommendationSourceEvidenceCard(props: {
   const source = props.sourceMatch;
   const [open, setOpen] = useState(false);
   const sourceLabel = recommendationSourceLabel(props.copy, source.source_id, source.source_label);
-  const presentation = presentCuratedRecommendationMatch(source, sourceLabel);
+  const presentation = presentCuratedRecommendationMatch({ inline: props.copy.inline }, source, sourceLabel);
   const specifiedSlots = source.slots.filter((slot) => slot.state !== "source_not_specified");
   const unrequestedSlotLabels = source.slots
     .filter((slot) => slot.state === "source_not_specified")
@@ -1641,7 +1644,7 @@ function RecommendationSourceSlotRow(props: {
 }) {
   const { model, slot } = props;
   const sourceCandidates = recommendationSourceCandidates(props.copy, model, slot);
-  const presentation = presentRecommendationSlotMatch(slot.state, {
+  const presentation = presentRecommendationSlotMatch({ inline: props.copy.inline }, slot.state, {
     hasInstanceOwned: slot.instance_owned.length > 0,
     hasCurrentEnabled: slot.current_enabled.length > 0
   });
@@ -1756,7 +1759,7 @@ function UpgradeSection({ model, copy }: { model: WeaponDetailViewModel; copy: I
     upgrades.masterwork ? { key: "masterwork", label: itemDetailText(copy, "大师杰作"), current: `${upgrades.masterwork.name}${upgrades.masterwork.level ? itemDetailTemplate(copy, " · {level} 级", { level: upgrades.masterwork.level }) : ""}`, detail: `${upgrades.masterwork.complete ? itemDetailText(copy, "已完成") : itemDetailText(copy, "未完成")}${upgrades.masterwork.stat_amount ? itemDetailTemplate(copy, " · 属性 {value}", { value: `${upgrades.masterwork.stat_amount > 0 ? "+" : ""}${upgrades.masterwork.stat_amount}` }) : ""}`, source: objectSource } : null,
     upgrades.mod ? { key: "mod", label: itemDetailText(copy, "武器模组"), current: upgrades.mod.name, detail: upgrades.mod.description, source: objectSource } : null,
     upgrades.catalyst ? { key: "catalyst", label: itemDetailText(copy, "催化剂"), current: upgrades.catalyst.name, detail: catalystStateLabel(copy, model), source: upgrades.catalyst.acquired === undefined ? itemDetailText(copy, "资料库定义") : itemDetailText(copy, "账号进度 + 资料库定义") } : null,
-    upgrades.enhancement ? { key: "enhancement", label: itemDetailText(copy, "强化阶级"), current: upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? itemDetailTemplate(copy, "当前 {level} 阶", { level: upgrades.enhancement.level }) : itemDetailText(copy, "当前装备强化状态"), source: objectSource } : null,
+    upgrades.enhancement ? { key: "enhancement", label: itemDetailText(copy, "强化阶级"), current: upgrades.enhancement.empty ? itemDetailText(copy, "未强化") : upgrades.enhancement.name, detail: upgrades.enhancement.level !== undefined ? itemDetailTemplate(copy, "当前 {level} 阶", { level: upgrades.enhancement.level }) : itemDetailText(copy, "当前装备强化状态"), source: objectSource } : null,
     upgrades.crafting_level !== undefined ? { key: "crafting", label: itemDetailText(copy, "锻造等级"), current: itemDetailTemplate(copy, "{level} 级", { level: upgrades.crafting_level }), detail: upgrades.enhanced ? itemDetailText(copy, "已包含强化能力") : itemDetailText(copy, "未强化"), source: objectSource } : null
   ].filter((row): row is NonNullable<typeof row> => Boolean(row));
   if (!rows.length) return null;

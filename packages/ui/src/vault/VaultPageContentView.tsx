@@ -132,6 +132,12 @@ export function VaultPageContentView(props: {
   cleanupActions?: VaultCleanupActions;
 }) {
   const copy = getLocaleCopy(props.interfaceLocale ?? "zh-CN").vault;
+  // 推荐匹配投影的查表表与排序语言：本屏用仓库表（VaultCopy），折叠语言跟界面走。
+  // `inline` 取模块级表对象本身，语言取字符串，两者引用/取值都稳定，模块级缓存才能正确命中。
+  const recommendationMatchCopy = useMemo(
+    () => ({ inline: copy.inline, locale: props.interfaceLocale ?? "zh-CN" }),
+    [copy, props.interfaceLocale]
+  );
   // 这一屏的筛选会被记住：切菜单、启动门盖过一次、账号快照短暂变空都会卸载这棵内容树，
   // 回到这里时不该是一片默认值。见 `./vaultFilterState.js`。
   const restoredFilters = useMemo(readVaultFilterState, []);
@@ -223,11 +229,12 @@ export function VaultPageContentView(props: {
   }, [itemCollectionStore, props.items]);
   const rawRecommendationSummaryByInstance = useMemo(
     () => buildVaultRecommendationSummaryIndex(
+      recommendationMatchCopy,
       props.items,
       undefined,
       props.recommendationCardSummary
     ),
-    [props.items, props.recommendationCardSummary]
+    [recommendationMatchCopy, props.items, props.recommendationCardSummary]
   );
   // 管理名册是权威来源名册：它一行一次导入，事实层一条一个具名来源。
   // 这里把「事实键 → 它属于的那一行」摊平，下游就能统一用管理面的键看来源。
@@ -247,8 +254,8 @@ export function VaultPageContentView(props: {
       : rawRecommendationSummaryByInstance
   ), [managedSourceKeyByFactKey, rawRecommendationSummaryByInstance]);
   const recommendationFilterFactByInstance = useMemo(
-    () => buildVaultRecommendationFilterFactIndex(recommendationSummaryByInstance),
-    [recommendationSummaryByInstance]
+    () => buildVaultRecommendationFilterFactIndex(recommendationMatchCopy, recommendationSummaryByInstance),
+    [recommendationMatchCopy, recommendationSummaryByInstance]
   );
 
   useEffect(() => {
@@ -371,12 +378,13 @@ export function VaultPageContentView(props: {
     return icons;
   }, [props.items]);
   const availableRecommendationSources = useMemo(() => buildVaultRecommendationSourceOptions(
+    recommendationMatchCopy,
     staticCatalogItems.filter((item) => item.group_key === "weapons").map((item) => (
       recommendationSummaryByInstance.get(getVaultCommunityInstanceKey(item)) ?? []
     )),
     managedRecommendationSources,
     Boolean(props.wishlistActions?.getRecommendationManagement)
-  ), [managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance, staticCatalogItems]);
+  ), [recommendationMatchCopy, managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance, staticCatalogItems]);
   // 「无任何匹配」里有多少件：判据与卡片上那句「暂无推荐来源」同源，都是这张摘要表里没有条目。
   // 扫描没跑完、这件还没算到的，不能算无匹配——那只是「还不知道」，报成无匹配会先冒出一批随后又消失的装备。
   const recommendationUnmatchedItems = useMemo(() => filteredVaultItems.filter((item) => (
@@ -388,6 +396,7 @@ export function VaultPageContentView(props: {
   )), [filteredVaultItems, props.recommendationCardSummary, props.recommendationSourceState?.recommendationScan.phase, recommendationSummaryByInstance]);
   const recommendationSourceOptions = useMemo(() => {
     const contextualCounts = new Map(buildVaultRecommendationSourceOptions(
+      recommendationMatchCopy,
       // 来源按钮上的数字照旧只算「其他条件」，不算它自己：点下去就是把这个来源打开，
       // 而点它又会关掉「无任何匹配」，所以这个数字恰好就是点完会看到的件数。
       filteredVaultItems.map((item) => (
@@ -400,7 +409,7 @@ export function VaultPageContentView(props: {
       ...option,
       count: contextualCounts.get(option.sourceId) ?? 0
     }));
-  }, [availableRecommendationSources, filteredVaultItems, managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance]);
+  }, [recommendationMatchCopy, availableRecommendationSources, filteredVaultItems, managedRecommendationSources, props.wishlistActions?.getRecommendationManagement, recommendationSummaryByInstance]);
   const selectedRecommendationSourceIds = recommendationSourceSelections.map((selection) => selection.sourceId);
   const firstRecommendationSelection = recommendationSourceSelections[0];
   const recommendationPrimaryFilter = firstRecommendationSelection?.primaryFilter ?? "all";
@@ -599,7 +608,8 @@ export function VaultPageContentView(props: {
   const characterSwitcherItems = useMemo<ContextSwitcherItem[]>(
     () => (props.characterTabs ?? []).map((tab) => ({
       key: tab.key,
-      className: tab.className,
+      // 职业名是应用内映射产出的文案，切界面语言时要跟着走。
+      className: vaultText(copy, tab.className),
       emblemUrl: tab.emblemUrl,
       isSelected: tab.isSelected,
       title: vaultTemplate(copy, "切换到{className}", { className: tab.className }),
@@ -1148,6 +1158,7 @@ export function VaultPageContentView(props: {
               />
               <VaultItemSections
                 copy={copy}
+                recommendationMatchCopy={recommendationMatchCopy}
                 sections={filteredSections}
                 itemCollectionStore={itemCollectionStore}
                 highlightedItemKeys={props.highlightedItemKeys}

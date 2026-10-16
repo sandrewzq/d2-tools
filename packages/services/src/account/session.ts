@@ -93,6 +93,8 @@ export type CreateAccountSessionOptions = {
   profileTtlMs?: number;
   maxItemDetails?: number;
   manifestRevision?: string;
+  /** 详情缓存存的是本地化名字，调用方必须给出语言，否则换语言后会读到上一语言的详情。 */
+  manifestLanguage?: string;
   /** Optional durable cache. Memory remains the hot path; this is consulted before Bungie. */
   itemDetailStore?: AccountItemDetailCacheStore;
 };
@@ -800,8 +802,13 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
       membership_type: input.membership_type,
       destiny_membership_id: input.destiny_membership_id,
       manifest_revision: options.manifestRevision?.trim() || "manifest-unavailable",
+      manifest_language: manifestLanguageKey(),
       instance_id: input.instance_id
     };
+  }
+
+  function manifestLanguageKey(): string {
+    return options.manifestLanguage?.trim().toLowerCase() || "manifest-language-unavailable";
   }
 
   function deletePersistentItemDetail(instanceId: string): Promise<void> {
@@ -815,6 +822,7 @@ export function createAccountSession(options: CreateAccountSessionOptions): Acco
     return itemDetailStore.delete({
       ...account,
       manifest_revision: options.manifestRevision?.trim() || "manifest-unavailable",
+      manifest_language: manifestLanguageKey(),
       instance_id: instanceId
     }).then(() => undefined);
   }

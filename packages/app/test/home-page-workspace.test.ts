@@ -51,7 +51,6 @@ describe("home page derived workspace", () => {
       perkResultCount: 0,
       equipmentSearchTouched: true,
       perkSearchTouched: false,
-      diagnosticRows: [{ label: "资料库版本", value: "v1", tone: "ok" }],
       isAiConfigured: true,
     });
 
@@ -64,7 +63,6 @@ describe("home page derived workspace", () => {
     expect(derived.assistantPageContext.facts.some((fact) => fact.includes("配装缺失：1 件"))).toBe(true);
     expect(derived.assistantPageContext.facts.some((fact) => fact.includes("资料库搜索：装备 / hand cannon，命中 4 条。"))).toBe(true);
     expect(derived.isAiConfigured).toBe(true);
-    expect(derived.diagnosticRows).toHaveLength(1);
   });
 
   it("builds loadout and library fact helpers in app layer", () => {
@@ -124,7 +122,6 @@ describe("home page derived workspace", () => {
     expect(model.state.cards.account.label).toBe("需要登录 Bungie");
     expect(model.accountError).toBe("账号未读取");
     expect(model.dailyMessage).toBe("日报已刷新");
-    expect(model.diagnosticRows).toEqual([]);
     expect(model.dailySummary).toBeNull();
     expect(model.hasAccountData).toBe(false);
     expect(model.isLoggingIn).toBe(false);

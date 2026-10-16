@@ -13,43 +13,10 @@ import {
 import {
   createLocalLoadoutPlanFromEquippedItems,
   createSubclassTargetFromPlugs,
-  matchLocalLoadoutPlan,
   type CreateLocalLoadoutPlanInput,
   type LoadoutPlanItemTarget,
-  type LocalLoadoutPlan,
-  type LocalLoadoutPlanItemMatch,
-  type LocalLoadoutPlanItemMatchStatus,
-  type LocalLoadoutPlanMatch
+  type LocalLoadoutPlan
 } from "@d2-tools/core/loadouts/plans";
-
-export type LocalLoadoutPlanWorkbenchInput = {
-  accountSummary: AccountSummary | null;
-  plans: LocalLoadoutPlan[];
-  selectedPlanId: string;
-};
-
-export type LocalLoadoutPlanDirectoryEntry = {
-  id: string;
-  title: string;
-  subtitle: string;
-  status_label: string;
-  status_tone: "neutral" | "ready" | "warning";
-  source_label: string;
-};
-
-export type LocalLoadoutPlanItemRow = {
-  target: LocalLoadoutPlan["item_targets"][number];
-  match: LocalLoadoutPlanItemMatch | null;
-  status_label: string;
-  status_tone: "neutral" | "ready" | "warning";
-};
-
-export type LocalLoadoutPlanWorkbenchModel = {
-  entries: LocalLoadoutPlanDirectoryEntry[];
-  selected_plan: LocalLoadoutPlan | null;
-  item_rows: LocalLoadoutPlanItemRow[];
-  summary: LocalLoadoutPlanMatch | null;
-};
 
 export function createEmptyLocalLoadoutPlanDraft(input: {
   class_name: string;
@@ -179,31 +146,6 @@ export function resolveLocalLoadoutPlanDraftSlots(
   return changed ? { ...draft, item_targets: itemTargets } : draft;
 }
 
-export function selectLocalLoadoutPlanWorkbench(
-  input: LocalLoadoutPlanWorkbenchInput
-): LocalLoadoutPlanWorkbenchModel {
-  const selectedPlan = input.plans.find((plan) => plan.id === input.selectedPlanId)
-    ?? input.plans[0]
-    ?? null;
-  const summary = selectedPlan && input.accountSummary
-    ? matchLocalLoadoutPlan(selectedPlan, input.accountSummary)
-    : null;
-  const itemRows = selectedPlan
-    ? selectedPlan.item_targets.map((target, index) => {
-      const match = summary?.item_matches[index] ?? null;
-      const presentation = getItemMatchPresentation(match?.status);
-      return { target, match, ...presentation };
-    })
-    : [];
-
-  return {
-    entries: input.plans.map((plan) => buildDirectoryEntry(plan, input.accountSummary)),
-    selected_plan: selectedPlan,
-    item_rows: itemRows,
-    summary
-  };
-}
-
 export function getLocalLoadoutPlanAccountItems(accountSummary: AccountSummary | null): AccountItemSummary[] {
   if (!accountSummary) return [];
   return [
@@ -214,47 +156,4 @@ export function getLocalLoadoutPlanAccountItems(accountSummary: AccountSummary |
     ]),
     ...accountSummary.vault.items
   ];
-}
-
-function buildDirectoryEntry(
-  plan: LocalLoadoutPlan,
-  accountSummary: AccountSummary | null
-): LocalLoadoutPlanDirectoryEntry {
-  const summary = accountSummary ? matchLocalLoadoutPlan(plan, accountSummary) : null;
-  const unresolvedCount = summary
-    ? summary.missing_count + summary.plug_unavailable_count + summary.needs_selection_count
-    : 0;
-  return {
-    id: plan.id,
-    title: plan.name,
-    subtitle: `${plan.class_name} / ${plan.item_targets.length} 个装备目标`,
-    status_label: !accountSummary
-      ? "等待账号"
-      : unresolvedCount > 0
-        ? `${unresolvedCount} 项待确认`
-        : "可编辑",
-    status_tone: unresolvedCount > 0 ? "warning" : accountSummary ? "ready" : "neutral",
-    source_label: sourceLabel(plan.source.kind)
-  };
-}
-
-function getItemMatchPresentation(status: LocalLoadoutPlanItemMatchStatus | undefined): Pick<LocalLoadoutPlanItemRow, "status_label" | "status_tone"> {
-  if (status === "selected") return { status_label: "已选实例", status_tone: "ready" };
-  if (status === "available") return { status_label: "可选择", status_tone: "neutral" };
-  if (status === "needs-selection") return { status_label: "需要选择实例", status_tone: "warning" };
-  if (status === "missing") return { status_label: "账号内未找到", status_tone: "warning" };
-  if (status === "plug-unavailable") return { status_label: "目标 Plug 不可用", status_tone: "warning" };
-  return { status_label: "尚未配置", status_tone: "neutral" };
-}
-
-function sourceLabel(source: LocalLoadoutPlan["source"]["kind"]): string {
-  switch (source) {
-    case "current-equipment": return "当前装备";
-    case "bungie-loadout": return "Bungie 槽位";
-    case "dim-link": return "DIM 链接";
-    case "guide": return "攻略";
-    case "armor-plan": return "护甲方案";
-    case "assistant-targets": return "AI 装备目标";
-    default: return "手动创建";
-  }
 }

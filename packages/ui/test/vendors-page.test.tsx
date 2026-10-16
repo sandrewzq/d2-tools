@@ -70,7 +70,7 @@ describe("shared vendors page", () => {
         selectedVendor: undefined,
         statusBanner: {
           tone: "error",
-          message: "无法读取任何角色的商人库存",
+          message: [{ key: "无法读取任何角色的商人库存" }],
           live: "polite",
           busy: false
         }
@@ -104,7 +104,10 @@ function createModel(options: { detailFailure?: boolean } = {}) {
       state: "owned" as const,
       count: 2,
       label: "账号有 2 件同身份装备",
-      locationLabels: ["猎人 · 已装备 1 件", "仓库 1 件"],
+      locations: [
+        { key: "{class}{suffix} · 已装备 {count} 件", count: 1, values: { class: "猎人", suffix: "" } },
+        { key: "仓库 {count} 件", count: 1 }
+      ],
       asOf: "2026-07-12T11:30:00.000Z"
     },
     stats: { "2996146975": 18 },
@@ -125,7 +128,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
     inventoryStateLabel: "库存已读取",
     railStatusLabel: options.detailFailure ? "部分详情失败 · 2 件" : "已确认 · 2 件",
     detailState: options.detailFailure ? "partial" as const : "ready" as const,
-    detailFailureMessage: options.detailFailure ? "1 个角色的属性与插槽详情读取失败" : undefined,
+    detailFailureMessage: options.detailFailure ? [{ key: "{count} 个角色的属性与插槽详情读取失败", count: 1 }] : undefined,
     detailToolbar: {
       taskCategory: "重点库存",
       inventoryStateLabel: "库存已读取",
@@ -148,7 +151,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
           state: "not_owned" as const,
           count: 0,
           label: "账号无同身份实例",
-          locationLabels: [],
+          locations: [],
           asOf: "2026-07-12T11:30:00.000Z"
         },
         sourcePath: "仄 → 奇异装备优惠"
@@ -175,7 +178,7 @@ function createModel(options: { detailFailure?: boolean } = {}) {
     filters: { affordableOnly: false, unownedOnly: false },
     statusBanner: options.detailFailure ? {
       tone: "error" as const,
-      message: "1 个商人详情读取失败",
+      message: [{ key: "{count} 个商人详情读取失败", count: 1 }],
       live: "polite" as const,
       busy: false
     } : null

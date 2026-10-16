@@ -16,11 +16,14 @@ import {
  * 游戏内配装与应用配装是两个独立业务对象：各存各的、分开计数，不合并记录，也不因为内容相同藏起一条。
  * 两边靠**内容比对**互相指认。比对的只有装备和子职业两层——护甲约束、优先级、备注这些应用侧独有的
  * 设置游戏内根本不返回，一旦参与相等判断，任何一套配装都会被判成「不一致」。
+ *
+ * 这里只报「对上了什么」，不报显示串：措辞由界面按 `kind` 查表，`class_name` 这类不透明值原样带走。
  */
-export type CrossSourceLink = {
-  tone: "neutral" | "success";
-  label: string;
-};
+export type CrossSourceLink =
+  | { tone: "neutral"; kind: "no-matching-slot" }
+  | { tone: "success"; kind: "in-game-slot"; slot_index: number }
+  | { tone: "success"; kind: "equipped-now" }
+  | { tone: "neutral"; kind: "equippable-for"; class_name: string };
 
 /** 内容比对的三种结果。`unknown` 和 `different` 是两回事：没返回不等于不一样。 */
 type ContentComparison = "match" | "different" | "unknown";
@@ -31,26 +34,46 @@ type ComparableItem = {
   slotKey: string;
 };
 
-export function normalizeCompareSlot(rawSlot: string): { key: string; label: string } {
+/** 对比表认得出的 9 个规范槽位。 */
+export type LoadoutCompareSlotKey =
+  | "subclass"
+  | "kinetic"
+  | "energy"
+  | "power"
+  | "helmet"
+  | "gauntlets"
+  | "chest"
+  | "legs"
+  | "class-item";
+
+/**
+ * 槽位身份。规范槽位报 key 由界面查表；认不出的槽位原样带走装备位置名
+ * （可能是空串，界面按语言补「未命名槽位」）。
+ */
+export type LoadoutCompareSlot =
+  | { kind: "known"; slot: LoadoutCompareSlotKey }
+  | { kind: "custom"; key: string; label: string };
+
+export function normalizeCompareSlot(rawSlot: string): { key: string; slot: LoadoutCompareSlot } {
   const value = rawSlot.trim().toLocaleLowerCase();
-  const knownSlots: Array<{ key: string; label: string; patterns: RegExp[] }> = [
+  const knownSlots: Array<{ key: LoadoutCompareSlotKey; patterns: RegExp[] }> = [
     // 「职业分支」是 `bucketLabels`（`packages/core/src/items/classification.ts`）给子职业 bucket
     // 起的名字，比对表里的 `subclass` 必须在同一次归一化里认得出它。少了这一条，
     // `compareSubclassToPlan` 找不到子职业，跨来源的「内容一致」永远判不出来。
-    { key: "subclass", label: "子职业", patterns: [/子职业/, /职业分支/, /subclass/] },
-    { key: "kinetic", label: "动能武器", patterns: [/动能/, /kinetic/] },
-    { key: "energy", label: "能量武器", patterns: [/能量武器/, /^energy/] },
-    { key: "power", label: "威能武器", patterns: [/威能/, /重武器/, /power weapon/, /heavy/] },
-    { key: "helmet", label: "头盔", patterns: [/头盔/, /helmet/] },
-    { key: "gauntlets", label: "臂铠", patterns: [/臂铠/, /手套/, /gauntlet/] },
-    { key: "chest", label: "胸甲", patterns: [/胸甲/, /chest/] },
-    { key: "legs", label: "腿甲", patterns: [/腿甲/, /leg armor/, /boots/] },
-    { key: "class-item", label: "职业物品", patterns: [/职业物品/, /class item/] }
+    { key: "subclass", patterns: [/子职业/, /职业分支/, /subclass/] },
+    { key: "kinetic", patterns: [/动能/, /kinetic/] },
+    { key: "energy", patterns: [/能量武器/, /^energy/] },
+    { key: "power", patterns: [/威能/, /重武器/, /power weapon/, /heavy/] },
+    { key: "helmet", patterns: [/头盔/, /helmet/] },
+    { key: "gauntlets", patterns: [/臂铠/, /手套/, /gauntlet/] },
+    { key: "chest", patterns: [/胸甲/, /chest/] },
+    { key: "legs", patterns: [/腿甲/, /leg armor/, /boots/] },
+    { key: "class-item", patterns: [/职业物品/, /class item/] }
   ];
   const known = knownSlots.find((slot) => slot.patterns.some((pattern) => pattern.test(value)));
-  if (known) return { key: known.key, label: known.label };
+  if (known) return { key: known.key, slot: { kind: "known", slot: known.key } };
   const key = value.replace(/[^\p{Letter}\p{Number}]+/gu, "-").replace(/^-|-$/g, "") || "unknown-slot";
-  return { key: `custom:${key}`, label: rawSlot || "未命名槽位" };
+  return { key: `custom:${key}`, slot: { kind: "custom", key: `custom:${key}`, label: rawSlot } };
 }
 
 /**
@@ -63,25 +86,25 @@ export function selectApplicationLoadoutInGameLink(
 ): CrossSourceLink | null {
   if (!accountSummary) return null;
   const characters = resolvePlanCharacters(plan, accountSummary);
-  if (!characters.length) return { tone: "neutral", label: "未对应游戏内槽位" };
+  if (!characters.length) return { tone: "neutral", kind: "no-matching-slot" };
   for (const character of characters) {
     for (const slot of character.loadout_slots) {
       if (!slot.items.length) continue;
       if (compareSlotToPlan(plan, toComparableSlotItems(slot.items)) === "match") {
-        return { tone: "success", label: `游戏内槽位 ${slot.index + 1} · 内容一致` };
+        return { tone: "success", kind: "in-game-slot", slot_index: slot.index };
       }
     }
   }
   for (const character of characters) {
     if (compareSlotToPlan(plan, toComparableAccountItems(character.equipped_items)) === "match") {
-      return { tone: "success", label: "角色当前装备就是这一套" };
+      return { tone: "success", kind: "equipped-now" };
     }
   }
   const matchSummary = matchLocalLoadoutPlan(plan, accountSummary);
   if (plan.item_targets.length && matchSummary.selected_count === plan.item_targets.length) {
-    return { tone: "neutral", label: `${characters[0].class_name}身上有可穿戴对应槽位` };
+    return { tone: "neutral", kind: "equippable-for", class_name: characters[0].class_name };
   }
-  return { tone: "neutral", label: "未对应游戏内槽位" };
+  return { tone: "neutral", kind: "no-matching-slot" };
 }
 
 /**

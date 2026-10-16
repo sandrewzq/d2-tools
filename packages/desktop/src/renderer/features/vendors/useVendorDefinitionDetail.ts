@@ -1,5 +1,7 @@
 import {
   getVendorEquipmentKind,
+  vendorsText,
+  type VendorsCopy,
   type VendorInventoryItemView,
   type VendorOfferContextView
 } from "@d2-tools/ui";
@@ -30,7 +32,11 @@ export type VendorDefinitionDetailState = {
   error: string;
 } | null;
 
-export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<number, string[]>; vaultTags?: VaultTags } = {}) {
+export function useVendorDefinitionDetail(input: {
+  copy: VendorsCopy;
+  vendorSourcePaths?: Map<number, string[]>;
+  vaultTags?: VaultTags;
+}) {
   const [state, setState] = useState<VendorDefinitionDetailState>(null);
   const requestSequenceRef = useRef(0);
 
@@ -49,11 +55,11 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         description: item.summary,
         icon: item.iconUrl,
         item_type: item.itemType,
-        tier: item.tone === "exotic" ? "异域" : undefined,
+        tier: item.tone === "exotic" ? vendorsText(input.copy, "异域") : undefined,
         group_key: equipmentKind === "weapon" ? "weapons" : equipmentKind === "armor" ? "armor" : "other",
         source: {
           status: "ready",
-          label: "商人售卖",
+          label: vendorsText(input.copy, "商人售卖"),
           description: context.vendorName
         }
       },
@@ -102,7 +108,7 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
       error: detailResult.status === "rejected"
         ? detailResult.reason instanceof Error
           ? detailResult.reason.message
-          : "资料库定义读取失败"
+          : vendorsText(input.copy, "资料库定义读取失败")
         : ""
     } : null);
   }
@@ -168,8 +174,8 @@ export function useVendorDefinitionDetail(input: { vendorSourcePaths?: Map<numbe
         aiError: error instanceof Error
           ? error.message
           : current.item.group_key === "armor"
-            ? "AI 护甲分析失败"
-            : "AI 武器分析失败",
+            ? vendorsText(input.copy, "AI 护甲分析失败")
+            : vendorsText(input.copy, "AI 武器分析失败"),
         isGeneratingAi: false
       } : value);
     }

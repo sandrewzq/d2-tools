@@ -21,6 +21,7 @@ import {
 } from "@d2-tools/services/manifest/lifecycle";
 import { clearDefinitionMemoryCache } from "@d2-tools/services/manifest/definitions";
 import { listBackgroundTasks, startBackgroundTask } from "../backgroundTasks.js";
+import { mainTemplate, mainText } from "../i18n/mainCopy.js";
 import {
   quiesceRuntimeForManifestActivation,
   resumeRuntimeAfterManifestActivation
@@ -87,11 +88,12 @@ function runScheduledManifestVersionCheck(): void {
 
 function runManifestVersionCheckTask(restartIfRetrying = false): void {
   const config = loadConfig();
+  const locale = config.features.interface_locale;
   if (!config.bungie.api_key.trim()) {
     startBackgroundTask({
       type: "manifest-version-check",
-      title: "检查资料库版本",
-      message: "缺少 Bungie API Key，无法检查资料库版本。",
+      title: mainText(locale, "检查资料库版本"),
+      message: mainText(locale, "缺少 Bungie API Key，无法检查资料库版本。"),
       restartIfRetrying,
       run: async () => {
         throw new Error("请先在设置中配置 Bungie API Key");
@@ -102,8 +104,8 @@ function runManifestVersionCheckTask(restartIfRetrying = false): void {
 
   startBackgroundTask({
     type: "manifest-version-check",
-    title: "检查资料库版本",
-    message: "正在检查 Bungie Manifest 最新版本。",
+    title: mainText(locale, "检查资料库版本"),
+    message: mainText(locale, "正在检查 Bungie Manifest 最新版本。"),
     retryDelaysMs: MANIFEST_RETRY_DELAYS_MS,
     restartIfRetrying,
     run: async ({ update }) => {
@@ -137,9 +139,9 @@ function runManifestVersionCheckTask(restartIfRetrying = false): void {
       update({
         message: needsUpdate
           ? versionChanged
-            ? `发现资料库新版本 ${status.latest_version ?? "未知版本"}，已转入后台更新。`
-            : "发现资料库内容更新，已转入后台更新。"
-          : `资料库已是最新版本：${currentStatus.version ?? "未知版本"}。`
+            ? mainTemplate(locale, "发现资料库新版本 {version}，已转入后台更新。", { version: status.latest_version ?? mainText(locale, "未知版本") })
+            : mainText(locale, "发现资料库内容更新，已转入后台更新。")
+          : mainTemplate(locale, "资料库已是最新版本：{version}。", { version: currentStatus.version ?? mainText(locale, "未知版本") })
       });
       if (shouldAutoUpdateManifest(mergeManifestVersionStatus(
         getDesktopManifestStatus(),
@@ -242,12 +244,13 @@ function localDateKey(input: string | Date): string {
 function startManifestUpdateTask(options: { repair?: boolean; restartIfRetrying?: boolean } = {}): Promise<ReturnType<typeof getManifestStatus>> {
   const config = loadConfig();
   const hasApiKey = Boolean(config.bungie.api_key.trim());
+  const locale = config.features.interface_locale;
   startBackgroundTask({
     type: "manifest-update",
-    title: options.repair ? "修复资料库" : "更新资料库",
+    title: mainText(locale, options.repair ? "修复资料库" : "更新资料库"),
     message: hasApiKey
-      ? (options.repair ? "正在清理并重建 Destiny 2 资料库。" : "正在后台更新 Destiny 2 资料库。")
-      : "缺少 Bungie API Key，无法更新资料库。",
+      ? mainText(locale, options.repair ? "正在清理并重建 Destiny 2 资料库。" : "正在后台更新 Destiny 2 资料库。")
+      : mainText(locale, "缺少 Bungie API Key，无法更新资料库。"),
     retryDelaysMs: hasApiKey ? MANIFEST_RETRY_DELAYS_MS : undefined,
     restartIfRetrying: options.restartIfRetrying,
     run: async (context) => {
@@ -285,6 +288,7 @@ async function runManifestUpdate(
   context: BackgroundTaskRunContext
 ): Promise<ManifestStatus> {
   const config = loadConfig();
+  const locale = config.features.interface_locale;
   const hadUsableManifest = Boolean(loadActiveSqliteManifest(
     config.data.data_dir,
     config.data.manifest_language
@@ -362,7 +366,7 @@ async function runManifestUpdate(
     progress_current_bytes: undefined,
     progress_total_bytes: undefined,
     progress_bytes_per_second: undefined,
-    message: `资料库已更新至 ${activation.manifestVersion}，搜索和详情已恢复。`
+    message: mainTemplate(locale, "资料库已更新至 {version}，搜索和详情已恢复。", { version: activation.manifestVersion })
   });
   return mergeManifestVersionStatus(
     getDesktopManifestStatus(),

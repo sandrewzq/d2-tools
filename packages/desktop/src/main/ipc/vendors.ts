@@ -14,6 +14,7 @@ import { getDefinitions } from "../runtime/gameDataRuntime.js";
 import { measureRuntime } from "../runtime/runtimeMetrics.js";
 import { loadFreshOAuthToken } from "./authSession.js";
 import { startBackgroundTask } from "../backgroundTasks.js";
+import { mainText } from "../i18n/mainCopy.js";
 
 const vendorInventoryTimeoutMs = 30_000;
 const vendorInventoryRequests = new Map<string, Promise<Awaited<ReturnType<typeof fetchVendorInventorySnapshot>>>>();
@@ -40,8 +41,8 @@ function scheduleVendorRefresh(input: VendorInventoryRequest) {
   if (!existing) {
     startBackgroundTask({
       type: "vendor-refresh",
-      title: "刷新商人库存",
-      message: "正在读取商人库存与角色上下文。",
+      title: mainText(config.features.interface_locale, "刷新商人库存"),
+      message: mainText(config.features.interface_locale, "正在读取商人库存与角色上下文。"),
       run: async () => { await request; }
     });
   }
